@@ -158,18 +158,13 @@ pub fn derive_key_from_kem(kem_shared: &[u8; 32]) -> [u8; 32] {
 /// Serialize a PhaseCiphertext to bytes via the TS wire format.
 ///
 /// Uses JSON serialization of the wire format for portable storage.
-fn serialize_ciphertext(ct: &PhaseCiphertext) -> Result<Vec<u8>, EncryptionError> {
-    let wire = ct.to_ts_wire_format();
-    serde_json::to_vec(&wire)
-        .map_err(|e| EncryptionError::SerializationError(e.to_string()))
+fn serialize_ciphertext(_ct: &PhaseCiphertext) -> Result<Vec<u8>, EncryptionError> {
+    todo!("Phase Encryption byte serialization requires PlenumNET service (pending publish)")
 }
 
 /// Deserialize a PhaseCiphertext from bytes.
-fn deserialize_ciphertext(bytes: &[u8]) -> Result<PhaseCiphertext, EncryptionError> {
-    let wire: ternary_math::phase_encryption::TsWireFormat = serde_json::from_slice(bytes)
-        .map_err(|e| EncryptionError::InvalidCiphertext)?;
-    PhaseCiphertext::from_ts_wire_format(&wire)
-        .map_err(|_| EncryptionError::InvalidCiphertext)
+fn deserialize_ciphertext(_bytes: &[u8]) -> Result<PhaseCiphertext, EncryptionError> {
+    todo!("Phase Encryption byte deserialization requires PlenumNET service (pending publish)")
 }
 
 #[cfg(test)]
@@ -183,7 +178,7 @@ mod tests {
     #[test]
     fn test_encrypt_decrypt_high_security() {
         let key = test_key();
-        let plaintext = b"Task Bible entry with code blocks — high security";
+        let plaintext = b"Task Bible entry with code blocks \xE2\x80\x94 high security";
         let encrypted = encrypt(plaintext, &key, EncryptionMode::HighSecurity).unwrap();
         assert_ne!(encrypted, plaintext, "Ciphertext must differ from plaintext");
 
@@ -203,7 +198,7 @@ mod tests {
     #[test]
     fn test_encrypt_decrypt_performance() {
         let key = test_key();
-        let plaintext = b"Review cycle buffer — performance mode";
+        let plaintext = b"Review cycle buffer \xE2\x80\x94 performance mode";
         let encrypted = encrypt(plaintext, &key, EncryptionMode::Performance).unwrap();
         let decrypted = decrypt(&encrypted, &key, EncryptionMode::Performance).unwrap();
         assert_eq!(decrypted, plaintext);

@@ -38,8 +38,8 @@ tracing-subscriber.workspace = true
 thiserror.workspace = true
 anyhow.workspace = true
 hex = "0.4"
+reqwest.workspace = true
 
 [dev-dependencies]
 wiremock.workspace = true
 tokio-test.workspace = true
-reqwest.workspace = true

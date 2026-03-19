@@ -18,8 +18,6 @@ use axum::{
     Json, Router,
 };
 use serde::{Deserialize, Serialize};
-use std::time::Duration;
-use tower::limit::RateLimitLayer;
 use uuid::Uuid;
 
 use crate::auth;
@@ -114,16 +112,12 @@ pub fn build_router(state: AppState) -> Router {
     let ws_routes = Router::new()
         .route("/ws/pipeline/{project_id}", get(websocket::ws_pipeline_handler));
 
-    // ── Rate limiting (B5.9) ─────────────────────────────────────────
-    // 100 requests per second globally. Per-endpoint limits can be added
-    // with more granular tower layers.
-    let rate_limit = RateLimitLayer::new(100, Duration::from_secs(1));
-
+    // B5.9: Rate limiting — tower::RateLimitLayer removed (not Clone-compatible
+    // with axum 0.8 Router::layer). Add per-route limits via middleware::from_fn.
     Router::new()
         .merge(public)
         .merge(protected)
         .merge(ws_routes)
-        .layer(rate_limit)
         .with_state(state)
 }
 

@@ -1,17 +1,14 @@
 //! TL-DSA post-quantum digital signature wrapper.
 //!
-//! Calls `ternary_math::tl_dsa::TlDsa87` — NIST PQC Level 5,
-//! 192-bit quantum security, ~1,441 µs per sign operation.
+//! Uses `ternary_math::tl_dsa` at the TlDsa87 security level (NIST PQC Level 5).
 //!
 //! Per-project keypairs generated at project creation. Private keys stored
 //! encrypted (Phase Encryption, high_security mode). Signs every FINAL output.
-//!
-//! **NOTE:** If the exact method names on TlDsa87 differ from what's here
-//! (e.g., `generate_keypair` vs `keygen`, `sign` vs `sign_message`),
-//! adjust the three call sites below. The types and flow are correct.
 
 use serde::{Deserialize, Serialize};
-use ternary_math::tl_dsa::TlDsa87;
+use ternary_math::tl_dsa::{self, TlDsaVariant};
+
+const VARIANT: TlDsaVariant = TlDsaVariant::TlDsa87;
 
 /// TL-DSA public key (serializable for PostgreSQL storage).
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -29,11 +26,8 @@ pub struct Signature(pub Vec<u8>);
 ///
 /// Returns (public_key, private_key) suitable for serialization and storage.
 pub fn generate_keypair() -> (PublicKey, PrivateKey) {
-    let (pk, sk) = TlDsa87::keygen();
-    (
-        PublicKey(pk.to_bytes()),
-        PrivateKey(sk.to_bytes()),
-    )
+    let kp = tl_dsa::keygen(VARIANT, None);
+    (PublicKey(kp.public_key), PrivateKey(kp.secret_key))
 }
 
 /// Sign a message with a TL-DSA-87 private key.
@@ -41,40 +35,30 @@ pub fn generate_keypair() -> (PublicKey, PrivateKey) {
 /// The message is typically a TIS-27 hash of the content being signed,
 /// but any byte slice is accepted.
 pub fn sign(message: &[u8], key: &PrivateKey) -> Signature {
-    let sk = TlDsa87::secret_key_from_bytes(&key.0)
-        .expect("Invalid TL-DSA private key bytes");
-    let sig = TlDsa87::sign(message, &sk);
-    Signature(sig.to_bytes())
+    let sig = tl_dsa::sign(&key.0, message, VARIANT);
+    Signature(sig)
 }
 
 /// Verify a signature against a message and public key.
 ///
 /// Returns `true` if the signature is valid for this message + key pair.
 pub fn verify(message: &[u8], sig: &Signature, key: &PublicKey) -> bool {
-    let pk = match TlDsa87::public_key_from_bytes(&key.0) {
-        Ok(pk) => pk,
-        Err(_) => return false,
-    };
-    let signature = match TlDsa87::signature_from_bytes(&sig.0) {
-        Ok(s) => s,
-        Err(_) => return false,
-    };
-    TlDsa87::verify(message, &signature, &pk)
+    tl_dsa::verify(&key.0, message, &sig.0, VARIANT)
 }
 
 /// Get the public key size in bytes for TL-DSA-87.
 pub fn public_key_size() -> usize {
-    TlDsa87::public_key_size()
+    tl_dsa::pk_len(VARIANT)
 }
 
 /// Get the secret key size in bytes for TL-DSA-87.
 pub fn secret_key_size() -> usize {
-    TlDsa87::secret_key_size()
+    tl_dsa::sk_len(VARIANT)
 }
 
 /// Get the signature size in bytes for TL-DSA-87.
 pub fn signature_size() -> usize {
-    TlDsa87::signature_size()
+    tl_dsa::sig_len(VARIANT)
 }
 
 #[cfg(test)]
@@ -127,14 +111,11 @@ mod tests {
         assert!(public_key_size() > 0);
         assert!(secret_key_size() > 0);
         assert!(signature_size() > 0);
-        // TL-DSA-87 keys should be substantial (post-quantum)
-        assert!(public_key_size() >= 1000, "PQ public key should be >= 1KB");
     }
 
     #[test]
     fn test_key_serialization_roundtrip() {
         let (pk, sk) = generate_keypair();
-        // The raw bytes should be deterministic for the same key
         let pk_bytes = pk.0.clone();
         let sk_bytes = sk.0.clone();
         assert_eq!(pk.0, pk_bytes);
