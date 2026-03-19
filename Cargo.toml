@@ -1,0 +1,70 @@
+[workspace]
+members = [
+    "crates/yoda-orchestrator",
+    "crates/yoda-inference-router",
+    "crates/yoda-knowledge-base",
+    "crates/yoda-task-bible",
+    "crates/yoda-api",
+    "crates/yoda-plenumnet-bridge",
+    "tools/yoda-agent-compiler",
+]
+resolver = "2"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+authors = ["Capomastro Holdings Ltd. <RSalvi@Salvigroup.com>"]
+license = "LicenseRef-Proprietary"
+repository = "https://github.com/SigmaWolf-8/Yoda"
+
+[workspace.dependencies]
+# Async runtime & web framework
+tokio = { version = "1", features = ["full"] }
+axum = { version = "0.8", features = ["ws", "macros"] }
+axum-extra = { version = "0.10", features = ["typed-header"] }
+tower = { version = "0.5", features = ["timeout", "limit"] }
+tower-http = { version = "0.6", features = ["cors", "trace", "fs"] }
+
+# HTTP client (inference engine dispatch)
+reqwest = { version = "0.12", features = ["json", "rustls-tls"], default-features = false }
+
+# Database
+sqlx = { version = "0.8", features = [
+    "runtime-tokio",
+    "tls-rustls",
+    "postgres",
+    "uuid",
+    "chrono",
+    "json",
+    "migrate",
+] }
+
+# Serialization
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# Auth
+argon2 = "0.5"
+jsonwebtoken = "9"
+
+# Utilities
+uuid = { version = "1", features = ["v4", "serde"] }
+chrono = { version = "0.4", features = ["serde"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+thiserror = "2"
+anyhow = "1"
+
+# CLI (agent compiler)
+clap = { version = "4", features = ["derive"] }
+
+# Testing
+wiremock = "0.6"
+tokio-test = "0.4"
+
+# PlenumNET cryptographic primitives
+# Git dependency for CI/Replit portability.
+# For local development with active Ternary edits, create .cargo/config.toml
+# with a [patch] section pointing to your local Ternary checkout.
+# See .cargo/config.toml.example
+ternary-math = { git = "https://github.com/SigmaWolf-8/Ternary" }

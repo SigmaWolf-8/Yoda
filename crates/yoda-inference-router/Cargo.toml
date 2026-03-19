@@ -1,0 +1,22 @@
+[package]
+name = "yoda-inference-router"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[dependencies]
+yoda-plenumnet-bridge = { path = "../yoda-plenumnet-bridge" }
+tokio.workspace = true
+reqwest.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+uuid.workspace = true
+chrono.workspace = true
+futures = "0.3"
+
+[dev-dependencies]
+wiremock.workspace = true
+tokio-test.workspace = true

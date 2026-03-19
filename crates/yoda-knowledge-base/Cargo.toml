@@ -1,0 +1,21 @@
+[package]
+name = "yoda-knowledge-base"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[dependencies]
+yoda-plenumnet-bridge = { path = "../yoda-plenumnet-bridge" }
+yoda-inference-router = { path = "../yoda-inference-router" }
+tokio.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+uuid.workspace = true
+chrono.workspace = true
+sqlx.workspace = true
+
+[dev-dependencies]
+tokio-test.workspace = true

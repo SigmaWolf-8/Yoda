@@ -1,0 +1,19 @@
+[package]
+name = "yoda-plenumnet-bridge"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[dependencies]
+ternary-math.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+chrono.workspace = true
+uuid.workspace = true
+tracing.workspace = true
+hex = "0.4"
+
+[dev-dependencies]
+tokio-test.workspace = true

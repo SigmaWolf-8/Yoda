@@ -8,19 +8,21 @@ All rights reserved.
 
 This software and associated documentation files (the "Software") are the
 proprietary intellectual property of Capomastro Holdings Ltd. No part of
-this Software may be reproduced, distributed, transmitted, displayed,
-published, or broadcast without the prior written permission of
-Capomastro Holdings Ltd.
+the Software may be reproduced, distributed, transmitted, displayed,
+published, or broadcast without the prior written permission of Capomastro
+Holdings Ltd.
 
-The following components are covered by this license:
-- PlenumNET cryptographic infrastructure (Phase Encryption, TLSponge-385,
-  TIS-27, TL-DSA, TL-KEM, TDNS)
-- Maestro Task Bible system
-- Yoda Orchestrator and four-step adversarial refinement protocol
+The Software includes proprietary components including but not limited to:
+- YODA Orchestrator and four-step adversarial refinement protocol
 - Inference Router with adversarial diversity enforcement
-- Capomastro-specific agent role definitions (agents/capomastro/)
+- PlenumNET cryptographic bridge (Phase Encryption, TLSponge-385, TIS-27,
+  TL-DSA, TL-KEM integration)
+- Capomastro-specific agent role definitions
 - Adaptive Knowledge Base architecture
+- Maestro Task Bible integration
 - All branding, product design, and frontend implementation
-- All crates/, tools/, frontend/, and scripts/ directories
 
-For licensing inquiries, contact: RSalvi@Salvigroup.com
+Third-party components under the MIT License (agents/upstream/) retain their
+original license. See LICENSE-MIT.
+
+For licensing inquiries: RSalvi@Salvigroup.com

@@ -1,0 +1,48 @@
+# YODA — Docker Compose (local production)
+#
+# Starts YODA backend + PostgreSQL in containers.
+# For development with self-hosted inference engines, add llama-server
+# services or point the Settings page at your local instances.
+#
+# Usage:
+#   cp .env.example .env  # Edit with real values
+#   docker compose up -d
+#   docker compose logs -f yoda
+
+services:
+  yoda:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      DATABASE_URL: "postgres://yoda:yoda_secret@postgres:5432/yoda"
+      BIND_ADDR: "0.0.0.0"
+      BIND_PORT: "3000"
+      JWT_SECRET: "${JWT_SECRET:?Set JWT_SECRET in .env}"
+      JWT_REFRESH_SECRET: "${JWT_REFRESH_SECRET:?Set JWT_REFRESH_SECRET in .env}"
+      RUST_LOG: "info"
+      AGENTS_COMPILED_PATH: "./agents/compiled"
+      MODEL_LINEAGES_PATH: "./model_lineages.json"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+  postgres:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: yoda
+      POSTGRES_PASSWORD: yoda_secret
+      POSTGRES_DB: yoda
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U yoda -d yoda"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  pgdata:

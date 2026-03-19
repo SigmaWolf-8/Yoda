@@ -1,0 +1,10 @@
+# .cargo/config.toml — LOCAL DEVELOPMENT ONLY
+#
+# Copy this file to .cargo/config.toml (which is gitignored).
+# This overrides the git dependency with your local Ternary checkout,
+# so edits to Ternary are instantly visible to Yoda without pushing.
+#
+# Adjust the path to match where you have Ternary cloned:
+
+[patch."https://github.com/SigmaWolf-8/Ternary"]
+ternary-math = { path = "../Ternary/ternary-math" }

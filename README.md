@@ -2,72 +2,80 @@
 
 **Capomastro Holdings Ltd. — Applied Physics Division**
 
-Recursive multi-agent, multi-engine development intelligence platform with adversarial refinement.
+Recursive multi-agent, multi-engine development intelligence platform.
+Every task passes through a mandatory four-step adversarial refinement protocol:
+three review cycles where three separate AI engines independently evaluate,
+critique, and enrich the output, followed by a final production step
+incorporating all improvements.
+
+## Modes
+
+- **Yoda** (The Counselor) — Research, analysis, strategic reports
+- **Yoda Ronin** (The Warrior) — Same workflow + ordered AI implementation
+  instructions + production-tested code blocks
+
+## Architecture
+
+- **Backend:** Rust / Axum / PostgreSQL (sqlx compile-time checked)
+- **Frontend:** React + TypeScript + Vite + Tailwind CSS
+- **Crypto:** PlenumNET (Phase Encryption, TLSponge-385, TIS-27, TL-DSA, TL-KEM)
+- **Inference:** Engine-agnostic — self-hosted (llama.cpp), commercial API, or free-tier
+- **Agents:** 147+ roles from agency-agents (MIT) + Capomastro proprietary
 
 ## Repository Structure
 
 ```
 yoda/
-├── docs/
-│   └── api-contract.md            ← Shared API contract (frontend ↔ backend)
-├── frontend/                      ← React SPA (Task List A — complete)
-│   ├── src/
-│   ├── package.json
-│   └── vite.config.ts
-├── crates/                        ← Rust/Axum backend (Task List B)
-│   ├── yoda-orchestrator/
-│   ├── yoda-inference-router/
-│   ├── yoda-knowledge-base/
-│   ├── yoda-task-bible/
-│   ├── yoda-api/
-│   └── yoda-plenumnet-bridge/
-├── tools/
-│   └── yoda-agent-compiler/       ← Build-time CLI: MD → JSON agent compiler
-├── agents/
-│   ├── upstream/                  ← Forked agency-agents (MIT)
-│   ├── capomastro/                ← Proprietary agents
-│   └── compiled/                  ← Output of agent compiler (gitignored)
-├── scripts/
-│   ├── sync-upstream.sh
-│   ├── compile-agents.sh
-│   └── deploy.sh
 ├── Cargo.toml                     ← Rust workspace root
-├── LICENSE-MIT                    ← For forked agent definitions
-└── LICENSE-PROPRIETARY            ← For Capomastro-authored code
+├── crates/
+│   ├── yoda-orchestrator/         ← DAG engine, task state machine, assembly
+│   ├── yoda-inference-router/     ← engine-agnostic async HTTP clients
+│   ├── yoda-knowledge-base/       ← storage rules, indexing, retrieval
+│   ├── yoda-task-bible/           ← Task Bible CRUD, code block nesting
+│   ├── yoda-api/                  ← Axum routes, WebSocket, auth middleware
+│   └── yoda-plenumnet-bridge/     ← TIS-27, TL-DSA, Phase Encryption, tunnels
+├── tools/
+│   └── yoda-agent-compiler/       ← BUILD-TIME CLI: MD → JSON agent compiler
+├── frontend/                      ← React SPA (Vite + TypeScript + Tailwind)
+├── agents/
+│   ├── upstream/                  ← Forked agency-agents (MIT, read-only sync)
+│   ├── capomastro/                ← Proprietary Capomastro agents
+│   └── compiled/                  ← Output of yoda-agent-compiler (gitignored)
+└── scripts/
+    ├── sync-upstream.sh
+    ├── compile-agents.sh
+    └── deploy.sh
 ```
 
-## Frontend (Task List A)
+## Quick Start
 
 ```bash
-cd frontend
-npm install
-npm run dev        # Dev server on :5173 with proxy to backend
-npm run build      # Production build → dist/
-```
-
-The frontend calls the Axum backend via `/api` endpoints defined in `docs/api-contract.md`.
-When the backend is not running, the UI displays loading and error states gracefully.
-When the backend goes live, real data flows immediately — no fake data, no simulations.
-
-## Backend (Task List B)
-
-```bash
+# Build everything
 cargo build --workspace
+
+# Compile agents (build-time, run after agent changes)
+./scripts/compile-agents.sh
+
+# Run the backend
 cargo run --bin yoda-api
+
+# Frontend (development)
+cd frontend && npm run dev
 ```
 
-See `docs/api-contract.md` for the complete endpoint specification.
+## Licenses
+
+- `agents/upstream/` — MIT License (see LICENSE-MIT)
+- All other code — Proprietary (see LICENSE-PROPRIETARY)
+- PlenumNET primitives — Capomastro Holdings Ltd.
 
 ## Documentation
 
-- **TM-2026-020.1** — YODA Product Specification v1.5
-- **TM-2026-020.2** — PlenumNET Inference Deployment Guide
-- **docs/api-contract.md** — API Contract (frontend ↔ backend)
+- TM-2026-020.1 — YODA Product Specification v1.5
+- TM-2026-020.2 — PlenumNET Inference Deployment Guide
 
 ---
 
 *Capomastro Holdings Ltd. — Applied Physics Division*
 *Sherwood Park, Alberta, Canada*
 *RSalvi@Salvigroup.com*
-
-*Così sia, Fratello.*

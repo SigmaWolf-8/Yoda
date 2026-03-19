@@ -1,0 +1,29 @@
+# YODA — Replit Configuration
+#
+# Builds and runs both the Rust/Axum backend and the React frontend.
+# The Axum backend serves the React dist/ as static files, so only
+# one port is exposed.
+#
+# PostgreSQL runs on Replit natively (v16.10, pgvector 0.8.0 available).
+
+run = "bash scripts/replit-run.sh"
+
+entrypoint = "crates/yoda-api/src/main.rs"
+
+[nix]
+channel = "stable-24_05"
+
+[env]
+RUST_LOG = "info"
+BIND_ADDR = "0.0.0.0"
+BIND_PORT = "3000"
+AGENTS_COMPILED_PATH = "./agents/compiled"
+MODEL_LINEAGES_PATH = "./model_lineages.json"
+
+[deployment]
+run = ["bash", "scripts/replit-run.sh"]
+deploymentTarget = "cloudrun"
+
+[[ports]]
+localPort = 3000
+externalPort = 80
