@@ -7,6 +7,7 @@ interface BackendAgentSummary {
   agent_id: string;
   display_name: string;
   division: string;
+  description: string;
   competencies: string[];
   review_criteria: string[];
   compatible_reviewers: string[];
@@ -41,7 +42,7 @@ function mapAgent(a: BackendAgentSummary): AgentWithStats {
     division: a.division as AgentWithStats['division'],
     source: a.source as AgentWithStats['source'],
     license: a.license,
-    about: '',
+    about: a.description,
     key_skills: a.competencies,
     competencies: a.competencies,
     review_criteria: a.review_criteria,

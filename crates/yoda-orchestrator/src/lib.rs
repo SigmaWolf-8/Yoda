@@ -89,6 +89,9 @@ pub struct AgentConfig {
     pub agent_id: String,
     pub display_name: String,
     pub division: String,
+    /// Short human-readable prose description of the agent's role.
+    #[serde(default)]
+    pub description: String,
     pub system_prompt: String,
     pub competencies: Vec<String>,
     pub input_schema: serde_json::Value,

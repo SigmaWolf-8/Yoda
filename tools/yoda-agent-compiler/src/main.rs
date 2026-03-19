@@ -42,6 +42,10 @@ pub struct CompiledAgentConfig {
     pub agent_id: String,
     pub display_name: String,
     pub division: String,
+    /// One-to-two sentence human-readable description of the agent's role.
+    /// Extracted from YAML frontmatter `description:` field, or derived from
+    /// the first sentence of the system prompt as a fallback.
+    pub description: String,
     pub system_prompt: String,
     pub competencies: Vec<String>,
     pub input_schema: serde_json::Value,
@@ -50,6 +54,45 @@ pub struct CompiledAgentConfig {
     pub compatible_reviewers: Vec<String>,
     pub source: String,
     pub license: String,
+}
+
+// ─── YAML Frontmatter ────────────────────────────────────────────────
+
+/// Simple key:value fields extracted from a `---` frontmatter block.
+#[derive(Debug, Default)]
+struct FrontMatter {
+    description: String,
+    vibe: String,
+}
+
+/// Strip and parse the leading `---...---` frontmatter block.
+/// Returns (frontmatter, remaining_markdown_body).
+fn parse_frontmatter(content: &str) -> (FrontMatter, &str) {
+    let mut fm = FrontMatter::default();
+    let trimmed = content.trim_start();
+
+    if !trimmed.starts_with("---") {
+        return (fm, content);
+    }
+
+    let rest = &trimmed[3..];
+    let end = match rest.find("\n---") {
+        Some(pos) => pos,
+        None => return (fm, content),
+    };
+
+    let block = &rest[..end];
+    for line in block.lines() {
+        if let Some(val) = line.strip_prefix("description:") {
+            fm.description = val.trim().trim_matches('"').to_string();
+        } else if let Some(val) = line.strip_prefix("vibe:") {
+            fm.vibe = val.trim().trim_matches('"').to_string();
+        }
+    }
+
+    let body_start = 3 + end + 4; // skip "\n---"
+    let body = if body_start < trimmed.len() { &trimmed[body_start..] } else { "" };
+    (fm, body)
 }
 
 // ─── Parsed Markdown Sections ────────────────────────────────────────
@@ -391,8 +434,9 @@ fn default_output_schema() -> serde_json::Value {
 // ─── Compile Single Agent (B0.3.7) ───────────────────────────────────
 
 fn compile_agent(path: &Path, base_dir: &Path, license: &str) -> Result<CompiledAgentConfig> {
-    let content = fs::read_to_string(path).context(format!("Reading {}", path.display()))?;
-    let parsed = parse_markdown(&content);
+    let raw = fs::read_to_string(path).context(format!("Reading {}", path.display()))?;
+    let (fm, body) = parse_frontmatter(&raw);
+    let parsed = parse_markdown(body);
     if parsed.title.is_empty() { bail!("No H1 title in {}", path.display()); }
 
     let relative = path.strip_prefix(base_dir).unwrap_or(path);
@@ -402,8 +446,21 @@ fn compile_agent(path: &Path, base_dir: &Path, license: &str) -> Result<Compiled
         .map(|n| n.to_string_lossy().to_string())
         .unwrap_or_else(|| "specialized".to_string());
 
-    let competencies = extract_competencies(&parsed, &content);
+    let competencies = extract_competencies(&parsed, body);
     let system_prompt = build_system_prompt(&parsed);
+
+    // Description: prefer explicit frontmatter field; fall back to first sentence
+    // of identity (the "You are…" line) so every agent has readable prose.
+    let description = if !fm.description.is_empty() {
+        fm.description.clone()
+    } else {
+        parsed.identity
+            .lines()
+            .find(|l| !l.trim().is_empty() && !l.trim().starts_with('-') && !l.trim().starts_with('*'))
+            .map(|l| l.trim().to_string())
+            .unwrap_or_default()
+    };
+
     let review_criteria = if parsed.review_criteria.is_empty() {
         vec!["correctness", "completeness", "security", "performance", "maintainability"]
             .into_iter().map(String::from).collect()
@@ -413,8 +470,8 @@ fn compile_agent(path: &Path, base_dir: &Path, license: &str) -> Result<Compiled
     let compatible_reviewers = determine_compatible_reviewers(&competencies, &division);
 
     Ok(CompiledAgentConfig {
-        agent_id, display_name: parsed.title, division, system_prompt,
-        competencies, input_schema: default_input_schema(),
+        agent_id, display_name: parsed.title, division, description,
+        system_prompt, competencies, input_schema: default_input_schema(),
         output_schema: default_output_schema(), review_criteria,
         compatible_reviewers, source: relative.to_string_lossy().to_string(),
         license: license.to_string(),
