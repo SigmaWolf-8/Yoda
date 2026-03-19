@@ -348,7 +348,7 @@ export function MetatronCubeRoster({
     const orbits = [rI + 18, rO + 18, rD].map((r, i) =>
       `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${P.orb}" stroke-width="0.6" ${i === 2 ? 'stroke-dasharray="3 5"' : ''} pointer-events="none"/>`,
     ).join('');
-    const footer = `<text x="${cx}" y="${h - 24}" text-anchor="middle" fill="${P.fgFaint}" font-size="11" font-family="'JetBrains Mono', monospace" letter-spacing="0.5" pointer-events="none">${DIVISIONS.length} divisions · 3 shells + 2 satellites · ${agents.length} agent${agents.length !== 1 ? 's' : ''}</text>`;
+    const footer = `<text x="${cx}" y="${h - 24}" text-anchor="middle" fill="${P.fgFaint}" font-size="11" font-family="'JetBrains Mono', monospace" letter-spacing="0.5" pointer-events="none">${DIVISIONS.length} divisions · 3 shells + ${SAT_DIVS.length} satellite · ${agents.length} agent${agents.length !== 1 ? 's' : ''}</text>`;
     return `${defs}${glow}${orbits}${buildEdges()}${buildNodes()}${footer}`;
   }, [positions, subNodes, P, EC, cx, cy, rI, rO, rD, h, agents.length, divCounts, divAgents, selectedDivision, selectedAgentIdx]);
 

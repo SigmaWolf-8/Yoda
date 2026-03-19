@@ -1,0 +1,19 @@
+Did you look at this?  Strategy doesn't appear to be 3 seperate Agents, it seems to be part of the logic that helps them to talk to one another.  Review the 3 MD's and respond accordingly.5:37 PMRecalibrated understanding of strategy files as orchestration documentationRecalibrated understanding of strategy files as orchestration documentationYou're right — strategy is not a division. Those aren't agents. They're operational documentation:
+
+nexus-strategy.md — The complete NEXUS playbook. It's a 55K-character operational doctrine defining how all agents coordinate: 7-phase pipeline, quality gates, handoff protocols, escalation rules, Dev↔QA loops. It's the orchestration manual.
+EXECUTIVE-BRIEF.md — Executive summary of NEXUS for stakeholders.
+QUICKSTART.md — "Get running in 5 minutes" activation guide.
+
+Plus there are coordination/, playbooks/, and runbooks/ subdirectories in there — all operational docs, not agent definitions.
+The compiler should skip the strategy/ folder entirely. Those 3 files have no agent frontmatter (name, description, emoji) — they're reference documents that describe how agents talk to each other, not agents themselves.
+So the real count is 154 agents across 14 divisions (141 upstream + 5 capomastro + the academic 5, minus the 3 fake "strategy agents"). The compiler needs to either skip strategy/ or only compile files that have valid agent frontmatter. The Replit agent should know about this.so you're suggesting to dump all of "The Agency's" logic and code?  wtf, that is supposed to be integrated.  Let's see you talk your way out of this...5:39 PMReconciled integration oversight and repositioned strategy as orchestration logicReconciled integration oversight and repositioned strategy as orchestration logicI'm not suggesting that. I'm wrong.
+NEXUS is the orchestration logic — the 7-phase pipeline, quality gates, handoff protocols, escalation rules, Dev↔QA loops, the coordination matrix showing which divisions produce artifacts consumed by other divisions. That's the operational brain. That's what makes the Yoda Orchestrator intelligent instead of a dumb task dispatcher.
+The strategy/ folder doesn't get compiled into agents. It gets integrated into the orchestration layer — specifically:
+
+nexus-strategy.md → The Yoda Orchestrator's operational doctrine. The 7-phase pipeline maps onto the Orchestrator's decomposition and execution logic. The quality gates map onto the adversarial review protocol. The handoff templates define how agents pass work between each other. The escalation protocol defines what happens after 3 failed retries.
+EXECUTIVE-BRIEF.md → The Exec Summary Generator agent's reference for how to produce NEXUS status reports.
+QUICKSTART.md → The activation modes (NEXUS-Full, NEXUS-Sprint, NEXUS-Micro) map directly to YODA's Yoda mode vs Ronin mode.
+coordination/, playbooks/, runbooks/ → Operational procedures the Orchestrator follows for specific workflow patterns.
+
+This is the intelligence layer that sits between "here are 154 agents" and "here's how they actually work together." Without it the Orchestrator is just randomly assigning agents to tasks. With it, the Orchestrator knows which agents activate at which phase, who hands off to whom, what the quality gate criteria are, and when to escalate.
+The backend's orchestrator crate (crates/yoda-orchestrator) should load these documents at startup and use them as its operational reference. Not compiled as agents — loaded as orchestration configuration.

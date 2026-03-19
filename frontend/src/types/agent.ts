@@ -15,7 +15,6 @@ export type AgentDivision =
   | 'project-management'
   | 'specialized'
   | 'academic'
-  | 'strategy'
   | 'marketing'
   | 'sales'
   | 'paid-media'
@@ -51,9 +50,8 @@ export const DIVISIONS: DivisionMeta[] = [
   { id: 'game-development',   label: 'Game Dev',     ring: 'outer' },
   // [12] depth
   { id: 'spatial-computing',  label: 'Spatial',      ring: 'depth' },
-  // [13-14] satellite sub-nodes — tethered to a parent inner node
-  { id: 'academic',  label: 'Academic', ring: 'satellite', satelliteParent: 'specialized',        satelliteAngleOffset:  Math.PI / 7 },
-  { id: 'strategy',  label: 'Strategy', ring: 'satellite', satelliteParent: 'project-management', satelliteAngleOffset: -Math.PI / 7 },
+  // [13] satellite sub-node — tethered to parent inner node
+  { id: 'academic', label: 'Academic', ring: 'satellite', satelliteParent: 'specialized', satelliteAngleOffset: Math.PI / 6 },
 ];
 
 export interface AgentConfig {

@@ -236,11 +236,21 @@ fn license_audit(upstream_dir: &Path) -> Result<()> {
 
 // ─── Agent Discovery ─────────────────────────────────────────────────
 
+/// Subdirectories inside an agent root that are NOT agent definitions.
+/// These are operational/orchestration documents — skip them entirely.
+const SKIP_DIRS: &[&str] = &["strategy", "coordination", "playbooks", "runbooks"];
+
 fn discover_agents(dir: &Path) -> Result<Vec<PathBuf>> {
     let mut agents = Vec::new();
     if !dir.exists() { return Ok(agents); }
     for entry in walkdir(dir)? {
         if entry.extension().map_or(false, |e| e == "md") {
+            // Skip files inside any reserved operational directory
+            let in_skip_dir = entry.components().any(|c| {
+                let s = c.as_os_str().to_string_lossy();
+                SKIP_DIRS.contains(&s.as_ref())
+            });
+            if in_skip_dir { continue; }
             let name = entry.file_stem().unwrap_or_default().to_string_lossy();
             if name.to_lowercase() != "readme" {
                 agents.push(entry);
