@@ -142,18 +142,23 @@ async fn get_lineages(
 #[derive(Debug, Deserialize)]
 struct CreateProjectRequest { name: String, mode: String }
 
-#[derive(Debug, Serialize)]
-struct ProjectResponse {
+fn project_json(
     id: Uuid, name: String, mode: String,
     settings: serde_json::Value,
     created_at: chrono::DateTime<chrono::Utc>,
+    updated_at: chrono::DateTime<chrono::Utc>,
+) -> serde_json::Value {
+    serde_json::json!({
+        "id": id, "name": name, "mode": mode, "settings": settings,
+        "created_at": created_at, "updated_at": updated_at,
+    })
 }
 
 async fn create_project(
     State(state): State<AppState>,
     user: axum::Extension<auth::AuthenticatedUser>,
     Json(req): Json<CreateProjectRequest>,
-) -> Result<(StatusCode, Json<ProjectResponse>), AppError> {
+) -> Result<(StatusCode, Json<serde_json::Value>), AppError> {
     if !["yoda", "ronin"].contains(&req.mode.as_str()) {
         return Err(AppError::Validation("Mode must be 'yoda' or 'ronin'".into()));
     }
@@ -167,29 +172,34 @@ async fn create_project(
         "INSERT INTO projects (id, org_id, name, mode, settings, created_at, updated_at) VALUES ($1,$2,$3,$4,$5,$6,$6)"
     ).bind(id).bind(user.org_id).bind(&req.name).bind(&req.mode).bind(&settings).bind(now)
         .execute(&state.db).await.map_err(AppError::Database)?;
-    Ok((StatusCode::CREATED, Json(ProjectResponse { id, name: req.name, mode: req.mode, settings, created_at: now })))
+    Ok((StatusCode::CREATED, Json(serde_json::json!({
+        "project": project_json(id, req.name, req.mode, settings, now, now)
+    }))))
 }
 
 async fn list_projects(
     State(state): State<AppState>,
     user: axum::Extension<auth::AuthenticatedUser>,
-) -> Result<Json<Vec<ProjectResponse>>, AppError> {
-    let rows = sqlx::query_as::<_, (Uuid, String, String, serde_json::Value, chrono::DateTime<chrono::Utc>)>(
-        "SELECT id, name, mode, settings, created_at FROM projects WHERE org_id = $1 ORDER BY created_at DESC"
+) -> Result<Json<serde_json::Value>, AppError> {
+    let rows = sqlx::query_as::<_, (Uuid, String, String, serde_json::Value, chrono::DateTime<chrono::Utc>, chrono::DateTime<chrono::Utc>)>(
+        "SELECT id, name, mode, settings, created_at, updated_at FROM projects WHERE org_id = $1 ORDER BY updated_at DESC"
     ).bind(user.org_id).fetch_all(&state.db).await.map_err(AppError::Database)?;
-    Ok(Json(rows.into_iter().map(|(id,name,mode,settings,created_at)| ProjectResponse{id,name,mode,settings,created_at}).collect()))
+    let projects: Vec<serde_json::Value> = rows.into_iter()
+        .map(|(id,name,mode,settings,ca,ua)| project_json(id,name,mode,settings,ca,ua))
+        .collect();
+    Ok(Json(serde_json::json!({ "projects": projects })))
 }
 
 async fn get_project(
     State(state): State<AppState>,
     user: axum::Extension<auth::AuthenticatedUser>,
     Path(project_id): Path<Uuid>,
-) -> Result<Json<ProjectResponse>, AppError> {
-    let (id,name,mode,settings,created_at) = sqlx::query_as::<_, (Uuid,String,String,serde_json::Value,chrono::DateTime<chrono::Utc>)>(
-        "SELECT id, name, mode, settings, created_at FROM projects WHERE id = $1 AND org_id = $2"
+) -> Result<Json<serde_json::Value>, AppError> {
+    let (id,name,mode,settings,ca,ua) = sqlx::query_as::<_, (Uuid,String,String,serde_json::Value,chrono::DateTime<chrono::Utc>,chrono::DateTime<chrono::Utc>)>(
+        "SELECT id, name, mode, settings, created_at, updated_at FROM projects WHERE id = $1 AND org_id = $2"
     ).bind(project_id).bind(user.org_id).fetch_optional(&state.db).await
         .map_err(AppError::Database)?.ok_or(AppError::NotFound("Project not found".into()))?;
-    Ok(Json(ProjectResponse{id,name,mode,settings,created_at}))
+    Ok(Json(serde_json::json!({ "project": project_json(id,name,mode,settings,ca,ua) })))
 }
 
 #[derive(Debug, Deserialize)]
@@ -200,7 +210,7 @@ async fn update_project(
     user: axum::Extension<auth::AuthenticatedUser>,
     Path(project_id): Path<Uuid>,
     Json(req): Json<UpdateProjectRequest>,
-) -> Result<Json<ProjectResponse>, AppError> {
+) -> Result<Json<serde_json::Value>, AppError> {
     let (cur_name,cur_mode,cur_settings,created_at) = sqlx::query_as::<_, (String,String,serde_json::Value,chrono::DateTime<chrono::Utc>)>(
         "SELECT name, mode, settings, created_at FROM projects WHERE id = $1 AND org_id = $2"
     ).bind(project_id).bind(user.org_id).fetch_optional(&state.db).await
@@ -208,10 +218,11 @@ async fn update_project(
     let name = req.name.unwrap_or(cur_name);
     let mode = req.mode.unwrap_or(cur_mode);
     let settings = req.settings.unwrap_or(cur_settings);
-    sqlx::query("UPDATE projects SET name=$1, mode=$2, settings=$3 WHERE id=$4")
-        .bind(&name).bind(&mode).bind(&settings).bind(project_id)
+    let now = chrono::Utc::now();
+    sqlx::query("UPDATE projects SET name=$1, mode=$2, settings=$3, updated_at=$4 WHERE id=$5")
+        .bind(&name).bind(&mode).bind(&settings).bind(now).bind(project_id)
         .execute(&state.db).await.map_err(AppError::Database)?;
-    Ok(Json(ProjectResponse{id:project_id,name,mode,settings,created_at}))
+    Ok(Json(serde_json::json!({ "project": project_json(project_id,name,mode,settings,created_at,now) })))
 }
 
 async fn delete_project(
@@ -275,14 +286,15 @@ async fn cancel_task(State(state): State<AppState>, Path(task_id): Path<Uuid>) -
 async fn get_engines(
     State(state): State<AppState>,
     user: axum::Extension<auth::AuthenticatedUser>,
-) -> Result<Json<Vec<serde_json::Value>>, AppError> {
+) -> Result<Json<serde_json::Value>, AppError> {
     let rows = sqlx::query_as::<_, (Uuid,String,String,String,String,String,String,Option<String>,String,Option<i32>)>(
         "SELECT id,slot,hosting_mode,endpoint_url,auth_type,model_name,model_family,family_override,health_status,avg_latency_ms FROM engine_configs WHERE org_id=$1 ORDER BY slot"
     ).bind(user.org_id).fetch_all(&state.db).await.map_err(AppError::Database)?;
-    Ok(Json(rows.into_iter().map(|(id,slot,hm,eu,at,mn,mf,fo,hs,al)| serde_json::json!({
+    let engines: Vec<serde_json::Value> = rows.into_iter().map(|(id,slot,hm,eu,at,mn,mf,fo,hs,al)| serde_json::json!({
         "id":id,"slot":slot,"hosting_mode":hm,"endpoint_url":eu,"auth_type":at,
         "model_name":mn,"model_family":mf,"family_override":fo,"health_status":hs,"avg_latency_ms":al
-    })).collect()))
+    })).collect();
+    Ok(Json(serde_json::json!({ "engines": engines })))
 }
 
 #[derive(Debug, Deserialize)]

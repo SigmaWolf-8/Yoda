@@ -471,7 +471,7 @@ pub async fn create_org(
     State(state): State<AppState>,
     user: axum::Extension<AuthenticatedUser>,
     Json(req): Json<CreateOrgRequest>,
-) -> Result<Json<OrgResponse>, AppError> {
+) -> Result<Json<serde_json::Value>, AppError> {
     let org_id = Uuid::new_v4();
     sqlx::query("INSERT INTO organizations (id, name) VALUES ($1, $2)")
         .bind(org_id)
@@ -488,14 +488,14 @@ pub async fn create_org(
         .await
         .map_err(AppError::Database)?;
 
-    Ok(Json(OrgResponse { id: org_id, name: req.name }))
+    Ok(Json(serde_json::json!({ "org": { "id": org_id, "name": req.name } })))
 }
 
 /// GET /api/orgs
 pub async fn list_orgs(
     State(state): State<AppState>,
     user: axum::Extension<AuthenticatedUser>,
-) -> Result<Json<Vec<OrgResponse>>, AppError> {
+) -> Result<Json<serde_json::Value>, AppError> {
     let orgs = sqlx::query_as::<_, (Uuid, String)>(
         "SELECT o.id, o.name FROM organizations o \
          JOIN org_members om ON o.id = om.org_id \
@@ -506,7 +506,11 @@ pub async fn list_orgs(
     .await
     .map_err(AppError::Database)?;
 
-    Ok(Json(orgs.into_iter().map(|(id, name)| OrgResponse { id, name }).collect()))
+    let list: Vec<serde_json::Value> = orgs
+        .into_iter()
+        .map(|(id, name)| serde_json::json!({ "id": id, "name": name }))
+        .collect();
+    Ok(Json(serde_json::json!({ "orgs": list })))
 }
 
 // ─── API Key Handlers (B-AUTH.8) ─────────────────────────────────────
