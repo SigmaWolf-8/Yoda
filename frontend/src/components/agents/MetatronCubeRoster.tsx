@@ -146,14 +146,24 @@ export function MetatronCubeRoster({
   const cen = positions[0];
   const dep = positions[12];
 
-  // Click handler
+  // Click handler — walk composedPath to find the first data-div or data-agent element
   const handleClick = useCallback((e: React.MouseEvent<SVGSVGElement>) => {
-    const target = e.target as SVGElement;
-    if (target.tagName !== 'circle') return;
-    const agentIdx = target.getAttribute('data-agent');
-    const divId = target.getAttribute('data-div');
+    let hit: Element | null = null;
+    for (const node of e.nativeEvent.composedPath()) {
+      if (!(node instanceof Element)) continue;
+      if (node.tagName === 'svg') break; // don't go above the SVG root
+      if (node.hasAttribute('data-div') || node.hasAttribute('data-agent')) {
+        hit = node;
+        break;
+      }
+    }
+    if (!hit) return;
+
+    const agentIdx = hit.getAttribute('data-agent');
+    const divId = hit.getAttribute('data-div');
+
     if (agentIdx !== null) {
-      const idx = parseInt(agentIdx);
+      const idx = parseInt(agentIdx, 10);
       onSelectAgent(selectedAgentIdx === idx ? null : idx);
       return;
     }
@@ -207,13 +217,13 @@ export function MetatronCubeRoster({
 
       // Central breathing ring
       if (p.ring === 'central' && !dimmed) {
-        parts.push(`<circle cx="${p.x}" cy="${p.y}" r="${r + 8}" fill="none" stroke="${col}" stroke-width="0.6" opacity="0.4"><animate attributeName="r" values="${r+6};${r+10};${r+6}" dur="4s" repeatCount="indefinite"/></circle>`);
+        parts.push(`<circle cx="${p.x}" cy="${p.y}" r="${r + 8}" fill="none" stroke="${col}" stroke-width="0.6" opacity="0.4" style="pointer-events:none"><animate attributeName="r" values="${r+6};${r+10};${r+6}" dur="4s" repeatCount="indefinite"/></circle>`);
       }
 
       // Selection bloom
       if (isSel) {
-        parts.push(`<circle cx="${p.x}" cy="${p.y}" r="${r + 16}" fill="${col}" opacity="0.03"/>`);
-        parts.push(`<circle cx="${p.x}" cy="${p.y}" r="${r + 8}" fill="none" stroke="${col}" stroke-width="1.3" opacity="0.5"/>`);
+        parts.push(`<circle cx="${p.x}" cy="${p.y}" r="${r + 16}" fill="${col}" opacity="0.03" style="pointer-events:none"/>`);
+        parts.push(`<circle cx="${p.x}" cy="${p.y}" r="${r + 8}" fill="none" stroke="${col}" stroke-width="1.3" opacity="0.5" style="pointer-events:none"/>`);
       }
 
       // Node circle
@@ -241,9 +251,9 @@ export function MetatronCubeRoster({
           const isSelA = selectedAgentIdx === ai;
           const sr = isSelA ? 5.5 : 3.5;
 
-          parts.push(`<line x1="${p.x}" y1="${p.y}" x2="${sx}" y2="${sy}" stroke="${col}" stroke-width="0.25" opacity="0.2"/>`);
+          parts.push(`<line x1="${p.x}" y1="${p.y}" x2="${sx}" y2="${sy}" stroke="${col}" stroke-width="0.25" opacity="0.2" style="pointer-events:none"/>`);
           if (isSelA) {
-            parts.push(`<circle cx="${sx}" cy="${sy}" r="${sr + 3.5}" fill="none" stroke="${col}" stroke-width="0.8" opacity="0.4"/>`);
+            parts.push(`<circle cx="${sx}" cy="${sy}" r="${sr + 3.5}" fill="none" stroke="${col}" stroke-width="0.8" opacity="0.4" style="pointer-events:none"/>`);
             parts.push(`<text x="${sx}" y="${sy - sr - 7}" text-anchor="middle" fill="${P.fgSoft}" font-size="9" font-family="'JetBrains Mono', monospace" font-weight="500" style="pointer-events:none">${ag.display_name}</text>`);
           }
           parts.push(`<circle cx="${sx}" cy="${sy}" r="${sr}" fill="${col}" opacity="${isSelA ? 0.95 : 0.45}" data-agent="${ai}" style="cursor:pointer"/>`);
@@ -262,9 +272,9 @@ export function MetatronCubeRoster({
       </radialGradient>
       <filter id="mcng"><feGaussianBlur stdDeviation="4" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
     </defs>`;
-    const glow = `<circle cx="${cx}" cy="${cy}" r="${rD * 0.88}" fill="url(#mcgl)"/>`;
+    const glow = `<circle cx="${cx}" cy="${cy}" r="${rD * 0.88}" fill="url(#mcgl)" style="pointer-events:none"/>`;
     const orbits = [rI + 18, rO + 18, rD].map((r, i) =>
-      `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${P.orb}" stroke-width="0.6" ${i === 2 ? 'stroke-dasharray="3 5"' : ''}/>`
+      `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${P.orb}" stroke-width="0.6" ${i === 2 ? 'stroke-dasharray="3 5"' : ''} style="pointer-events:none"/>`
     ).join('');
     const shellLabels = [
       `<text x="${cx}" y="${cy - rD - 14}" text-anchor="middle" fill="${P.fgFaint}" font-size="9" font-family="'JetBrains Mono', monospace" letter-spacing="1.2">DEPTH · SHELL SELECTOR</text>`,
