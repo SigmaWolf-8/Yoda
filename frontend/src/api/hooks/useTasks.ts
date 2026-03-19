@@ -3,6 +3,36 @@ import apiClient from '../client';
 import type { Task, QueryResult } from '../../types';
 import type { TaskResult } from '../../types/task-result';
 import type { TaskReview } from '../../types/task-review';
+import type { AgentRecentTask } from '../../types/agent';
+
+function timeAgo(isoDate: string): string {
+  const diffMs = Date.now() - new Date(isoDate).getTime();
+  const diffMin = Math.floor(diffMs / 60_000);
+  if (diffMin < 1) return 'just now';
+  if (diffMin < 60) return `${diffMin}m`;
+  const diffH = Math.floor(diffMin / 60);
+  if (diffH < 24) return `${diffH}h`;
+  const diffD = Math.floor(diffH / 24);
+  return `${diffD}d`;
+}
+
+export function useRecentTasks() {
+  return useQuery<AgentRecentTask[]>({
+    queryKey: ['tasks', 'recent'],
+    queryFn: async () => {
+      const res = await apiClient.get<{
+        tasks: Array<{ task_number: string; title: string; status: string; created_at: string }>;
+      }>('/tasks/recent');
+      return res.data.tasks.map(t => ({
+        task_number: t.task_number,
+        title: t.title,
+        status: t.status,
+        time_ago: timeAgo(t.created_at),
+      }));
+    },
+    refetchInterval: 30_000,
+  });
+}
 
 export function useTasks(projectId?: string) {
   return useQuery({

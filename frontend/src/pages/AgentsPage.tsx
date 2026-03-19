@@ -153,7 +153,7 @@ export function AgentsPage() {
       )}
 
       {/* Thin action strip — no title (title lives in the top bar now) */}
-      <div className="flex items-center justify-end px-5 py-2 border-b border-[var(--color-border-subtle)] bg-[var(--color-surface-secondary)]/30 flex-shrink-0">
+      <div className="flex items-center justify-end px-5 py-3 border-b border-[var(--color-border-subtle)] bg-[var(--color-surface-secondary)]/30 flex-shrink-0">
         <button
           onClick={() => setEditorMode({ type: 'create' })}
           className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[hsl(210,80%,55%)]/10 text-[hsl(210,70%,65%)] text-xs font-semibold border border-[hsl(210,80%,55%)]/20 hover:bg-[hsl(210,80%,55%)]/18 transition-colors"

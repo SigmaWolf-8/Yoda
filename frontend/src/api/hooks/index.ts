@@ -15,6 +15,7 @@ export {
 export {
   useTasks,
   useTask,
+  useRecentTasks,
   useSubmitQuery,
   useApproveDecomposition,
   useRetryTask,

@@ -1,7 +1,8 @@
 import { useMemo } from 'react';
-import { Lock, Copy, Pencil, ChevronRight } from 'lucide-react';
-import type { AgentWithStats, AgentDivision, AgentRecentTask } from '../../types';
+import { Lock, Copy, Pencil, Loader2 } from 'lucide-react';
+import type { AgentWithStats, AgentDivision } from '../../types';
 import { DIVISIONS } from '../../types/agent';
+import { useRecentTasks } from '../../api/hooks/useTasks';
 
 interface Props {
   agents: AgentWithStats[];
@@ -12,20 +13,14 @@ interface Props {
   onCopyTemplate: (agent: AgentWithStats) => void;
 }
 
-/** Mock recent tasks — production will come from API */
-const MOCK_TASKS: AgentRecentTask[] = [
-  { task_number: '1.3.2.1', title: 'Webhook retry logic', status: 'FINAL', time_ago: '2m' },
-  { task_number: '1.2.4.2', title: 'Auth middleware refactor', status: 'FINAL', time_ago: '18m' },
-  { task_number: '2.1.1.3', title: 'Connection pool sizing', status: 'ESCALATED', time_ago: '1h' },
-  { task_number: '1.1.3.1', title: 'JWT validation rewrite', status: 'FINAL', time_ago: '3h' },
-];
-
 export function AgentDetailPanel({ agents, division, selectedIdx, onSelectIdx, onEdit, onCopyTemplate }: Props) {
   const divMeta = DIVISIONS.find(d => d.id === division);
   const divAgents = useMemo(() => agents.filter(a => a.division === division), [agents, division]);
   const agent = selectedIdx !== null ? divAgents[selectedIdx] : divAgents[0];
   const activeIdx = selectedIdx ?? 0;
   const isCM = division === 'capomastro';
+
+  const { data: recentTasks, isLoading: tasksLoading } = useRecentTasks();
 
   if (!divMeta || divAgents.length === 0) {
     return (
@@ -177,25 +172,34 @@ export function AgentDetailPanel({ agents, division, selectedIdx, onSelectIdx, o
           </Section>
         )}
 
-        {/* Recent Tasks */}
+        {/* Recent Tasks — live system activity from the database */}
         <Section label="Recent tasks">
-          <div className="space-y-0">
-            {MOCK_TASKS.map((t, i) => (
-              <div key={i} className="flex items-center gap-2 py-1.5 border-b border-[var(--color-border-subtle)] last:border-0 text-[9px]">
-                <span className="flex-1 min-w-0 truncate text-[var(--color-text-secondary)] font-mono">
-                  {t.task_number} — {t.title}
-                </span>
-                <span className={`px-1.5 py-0.5 rounded text-[7px] font-semibold flex-shrink-0 ${
-                  t.status === 'ESCALATED'
-                    ? 'bg-[hsl(270,50%,65%)]/8 text-[hsl(270,50%,65%)]'
-                    : 'bg-[hsl(210,80%,55%)]/6 text-[hsl(210,70%,65%)]'
-                }`}>
-                  {t.status}
-                </span>
-                <span className="text-[var(--color-text-muted)] flex-shrink-0">{t.time_ago}</span>
-              </div>
-            ))}
-          </div>
+          {tasksLoading ? (
+            <div className="flex items-center gap-2 py-2 text-[10px] text-[var(--color-text-muted)]">
+              <Loader2 className="w-3 h-3 animate-spin" />
+              Loading…
+            </div>
+          ) : !recentTasks || recentTasks.length === 0 ? (
+            <p className="text-[10px] text-[var(--color-text-muted)] italic py-1">No tasks recorded yet.</p>
+          ) : (
+            <div className="space-y-0">
+              {recentTasks.map((t, i) => (
+                <div key={i} className="flex items-center gap-2 py-1.5 border-b border-[var(--color-border-subtle)] last:border-0 text-[9px]">
+                  <span className="flex-1 min-w-0 truncate text-[var(--color-text-secondary)] font-mono">
+                    {t.task_number} — {t.title}
+                  </span>
+                  <span className={`px-1.5 py-0.5 rounded text-[7px] font-semibold flex-shrink-0 ${
+                    t.status === 'ESCALATED'
+                      ? 'bg-[hsl(270,50%,65%)]/8 text-[hsl(270,50%,65%)]'
+                      : 'bg-[hsl(210,80%,55%)]/6 text-[hsl(210,70%,65%)]'
+                  }`}>
+                    {t.status}
+                  </span>
+                  <span className="text-[var(--color-text-muted)] flex-shrink-0">{t.time_ago}</span>
+                </div>
+              ))}
+            </div>
+          )}
         </Section>
 
         {/* Actions */}

@@ -61,6 +61,7 @@ pub fn build_router(state: AppState) -> Router {
         .route("/api/projects/{id}/query/approve", post(query::approve_decomposition))
 
         // Tasks (B5.2)
+        .route("/api/tasks/recent", get(list_recent_tasks))
         .route("/api/projects/{id}/tasks", get(list_tasks))
         .route("/api/tasks/{id}", get(get_task))
         .route("/api/tasks/{id}/retry", post(retry_task))
@@ -265,6 +266,41 @@ async fn list_tasks(
         "SELECT id,task_number,title,status,mode,competencies,dependencies,workflow_position,created_at FROM tasks WHERE project_id=$1 ORDER BY workflow_position,task_number"
     ).bind(project_id).fetch_all(&state.db).await.map_err(AppError::Database)?;
     Ok(Json(rows.into_iter().map(|(id,tn,t,s,m,c,d,wp,ca)| TaskResponse{id,task_number:tn,title:t,status:s,mode:m,competencies:c,dependencies:d,workflow_position:wp,created_at:ca}).collect()))
+}
+
+/// GET /api/tasks/recent — most recent tasks across all projects for this org.
+/// Used by the Agent Roster panel to show live system activity (no simulation).
+async fn list_recent_tasks(
+    State(state): State<AppState>,
+    user: axum::Extension<auth::AuthenticatedUser>,
+) -> Result<Json<serde_json::Value>, AppError> {
+    let rows = sqlx::query_as::<_, (Uuid, String, String, String, chrono::DateTime<chrono::Utc>)>(
+        "SELECT t.id, t.task_number, t.title, t.status, t.created_at \
+         FROM tasks t \
+         JOIN projects p ON p.id = t.project_id \
+         WHERE p.org_id = $1 \
+         ORDER BY t.created_at DESC \
+         LIMIT 10",
+    )
+    .bind(user.org_id)
+    .fetch_all(&state.db)
+    .await
+    .map_err(AppError::Database)?;
+
+    let tasks: Vec<serde_json::Value> = rows
+        .into_iter()
+        .map(|(id, task_number, title, status, created_at)| {
+            serde_json::json!({
+                "id": id,
+                "task_number": task_number,
+                "title": title,
+                "status": status,
+                "created_at": created_at,
+            })
+        })
+        .collect();
+
+    Ok(Json(serde_json::json!({ "tasks": tasks })))
 }
 
 async fn get_task(State(state): State<AppState>, Path(task_id): Path<Uuid>) -> Result<Json<TaskResponse>, AppError> {
