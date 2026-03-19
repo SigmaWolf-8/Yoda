@@ -106,7 +106,7 @@ export function InferenceMetricsChart({ data }: Props) {
               color: 'var(--color-navy-100)',
             }}
             labelFormatter={(v) => new Date(v).toLocaleString()}
-            formatter={(value: number) => [`${value}ms`, undefined]}
+            formatter={(value) => [`${value}ms`, undefined]}
           />
           <Legend
             wrapperStyle={{ fontSize: '10px', color: 'var(--color-navy-300)' }}

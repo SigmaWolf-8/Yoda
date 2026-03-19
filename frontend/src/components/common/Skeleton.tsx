@@ -1,9 +1,12 @@
+import type React from 'react';
+
 /* ── Skeleton primitives ── */
 
-function Pulse({ className }: { className?: string }) {
+function Pulse({ className, style }: { className?: string; style?: React.CSSProperties }) {
   return (
     <div
       className={`animate-pulse rounded bg-[var(--color-surface-tertiary)] ${className ?? ''}`}
+      style={style}
     />
   );
 }

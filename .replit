@@ -9,6 +9,7 @@
 run = "bash scripts/replit-run.sh"
 
 entrypoint = "crates/yoda-api/src/main.rs"
+modules = ["rust-stable", "nodejs-22"]
 
 [nix]
 channel = "stable-24_05"
@@ -27,3 +28,44 @@ deploymentTarget = "cloudrun"
 [[ports]]
 localPort = 3000
 externalPort = 80
+
+[[ports]]
+localPort = 5173
+externalPort = 5173
+
+[[ports]]
+localPort = 8080
+externalPort = 8080
+
+[userenv]
+
+[userenv.shared]
+JWT_SECRET = "70e742b742dc5f08f4571f14f57b29c34f7ba2f606f6816b0663100960af95e1"
+JWT_REFRESH_SECRET = "860dc11731ae9ff9c0cce1a01c82eb96f5a27078247b2136981a5073de7bb213"
+
+[workflows]
+runButton = "Project"
+
+[[workflows.workflow]]
+name = "Project"
+mode = "parallel"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Start application"
+
+[[workflows.workflow]]
+name = "Start application"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "cd /home/runner/workspace && bash scripts/compile-agents.sh && bash scripts/replit-run.sh"
+waitForPort = 3000
+
+[workflows.workflow.metadata]
+outputType = "webview"
+
+[agent]
+expertMode = true

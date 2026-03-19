@@ -9,7 +9,7 @@ interface Props {
 
 export function KBSearchBar({ value, onChange, resultCount }: Props) {
   const [local, setLocal] = useState(value);
-  const timerRef = useRef<ReturnType<typeof setTimeout>>();
+  const timerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   useEffect(() => {
     clearTimeout(timerRef.current);

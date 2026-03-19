@@ -20,7 +20,7 @@ export function usePipelineStatus({
   const qc = useQueryClient();
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectAttempt = useRef(0);
-  const reconnectTimer = useRef<ReturnType<typeof setTimeout>>();
+  const reconnectTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
   const [connected, setConnected] = useState(false);
   const [lastEvent, setLastEvent] = useState<PipelineEvent | null>(null);
 
