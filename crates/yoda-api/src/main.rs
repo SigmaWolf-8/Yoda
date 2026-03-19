@@ -14,6 +14,7 @@ use sqlx::postgres::PgPoolOptions;
 use std::net::SocketAddr;
 use std::path::PathBuf;
 use tower_http::cors::{Any, CorsLayer};
+use tower_http::services::{ServeDir, ServeFile};
 use tower_http::trace::TraceLayer;
 use tracing_subscriber::EnvFilter;
 
@@ -84,15 +85,20 @@ async fn main() -> anyhow::Result<()> {
         .allow_methods(Any)
         .allow_headers(Any);
 
+    // Serve React SPA from frontend/dist/ — API routes registered first take priority.
+    // Any path not matched by an API route falls through to the SPA's index.html.
+    let frontend_dist = std::env::var("FRONTEND_DIST_PATH")
+        .unwrap_or_else(|_| "./frontend/dist".to_string());
+    let serve_dir = ServeDir::new(&frontend_dist)
+        .not_found_service(ServeFile::new(format!("{}/index.html", frontend_dist)));
+
     let app = Router::new()
         .route("/health", get(health))
         .route("/api/health", get(health))
         .merge(routes::build_router(state))
+        .fallback_service(serve_dir)
         .layer(cors)
         .layer(TraceLayer::new_for_http());
-
-    // TODO: Serve React dist/ as static files via tower_http::services::ServeDir
-    // when frontend/dist/ exists. For now, API-only.
 
     // ── Bind and serve ───────────────────────────────────────────────
     let port: u16 = std::env::var("BIND_PORT")
