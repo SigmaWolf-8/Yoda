@@ -146,16 +146,16 @@ export function MetatronCubeRoster({
   const cen = positions[0];
   const dep = positions[12];
 
-  // Click handler — walk composedPath to find the first data-div or data-agent element
+  // Click handler — walk from e.target up to the SVG root via parentElement
   const handleClick = useCallback((e: React.MouseEvent<SVGSVGElement>) => {
     let hit: Element | null = null;
-    for (const node of e.nativeEvent.composedPath()) {
-      if (!(node instanceof Element)) continue;
-      if (node.tagName === 'svg') break; // don't go above the SVG root
-      if (node.hasAttribute('data-div') || node.hasAttribute('data-agent')) {
-        hit = node;
+    let el: Element | null = e.target as Element;
+    while (el && el.tagName.toLowerCase() !== 'svg') {
+      if (el.hasAttribute('data-div') || el.hasAttribute('data-agent')) {
+        hit = el;
         break;
       }
+      el = el.parentElement;
     }
     if (!hit) return;
 
