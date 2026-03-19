@@ -1,59 +1,65 @@
 @import "tailwindcss";
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=JetBrains+Mono:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
 /* ═══════════════════════════════════════════════════════════════
    YODA — Design System
    Capomastro Holdings Ltd. — Applied Physics Division
-   Navy / Gold / Accent-Blue palette
+   Warm dark palette — geometric-foundations theme
    ═══════════════════════════════════════════════════════════════ */
 
 @theme {
-  /* ── Navy Foundation ── */
-  --color-navy-950: #0a0e1a;
-  --color-navy-900: #0f1628;
-  --color-navy-800: #162038;
-  --color-navy-700: #1e2d4d;
-  --color-navy-600: #2a3d66;
-  --color-navy-500: #3a5080;
-  --color-navy-400: #5a7099;
-  --color-navy-300: #8094b3;
-  --color-navy-200: #b0bfd3;
-  --color-navy-100: #dce3ed;
-  --color-navy-50:  #f0f3f7;
+  /* ── Warm Dark Scale ── */
+  --color-warm-1000: hsl(20, 14%, 4%);   /* page background */
+  --color-warm-900:  hsl(20, 14%, 8%);   /* card / panel */
+  --color-warm-800:  hsl(20, 12%, 10%);  /* muted surfaces */
+  --color-warm-750:  hsl(20, 10%, 14%);  /* card borders */
+  --color-warm-700:  hsl(20, 10%, 17%);  /* subtle borders */
+  --color-warm-600:  hsl(210, 20%, 18%); /* accent background */
+  --color-warm-500:  hsl(210, 15%, 25%); /* secondary background / default border */
+  --color-warm-400:  hsl(30, 8%, 35%);   /* fgFaint — subtle labels */
+  --color-warm-300:  hsl(35, 10%, 50%);  /* fgMuted — labels / secondary text */
+  --color-warm-200:  hsl(40, 15%, 70%);  /* fgSoft — body text */
+  --color-warm-100:  hsl(45, 25%, 91%);  /* fg — primary text */
 
-  /* ── Gold Accent ── */
-  --color-gold-600: #a88a32;
-  --color-gold-500: #c9a84c;
-  --color-gold-400: #d4b85e;
-  --color-gold-300: #e0ca7e;
-  --color-gold-200: #ecdcaa;
-  --color-gold-100: #f6efd6;
+  /* ── Brand Blue ── */
+  --color-primary:      hsl(210, 80%, 55%);
+  --color-primary-soft: hsl(210, 70%, 65%);
+  --color-primary-dim:  hsla(210, 80%, 55%, 0.10);
+  --color-primary-border: hsla(210, 80%, 55%, 0.18);
 
-  /* ── Accent Blue (PlenumNET signal) ── */
-  --color-plex-600: #2563eb;
-  --color-plex-500: #3b82f6;
-  --color-plex-400: #60a5fa;
-  --color-plex-300: #93bbfd;
+  /* ── Semantic: Balance / Esoteric / Cosmic / Green ── */
+  --color-balance:     hsl(210, 80%, 55%);
+  --color-balance-bg:  hsla(210, 80%, 55%, 0.08);
+  --color-esoteric:    hsl(270, 50%, 65%);
+  --color-esoteric-bg: hsla(270, 50%, 65%, 0.08);
+  --color-cosmic:      hsl(340, 55%, 60%);
+  --color-cosmic-bg:   hsla(340, 55%, 60%, 0.07);
+  --color-green:       hsl(145, 50%, 50%);
+  --color-green-bg:    hsla(145, 50%, 50%, 0.08);
 
-  /* ── Status Palette ── */
-  --color-ok:       #22c55e;
-  --color-warn:     #eab308;
-  --color-err:      #ef4444;
+  /* ── Status ── */
+  --color-ok:   hsl(145, 50%, 50%);
+  --color-warn: hsl(45, 90%, 55%);
+  --color-err:  hsl(0, 70%, 58%);
 
   /* ── Mode Colors ── */
-  --color-ronin-600: #ea580c;
-  --color-ronin-500: #f97316;
-  --color-ronin-400: #fb923c;
-  --color-yoda-600:  #2563eb;
-  --color-yoda-500:  #3b82f6;
-  --color-yoda-400:  #60a5fa;
+  --color-ronin-500: hsl(25, 85%, 55%);
+  --color-ronin-400: hsl(25, 80%, 65%);
+  --color-yoda-500:  hsl(210, 80%, 55%);
+  --color-yoda-400:  hsl(210, 70%, 65%);
 
-  /* ── Layout Tokens ── */
+  /* ── Legacy aliases (kept for any Tailwind class refs) ── */
+  --color-plex-600: hsl(210, 80%, 45%);
+  --color-plex-500: hsl(210, 80%, 55%);
+  --color-plex-400: hsl(210, 70%, 65%);
+  --color-plex-300: hsl(210, 60%, 75%);
+
+  /* ── Layout ── */
   --spacing-sidebar: 16rem;
 
   /* ── Fonts ── */
-  --font-display: 'DM Sans', system-ui, sans-serif;
-  --font-body:    'DM Sans', system-ui, sans-serif;
+  --font-display: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-body:    'Inter', system-ui, -apple-system, sans-serif;
   --font-mono:    'JetBrains Mono', 'Fira Code', ui-monospace, monospace;
 }
 
@@ -63,8 +69,8 @@
 body {
   margin: 0;
   font-family: var(--font-body);
-  background: var(--color-navy-950);
-  color: var(--color-navy-100);
+  background: var(--color-warm-1000);
+  color: var(--color-warm-100);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
@@ -77,37 +83,79 @@ body {
   display: flex;
 }
 
+/* ═══ Semantic Aliases ═══ */
+:root {
+  /* ── Warm scale (explicit, so var() works everywhere) ── */
+  --color-warm-1000: hsl(20, 14%, 4%);
+  --color-warm-900:  hsl(20, 14%, 8%);
+  --color-warm-800:  hsl(20, 12%, 10%);
+  --color-warm-750:  hsl(20, 10%, 14%);
+  --color-warm-700:  hsl(20, 10%, 17%);
+  --color-warm-600:  hsl(210, 20%, 18%);
+  --color-warm-500:  hsl(210, 15%, 25%);
+  --color-warm-400:  hsl(30, 8%, 35%);
+  --color-warm-300:  hsl(35, 10%, 50%);
+  --color-warm-200:  hsl(40, 15%, 70%);
+  --color-warm-100:  hsl(45, 25%, 91%);
+
+  --color-surface-primary:   var(--color-warm-1000);
+  --color-surface-secondary: var(--color-warm-900);
+  --color-surface-tertiary:  var(--color-warm-800);
+  --color-surface-hover:     var(--color-warm-600);
+
+  --color-text-primary:   var(--color-warm-100);
+  --color-text-secondary: var(--color-warm-200);
+  --color-text-tertiary:  var(--color-warm-300);
+  --color-text-muted:     var(--color-warm-300);
+
+  --color-border-default: var(--color-warm-500);
+  --color-border-subtle:  var(--color-warm-750);
+  --color-border-strong:  var(--color-warm-500);
+
+  /* ── Backward compat: navy → warm ── */
+  --color-navy-950: var(--color-warm-1000);
+  --color-navy-900: var(--color-warm-900);
+  --color-navy-850: var(--color-warm-900);
+  --color-navy-800: var(--color-warm-800);
+  --color-navy-750: var(--color-warm-750);
+  --color-navy-700: var(--color-warm-700);
+  --color-navy-600: var(--color-warm-500);
+  --color-navy-500: var(--color-warm-500);
+  --color-navy-400: var(--color-warm-400);
+  --color-navy-300: var(--color-warm-300);
+  --color-navy-200: var(--color-warm-200);
+  --color-navy-100: var(--color-warm-100);
+  --color-navy-50:  var(--color-warm-100);
+
+  /* ── Brand (also needed as plain CSS vars for inline usage) ── */
+  --color-primary:        hsl(210, 80%, 55%);
+  --color-primary-soft:   hsl(210, 70%, 65%);
+  --color-primary-dim:    hsla(210, 80%, 55%, 0.10);
+  --color-primary-border: hsla(210, 80%, 55%, 0.18);
+
+  /* ── Backward compat: gold → primary blue ── */
+  --color-gold-600: hsl(210, 80%, 45%);
+  --color-gold-500: hsl(210, 80%, 55%);
+  --color-gold-400: hsl(210, 70%, 65%);
+  --color-gold-300: hsla(210, 70%, 65%, 0.6);
+  --color-gold-200: hsla(210, 70%, 65%, 0.3);
+  --color-gold-100: hsla(210, 70%, 65%, 0.1);
+}
+
 /* ═══ Scrollbar ═══ */
 ::-webkit-scrollbar       { width: 6px; height: 6px; }
-::-webkit-scrollbar-track  { background: var(--color-navy-900); }
-::-webkit-scrollbar-thumb  { background: var(--color-navy-600); border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: var(--color-navy-500); }
+::-webkit-scrollbar-track  { background: var(--color-warm-900); }
+::-webkit-scrollbar-thumb  { background: var(--color-warm-500); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--color-warm-400); }
 
 /* ═══ Selection ═══ */
-::selection { background: var(--color-gold-500); color: var(--color-navy-950); }
+::selection { background: var(--color-primary); color: var(--color-warm-1000); }
 
 /* ═══ Focus ═══ */
 :focus-visible { outline: 2px solid var(--color-plex-400); outline-offset: 2px; }
 
 /* ═══ Code ═══ */
 code, pre { font-family: var(--font-mono); }
-
-/* ═══ Semantic Aliases ═══ */
-:root {
-  --color-surface-primary:   var(--color-navy-950);
-  --color-surface-secondary: var(--color-navy-900);
-  --color-surface-tertiary:  var(--color-navy-800);
-  --color-surface-hover:     var(--color-navy-700);
-
-  --color-text-primary:   var(--color-navy-50);
-  --color-text-secondary: var(--color-navy-200);
-  --color-text-tertiary:  var(--color-navy-300);
-  --color-text-muted:     var(--color-navy-400);
-
-  --color-border-default: var(--color-navy-700);
-  --color-border-subtle:  var(--color-navy-800);
-  --color-border-strong:  var(--color-navy-600);
-}
 
 /* ═══ Animation ═══ */
 @keyframes fade-in {
@@ -146,18 +194,16 @@ code, pre { font-family: var(--font-mono); }
   left: 0;
   z-index: 9999;
   padding: 0.75rem 1.5rem;
-  background: var(--color-gold-500);
-  color: var(--color-navy-950);
+  background: var(--color-primary);
+  color: var(--color-warm-1000);
   font-weight: 600;
   font-size: 0.875rem;
   border-radius: 0 0 0.5rem 0;
   text-decoration: none;
 }
-.skip-nav:focus {
-  top: 0;
-}
+.skip-nav:focus { top: 0; }
 
-/* ═══ Focus within for keyboard navigation ═══ */
+/* ═══ Focus within ═══ */
 .focus-ring:focus-within {
   outline: 2px solid var(--color-plex-400);
   outline-offset: 2px;
