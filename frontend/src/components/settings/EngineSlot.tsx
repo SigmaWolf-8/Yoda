@@ -9,6 +9,9 @@ import {
   Save,
   Loader2,
   HelpCircle,
+  CheckCircle2,
+  XCircle,
+  AlertTriangle,
 } from 'lucide-react';
 import { useUpdateEngine } from '../../api/hooks';
 import type {
@@ -19,45 +22,131 @@ import type {
 } from '../../types';
 
 // ── Model knowledge base ──────────────────────────────────────────────────────
+//
+// ram:  estimated VRAM/RAM at Q4_K_M quantization (most common self-host setting)
+// fit:  'ok'    → fits on 16 GB with room to spare   (< 10 GB)
+//       'tight' → borderline on 16 GB, needs Q3 quant (~12 GB with Q3)
+//       'no'    → requires more RAM than 16 GB       (> 15 GB at Q4)
+//       undefined → cloud-hosted, not relevant
 
-const MODEL_INFO: Record<string, { desc: string; specialty: string; type: string }> = {
-  // Anthropic
+type FitLevel = 'ok' | 'tight' | 'no';
+
+interface ModelMeta {
+  desc: string;
+  specialty: string;
+  type: string;
+  ram?: string;
+  fit?: FitLevel;
+}
+
+const MODEL_INFO: Record<string, ModelMeta> = {
+  // ── Anthropic (cloud — no local RAM needed) ─────────────────────────────
   'claude-opus-4-6':   { type: 'LLM', specialty: 'Complex reasoning · Long documents · Nuanced writing', desc: "Anthropic's most powerful model. Best for deep analysis, intricate code review, and tasks requiring careful multi-step reasoning." },
   'claude-sonnet-4-6': { type: 'LLM', specialty: 'Coding · Analysis · Speed + quality balance', desc: "Anthropic's balanced workhorse. Strong reasoning at faster speeds — the best all-round choice for most YODA pipelines." },
   'claude-haiku-4-5':  { type: 'LLM', specialty: 'Fast summaries · Simple edits · Low latency', desc: "Anthropic's lightest Claude. Excellent for rapid classification, quick rewrites, and high-volume lightweight tasks." },
-  // OpenAI
+  // ── OpenAI (cloud) ──────────────────────────────────────────────────────
   'gpt-4.5':   { type: 'LLM', specialty: 'Frontier reasoning · Instruction-following · Multimodal', desc: "OpenAI's most capable model. Handles complex instructions with high fidelity; strong across coding, math, and creative tasks." },
   'gpt-4o':    { type: 'LLM', specialty: 'Fast · Multimodal · General purpose', desc: "OpenAI's versatile everyday model. Rapid responses with strong reasoning — ideal as a second or third reviewer engine." },
   'o3-mini':   { type: 'Reasoning LLM', specialty: 'Math · Code · Step-by-step logic', desc: "OpenAI's compact reasoning model. Uses chain-of-thought internally to excel at structured problem-solving at lower cost than o3." },
-  // xAI
+  // ── xAI (cloud) ─────────────────────────────────────────────────────────
   'grok-3':      { type: 'LLM', specialty: 'Real-time data · Long context · Coding', desc: "xAI's flagship model. Can access live information, handles very long contexts, and performs strongly on software engineering tasks." },
   'grok-3-mini': { type: 'LLM', specialty: 'Fast · Efficient · General tasks', desc: "xAI's efficient model. Lower latency and cost while retaining solid reasoning — good for high-volume review steps." },
-  // Google
+  // ── Google (cloud) ──────────────────────────────────────────────────────
   'gemini-2.5-pro':   { type: 'LLM', specialty: 'Long context · Code · Multi-step reasoning', desc: "Google's most capable model. Handles up to 1M-token contexts, excels at large codebase analysis and document-heavy tasks." },
   'gemini-2.5-flash':  { type: 'LLM', specialty: 'High throughput · Summarisation · Extraction', desc: "Google's speed-optimised model. Very fast token generation — ideal for high-volume extraction and summarisation passes." },
   'gemini-3-pro':      { type: 'LLM', specialty: 'Advanced reasoning · Multimodal · Next-gen', desc: "Google's next-generation flagship. State-of-the-art reasoning across text, code, and images." },
-  // DeepSeek
+  // ── DeepSeek (cloud) ────────────────────────────────────────────────────
   'DeepSeek-V3.2': { type: 'LLM', specialty: 'Coding · Math · Cost-efficient frontier', desc: "DeepSeek's latest dense model. Competitive with frontier LLMs on coding and math benchmarks at significantly lower cost." },
   'DeepSeek-R1':   { type: 'Reasoning LLM', specialty: 'Chain-of-thought · Math · Complex problem-solving', desc: "DeepSeek's reasoning model. Publishes its thinking process step-by-step; outstanding on logic, proofs, and algorithmic problems." },
-  // Self-hosted — Qwen
-  'Qwen3.5-27B':        { type: 'LLM', specialty: 'Coding · Multilingual · Balanced size', desc: "Alibaba's mid-size open model. Excellent multilingual support and strong coding ability — a popular self-hosted choice." },
-  'Qwen3.5-9B':         { type: 'LLM', specialty: 'Compact · Fast · Low resource use', desc: "Qwen's compact variant. Runs on a single consumer GPU; good for fast iteration and lightweight review tasks." },
-  'Qwen3.5-122B':       { type: 'LLM', specialty: 'Near-frontier quality · Complex reasoning · Coding', desc: "Alibaba's largest Qwen model. Matches frontier commercial quality for reasoning and code at self-hosted prices." },
-  'Qwen3.5-35B-A3B':    { type: 'Mixture-of-Experts LLM', specialty: 'High capability · Efficient compute · Coding', desc: "Mixture-of-Experts architecture: only 3B parameters active per token, giving high capability at lower inference cost than a dense 35B." },
-  // Self-hosted — DeepSeek distilled
-  'DeepSeek-R1-Distill-Qwen-32B':   { type: 'Reasoning LLM', specialty: 'Math · Code · Structured reasoning', desc: "DeepSeek-R1 reasoning capability distilled into a 32B Qwen-architecture model. Strong chain-of-thought at self-hosted scale." },
-  'DeepSeek-R1-Distill-Llama-70B':  { type: 'Reasoning LLM', specialty: 'Complex reasoning · Large self-hosted option', desc: "DeepSeek-R1 reasoning distilled into Llama-70B. Powerful open-weight reasoning model for self-hosted deployments." },
-  // Self-hosted — Llama
-  'Llama-3.1-8B':      { type: 'LLM', specialty: 'Compact · Fast · Widely supported', desc: "Meta's compact open model. Runs anywhere, supported by virtually every inference server. Good for simple review passes." },
-  'Llama-3.1-70B':     { type: 'LLM', specialty: 'Strong open-weight · Coding · General tasks', desc: "Meta's strong open model. Competitive with many commercial models for coding and instruction-following tasks." },
-  'Llama-4-Maverick':  { type: 'Multimodal LLM', specialty: 'Native multimodal · Extended context · Next-gen', desc: "Meta's next-generation model. Natively handles text and images; designed for very long contexts and complex multi-step tasks." },
-  // Self-hosted — Mistral
-  'Mistral-Nemo-12B':   { type: 'LLM', specialty: 'Efficient · Multilingual · Instruction-following', desc: "Mistral's efficient 12B model. Strong multilingual capability and instruction-following; fits on a single mid-range GPU." },
-  'Mistral-Large-3':    { type: 'LLM', specialty: 'Top-tier reasoning · Coding · Multilingual', desc: "Mistral's flagship open model. Top-tier performance across coding, reasoning, and multilingual tasks." },
-  // Self-hosted — Other
-  'GLM-5':     { type: 'LLM', specialty: 'Chinese language · General reasoning', desc: "Zhipu AI's latest model. Excellent Chinese language support alongside solid general reasoning and coding ability." },
-  'Kimi-K2.5': { type: 'LLM', specialty: 'Long context · Document understanding · 200K tokens', desc: "Moonshot AI's model. Built for very long contexts (up to 200K tokens) — ideal for large codebase or document review." },
+
+  // ── Self-hosted ─────────────────────────────────────────────────────────
+  // Qwen
+  'Qwen3.5-9B': {
+    type: 'LLM', specialty: 'Compact · Fast · Coding · Multilingual',
+    desc: "Qwen's compact 9B model. Efficient on CPU/NPU, strong multilingual and coding performance. Ideal first self-hosted engine on 16 GB.",
+    ram: '~5.3 GB (Q4)', fit: 'ok',
+  },
+  'Qwen3.5-27B': {
+    type: 'LLM', specialty: 'Coding · Multilingual · Balanced quality',
+    desc: "Alibaba's mid-size 27B model. Strong quality but tight on 16 GB — needs Q3 quantization (~12 GB) and closing other apps.",
+    ram: '~16 GB (Q4) · ~12 GB (Q3)', fit: 'tight',
+  },
+  'Qwen3.5-35B-A3B': {
+    type: 'Mixture-of-Experts LLM', specialty: 'High capability · Efficient active compute',
+    desc: "MoE model with 3B active parameters per token — but all 35B weights must still load into RAM, requiring ~20 GB.",
+    ram: '~20 GB (Q4)', fit: 'no',
+  },
+  'Qwen3.5-122B': {
+    type: 'LLM', specialty: 'Near-frontier quality · Complex reasoning',
+    desc: "Alibaba's largest Qwen. Excellent quality but requires a multi-GPU workstation or server with 70+ GB RAM.",
+    ram: '~71 GB (Q4)', fit: 'no',
+  },
+  // DeepSeek distilled
+  'DeepSeek-R1-Distill-Qwen-32B': {
+    type: 'Reasoning LLM', specialty: 'Math · Code · Chain-of-thought',
+    desc: "DeepSeek-R1 reasoning distilled into a 32B Qwen model. Strong reasoning but just over 16 GB budget at Q4.",
+    ram: '~19 GB (Q4)', fit: 'no',
+  },
+  'DeepSeek-R1-Distill-Llama-70B': {
+    type: 'Reasoning LLM', specialty: 'Complex reasoning · Large self-hosted',
+    desc: "DeepSeek-R1 reasoning distilled into Llama-70B. Requires a multi-GPU setup or high-RAM workstation.",
+    ram: '~41 GB (Q4)', fit: 'no',
+  },
+  // Llama
+  'Llama-3.1-8B': {
+    type: 'LLM', specialty: 'Compact · Fast · Widely supported',
+    desc: "Meta's compact open model. Supported by every inference server (Ollama, llama.cpp, LM Studio). Excellent on Snapdragon NPU/GPU.",
+    ram: '~4.7 GB (Q4)', fit: 'ok',
+  },
+  'Llama-3.1-70B': {
+    type: 'LLM', specialty: 'Strong open-weight · Coding · General tasks',
+    desc: "Meta's strong 70B open model. Needs a multi-GPU workstation or high-RAM server.",
+    ram: '~41 GB (Q4)', fit: 'no',
+  },
+  'Llama-4-Maverick': {
+    type: 'Multimodal LLM', specialty: 'Native multimodal · Extended context · Next-gen',
+    desc: "Meta's next-gen MoE model (~400B total weights). Requires enterprise-grade multi-GPU infrastructure.",
+    ram: '~229 GB (Q4)', fit: 'no',
+  },
+  // Mistral
+  'Mistral-Nemo-12B': {
+    type: 'LLM', specialty: 'Efficient · Multilingual · Instruction-following',
+    desc: "Mistral's efficient 12B model. Great quality-to-size ratio — fits comfortably and leaves headroom for other apps.",
+    ram: '~7.2 GB (Q4)', fit: 'ok',
+  },
+  'Mistral-Large-3': {
+    type: 'LLM', specialty: 'Top-tier reasoning · Coding · Multilingual',
+    desc: "Mistral's 123B flagship. Excellent quality but requires a high-RAM workstation or server.",
+    ram: '~72 GB (Q4)', fit: 'no',
+  },
+  // Other
+  'GLM-5': {
+    type: 'LLM', specialty: 'Chinese language · General reasoning',
+    desc: "Zhipu AI's ~9B model. Excellent Chinese language support, good general reasoning. Fits comfortably on 16 GB.",
+    ram: '~5.3 GB (Q4)', fit: 'ok',
+  },
+  'Kimi-K2.5': {
+    type: 'Mixture-of-Experts LLM', specialty: 'Long context · Document understanding · 200K tokens',
+    desc: "Moonshot AI's large MoE model. The full weights (1T+ parameters) far exceed any consumer or prosumer machine.",
+    ram: '~500+ GB (MoE)', fit: 'no',
+  },
 };
+
+// ── COMMON_MODELS sorted: fits first, then tight, then no ──────────────────
+const COMMON_MODELS_RAW = [
+  'Llama-3.1-8B', 'Qwen3.5-9B', 'Mistral-Nemo-12B', 'GLM-5',
+  'Qwen3.5-27B',
+  'Qwen3.5-35B-A3B', 'DeepSeek-R1-Distill-Qwen-32B', 'DeepSeek-R1-Distill-Llama-70B',
+  'Llama-3.1-70B', 'Llama-4-Maverick', 'Mistral-Large-3',
+  'Qwen3.5-122B', 'Kimi-K2.5',
+];
+
+const FIT_ORDER: Record<string, number> = { ok: 0, tight: 1, no: 2, undefined: 3 };
+const COMMON_MODELS = [...COMMON_MODELS_RAW].sort((a, b) => {
+  const fa = FIT_ORDER[MODEL_INFO[a]?.fit ?? 'undefined'];
+  const fb = FIT_ORDER[MODEL_INFO[b]?.fit ?? 'undefined'];
+  return fa - fb;
+});
 
 const PROVIDERS: Record<string, { authType: AuthType; models: string[] }> = {
   Anthropic: { authType: 'api_key', models: ['claude-opus-4-6', 'claude-sonnet-4-6', 'claude-haiku-4-5'] },
@@ -66,14 +155,6 @@ const PROVIDERS: Record<string, { authType: AuthType; models: string[] }> = {
   Google:    { authType: 'bearer',  models: ['gemini-2.5-pro', 'gemini-2.5-flash', 'gemini-3-pro'] },
   DeepSeek:  { authType: 'api_key', models: ['DeepSeek-V3.2', 'DeepSeek-R1'] },
 };
-
-const COMMON_MODELS = [
-  'Qwen3.5-27B', 'Qwen3.5-9B', 'Qwen3.5-122B', 'Qwen3.5-35B-A3B',
-  'DeepSeek-R1-Distill-Qwen-32B', 'DeepSeek-R1-Distill-Llama-70B',
-  'Llama-3.1-8B', 'Llama-3.1-70B', 'Llama-4-Maverick',
-  'Mistral-Nemo-12B', 'Mistral-Large-3',
-  'GLM-5', 'Kimi-K2.5',
-];
 
 const SLOT_LABELS: Record<Slot, string> = { a: 'Engine A', b: 'Engine B', c: 'Engine C' };
 
@@ -84,7 +165,7 @@ function Tooltip({ content, children, wide }: { content: React.ReactNode; childr
     <span className="relative group/tip inline-flex items-center">
       {children}
       <span
-        className={`absolute bottom-full left-1/2 -translate-x-1/2 mb-2.5 ${wide ? 'w-72' : 'w-60'} p-3 rounded-xl
+        className={`absolute bottom-full left-1/2 -translate-x-1/2 mb-2.5 ${wide ? 'w-80' : 'w-60'} p-3 rounded-xl
           bg-[var(--color-navy-850,#0d1829)] border border-[var(--color-navy-600)]
           text-xs text-[var(--color-navy-100)] shadow-xl
           opacity-0 pointer-events-none group-hover/tip:opacity-100
@@ -97,22 +178,57 @@ function Tooltip({ content, children, wide }: { content: React.ReactNode; childr
   );
 }
 
+// ── Resource badge ────────────────────────────────────────────────────────────
+
+function ResourceBadge({ fit, ram }: { fit: FitLevel; ram: string }) {
+  if (fit === 'ok') return (
+    <span className="flex items-center gap-1 text-[10px] font-medium text-emerald-400">
+      <CheckCircle2 className="w-3 h-3" />
+      {ram} · Fits on 16 GB
+    </span>
+  );
+  if (fit === 'tight') return (
+    <span className="flex items-center gap-1 text-[10px] font-medium text-amber-400">
+      <AlertTriangle className="w-3 h-3" />
+      {ram} · Tight — use Q3 quant
+    </span>
+  );
+  return (
+    <span className="flex items-center gap-1 text-[10px] font-medium text-red-400">
+      <XCircle className="w-3 h-3" />
+      {ram} · Needs more RAM
+    </span>
+  );
+}
+
 // ── Model description card ────────────────────────────────────────────────────
 
 function ModelCard({ modelName }: { modelName: string }) {
   const info = MODEL_INFO[modelName];
   if (!info) return null;
   return (
-    <div className="mt-2 px-3 py-2 rounded-lg bg-[var(--color-surface-tertiary)] border border-[var(--color-border-subtle)] text-xs space-y-1">
+    <div className="mt-2 px-3 py-2.5 rounded-lg bg-[var(--color-surface-tertiary)] border border-[var(--color-border-subtle)] text-xs space-y-1.5">
       <div className="flex items-center gap-2 flex-wrap">
         <span className="px-1.5 py-0.5 rounded bg-[var(--color-gold-500)]/10 text-[var(--color-gold-400)] font-medium text-[10px]">
           {info.type}
         </span>
         <span className="text-[var(--color-text-muted)]">{info.specialty}</span>
       </div>
+      {info.ram && info.fit && (
+        <ResourceBadge fit={info.fit} ram={info.ram} />
+      )}
       <p className="text-[var(--color-text-tertiary)] leading-relaxed">{info.desc}</p>
     </div>
   );
+}
+
+// ── Fit icon for typeahead ────────────────────────────────────────────────────
+
+function FitDot({ fit }: { fit?: FitLevel }) {
+  if (fit === 'ok')    return <CheckCircle2  className="w-3 h-3 flex-shrink-0 text-emerald-400" />;
+  if (fit === 'tight') return <AlertTriangle className="w-3 h-3 flex-shrink-0 text-amber-400" />;
+  if (fit === 'no')    return <XCircle       className="w-3 h-3 flex-shrink-0 text-red-400" />;
+  return null;
 }
 
 // ── Main component ────────────────────────────────────────────────────────────
@@ -176,16 +292,14 @@ export function EngineSlotCard({ slot, config }: Props) {
       ? 'bg-[var(--color-warn)]'
       : 'bg-[var(--color-err)]';
 
-  const HealthIcon = config?.health_status === 'online' ? Wifi : WifiOff;
-
   const filteredSuggest = COMMON_MODELS.filter(
     (m) => m.toLowerCase().includes(modelName.toLowerCase()) && m !== modelName,
   );
 
   const MODE_TIPS: Record<HostingMode, string> = {
-    self_hosted: 'Connect to a model running on your own hardware or private cloud via a local API endpoint (e.g. Ollama, vLLM, LM Studio). No data leaves your infrastructure.',
-    commercial:  'Connect to a paid API from providers like Anthropic, OpenAI, xAI, Google, or DeepSeek. Requires an API key and incurs per-token costs.',
-    free_tier:   'Use a provider\'s free or trial tier. Same setup as Commercial but typically subject to rate limits and daily message caps.',
+    self_hosted: 'Run a model on your own hardware via a local endpoint (Ollama, llama.cpp, LM Studio, vLLM). No data leaves your machine.',
+    commercial:  'Connect to a paid API from Anthropic, OpenAI, xAI, Google, or DeepSeek. Requires an API key and charges per token.',
+    free_tier:   "Use a provider's free or trial tier — same setup as Commercial but typically rate-limited with daily message caps.",
   };
 
   return (
@@ -235,6 +349,14 @@ export function EngineSlotCard({ slot, config }: Props) {
         {/* Self-Hosted fields */}
         {mode === 'self_hosted' && (
           <>
+            {/* RAM guidance banner */}
+            <div className="flex items-start gap-2 px-3 py-2 rounded-lg bg-[var(--color-surface-tertiary)] border border-[var(--color-border-subtle)] text-[10px] text-[var(--color-text-muted)] leading-relaxed">
+              <span className="mt-0.5 flex-shrink-0">💡</span>
+              <span>
+                RAM estimates are for <strong>4-bit (Q4) quantization</strong> — the standard self-host setting. Your 16 GB machine can comfortably run models marked <span className="text-emerald-400 font-medium">✓ Fits</span>. Models marked <span className="text-amber-400 font-medium">⚠ Tight</span> need Q3 quant. <span className="text-red-400 font-medium">✗ Needs more RAM</span> models require a higher-spec machine.
+              </span>
+            </div>
+
             <div className="relative">
               <label className="block text-xs font-medium text-[var(--color-text-secondary)] mb-1">Model</label>
               <input
@@ -243,12 +365,12 @@ export function EngineSlotCard({ slot, config }: Props) {
                 onChange={(e) => { setModelName(e.target.value); setShowSuggest(true); }}
                 onFocus={() => setShowSuggest(true)}
                 onBlur={() => setTimeout(() => setShowSuggest(false), 150)}
-                placeholder="e.g. Qwen3.5-27B"
+                placeholder="e.g. Llama-3.1-8B"
                 className="w-full px-3 py-2 rounded-lg bg-[var(--color-surface-tertiary)] border border-[var(--color-border-default)] text-sm text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-gold-500)] focus:ring-1 focus:ring-[var(--color-gold-500)]/30 transition-colors"
               />
               {showSuggest && filteredSuggest.length > 0 && (
-                <div className="absolute z-20 w-full mt-1 max-h-52 overflow-y-auto rounded-lg bg-[var(--color-surface-tertiary)] border border-[var(--color-border-default)] shadow-lg">
-                  {filteredSuggest.slice(0, 8).map((m) => {
+                <div className="absolute z-20 w-full mt-1 max-h-60 overflow-y-auto rounded-lg bg-[var(--color-surface-tertiary)] border border-[var(--color-border-default)] shadow-lg">
+                  {filteredSuggest.slice(0, 10).map((m) => {
                     const info = MODEL_INFO[m];
                     return (
                       <button
@@ -256,9 +378,15 @@ export function EngineSlotCard({ slot, config }: Props) {
                         onMouseDown={() => { setModelName(m); setShowSuggest(false); }}
                         className="w-full text-left px-3 py-2 hover:bg-[var(--color-surface-hover)] transition-colors border-b border-[var(--color-border-subtle)] last:border-0"
                       >
-                        <div className="text-sm text-[var(--color-text-secondary)] font-medium">{m}</div>
+                        <div className="flex items-center gap-2">
+                          <FitDot fit={info?.fit} />
+                          <span className="text-sm text-[var(--color-text-secondary)] font-medium">{m}</span>
+                          {info?.ram && (
+                            <span className="ml-auto text-[10px] text-[var(--color-text-muted)] flex-shrink-0">{info.ram.split('·')[0].trim()}</span>
+                          )}
+                        </div>
                         {info && (
-                          <div className="text-[10px] text-[var(--color-text-muted)] mt-0.5">{info.specialty}</div>
+                          <div className="text-[10px] text-[var(--color-text-muted)] mt-0.5 pl-5">{info.specialty}</div>
                         )}
                       </button>
                     );
