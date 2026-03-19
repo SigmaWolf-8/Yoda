@@ -50,10 +50,10 @@ export function InferenceMetricsChart({ data }: Props) {
       <div className="rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-surface-secondary)] p-5">
         <div className="flex items-center gap-2 mb-3">
           <Activity className="w-4 h-4 text-[var(--color-gold-400)]" />
-          <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">Inference Latency</h3>
+          <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">AI Response Latency</h3>
         </div>
         <div className="flex items-center justify-center h-48 text-xs text-[var(--color-text-muted)]">
-          No inference data yet. Run a pipeline to see metrics.
+          No data yet. Run a pipeline to see metrics.
         </div>
       </div>
     );
@@ -64,7 +64,7 @@ export function InferenceMetricsChart({ data }: Props) {
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
           <Activity className="w-4 h-4 text-[var(--color-gold-400)]" />
-          <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">Inference Latency</h3>
+          <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">AI Response Latency</h3>
         </div>
         <div className="flex gap-1">
           {RANGES.map((r) => (

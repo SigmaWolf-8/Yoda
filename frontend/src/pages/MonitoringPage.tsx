@@ -30,7 +30,7 @@ export function MonitoringPage() {
         <h1 className="text-2xl font-bold text-[var(--color-text-primary)]">Monitoring</h1>
       </div>
       <p className="text-sm text-[var(--color-text-tertiary)]">
-        Engine health, inference metrics, cost tracking, and censorship events.
+        Engine health, AI metrics, cost tracking, and censorship events.
       </p>
 
       {/* Engine Health */}

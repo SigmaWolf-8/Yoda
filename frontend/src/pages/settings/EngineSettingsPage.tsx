@@ -32,7 +32,7 @@ export function EngineSettingsPage() {
           <ArrowLeft className="w-4 h-4" />
         </Link>
         <Cpu className="w-5 h-5 text-[var(--color-gold-400)]" />
-        <h1 className="text-2xl font-bold text-[var(--color-text-primary)]">Inference Engines</h1>
+        <h1 className="text-2xl font-bold text-[var(--color-text-primary)]">AI Engines</h1>
       </div>
       <p className="text-sm text-[var(--color-text-tertiary)] mb-8 ml-11">
         Configure your three engine slots — self-hosted, commercial, or free-tier.

@@ -14,7 +14,7 @@ export function DashboardPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {[
           { to: '/projects', icon: FolderOpen, label: 'Projects', desc: 'View and manage your projects' },
-          { to: '/settings/engines', icon: Zap, label: 'Engines', desc: 'Configure inference engines' },
+          { to: '/settings/engines', icon: Zap, label: 'AI Engines', desc: 'Configure AI engines' },
           { to: '/settings', icon: Settings, label: 'Settings', desc: 'Platform configuration' },
         ].map(({ to, icon: Icon, label, desc }) => (
           <Link
