@@ -226,11 +226,11 @@ export function MetatronCubeRoster({
       /* Label */
       const ly   = isDepth ? p.y - r - 10 : p.y + r + 15;
       const lblOp = dimmed ? 0.15 : 0.85;
-      parts.push(`<text x="${p.x}" y="${ly}" text-anchor="middle" fill="${P.fgSoft}" font-size="10" font-family="'JetBrains Mono', monospace" font-weight="500" opacity="${lblOp}" pointer-events="none">${p.div.label}</text>`);
+      parts.push(`<text x="${p.x}" y="${ly}" text-anchor="middle" fill="${P.fgSoft}" font-size="13" font-family="'JetBrains Mono', monospace" font-weight="500" opacity="${lblOp}" pointer-events="none">${p.div.label}</text>`);
 
       /* Agent count — only on non-depth, non-dimmed nodes */
       if (!dimmed && !isDepth) {
-        parts.push(`<text x="${p.x}" y="${ly + 12}" text-anchor="middle" fill="${P.fgMuted}" font-size="8" font-family="'JetBrains Mono', monospace" opacity="0.6" pointer-events="none">${count} agent${count !== 1 ? 's' : ''}</text>`);
+        parts.push(`<text x="${p.x}" y="${ly + 14}" text-anchor="middle" fill="${P.fgMuted}" font-size="11" font-family="'JetBrains Mono', monospace" opacity="0.6" pointer-events="none">${count} agent${count !== 1 ? 's' : ''}</text>`);
       }
 
       /* Satellite spokes + dots */
@@ -247,7 +247,7 @@ export function MetatronCubeRoster({
           parts.push(`<line x1="${p.x}" y1="${p.y}" x2="${sx}" y2="${sy}" stroke="${col}" stroke-width="0.25" opacity="0.2" pointer-events="none"/>`);
           if (isSelA) {
             parts.push(`<circle cx="${sx}" cy="${sy}" r="${sr+3.5}" fill="none" stroke="${col}" stroke-width="0.8" opacity="0.4" pointer-events="none"/>`);
-            parts.push(`<text x="${sx}" y="${sy - sr - 7}" text-anchor="middle" fill="${P.fgSoft}" font-size="9" font-family="'JetBrains Mono', monospace" font-weight="500" pointer-events="none">${ag.display_name}</text>`);
+            parts.push(`<text x="${sx}" y="${sy - sr - 8}" text-anchor="middle" fill="${P.fgSoft}" font-size="12" font-family="'JetBrains Mono', monospace" font-weight="500" pointer-events="none">${ag.display_name}</text>`);
           }
           /* Satellite dot — pointer-events:none; React overlay handles clicks */
           parts.push(`<circle cx="${sx}" cy="${sy}" r="${sr}" fill="${col}" opacity="${isSelA ? 0.95 : 0.45}" pointer-events="none"/>`);
@@ -271,7 +271,7 @@ export function MetatronCubeRoster({
       `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${P.orb}" stroke-width="0.6" ${i === 2 ? 'stroke-dasharray="3 5"' : ''} pointer-events="none"/>`,
     ).join('');
     /* Dynamic footer: agent count comes from the live prop, division count from DIVISIONS constant */
-    const footer = `<text x="${cx}" y="${h - 10}" text-anchor="middle" fill="${P.fgFaint}" font-size="8.5" font-family="'JetBrains Mono', monospace" letter-spacing="0.5" pointer-events="none">${DIVISIONS.length} divisions · 3 shells · ${agents.length} agent${agents.length !== 1 ? 's' : ''}</text>`;
+    const footer = `<text x="${cx}" y="${h - 10}" text-anchor="middle" fill="${P.fgFaint}" font-size="11" font-family="'JetBrains Mono', monospace" letter-spacing="0.5" pointer-events="none">${DIVISIONS.length} divisions · 3 shells · ${agents.length} agent${agents.length !== 1 ? 's' : ''}</text>`;
     return `${defs}${glow}${orbits}${buildEdges()}${buildNodes()}${footer}`;
   }, [positions, P, EC, cx, cy, rI, rO, rD, h, agents.length, divCounts, divAgents, selectedDivision, selectedAgentIdx]);
 

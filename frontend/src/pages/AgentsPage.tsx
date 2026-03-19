@@ -49,7 +49,7 @@ function MobileDivisionAccordion({
               <div className="flex items-center gap-3">
                 <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: 'hsl(210,70%,65%)' }} />
                 <span className="text-sm font-semibold text-[var(--color-text-primary)]">{div.label}</span>
-                <span className="text-[10px] text-[var(--color-text-muted)] font-mono">
+                <span className="text-xs text-[var(--color-text-muted)] font-mono">
                   {divAgents.length} agent{divAgents.length !== 1 ? 's' : ''}
                 </span>
               </div>
@@ -73,7 +73,7 @@ function MobileDivisionAccordion({
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0">
                           <p className="text-sm font-medium text-[var(--color-text-primary)] truncate">{agent.display_name}</p>
-                          <p className="text-[10px] text-[var(--color-text-muted)] mt-0.5 font-mono capitalize">
+                          <p className="text-xs text-[var(--color-text-muted)] mt-0.5 font-mono capitalize">
                             {agent.primary_role} · {agent.source}
                           </p>
                         </div>
@@ -89,7 +89,7 @@ function MobileDivisionAccordion({
                       {agent.key_skills.length > 0 && (
                         <div className="flex flex-wrap gap-1 mt-2">
                           {agent.key_skills.slice(0, 4).map(skill => (
-                            <span key={skill} className="px-1.5 py-0.5 rounded text-[9px] bg-white/[0.05] text-[var(--color-text-muted)] border border-white/[0.06]">
+                            <span key={skill} className="px-1.5 py-0.5 rounded text-[11px] bg-white/[0.05] text-[var(--color-text-muted)] border border-white/[0.06]">
                               {skill}
                             </span>
                           ))}
@@ -215,7 +215,7 @@ export function AgentsPage() {
                     Click any node on the geometry to browse its agents.
                     Each node is a division. Satellites are individual agents.
                   </p>
-                  <p className="text-[10px] text-[var(--color-text-muted)] mt-4 opacity-50">
+                  <p className="text-xs text-[var(--color-text-muted)] mt-4 opacity-50">
                     Node size = usage intensity · Pulse = active this week
                   </p>
                 </div>
