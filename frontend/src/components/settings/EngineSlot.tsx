@@ -384,7 +384,7 @@ export function EngineSlotCard({ slot, config, hostRam }: Props) {
               />
               {showSuggest && suggestions.length > 0 && (
                 <div className="absolute z-20 w-full mt-1 max-h-64 overflow-y-auto rounded-lg bg-[var(--color-surface-tertiary)] border border-[var(--color-border-default)] shadow-lg">
-                  {suggestions.slice(0, 10).map((m) => {
+                  {suggestions.map((m) => {
                     const info = MODEL_INFO[m];
                     const fit = computeFit(info, hostRam);
                     const ram = ramDisplay(info);
