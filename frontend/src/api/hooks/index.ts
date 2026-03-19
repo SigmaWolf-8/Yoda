@@ -36,7 +36,7 @@ export { useGitHubPAT, useUpdateGitHubPAT } from './useGitHub';
 export { usePromoteToRonin, useEscalateToYoda } from './useModePromotion';
 export { usePipelineStatus } from './usePipelineStatus';
 export {
-  useAgents, useAgent, useAgentStats,
+  useAgents, useAgent,
   useAgentsWithStats, useAgentSyncStatus,
   useImportAgents, useCreateAgent,
   useUpdateAgent, useDeleteAgent,

@@ -20,6 +20,7 @@ use axum::{
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
+use crate::agents;
 use crate::auth;
 use crate::audit;
 use crate::bible;
@@ -104,6 +105,13 @@ pub fn build_router(state: AppState) -> Router {
 
         // Capability matrix (B7.1)
         .route("/api/settings/capabilities", get(get_capabilities))
+
+        // Agent roster and upstream sync
+        .route("/api/agents", get(agents::list_agents))
+        .route("/api/agents/sync-status", get(agents::sync_status))
+        .route("/api/agents/sync", post(agents::trigger_sync))
+        .route("/api/agents/review", post(agents::review_agents))
+        .route("/api/agents/{id}", get(agents::get_agent))
 
         // Auth middleware on all protected routes
         .layer(middleware::from_fn_with_state(state.clone(), auth::auth_middleware));

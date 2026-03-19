@@ -18,6 +18,7 @@ use tower_http::services::{ServeDir, ServeFile};
 use tower_http::trace::TraceLayer;
 use tracing_subscriber::EnvFilter;
 
+pub mod agents;
 pub mod audit;
 pub mod auth;
 pub mod bible;

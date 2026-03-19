@@ -97,21 +97,25 @@ export function AgentDetailPanel({ agents, division, selectedIdx, onSelectIdx, o
         )}
 
         {/* About */}
-        <Section label="About this agent">
-          <p className="text-[11px] text-[var(--color-text-secondary)] leading-relaxed">{agent.about}</p>
-        </Section>
+        {agent.about && (
+          <Section label="About this agent">
+            <p className="text-[11px] text-[var(--color-text-secondary)] leading-relaxed">{agent.about}</p>
+          </Section>
+        )}
 
         {/* Key Skills */}
-        <Section label="Key skills">
-          <div className="space-y-1.5">
-            {agent.key_skills.map((sk, i) => (
-              <div key={i} className="flex items-start gap-2 text-[10px] text-[var(--color-text-secondary)] leading-relaxed">
-                <span className="w-1 h-1 rounded-full bg-[hsl(210,70%,65%)] flex-shrink-0 mt-[6px]" />
-                {sk}
-              </div>
-            ))}
-          </div>
-        </Section>
+        {agent.key_skills.length > 0 && (
+          <Section label="Key skills">
+            <div className="space-y-1.5">
+              {agent.key_skills.map((sk, i) => (
+                <div key={i} className="flex items-start gap-2 text-[10px] text-[var(--color-text-secondary)] leading-relaxed">
+                  <span className="w-1 h-1 rounded-full bg-[hsl(210,70%,65%)] flex-shrink-0 mt-[6px]" />
+                  {sk}
+                </div>
+              ))}
+            </div>
+          </Section>
+        )}
 
         {/* Usage Stats */}
         <Section label="Usage statistics">

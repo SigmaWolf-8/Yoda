@@ -1,0 +1,50 @@
+Here are the exact dark mode theme settings used for that section. These come from the geometric-foundations.tsx component's DARK theme object:
+
+const DARK = {
+  // Backgrounds
+  bg: "hsl(20, 14%, 4%)",           // Main page background — near-black with warm undertone
+  card: "hsl(20, 14%, 8%)",          // Card/panel surfaces
+  cardBorder: "hsl(20, 10%, 14%)",   // Card borders
+  muted: "hsl(20, 12%, 10%)",        // Muted background areas
+  accent: "hsl(210, 20%, 18%)",      // Accent background
+  secondary: "hsl(210, 15%, 25%)",   // Secondary background
+  // Text hierarchy
+  fg: "hsl(45, 25%, 91%)",           // Primary text — warm off-white
+  fgSoft: "hsl(40, 15%, 70%)",       // Body text — "Most platforms are assembled..."
+  fgMuted: "hsl(35, 10%, 50%)",      // Labels and secondary text
+  fgFaint: "hsl(30, 8%, 35%)",       // Subtle labels like "DEPTH · SHELL SELECTOR"
+  // Brand / accent colors
+  primary: "hsl(210, 80%, 55%)",          // Blue — "From Geometry" highlight text
+  primarySoft: "hsl(210, 70%, 65%)",      // Inner ring nodes
+  primaryDim: "hsla(210, 80%, 55%, 0.1)", // Dimmed primary for hover states
+  primaryBorder: "hsla(210, 80%, 55%, 0.18)", // Primary-tinted borders
+  // Semantic colors
+  balance: "hsl(210, 80%, 55%)",               // Blue semantic
+  balanceBg: "hsla(210, 80%, 55%, 0.08)",
+  esoteric: "hsl(270, 50%, 65%)",              // Purple — outer ring nodes
+  esotericBg: "hsla(270, 50%, 65%, 0.08)",
+  cosmic: "hsl(340, 55%, 60%)",                // Pink/rose — cross-ring edges
+  cosmicBg: "hsla(340, 55%, 60%, 0.07)",
+  green: "hsl(145, 50%, 50%)",                 // Green semantic
+  greenBg: "hsla(145, 50%, 50%, 0.08)",
+  // Shadows
+  shadow: "none",  // Dark mode uses no box-shadow
+};
+// Typography
+const FONTS = {
+  sans: "'Inter', system-ui, -apple-system, sans-serif",  // Body text
+  mono: "'JetBrains Mono', 'Fira Code', 'SF Mono', monospace",  // Labels, stats
+};
+// Border radii
+const RADIUS = { lg: 9, md: 6, sm: 3 };
+How the text maps to these values in that section:
+
+Element	Color token	Value
+"Geometric Foundations" label	fgMuted	hsl(35, 10%, 50%)
+"Architecture Derived"	fg	hsl(45, 25%, 91%)
+"From Geometry"	primary	hsl(210, 80%, 55%)
+Body paragraphs	fgSoft	hsl(40, 15%, 70%)
+"13-dimensional geometric structure" bold	primary	hsl(210, 80%, 55%)
+Section divider line	cardBorder	hsl(20, 10%, 14%)
+Page background	bg	hsl(20, 14%, 4%)
+The key design choice is the warm-tinted dark background (hsl(20, 14%, 4%)) paired with warm off-white text (hsl(45, 25%, 91%)) — it's not a pure cold black, which gives it that distinctive feel.
