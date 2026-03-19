@@ -441,10 +441,19 @@ fn compile_agent(path: &Path, base_dir: &Path, license: &str) -> Result<Compiled
 
     let relative = path.strip_prefix(base_dir).unwrap_or(path);
     let agent_id = derive_agent_id(relative);
+    // Division = parent subdirectory name (e.g. "engineering" for engineering/foo.md).
+    // Files at the root of base_dir have no subdirectory, so fall back to base_dir's own
+    // folder name (e.g. "capomastro" for agents/capomastro/foo.md).
     let division = relative.parent()
-        .and_then(|p| p.file_name())
-        .map(|n| n.to_string_lossy().to_string())
-        .unwrap_or_else(|| "specialized".to_string());
+        .and_then(|p| {
+            let name = p.file_name().unwrap_or_default().to_string_lossy();
+            if name.is_empty() { None } else { Some(name.to_string()) }
+        })
+        .unwrap_or_else(|| {
+            base_dir.file_name()
+                .map(|n| n.to_string_lossy().to_string())
+                .unwrap_or_else(|| "specialized".to_string())
+        });
 
     let competencies = extract_competencies(&parsed, body);
     let system_prompt = build_system_prompt(&parsed);

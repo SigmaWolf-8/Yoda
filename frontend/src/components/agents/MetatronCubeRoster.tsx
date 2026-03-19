@@ -127,15 +127,15 @@ export function MetatronCubeRoster({
   const positions: NodePos[] = useMemo(() => {
     const pos: NodePos[] = [];
     pos.push({ div: DIVISIONS[0], x: cx, y: cy, ring: 'central' });
-    for (let i = 0; i < 6; i++) {
-      const a = (i * Math.PI * 2) / 6 + phase * 0.25;
+    for (let i = 0; i < 8; i++) {
+      const a = (i * Math.PI * 2) / 8 + phase * 0.25;
       pos.push({ div: DIVISIONS[1 + i], x: cx + rI * Math.cos(a), y: cy + rI * Math.sin(a), ring: 'inner' });
     }
     for (let i = 0; i < 5; i++) {
       const a = (i * Math.PI * 2) / 5 + Math.PI / 10 - phase * 0.15;
-      pos.push({ div: DIVISIONS[7 + i], x: cx + rO * Math.cos(a), y: cy + rO * Math.sin(a), ring: 'outer' });
+      pos.push({ div: DIVISIONS[9 + i], x: cx + rO * Math.cos(a), y: cy + rO * Math.sin(a), ring: 'outer' });
     }
-    pos.push({ div: DIVISIONS[12], x: cx, y: cy - rD, ring: 'depth' });
+    pos.push({ div: DIVISIONS[14], x: cx, y: cy - rD, ring: 'depth' });
     return pos;
   }, [cx, cy, rI, rO, rD, phase]);
 
@@ -176,27 +176,32 @@ export function MetatronCubeRoster({
   };
 
   /* ── Build visual SVG string (no click events, pure display) ── */
-  const inn = positions.slice(1, 7);
-  const out = positions.slice(7, 12);
+  const inn = positions.slice(1, 9);   // 8 inner nodes
+  const out = positions.slice(9, 14);  // 5 outer nodes
   const cen = positions[0];
-  const dep = positions[12];
+  const dep = positions[14];           // 1 depth node
 
   const buildEdges = () => {
     const lines: string[] = [];
+    // Central to all 8 inner
     inn.forEach(n => lines.push(`<line x1="${cen.x}" y1="${cen.y}" x2="${n.x}" y2="${n.y}" stroke="${EC.f}" stroke-width="0.9"/>`));
-    for (let i = 0; i < 6; i++) {
-      lines.push(`<line x1="${inn[i].x}" y1="${inn[i].y}" x2="${inn[(i+1)%6].x}" y2="${inn[(i+1)%6].y}" stroke="${EC.i}" stroke-width="0.5"/>`);
-      lines.push(`<line x1="${inn[i].x}" y1="${inn[i].y}" x2="${inn[(i+2)%6].x}" y2="${inn[(i+2)%6].y}" stroke="${EC.is}" stroke-width="0.4"/>`);
-      lines.push(`<line x1="${inn[i].x}" y1="${inn[i].y}" x2="${inn[(i+3)%6].x}" y2="${inn[(i+3)%6].y}" stroke="${EC.io}" stroke-width="0.3"/>`);
+    // Inner ring: octagon — adjacent, skip-1, and diameter (skip-3)
+    for (let i = 0; i < 8; i++) {
+      lines.push(`<line x1="${inn[i].x}" y1="${inn[i].y}" x2="${inn[(i+1)%8].x}" y2="${inn[(i+1)%8].y}" stroke="${EC.i}" stroke-width="0.5"/>`);
+      lines.push(`<line x1="${inn[i].x}" y1="${inn[i].y}" x2="${inn[(i+2)%8].x}" y2="${inn[(i+2)%8].y}" stroke="${EC.is}" stroke-width="0.4"/>`);
+      lines.push(`<line x1="${inn[i].x}" y1="${inn[i].y}" x2="${inn[(i+4)%8].x}" y2="${inn[(i+4)%8].y}" stroke="${EC.io}" stroke-width="0.3"/>`);
     }
+    // Outer ring: pentagon — adjacent and skip-1
     for (let i = 0; i < 5; i++) {
       lines.push(`<line x1="${out[i].x}" y1="${out[i].y}" x2="${out[(i+1)%5].x}" y2="${out[(i+1)%5].y}" stroke="${EC.o}" stroke-width="0.5"/>`);
       lines.push(`<line x1="${out[i].x}" y1="${out[i].y}" x2="${out[(i+2)%5].x}" y2="${out[(i+2)%5].y}" stroke="${EC.os}" stroke-width="0.3"/>`);
     }
+    // Cross: inner to outer (5 pairs — uses first 6 inner nodes, same as before)
     for (let i = 0; i < 5; i++) {
       lines.push(`<line x1="${inn[i].x}" y1="${inn[i].y}" x2="${out[i].x}" y2="${out[i].y}" stroke="${EC.c}" stroke-width="0.4"/>`);
       lines.push(`<line x1="${inn[i+1].x}" y1="${inn[i+1].y}" x2="${out[i].x}" y2="${out[i].y}" stroke="${EC.c}" stroke-width="0.4"/>`);
     }
+    // Depth to all 8 inner
     inn.forEach(n => lines.push(`<line x1="${dep.x}" y1="${dep.y}" x2="${n.x}" y2="${n.y}" stroke="${EC.d}" stroke-width="0.4"/>`));
     return lines.join('');
   };

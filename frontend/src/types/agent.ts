@@ -12,14 +12,16 @@ export type AgentDivision =
   | 'testing'
   | 'design'
   | 'product'
-  | 'project-mgmt'
+  | 'project-management'
   | 'specialized'
+  | 'academic'
+  | 'strategy'
   | 'marketing'
   | 'sales'
   | 'paid-media'
   | 'support'
-  | 'game-dev'
-  | 'spatial';
+  | 'game-development'
+  | 'spatial-computing';
 
 export type CubeRing = 'central' | 'inner' | 'outer' | 'depth';
 
@@ -30,19 +32,25 @@ export interface DivisionMeta {
 }
 
 export const DIVISIONS: DivisionMeta[] = [
-  { id: 'capomastro',    label: 'Capomastro',    ring: 'central' },
-  { id: 'engineering',    label: 'Engineering',    ring: 'inner' },
-  { id: 'testing',        label: 'Testing',        ring: 'inner' },
-  { id: 'design',         label: 'Design',         ring: 'inner' },
-  { id: 'product',        label: 'Product',        ring: 'inner' },
-  { id: 'project-mgmt',   label: 'Project Mgmt',   ring: 'inner' },
-  { id: 'specialized',    label: 'Specialized',    ring: 'inner' },
-  { id: 'marketing',      label: 'Marketing',      ring: 'outer' },
-  { id: 'sales',          label: 'Sales',          ring: 'outer' },
-  { id: 'paid-media',     label: 'Paid Media',     ring: 'outer' },
-  { id: 'support',        label: 'Support',        ring: 'outer' },
-  { id: 'game-dev',       label: 'Game Dev',       ring: 'outer' },
-  { id: 'spatial',         label: 'Spatial',         ring: 'depth' },
+  // [0] central
+  { id: 'capomastro',          label: 'Capomastro',    ring: 'central' },
+  // [1-8] inner ring
+  { id: 'engineering',         label: 'Engineering',   ring: 'inner' },
+  { id: 'testing',             label: 'Testing',       ring: 'inner' },
+  { id: 'design',              label: 'Design',        ring: 'inner' },
+  { id: 'product',             label: 'Product',       ring: 'inner' },
+  { id: 'project-management',  label: 'Project Mgmt',  ring: 'inner' },
+  { id: 'specialized',         label: 'Specialized',   ring: 'inner' },
+  { id: 'academic',            label: 'Academic',      ring: 'inner' },
+  { id: 'strategy',            label: 'Strategy',      ring: 'inner' },
+  // [9-13] outer ring
+  { id: 'marketing',           label: 'Marketing',     ring: 'outer' },
+  { id: 'sales',               label: 'Sales',         ring: 'outer' },
+  { id: 'paid-media',          label: 'Paid Media',    ring: 'outer' },
+  { id: 'support',             label: 'Support',       ring: 'outer' },
+  { id: 'game-development',    label: 'Game Dev',      ring: 'outer' },
+  // [14] depth
+  { id: 'spatial-computing',   label: 'Spatial',       ring: 'depth' },
 ];
 
 export interface AgentConfig {
