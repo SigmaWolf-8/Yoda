@@ -210,7 +210,7 @@ export function AppShell() {
                   {header.title}
                 </p>
                 {header.subtitle && (
-                  <p className="text-[10px] text-[var(--color-text-muted)] font-mono leading-tight truncate">
+                  <p className="text-[10px] text-[var(--color-text-muted)] font-mono leading-tight truncate mt-1">
                     {header.subtitle}
                   </p>
                 )}
