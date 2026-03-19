@@ -8,6 +8,7 @@ import {
   AlertCircle,
   Save,
   Loader2,
+  HelpCircle,
 } from 'lucide-react';
 import { useUpdateEngine } from '../../api/hooks';
 import type {
@@ -16,6 +17,47 @@ import type {
   HostingMode,
   AuthType,
 } from '../../types';
+
+// ── Model knowledge base ──────────────────────────────────────────────────────
+
+const MODEL_INFO: Record<string, { desc: string; specialty: string; type: string }> = {
+  // Anthropic
+  'claude-opus-4-6':   { type: 'LLM', specialty: 'Complex reasoning · Long documents · Nuanced writing', desc: "Anthropic's most powerful model. Best for deep analysis, intricate code review, and tasks requiring careful multi-step reasoning." },
+  'claude-sonnet-4-6': { type: 'LLM', specialty: 'Coding · Analysis · Speed + quality balance', desc: "Anthropic's balanced workhorse. Strong reasoning at faster speeds — the best all-round choice for most YODA pipelines." },
+  'claude-haiku-4-5':  { type: 'LLM', specialty: 'Fast summaries · Simple edits · Low latency', desc: "Anthropic's lightest Claude. Excellent for rapid classification, quick rewrites, and high-volume lightweight tasks." },
+  // OpenAI
+  'gpt-4.5':   { type: 'LLM', specialty: 'Frontier reasoning · Instruction-following · Multimodal', desc: "OpenAI's most capable model. Handles complex instructions with high fidelity; strong across coding, math, and creative tasks." },
+  'gpt-4o':    { type: 'LLM', specialty: 'Fast · Multimodal · General purpose', desc: "OpenAI's versatile everyday model. Rapid responses with strong reasoning — ideal as a second or third reviewer engine." },
+  'o3-mini':   { type: 'Reasoning LLM', specialty: 'Math · Code · Step-by-step logic', desc: "OpenAI's compact reasoning model. Uses chain-of-thought internally to excel at structured problem-solving at lower cost than o3." },
+  // xAI
+  'grok-3':      { type: 'LLM', specialty: 'Real-time data · Long context · Coding', desc: "xAI's flagship model. Can access live information, handles very long contexts, and performs strongly on software engineering tasks." },
+  'grok-3-mini': { type: 'LLM', specialty: 'Fast · Efficient · General tasks', desc: "xAI's efficient model. Lower latency and cost while retaining solid reasoning — good for high-volume review steps." },
+  // Google
+  'gemini-2.5-pro':   { type: 'LLM', specialty: 'Long context · Code · Multi-step reasoning', desc: "Google's most capable model. Handles up to 1M-token contexts, excels at large codebase analysis and document-heavy tasks." },
+  'gemini-2.5-flash':  { type: 'LLM', specialty: 'High throughput · Summarisation · Extraction', desc: "Google's speed-optimised model. Very fast token generation — ideal for high-volume extraction and summarisation passes." },
+  'gemini-3-pro':      { type: 'LLM', specialty: 'Advanced reasoning · Multimodal · Next-gen', desc: "Google's next-generation flagship. State-of-the-art reasoning across text, code, and images." },
+  // DeepSeek
+  'DeepSeek-V3.2': { type: 'LLM', specialty: 'Coding · Math · Cost-efficient frontier', desc: "DeepSeek's latest dense model. Competitive with frontier LLMs on coding and math benchmarks at significantly lower cost." },
+  'DeepSeek-R1':   { type: 'Reasoning LLM', specialty: 'Chain-of-thought · Math · Complex problem-solving', desc: "DeepSeek's reasoning model. Publishes its thinking process step-by-step; outstanding on logic, proofs, and algorithmic problems." },
+  // Self-hosted — Qwen
+  'Qwen3.5-27B':        { type: 'LLM', specialty: 'Coding · Multilingual · Balanced size', desc: "Alibaba's mid-size open model. Excellent multilingual support and strong coding ability — a popular self-hosted choice." },
+  'Qwen3.5-9B':         { type: 'LLM', specialty: 'Compact · Fast · Low resource use', desc: "Qwen's compact variant. Runs on a single consumer GPU; good for fast iteration and lightweight review tasks." },
+  'Qwen3.5-122B':       { type: 'LLM', specialty: 'Near-frontier quality · Complex reasoning · Coding', desc: "Alibaba's largest Qwen model. Matches frontier commercial quality for reasoning and code at self-hosted prices." },
+  'Qwen3.5-35B-A3B':    { type: 'Mixture-of-Experts LLM', specialty: 'High capability · Efficient compute · Coding', desc: "Mixture-of-Experts architecture: only 3B parameters active per token, giving high capability at lower inference cost than a dense 35B." },
+  // Self-hosted — DeepSeek distilled
+  'DeepSeek-R1-Distill-Qwen-32B':   { type: 'Reasoning LLM', specialty: 'Math · Code · Structured reasoning', desc: "DeepSeek-R1 reasoning capability distilled into a 32B Qwen-architecture model. Strong chain-of-thought at self-hosted scale." },
+  'DeepSeek-R1-Distill-Llama-70B':  { type: 'Reasoning LLM', specialty: 'Complex reasoning · Large self-hosted option', desc: "DeepSeek-R1 reasoning distilled into Llama-70B. Powerful open-weight reasoning model for self-hosted deployments." },
+  // Self-hosted — Llama
+  'Llama-3.1-8B':      { type: 'LLM', specialty: 'Compact · Fast · Widely supported', desc: "Meta's compact open model. Runs anywhere, supported by virtually every inference server. Good for simple review passes." },
+  'Llama-3.1-70B':     { type: 'LLM', specialty: 'Strong open-weight · Coding · General tasks', desc: "Meta's strong open model. Competitive with many commercial models for coding and instruction-following tasks." },
+  'Llama-4-Maverick':  { type: 'Multimodal LLM', specialty: 'Native multimodal · Extended context · Next-gen', desc: "Meta's next-generation model. Natively handles text and images; designed for very long contexts and complex multi-step tasks." },
+  // Self-hosted — Mistral
+  'Mistral-Nemo-12B':   { type: 'LLM', specialty: 'Efficient · Multilingual · Instruction-following', desc: "Mistral's efficient 12B model. Strong multilingual capability and instruction-following; fits on a single mid-range GPU." },
+  'Mistral-Large-3':    { type: 'LLM', specialty: 'Top-tier reasoning · Coding · Multilingual', desc: "Mistral's flagship open model. Top-tier performance across coding, reasoning, and multilingual tasks." },
+  // Self-hosted — Other
+  'GLM-5':     { type: 'LLM', specialty: 'Chinese language · General reasoning', desc: "Zhipu AI's latest model. Excellent Chinese language support alongside solid general reasoning and coding ability." },
+  'Kimi-K2.5': { type: 'LLM', specialty: 'Long context · Document understanding · 200K tokens', desc: "Moonshot AI's model. Built for very long contexts (up to 200K tokens) — ideal for large codebase or document review." },
+};
 
 const PROVIDERS: Record<string, { authType: AuthType; models: string[] }> = {
   Anthropic: { authType: 'api_key', models: ['claude-opus-4-6', 'claude-sonnet-4-6', 'claude-haiku-4-5'] },
@@ -35,6 +77,46 @@ const COMMON_MODELS = [
 
 const SLOT_LABELS: Record<Slot, string> = { a: 'Engine A', b: 'Engine B', c: 'Engine C' };
 
+// ── Tooltip ───────────────────────────────────────────────────────────────────
+
+function Tooltip({ content, children, wide }: { content: React.ReactNode; children: React.ReactNode; wide?: boolean }) {
+  return (
+    <span className="relative group/tip inline-flex items-center">
+      {children}
+      <span
+        className={`absolute bottom-full left-1/2 -translate-x-1/2 mb-2.5 ${wide ? 'w-72' : 'w-60'} p-3 rounded-xl
+          bg-[var(--color-navy-850,#0d1829)] border border-[var(--color-navy-600)]
+          text-xs text-[var(--color-navy-100)] shadow-xl
+          opacity-0 pointer-events-none group-hover/tip:opacity-100
+          transition-opacity duration-150 z-50 leading-relaxed text-left`}
+      >
+        {content}
+        <span className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-[var(--color-navy-600)]" />
+      </span>
+    </span>
+  );
+}
+
+// ── Model description card ────────────────────────────────────────────────────
+
+function ModelCard({ modelName }: { modelName: string }) {
+  const info = MODEL_INFO[modelName];
+  if (!info) return null;
+  return (
+    <div className="mt-2 px-3 py-2 rounded-lg bg-[var(--color-surface-tertiary)] border border-[var(--color-border-subtle)] text-xs space-y-1">
+      <div className="flex items-center gap-2 flex-wrap">
+        <span className="px-1.5 py-0.5 rounded bg-[var(--color-gold-500)]/10 text-[var(--color-gold-400)] font-medium text-[10px]">
+          {info.type}
+        </span>
+        <span className="text-[var(--color-text-muted)]">{info.specialty}</span>
+      </div>
+      <p className="text-[var(--color-text-tertiary)] leading-relaxed">{info.desc}</p>
+    </div>
+  );
+}
+
+// ── Main component ────────────────────────────────────────────────────────────
+
 interface Props {
   slot: Slot;
   config?: EngineConfig;
@@ -52,7 +134,6 @@ export function EngineSlotCard({ slot, config }: Props) {
   const [familyOverride, setFamilyOverride] = useState(config?.family_override ?? '');
   const [showSuggest, setShowSuggest] = useState(false);
 
-  // Reset fields when mode changes
   useEffect(() => {
     if (mode === 'self_hosted') {
       setAuthType('none');
@@ -60,7 +141,6 @@ export function EngineSlotCard({ slot, config }: Props) {
     }
   }, [mode]);
 
-  // Auto-fill auth type when provider changes
   useEffect(() => {
     const p = PROVIDERS[provider];
     if (p) {
@@ -102,6 +182,12 @@ export function EngineSlotCard({ slot, config }: Props) {
     (m) => m.toLowerCase().includes(modelName.toLowerCase()) && m !== modelName,
   );
 
+  const MODE_TIPS: Record<HostingMode, string> = {
+    self_hosted: 'Connect to a model running on your own hardware or private cloud via a local API endpoint (e.g. Ollama, vLLM, LM Studio). No data leaves your infrastructure.',
+    commercial:  'Connect to a paid API from providers like Anthropic, OpenAI, xAI, Google, or DeepSeek. Requires an API key and incurs per-token costs.',
+    free_tier:   'Use a provider\'s free or trial tier. Same setup as Commercial but typically subject to rate limits and daily message caps.',
+  };
+
   return (
     <div className="bg-[var(--color-surface-secondary)] border border-[var(--color-border-subtle)] rounded-xl p-5">
       {/* Header */}
@@ -129,18 +215,19 @@ export function EngineSlotCard({ slot, config }: Props) {
           { m: 'commercial' as const, icon: Cloud, label: 'Commercial' },
           { m: 'free_tier' as const, icon: Gift, label: 'Free Tier' },
         ]).map(({ m, icon: Icon, label }) => (
-          <button
-            key={m}
-            onClick={() => setMode(m)}
-            className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-medium border transition-colors ${
-              mode === m
-                ? 'bg-[var(--color-gold-500)]/10 text-[var(--color-gold-400)] border-[var(--color-gold-500)]/30'
-                : 'bg-[var(--color-surface-tertiary)] text-[var(--color-text-tertiary)] border-[var(--color-border-default)] hover:border-[var(--color-border-strong)]'
-            }`}
-          >
-            <Icon className="w-3.5 h-3.5" />
-            {label}
-          </button>
+          <Tooltip key={m} content={MODE_TIPS[m]}>
+            <button
+              onClick={() => setMode(m)}
+              className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-medium border transition-colors ${
+                mode === m
+                  ? 'bg-[var(--color-gold-500)]/10 text-[var(--color-gold-400)] border-[var(--color-gold-500)]/30'
+                  : 'bg-[var(--color-surface-tertiary)] text-[var(--color-text-tertiary)] border-[var(--color-border-default)] hover:border-[var(--color-border-strong)]'
+              }`}
+            >
+              <Icon className="w-3.5 h-3.5" />
+              {label}
+            </button>
+          </Tooltip>
         ))}
       </div>
 
@@ -160,19 +247,26 @@ export function EngineSlotCard({ slot, config }: Props) {
                 className="w-full px-3 py-2 rounded-lg bg-[var(--color-surface-tertiary)] border border-[var(--color-border-default)] text-sm text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-gold-500)] focus:ring-1 focus:ring-[var(--color-gold-500)]/30 transition-colors"
               />
               {showSuggest && filteredSuggest.length > 0 && (
-                <div className="absolute z-20 w-full mt-1 max-h-40 overflow-y-auto rounded-lg bg-[var(--color-surface-tertiary)] border border-[var(--color-border-default)] shadow-lg">
-                  {filteredSuggest.slice(0, 8).map((m) => (
-                    <button
-                      key={m}
-                      onMouseDown={() => { setModelName(m); setShowSuggest(false); }}
-                      className="w-full text-left px-3 py-1.5 text-sm text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)] transition-colors"
-                    >
-                      {m}
-                    </button>
-                  ))}
+                <div className="absolute z-20 w-full mt-1 max-h-52 overflow-y-auto rounded-lg bg-[var(--color-surface-tertiary)] border border-[var(--color-border-default)] shadow-lg">
+                  {filteredSuggest.slice(0, 8).map((m) => {
+                    const info = MODEL_INFO[m];
+                    return (
+                      <button
+                        key={m}
+                        onMouseDown={() => { setModelName(m); setShowSuggest(false); }}
+                        className="w-full text-left px-3 py-2 hover:bg-[var(--color-surface-hover)] transition-colors border-b border-[var(--color-border-subtle)] last:border-0"
+                      >
+                        <div className="text-sm text-[var(--color-text-secondary)] font-medium">{m}</div>
+                        {info && (
+                          <div className="text-[10px] text-[var(--color-text-muted)] mt-0.5">{info.specialty}</div>
+                        )}
+                      </button>
+                    );
+                  })}
                 </div>
               )}
             </div>
+            <ModelCard modelName={modelName} />
             <div>
               <label className="block text-xs font-medium text-[var(--color-text-secondary)] mb-1">Endpoint URL</label>
               <input
@@ -239,6 +333,7 @@ export function EngineSlotCard({ slot, config }: Props) {
                 )}
               </div>
             </div>
+            <ModelCard modelName={modelName} />
             <div>
               <label className="block text-xs font-medium text-[var(--color-text-secondary)] mb-1">
                 {mode === 'commercial' ? 'API Key' : 'Account / Token'}
@@ -262,8 +357,18 @@ export function EngineSlotCard({ slot, config }: Props) {
 
         {/* Family override (all modes) */}
         <div>
-          <label className="block text-xs font-medium text-[var(--color-text-muted)] mb-1">
+          <label className="flex items-center gap-1.5 text-xs font-medium text-[var(--color-text-muted)] mb-1">
             Family Override <span className="font-normal">(optional)</span>
+            <Tooltip wide content={
+              <div className="space-y-2">
+                <p className="font-semibold text-[var(--color-navy-100)]">What is Family Override?</p>
+                <p>YODA's diversity system checks that your three engines come from <strong>different model families</strong> — so you're not getting three near-identical opinions from the same underlying architecture.</p>
+                <p>It detects families automatically from the model name. If it doesn't recognise your model, set this field manually.</p>
+                <p className="text-[var(--color-gold-400)]">Examples: <code>qwen</code> · <code>deepseek</code> · <code>llama</code> · <code>mistral</code> · <code>claude</code> · <code>gpt</code></p>
+              </div>
+            }>
+              <HelpCircle className="w-3 h-3 text-[var(--color-text-muted)] cursor-help" />
+            </Tooltip>
           </label>
           <input
             type="text"
