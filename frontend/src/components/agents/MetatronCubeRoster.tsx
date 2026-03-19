@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import type { AgentWithStats, AgentDivision } from '../../types';
 import { DIVISIONS } from '../../types/agent';
 
@@ -65,9 +65,17 @@ export function MetatronCubeRoster({
   onSelectDivision, onSelectAgent,
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const svgRef = useRef<SVGSVGElement>(null);
   const [dims, setDims] = useState({ w: 800, h: 800 });
   const [phase, setPhase] = useState(0);
   const rafRef = useRef(0);
+
+  // Keep refs to the latest selection state so the native handler never
+  // captures a stale closure.
+  const selDivRef = useRef(selectedDivision);
+  const selIdxRef = useRef(selectedAgentIdx);
+  useEffect(() => { selDivRef.current = selectedDivision; }, [selectedDivision]);
+  useEffect(() => { selIdxRef.current = selectedAgentIdx; }, [selectedAgentIdx]);
 
   const dark = useMemo(() => {
     if (typeof window === 'undefined') return true;
@@ -146,37 +154,50 @@ export function MetatronCubeRoster({
   const cen = positions[0];
   const dep = positions[12];
 
-  // Click handler — walk from e.target up to the SVG root via parentElement
-  const handleClick = useCallback((e: React.MouseEvent<SVGSVGElement>) => {
-    let hit: Element | null = null;
-    let el: Element | null = e.target as Element;
-    while (el && el.tagName.toLowerCase() !== 'svg') {
-      if (el.hasAttribute('data-div') || el.hasAttribute('data-agent')) {
-        hit = el;
-        break;
-      }
-      el = el.parentElement;
-    }
-    if (!hit) return;
+  // Native click handler — attached directly to the SVG DOM node so that
+  // React's synthetic-event delegation (which skips innerHTML children) can't
+  // swallow real user clicks.
+  useEffect(() => {
+    const svg = svgRef.current;
+    if (!svg) return;
 
-    const agentIdx = hit.getAttribute('data-agent');
-    const divId = hit.getAttribute('data-div');
-
-    if (agentIdx !== null) {
-      const idx = parseInt(agentIdx, 10);
-      onSelectAgent(selectedAgentIdx === idx ? null : idx);
-      return;
-    }
-    if (divId) {
-      if (selectedDivision === divId) {
-        onSelectDivision(null);
-        onSelectAgent(null);
-      } else {
-        onSelectDivision(divId as AgentDivision);
-        onSelectAgent(null);
+    const handler = (e: MouseEvent) => {
+      let hit: Element | null = null;
+      let el: Element | null = e.target as Element;
+      while (el && el !== svg) {
+        if (el.hasAttribute('data-div') || el.hasAttribute('data-agent')) {
+          hit = el;
+          break;
+        }
+        el = el.parentElement;
       }
-    }
-  }, [selectedDivision, selectedAgentIdx, onSelectDivision, onSelectAgent]);
+      if (!hit) return;
+
+      const agentIdx = hit.getAttribute('data-agent');
+      const divId    = hit.getAttribute('data-div');
+
+      if (agentIdx !== null) {
+        const idx = parseInt(agentIdx, 10);
+        onSelectAgent(selIdxRef.current === idx ? null : idx);
+        return;
+      }
+      if (divId) {
+        if (selDivRef.current === divId) {
+          onSelectDivision(null);
+          onSelectAgent(null);
+        } else {
+          onSelectDivision(divId as AgentDivision);
+          onSelectAgent(null);
+        }
+      }
+    };
+
+    svg.addEventListener('click', handler);
+    return () => svg.removeEventListener('click', handler);
+  // onSelectDivision / onSelectAgent are stable callbacks from the parent;
+  // svgRef is stable. selDivRef/selIdxRef are always current via separate effects.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [onSelectDivision, onSelectAgent]);
 
   /* ── Build SVG content ── */
 
@@ -288,9 +309,9 @@ export function MetatronCubeRoster({
   return (
     <div ref={containerRef} style={{ width: '100%', height: '100%', minHeight: 400 }}>
       <svg
+        ref={svgRef}
         viewBox={`0 0 ${w} ${h}`}
-        style={{ width: '100%', height: '100%' }}
-        onClick={handleClick}
+        style={{ width: '100%', height: '100%', cursor: 'pointer' }}
         dangerouslySetInnerHTML={{ __html: svgContent }}
       />
     </div>
