@@ -35,3 +35,9 @@ export { useApiKeys, useCreateApiKey, useDeleteApiKey } from './useApiKeys';
 export { useGitHubPAT, useUpdateGitHubPAT } from './useGitHub';
 export { usePromoteToRonin, useEscalateToYoda } from './useModePromotion';
 export { usePipelineStatus } from './usePipelineStatus';
+export {
+  useAgents, useAgent, useAgentStats,
+  useAgentsWithStats, useAgentSyncStatus,
+  useImportAgents, useCreateAgent,
+  useUpdateAgent, useDeleteAgent,
+} from './useAgents';

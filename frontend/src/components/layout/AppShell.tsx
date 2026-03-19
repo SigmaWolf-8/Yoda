@@ -8,12 +8,14 @@ import {
   Menu,
   X,
   Zap,
+  Users,
 } from 'lucide-react';
 import { UserProfile } from '../auth/UserProfile';
 
 const NAV_ITEMS = [
   { to: '/',            icon: LayoutDashboard, label: 'Dashboard' },
   { to: '/projects',    icon: FolderKanban,    label: 'Projects' },
+  { to: '/agents',      icon: Users,           label: 'Agents' },
   { to: '/monitoring',  icon: BarChart3,       label: 'Monitoring' },
   { to: '/settings',    icon: Settings,        label: 'Settings' },
 ] as const;

@@ -11,3 +11,4 @@ export * from './model-lineage';
 export * from './api-error';
 export * from './settings';
 export * from './pipeline-events';
+export * from './agent';

@@ -19,6 +19,7 @@ import { EngineSettingsPage } from './pages/settings/EngineSettingsPage';
 import { OrgSettingsPage } from './pages/settings/OrgSettingsPage';
 import { ApiKeyPage } from './pages/settings/ApiKeyPage';
 import { MonitoringPage } from './pages/MonitoringPage';
+import { AgentsPage } from './pages/AgentsPage';
 
 // ── Protected Route wrapper ──
 
@@ -80,6 +81,7 @@ export const router = createBrowserRouter([
           { path: 'settings/org', element: <OrgSettingsPage /> },
           { path: 'settings/api-keys', element: <ApiKeyPage /> },
           { path: 'monitoring', element: <MonitoringPage /> },
+          { path: 'agents', element: <AgentsPage /> },
         ],
       },
     ],
