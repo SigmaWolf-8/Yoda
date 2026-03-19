@@ -1,14 +1,14 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Cpu, ArrowLeft, MemoryStick } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useEngineConfigs } from '../../api/hooks';
-import { EngineSlotCard } from '../../components/settings/EngineSlot';
+import { EngineSlotCard, MODEL_INFO, OS_OVERHEAD_GB } from '../../components/settings/EngineSlot';
 import { DiversityValidator } from '../../components/settings/DiversityValidator';
 import { ReviewIntensityControl } from '../../components/settings/ReviewIntensityControl';
 import { DecompositionBudgetControl } from '../../components/settings/DecompositionBudgetControl';
 import { RecommendedConfigs } from '../../components/settings/RecommendedConfigs';
 import { GitHubPATSetting } from '../../components/settings/GitHubPATSetting';
-import type { EngineSlot } from '../../types';
+import type { EngineSlot, HostingMode } from '../../types';
 
 const SLOTS: EngineSlot[] = ['a', 'b', 'c'];
 const RAM_PRESETS = [8, 16, 24, 32, 48, 64, 96, 128];
@@ -20,6 +20,8 @@ function loadHostRam(): number {
   return isNaN(parsed) || parsed < 1 ? 16 : parsed;
 }
 
+type SlotRecord<T> = Record<EngineSlot, T>;
+
 export function EngineSettingsPage() {
   const { data: engines } = useEngineConfigs();
 
@@ -27,6 +29,26 @@ export function EngineSettingsPage() {
   const [budget, setBudget] = useState<number | null>(30);
   const [hostRam, setHostRam] = useState<number>(loadHostRam);
   const [ramInput, setRamInput] = useState<string>(String(loadHostRam()));
+
+  // Live model and mode state per slot — updated by each card in real time
+  const [liveModels, setLiveModels] = useState<SlotRecord<string>>({ a: '', b: '', c: '' });
+  const [liveModes,  setLiveModes]  = useState<SlotRecord<HostingMode>>({ a: 'self_hosted', b: 'self_hosted', c: 'self_hosted' });
+
+  // Sync initial values once backend data loads
+  useEffect(() => {
+    if (!engines) return;
+    const map = new Map(engines.map((e) => [e.slot as EngineSlot, e]));
+    setLiveModels({
+      a: map.get('a')?.model_name ?? '',
+      b: map.get('b')?.model_name ?? '',
+      c: map.get('c')?.model_name ?? '',
+    });
+    setLiveModes({
+      a: map.get('a')?.hosting_mode ?? 'self_hosted',
+      b: map.get('b')?.hosting_mode ?? 'self_hosted',
+      c: map.get('c')?.hosting_mode ?? 'self_hosted',
+    });
+  }, [engines]);
 
   function applyRam(value: number) {
     const clamped = Math.max(1, Math.min(1024, value));
@@ -39,6 +61,24 @@ export function EngineSettingsPage() {
     setRamInput(raw);
     const n = parseInt(raw, 10);
     if (!isNaN(n) && n > 0) applyRam(n);
+  }
+
+  /**
+   * RAM already committed by the other two self-hosted slots.
+   * Only counts Q4 RAM for self-hosted slots that have a known model selected.
+   */
+  function reservedRamFor(slot: EngineSlot): number {
+    return SLOTS
+      .filter((s) => s !== slot && liveModes[s] === 'self_hosted')
+      .reduce((sum, s) => sum + (MODEL_INFO[liveModels[s]]?.ramGbQ4 ?? 0), 0);
+  }
+
+  /** Models already chosen in the other two slots (any mode). */
+  function usedModelsFor(slot: EngineSlot): string[] {
+    return SLOTS
+      .filter((s) => s !== slot)
+      .map((s) => liveModels[s])
+      .filter(Boolean);
   }
 
   const engineMap = new Map(engines?.map((e) => [e.slot, e]));
@@ -94,12 +134,48 @@ export function EngineSettingsPage() {
             <span className="text-xs text-[var(--color-text-muted)]">GB</span>
           </div>
         </div>
+
+        {/* Live RAM budget summary */}
+        {SLOTS.some((s) => liveModes[s] === 'self_hosted' && liveModels[s]) && (
+          <div className="mt-3 pt-3 border-t border-[var(--color-border-subtle)] flex flex-wrap gap-x-4 gap-y-1 text-[10px] text-[var(--color-text-muted)]">
+            <span className="font-medium text-[var(--color-text-secondary)]">RAM budget:</span>
+            {SLOTS.map((s) => {
+              const ram = liveModes[s] === 'self_hosted' ? (MODEL_INFO[liveModels[s]]?.ramGbQ4 ?? 0) : 0;
+              if (!ram) return null;
+              return (
+                <span key={s}>
+                  Engine {s.toUpperCase()} · {liveModels[s]}: <strong>{ram} GB</strong>
+                </span>
+              );
+            })}
+            {(() => {
+              const total = SLOTS.reduce((sum, s) =>
+                sum + (liveModes[s] === 'self_hosted' ? (MODEL_INFO[liveModels[s]]?.ramGbQ4 ?? 0) : 0), 0);
+              const remaining = hostRam - OS_OVERHEAD_GB - total;
+              if (total === 0) return null;
+              return (
+                <span className={remaining < 0 ? 'text-red-400 font-medium' : 'text-[var(--color-text-secondary)]'}>
+                  → {remaining >= 0 ? `${remaining.toFixed(1)} GB remaining` : `${Math.abs(remaining).toFixed(1)} GB over budget`}
+                </span>
+              );
+            })()}
+          </div>
+        )}
       </div>
 
       {/* Engine Slots */}
       <div className="space-y-4 mb-8">
         {SLOTS.map((slot) => (
-          <EngineSlotCard key={slot} slot={slot} config={engineMap.get(slot)} hostRam={hostRam} />
+          <EngineSlotCard
+            key={slot}
+            slot={slot}
+            config={engineMap.get(slot)}
+            hostRam={hostRam}
+            reservedRam={reservedRamFor(slot)}
+            usedModels={usedModelsFor(slot)}
+            onModelChange={(m) => setLiveModels((prev) => ({ ...prev, [slot]: m }))}
+            onModeChange={(m) => setLiveModes((prev) => ({ ...prev, [slot]: m }))}
+          />
         ))}
       </div>
 

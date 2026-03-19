@@ -3,8 +3,6 @@ import {
   Server,
   Cloud,
   Gift,
-  Wifi,
-  WifiOff,
   AlertCircle,
   Save,
   Loader2,
@@ -12,6 +10,7 @@ import {
   CheckCircle2,
   XCircle,
   AlertTriangle,
+  Ban,
 } from 'lucide-react';
 import { useUpdateEngine } from '../../api/hooks';
 import type {
@@ -23,22 +22,22 @@ import type {
 
 // ── Model knowledge base ──────────────────────────────────────────────────────
 //
-// ramGbQ4:  RAM in GB at Q4_K_M quantization (most common self-host preset)
+// ramGbQ4:  RAM in GB at Q4_K_M quantization (standard self-host preset)
 // ramGbQ3:  RAM in GB at Q3_K_M quantization (fallback for borderline machines)
-// Fit is computed dynamically from hostRam — nothing is hardcoded here.
+// Fit is computed dynamically — nothing hardcoded.
 
-type FitLevel = 'ok' | 'tight' | 'no';
+export type FitLevel = 'ok' | 'tight' | 'no';
 
-interface ModelMeta {
+export interface ModelMeta {
   desc: string;
   specialty: string;
   type: string;
-  ramGbQ4?: number;  // undefined = cloud-hosted, not relevant
+  ramGbQ4?: number;   // undefined = cloud-hosted
   ramGbQ3?: number;
 }
 
-const MODEL_INFO: Record<string, ModelMeta> = {
-  // ── Anthropic (cloud — no local RAM needed) ─────────────────────────────
+export const MODEL_INFO: Record<string, ModelMeta> = {
+  // ── Anthropic (cloud) ───────────────────────────────────────────────────
   'claude-opus-4-6':   { type: 'LLM', specialty: 'Complex reasoning · Long documents · Nuanced writing', desc: "Anthropic's most powerful model. Best for deep analysis, intricate code review, and tasks requiring careful multi-step reasoning." },
   'claude-sonnet-4-6': { type: 'LLM', specialty: 'Coding · Analysis · Speed + quality balance', desc: "Anthropic's balanced workhorse. Strong reasoning at faster speeds — the best all-round choice for most YODA pipelines." },
   'claude-haiku-4-5':  { type: 'LLM', specialty: 'Fast summaries · Simple edits · Low latency', desc: "Anthropic's lightest Claude. Excellent for rapid classification, quick rewrites, and high-volume lightweight tasks." },
@@ -50,7 +49,7 @@ const MODEL_INFO: Record<string, ModelMeta> = {
   'grok-3':      { type: 'LLM', specialty: 'Real-time data · Long context · Coding', desc: "xAI's flagship model. Can access live information, handles very long contexts, and performs strongly on software engineering tasks." },
   'grok-3-mini': { type: 'LLM', specialty: 'Fast · Efficient · General tasks', desc: "xAI's efficient model. Lower latency and cost while retaining solid reasoning — good for high-volume review steps." },
   // ── Google (cloud) ──────────────────────────────────────────────────────
-  'gemini-2.5-pro':  { type: 'LLM', specialty: 'Long context · Code · Multi-step reasoning', desc: "Google's most capable model. Handles up to 1M-token contexts, excels at large codebase analysis and document-heavy tasks." },
+  'gemini-2.5-pro':   { type: 'LLM', specialty: 'Long context · Code · Multi-step reasoning', desc: "Google's most capable model. Handles up to 1M-token contexts, excels at large codebase analysis and document-heavy tasks." },
   'gemini-2.5-flash': { type: 'LLM', specialty: 'High throughput · Summarisation · Extraction', desc: "Google's speed-optimised model. Very fast token generation — ideal for high-volume extraction and summarisation passes." },
   'gemini-3-pro':     { type: 'LLM', specialty: 'Advanced reasoning · Multimodal · Next-gen', desc: "Google's next-generation flagship. State-of-the-art reasoning across text, code, and images." },
   // ── DeepSeek (cloud) ────────────────────────────────────────────────────
@@ -127,21 +126,21 @@ const MODEL_INFO: Record<string, ModelMeta> = {
 
 // ── Resource helpers ──────────────────────────────────────────────────────────
 
-const OS_OVERHEAD_GB = 3; // reserved for OS + background apps
+export const OS_OVERHEAD_GB = 3;
 
-function computeFit(info: ModelMeta, hostRam: number): FitLevel | undefined {
-  if (info.ramGbQ4 === undefined) return undefined; // cloud model
-  const available = hostRam - OS_OVERHEAD_GB;
+/** Compute fit given total host RAM and RAM already reserved by other self-hosted slots. */
+export function computeFit(info: ModelMeta, hostRam: number, reservedRam = 0): FitLevel | undefined {
+  if (info.ramGbQ4 === undefined) return undefined;
+  const available = hostRam - OS_OVERHEAD_GB - reservedRam;
   if (info.ramGbQ4 <= available) return 'ok';
   if (info.ramGbQ3 !== undefined && info.ramGbQ3 <= available) return 'tight';
   return 'no';
 }
 
-function ramDisplay(info: ModelMeta): string | undefined {
+export function ramDisplay(info: ModelMeta): string | undefined {
   if (info.ramGbQ4 === undefined) return undefined;
   const q4 = `~${info.ramGbQ4} GB (Q4)`;
-  if (info.ramGbQ3 !== undefined) return `${q4} · ~${info.ramGbQ3} GB (Q3)`;
-  return q4;
+  return info.ramGbQ3 !== undefined ? `${q4} · ~${info.ramGbQ3} GB (Q3)` : q4;
 }
 
 const ALL_SELF_HOSTED = [
@@ -154,15 +153,23 @@ const ALL_SELF_HOSTED = [
 
 const FIT_ORDER: Record<string, number> = { ok: 0, tight: 1, no: 2 };
 
-function sortedModels(hostRam: number, filter: string): string[] {
-  const filtered = ALL_SELF_HOSTED.filter(
-    (m) => m.toLowerCase().includes(filter.toLowerCase()) && m !== filter,
-  );
-  return filtered.sort((a, b) => {
-    const fa = FIT_ORDER[computeFit(MODEL_INFO[a], hostRam) ?? 'no'];
-    const fb = FIT_ORDER[computeFit(MODEL_INFO[b], hostRam) ?? 'no'];
-    return fa - fb;
-  });
+function sortedModels(
+  hostRam: number,
+  filter: string,
+  usedModels: string[],
+  reservedRam: number,
+): string[] {
+  return ALL_SELF_HOSTED
+    .filter((m) =>
+      m.toLowerCase().includes(filter.toLowerCase())
+      && m !== filter
+      && !usedModels.includes(m),
+    )
+    .sort((a, b) => {
+      const fa = FIT_ORDER[computeFit(MODEL_INFO[a], hostRam, reservedRam) ?? 'no'];
+      const fb = FIT_ORDER[computeFit(MODEL_INFO[b], hostRam, reservedRam) ?? 'no'];
+      return fa - fb;
+    });
 }
 
 const PROVIDERS: Record<string, { authType: AuthType; models: string[] }> = {
@@ -216,10 +223,10 @@ function ResourceBadge({ fit, ram }: { fit: FitLevel; ram: string }) {
 
 // ── Model description card ────────────────────────────────────────────────────
 
-function ModelCard({ modelName, hostRam }: { modelName: string; hostRam: number }) {
+function ModelCard({ modelName, hostRam, reservedRam }: { modelName: string; hostRam: number; reservedRam: number }) {
   const info = MODEL_INFO[modelName];
   if (!info) return null;
-  const fit = computeFit(info, hostRam);
+  const fit = computeFit(info, hostRam, reservedRam);
   const ram = ramDisplay(info);
   return (
     <div className="mt-2 px-3 py-2.5 rounded-lg bg-[var(--color-surface-tertiary)] border border-[var(--color-border-subtle)] text-xs space-y-1.5">
@@ -246,13 +253,22 @@ function FitDot({ fit }: { fit?: FitLevel }) {
 
 // ── Main component ────────────────────────────────────────────────────────────
 
-interface Props {
+export interface EngineSlotCardProps {
   slot: Slot;
   config?: EngineConfig;
   hostRam: number;
+  /** RAM (GB) already committed by the other two self-hosted engine slots. */
+  reservedRam: number;
+  /** Model names already chosen in the other two slots — hidden from this slot's suggestions. */
+  usedModels: string[];
+  onModelChange: (model: string) => void;
+  onModeChange: (mode: HostingMode) => void;
 }
 
-export function EngineSlotCard({ slot, config, hostRam }: Props) {
+export function EngineSlotCard({
+  slot, config, hostRam, reservedRam, usedModels,
+  onModelChange, onModeChange,
+}: EngineSlotCardProps) {
   const update = useUpdateEngine();
 
   const [mode, setMode] = useState<HostingMode>(config?.hosting_mode ?? 'self_hosted');
@@ -263,6 +279,16 @@ export function EngineSlotCard({ slot, config, hostRam }: Props) {
   const [provider, setProvider] = useState('');
   const [familyOverride, setFamilyOverride] = useState(config?.family_override ?? '');
   const [showSuggest, setShowSuggest] = useState(false);
+
+  function changeMode(m: HostingMode) {
+    setMode(m);
+    onModeChange(m);
+  }
+
+  function changeModel(m: string) {
+    setModelName(m);
+    onModelChange(m);
+  }
 
   useEffect(() => {
     if (mode === 'self_hosted') {
@@ -288,6 +314,10 @@ export function EngineSlotCard({ slot, config, hostRam }: Props) {
     }
   }, [provider]);
 
+  // Notify parent on first render so parent state is in sync
+  useEffect(() => { onModelChange(modelName); }, []);
+  useEffect(() => { onModeChange(mode); }, []);
+
   function handleSave() {
     update.mutate({
       slot,
@@ -306,7 +336,8 @@ export function EngineSlotCard({ slot, config, hostRam }: Props) {
       ? 'bg-[var(--color-warn)]'
       : 'bg-[var(--color-err)]';
 
-  const suggestions = sortedModels(hostRam, modelName);
+  const suggestions = sortedModels(hostRam, modelName, usedModels, reservedRam);
+  const availableGb  = hostRam - OS_OVERHEAD_GB - reservedRam;
 
   const MODE_TIPS: Record<HostingMode, string> = {
     self_hosted: 'Run a model on your own hardware via a local endpoint (Ollama, llama.cpp, LM Studio, vLLM). No data leaves your machine.',
@@ -341,7 +372,7 @@ export function EngineSlotCard({ slot, config, hostRam }: Props) {
         ]).map(({ m, icon: Icon, label }) => (
           <Tooltip key={m} content={MODE_TIPS[m]}>
             <button
-              onClick={() => setMode(m)}
+              onClick={() => changeMode(m)}
               className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-medium border transition-colors ${
                 mode === m
                   ? 'bg-[var(--color-gold-500)]/10 text-[var(--color-gold-400)] border-[var(--color-gold-500)]/30'
@@ -356,42 +387,59 @@ export function EngineSlotCard({ slot, config, hostRam }: Props) {
       </div>
 
       <div className="space-y-3">
-        {/* Self-Hosted fields */}
+        {/* ── Self-Hosted fields ────────────────────────────────────────── */}
         {mode === 'self_hosted' && (
           <>
-            {/* RAM context banner */}
+            {/* RAM context banner — shows available RAM accounting for other slots */}
             <div className="flex items-start gap-2 px-3 py-2 rounded-lg bg-[var(--color-surface-tertiary)] border border-[var(--color-border-subtle)] text-[10px] text-[var(--color-text-muted)] leading-relaxed">
               <span className="mt-0.5 flex-shrink-0">💡</span>
               <span>
-                RAM shown is for <strong>4-bit (Q4) quantization</strong> — the standard setting.
-                Based on your <strong>{hostRam} GB</strong> host (≈{hostRam - OS_OVERHEAD_GB} GB available after OS):
-                {' '}<span className="text-emerald-400 font-medium">✓ Fits</span> runs comfortably,
-                {' '}<span className="text-amber-400 font-medium">⚠ Tight</span> needs Q3 quant,
-                {' '}<span className="text-red-400 font-medium">✗</span> needs a bigger machine.
+                {reservedRam > 0
+                  ? <>
+                      RAM estimates are for <strong>Q4</strong> quant.
+                      {' '}<strong>{hostRam} GB</strong> host
+                      {' '}− {OS_OVERHEAD_GB} GB OS
+                      {' '}− {reservedRam.toFixed(1)} GB other engines
+                      {' '}= <strong className="text-[var(--color-text-secondary)]">{availableGb.toFixed(1)} GB free</strong> for this slot.
+                    </>
+                  : <>
+                      RAM estimates are for <strong>Q4</strong> quant.
+                      {' '}<strong>{hostRam} GB</strong> host − {OS_OVERHEAD_GB} GB OS
+                      {' '}= <strong className="text-[var(--color-text-secondary)]">{availableGb.toFixed(1)} GB available</strong>.
+                    </>
+                }
+                {' '}<span className="text-emerald-400">✓ Fits</span>{' · '}
+                <span className="text-amber-400">⚠ Q3 only</span>{' · '}
+                <span className="text-red-400">✗ Too large</span>.
               </span>
             </div>
 
+            {/* Model typeahead */}
             <div className="relative">
               <label className="block text-xs font-medium text-[var(--color-text-secondary)] mb-1">Model</label>
               <input
                 type="text"
                 value={modelName}
-                onChange={(e) => { setModelName(e.target.value); setShowSuggest(true); }}
+                onChange={(e) => { changeModel(e.target.value); setShowSuggest(true); }}
                 onFocus={() => setShowSuggest(true)}
                 onBlur={() => setTimeout(() => setShowSuggest(false), 150)}
                 placeholder="e.g. Llama-3.1-8B"
                 className="w-full px-3 py-2 rounded-lg bg-[var(--color-surface-tertiary)] border border-[var(--color-border-default)] text-sm text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-gold-500)] focus:ring-1 focus:ring-[var(--color-gold-500)]/30 transition-colors"
               />
-              {showSuggest && suggestions.length > 0 && (
-                <div className="absolute z-20 w-full mt-1 max-h-64 overflow-y-auto rounded-lg bg-[var(--color-surface-tertiary)] border border-[var(--color-border-default)] shadow-lg">
-                  {suggestions.map((m) => {
+              {showSuggest && (
+                <div className="absolute z-20 w-full mt-1 max-h-72 overflow-y-auto rounded-lg bg-[var(--color-surface-tertiary)] border border-[var(--color-border-default)] shadow-lg">
+                  {suggestions.length === 0 ? (
+                    <div className="px-3 py-3 text-xs text-[var(--color-text-muted)] italic">
+                      No matching models available
+                    </div>
+                  ) : suggestions.map((m) => {
                     const info = MODEL_INFO[m];
-                    const fit = computeFit(info, hostRam);
-                    const ram = ramDisplay(info);
+                    const fit  = computeFit(info, hostRam, reservedRam);
+                    const ram  = ramDisplay(info);
                     return (
                       <button
                         key={m}
-                        onMouseDown={() => { setModelName(m); setShowSuggest(false); }}
+                        onMouseDown={() => { changeModel(m); setShowSuggest(false); }}
                         className="w-full text-left px-3 py-2 hover:bg-[var(--color-surface-hover)] transition-colors border-b border-[var(--color-border-subtle)] last:border-0"
                       >
                         <div className="flex items-center gap-2">
@@ -409,11 +457,22 @@ export function EngineSlotCard({ slot, config, hostRam }: Props) {
                       </button>
                     );
                   })}
+
+                  {/* Show count of models hidden because they're used elsewhere */}
+                  {usedModels.filter((u) => ALL_SELF_HOSTED.includes(u)).length > 0 && (
+                    <div className="px-3 py-2 flex items-center gap-1.5 text-[10px] text-[var(--color-text-muted)] border-t border-[var(--color-border-subtle)]">
+                      <Ban className="w-3 h-3 flex-shrink-0" />
+                      {usedModels.filter((u) => ALL_SELF_HOSTED.includes(u)).map((u) => (
+                        <span key={u} className="line-through opacity-60">{u}</span>
+                      )).reduce((acc: React.ReactNode[], el, i) => i === 0 ? [el] : [...acc, ', ', el], [])}
+                      {' '}already assigned
+                    </div>
+                  )}
                 </div>
               )}
             </div>
 
-            <ModelCard modelName={modelName} hostRam={hostRam} />
+            <ModelCard modelName={modelName} hostRam={hostRam} reservedRam={reservedRam} />
 
             <div>
               <label className="block text-xs font-medium text-[var(--color-text-secondary)] mb-1">Endpoint URL</label>
@@ -428,7 +487,7 @@ export function EngineSlotCard({ slot, config, hostRam }: Props) {
           </>
         )}
 
-        {/* Commercial / Free Tier fields */}
+        {/* ── Commercial / Free Tier fields ────────────────────────────── */}
         {(mode === 'commercial' || mode === 'free_tier') && (
           <>
             <div>
@@ -462,26 +521,32 @@ export function EngineSlotCard({ slot, config, hostRam }: Props) {
                 {provider && PROVIDERS[provider] ? (
                   <select
                     value={modelName}
-                    onChange={(e) => setModelName(e.target.value)}
+                    onChange={(e) => changeModel(e.target.value)}
                     className="w-full px-3 py-2 rounded-lg bg-[var(--color-surface-tertiary)] border border-[var(--color-border-default)] text-sm text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-gold-500)] transition-colors"
                   >
                     <option value="">Select model…</option>
-                    {PROVIDERS[provider].models.map((m) => (
-                      <option key={m} value={m}>{m}</option>
-                    ))}
+                    {PROVIDERS[provider].models
+                      .filter((m) => !usedModels.includes(m))
+                      .map((m) => <option key={m} value={m}>{m}</option>)
+                    }
+                    {/* Show used models as disabled */}
+                    {PROVIDERS[provider].models
+                      .filter((m) => usedModels.includes(m))
+                      .map((m) => <option key={m} value={m} disabled>{m} (in use)</option>)
+                    }
                   </select>
                 ) : (
                   <input
                     type="text"
                     value={modelName}
-                    onChange={(e) => setModelName(e.target.value)}
+                    onChange={(e) => changeModel(e.target.value)}
                     placeholder="Model name"
                     className="w-full px-3 py-2 rounded-lg bg-[var(--color-surface-tertiary)] border border-[var(--color-border-default)] text-sm text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-gold-500)] transition-colors"
                   />
                 )}
               </div>
             </div>
-            <ModelCard modelName={modelName} hostRam={hostRam} />
+            <ModelCard modelName={modelName} hostRam={hostRam} reservedRam={0} />
             <div>
               <label className="block text-xs font-medium text-[var(--color-text-secondary)] mb-1">
                 {mode === 'commercial' ? 'API Key' : 'Account / Token'}
@@ -503,7 +568,7 @@ export function EngineSlotCard({ slot, config, hostRam }: Props) {
           </>
         )}
 
-        {/* Family override (all modes) */}
+        {/* ── Family override (all modes) ───────────────────────────────── */}
         <div>
           <label className="flex items-center gap-1.5 text-xs font-medium text-[var(--color-text-muted)] mb-1">
             Family Override <span className="font-normal">(optional)</span>
