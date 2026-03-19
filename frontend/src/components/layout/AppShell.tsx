@@ -76,16 +76,31 @@ export function AppShell() {
         {/* Logo — height must match top bar (HEADER_H) */}
         <div
           className={[
-            'flex items-center gap-3 border-b border-white/[0.04] flex-shrink-0',
+            'flex items-center gap-3 border-b flex-shrink-0',
             collapsed ? 'px-4 justify-center' : 'px-5',
           ].join(' ')}
-          style={{ height: HEADER_H }}
+          style={{
+            height: HEADER_H,
+            borderBottomColor: 'rgba(255,255,255,0.07)',
+            boxShadow: [
+              'inset 0 1px 0 rgba(255,255,255,0.07)',
+              'inset 0 -1px 0 rgba(255,255,255,0.04)',
+              'inset 0 10px 36px rgba(0,0,0,0.65)',
+              'inset 0 -6px 24px rgba(0,0,0,0.40)',
+              '0 4px 20px rgba(0,0,0,0.55)',
+            ].join(', '),
+          }}
         >
           <div
             className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
             style={{
               background: 'var(--color-gold-500)',
-              boxShadow: '0 2px 8px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.2)',
+              boxShadow: [
+                '0 3px 14px rgba(0,0,0,0.65)',
+                '0 0 18px var(--color-gold-500)',
+                'inset 0 1px 0 rgba(255,255,255,0.35)',
+                'inset 0 -1px 0 rgba(0,0,0,0.25)',
+              ].join(', '),
             }}
           >
             <Zap className="w-4 h-4 text-[var(--color-navy-950)]" />
@@ -124,8 +139,16 @@ export function AppShell() {
 
         {/* ── Footer: Settings + Collapse ── */}
         <div
-          className="border-t border-white/[0.04] px-3 py-3 space-y-2"
-          style={{ boxShadow: 'inset 0 2px 12px rgba(0,0,0,0.35)' }}
+          className="border-t px-3 py-3 space-y-2"
+          style={{
+            borderTopColor: 'rgba(255,255,255,0.07)',
+            boxShadow: [
+              'inset 0 1px 0 rgba(255,255,255,0.06)',
+              'inset 0 6px 32px rgba(0,0,0,0.65)',
+              'inset 0 -10px 36px rgba(0,0,0,0.50)',
+              'inset 0 -1px 0 rgba(255,255,255,0.03)',
+            ].join(', '),
+          }}
         >
           <div className="flex items-center gap-1">
             <NavLink
