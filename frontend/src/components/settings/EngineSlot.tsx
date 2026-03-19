@@ -13,6 +13,7 @@ import {
   Ban,
 } from 'lucide-react';
 import { useUpdateEngine } from '../../api/hooks';
+import { useToast } from '../common/Toast';
 import type {
   EngineConfig,
   EngineSlot as Slot,
@@ -46,8 +47,10 @@ export const MODEL_INFO: Record<string, ModelMeta> = {
   'gpt-4o':   { type: 'LLM', specialty: 'Fast · Multimodal · General purpose', desc: "OpenAI's versatile everyday model. Rapid responses with strong reasoning — ideal as a second or third reviewer engine." },
   'o3-mini':  { type: 'Reasoning LLM', specialty: 'Math · Code · Step-by-step logic', desc: "OpenAI's compact reasoning model. Uses chain-of-thought internally to excel at structured problem-solving at lower cost than o3." },
   // ── xAI (cloud) ─────────────────────────────────────────────────────────
-  'grok-3':      { type: 'LLM', specialty: 'Real-time data · Long context · Coding', desc: "xAI's flagship model. Can access live information, handles very long contexts, and performs strongly on software engineering tasks." },
-  'grok-3-mini': { type: 'LLM', specialty: 'Fast · Efficient · General tasks', desc: "xAI's efficient model. Lower latency and cost while retaining solid reasoning — good for high-volume review steps." },
+  'grok-3':           { type: 'LLM', specialty: 'Real-time data · Long context · Coding', desc: "xAI's flagship model. Live web search, very long context, and top coding performance." },
+  'grok-3-fast':      { type: 'LLM', specialty: 'High throughput · Real-time data · Coding', desc: "Faster-throughput variant of Grok 3. Same capability ceiling at higher request volumes." },
+  'grok-3-mini':      { type: 'Reasoning LLM', specialty: 'Efficient · Chain-of-thought · Cost-effective', desc: "xAI's compact reasoning model. Thinks before answering — great for structured logic at lower cost than Grok 3." },
+  'grok-3-mini-fast': { type: 'Reasoning LLM', specialty: 'Fastest · Low latency · High volume', desc: "xAI's fastest and most cost-efficient model. Best for high-volume, latency-sensitive review passes." },
   // ── Google (cloud) ──────────────────────────────────────────────────────
   'gemini-2.5-pro':   { type: 'LLM', specialty: 'Long context · Code · Multi-step reasoning', desc: "Google's most capable model. Handles up to 1M-token contexts, excels at large codebase analysis and document-heavy tasks." },
   'gemini-2.5-flash': { type: 'LLM', specialty: 'High throughput · Summarisation · Extraction', desc: "Google's speed-optimised model. Very fast token generation — ideal for high-volume extraction and summarisation passes." },
@@ -175,7 +178,7 @@ function sortedModels(
 const PROVIDERS: Record<string, { authType: AuthType; models: string[] }> = {
   Anthropic: { authType: 'api_key', models: ['claude-opus-4-6', 'claude-sonnet-4-6', 'claude-haiku-4-5'] },
   OpenAI:    { authType: 'bearer',  models: ['gpt-4.5', 'gpt-4o', 'o3-mini'] },
-  xAI:       { authType: 'bearer',  models: ['grok-3', 'grok-3-mini'] },
+  xAI:       { authType: 'bearer',  models: ['grok-3', 'grok-3-fast', 'grok-3-mini', 'grok-3-mini-fast'] },
   Google:    { authType: 'bearer',  models: ['gemini-2.5-pro', 'gemini-2.5-flash', 'gemini-3-pro'] },
   DeepSeek:  { authType: 'api_key', models: ['DeepSeek-V3.2', 'DeepSeek-R1'] },
 };
@@ -270,6 +273,7 @@ export function EngineSlotCard({
   onModelChange, onModeChange,
 }: EngineSlotCardProps) {
   const update = useUpdateEngine();
+  const { toast } = useToast();
 
   const [mode, setMode] = useState<HostingMode>(config?.hosting_mode ?? 'self_hosted');
   const [endpoint, setEndpoint] = useState(config?.endpoint_url ?? '');
@@ -319,15 +323,21 @@ export function EngineSlotCard({
   useEffect(() => { onModeChange(mode); }, []);
 
   function handleSave() {
-    update.mutate({
-      slot,
-      hosting_mode: mode,
-      endpoint_url: endpoint,
-      auth_type: authType,
-      credentials: credentials || undefined,
-      model_name: modelName,
-      family_override: familyOverride || null,
-    });
+    update.mutate(
+      {
+        slot,
+        hosting_mode: mode,
+        endpoint_url: endpoint,
+        auth_type: authType,
+        credentials: credentials || undefined,
+        model_name: modelName,
+        family_override: familyOverride || null,
+      },
+      {
+        onSuccess: () => toast('success', `Engine ${slot.toUpperCase()} saved — ${modelName || 'configuration updated'}.`),
+        onError:   () => toast('error',   `Failed to save Engine ${slot.toUpperCase()}. Check your connection and try again.`),
+      },
+    );
   }
 
   const healthDot = config?.health_status === 'online'
