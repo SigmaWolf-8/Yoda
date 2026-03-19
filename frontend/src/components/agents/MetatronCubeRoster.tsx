@@ -277,7 +277,6 @@ export function MetatronCubeRoster({
       `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${P.orb}" stroke-width="0.6" ${i === 2 ? 'stroke-dasharray="3 5"' : ''} style="pointer-events:none"/>`
     ).join('');
     const shellLabels = [
-      `<text x="${cx}" y="${cy - rD - 14}" text-anchor="middle" fill="${P.fgFaint}" font-size="9" font-family="'JetBrains Mono', monospace" letter-spacing="1.2">DEPTH · SHELL SELECTOR</text>`,
       `<text x="${cx + rO + 22}" y="${cy - 10}" text-anchor="start" fill="${P.fgFaint}" font-size="8.5" font-family="'JetBrains Mono', monospace">Outer (5)</text>`,
       `<text x="${cx + rI + 18}" y="${cy + 6}" text-anchor="start" fill="${P.fgFaint}" font-size="8.5" font-family="'JetBrains Mono', monospace">Inner (6)</text>`,
     ].join('');
