@@ -1,0 +1,30 @@
+# ── Rust ──
+/target/
+Cargo.lock
+
+# ── Node / Frontend ──
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+
+# ── Compiled Agents (build artifact) ──
+agents/compiled/
+
+# ── Environment ──
+.env
+.env.local
+.env.production
+
+# ── IDE ──
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ── OS ──
+.DS_Store
+Thumbs.db
+
+# ── sqlx offline data ──
+.sqlx/

@@ -1,0 +1,26 @@
+PROPRIETARY LICENSE
+
+Copyright (c) 2026 Capomastro Holdings Ltd.
+Applied Physics Division
+Sherwood Park, Alberta, Canada
+
+All rights reserved.
+
+This software and associated documentation files (the "Software") are the
+proprietary intellectual property of Capomastro Holdings Ltd. No part of
+this Software may be reproduced, distributed, transmitted, displayed,
+published, or broadcast without the prior written permission of
+Capomastro Holdings Ltd.
+
+The following components are covered by this license:
+- PlenumNET cryptographic infrastructure (Phase Encryption, TLSponge-385,
+  TIS-27, TL-DSA, TL-KEM, TDNS)
+- Maestro Task Bible system
+- Yoda Orchestrator and four-step adversarial refinement protocol
+- Inference Router with adversarial diversity enforcement
+- Capomastro-specific agent role definitions (agents/capomastro/)
+- Adaptive Knowledge Base architecture
+- All branding, product design, and frontend implementation
+- All crates/, tools/, frontend/, and scripts/ directories
+
+For licensing inquiries, contact: RSalvi@Salvigroup.com
