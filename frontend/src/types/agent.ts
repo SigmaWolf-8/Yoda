@@ -23,34 +23,37 @@ export type AgentDivision =
   | 'game-development'
   | 'spatial-computing';
 
-export type CubeRing = 'central' | 'inner' | 'outer' | 'depth';
+export type CubeRing = 'central' | 'inner' | 'outer' | 'depth' | 'satellite';
 
 export interface DivisionMeta {
   id: AgentDivision;
   label: string;
   ring: CubeRing;
+  satelliteParent?: AgentDivision;
+  satelliteAngleOffset?: number;
 }
 
 export const DIVISIONS: DivisionMeta[] = [
   // [0] central
-  { id: 'capomastro',          label: 'Capomastro',    ring: 'central' },
-  // [1-8] inner ring
-  { id: 'engineering',         label: 'Engineering',   ring: 'inner' },
-  { id: 'testing',             label: 'Testing',       ring: 'inner' },
-  { id: 'design',              label: 'Design',        ring: 'inner' },
-  { id: 'product',             label: 'Product',       ring: 'inner' },
-  { id: 'project-management',  label: 'Project Mgmt',  ring: 'inner' },
-  { id: 'specialized',         label: 'Specialized',   ring: 'inner' },
-  { id: 'academic',            label: 'Academic',      ring: 'inner' },
-  { id: 'strategy',            label: 'Strategy',      ring: 'inner' },
-  // [9-13] outer ring
-  { id: 'marketing',           label: 'Marketing',     ring: 'outer' },
-  { id: 'sales',               label: 'Sales',         ring: 'outer' },
-  { id: 'paid-media',          label: 'Paid Media',    ring: 'outer' },
-  { id: 'support',             label: 'Support',       ring: 'outer' },
-  { id: 'game-development',    label: 'Game Dev',      ring: 'outer' },
-  // [14] depth
-  { id: 'spatial-computing',   label: 'Spatial',       ring: 'depth' },
+  { id: 'capomastro',         label: 'Capomastro',   ring: 'central' },
+  // [1-6] inner ring (6 nodes — clean hexagon)
+  { id: 'engineering',        label: 'Engineering',  ring: 'inner' },
+  { id: 'testing',            label: 'Testing',      ring: 'inner' },
+  { id: 'design',             label: 'Design',       ring: 'inner' },
+  { id: 'product',            label: 'Product',      ring: 'inner' },
+  { id: 'project-management', label: 'Project Mgmt', ring: 'inner' },
+  { id: 'specialized',        label: 'Specialized',  ring: 'inner' },
+  // [7-11] outer ring (5 nodes — pentagon)
+  { id: 'marketing',          label: 'Marketing',    ring: 'outer' },
+  { id: 'sales',              label: 'Sales',        ring: 'outer' },
+  { id: 'paid-media',         label: 'Paid Media',   ring: 'outer' },
+  { id: 'support',            label: 'Support',      ring: 'outer' },
+  { id: 'game-development',   label: 'Game Dev',     ring: 'outer' },
+  // [12] depth
+  { id: 'spatial-computing',  label: 'Spatial',      ring: 'depth' },
+  // [13-14] satellite sub-nodes — tethered to a parent inner node
+  { id: 'academic',  label: 'Academic', ring: 'satellite', satelliteParent: 'specialized',        satelliteAngleOffset:  Math.PI / 7 },
+  { id: 'strategy',  label: 'Strategy', ring: 'satellite', satelliteParent: 'project-management', satelliteAngleOffset: -Math.PI / 7 },
 ];
 
 export interface AgentConfig {
