@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Building2, UserPlus, Shield, Crown, User, Loader2 } from 'lucide-react';
 import { useOrganizations, useInviteMember } from '../../api/hooks';
+import { usePageHeader } from '../../context/PageHeader';
 
 export function OrgSettingsPage() {
   const { data: orgs, isLoading } = useOrganizations();
@@ -48,6 +49,12 @@ export function OrgSettingsPage() {
     );
   };
 
+  usePageHeader({
+    icon: Building2,
+    title: 'Organization',
+    subtitle: 'Manage your organization members and settings.',
+  });
+
   if (isLoading) {
     return (
       <div className="p-6 lg:p-8 max-w-3xl mx-auto animate-fade-in">
@@ -61,10 +68,6 @@ export function OrgSettingsPage() {
 
   return (
     <div className="p-6 lg:p-8 max-w-3xl mx-auto animate-fade-in">
-      <div className="flex items-center gap-3 mb-8">
-        <Building2 className="w-5 h-5 text-[var(--color-gold-400)]" />
-        <h1 className="text-2xl font-bold text-[var(--color-text-primary)]">Organization</h1>
-      </div>
 
       {/* Org Info */}
       <div className="bg-[var(--color-surface-secondary)] border border-[var(--color-border-subtle)] rounded-xl p-6 mb-6">

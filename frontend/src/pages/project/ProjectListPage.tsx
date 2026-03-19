@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { useOrganizations, useProjects, useCreateProject, useDeleteProject } from '../../api/hooks';
 import { extractErrorMessage } from '../../types';
+import { usePageHeader } from '../../context/PageHeader';
 
 export function ProjectListPage() {
   const navigate = useNavigate();
@@ -45,16 +46,16 @@ export function ProjectListPage() {
     deleteProject.mutate(id, { onSuccess: () => setMenuOpen(null) });
   }
 
+  usePageHeader({
+    icon: FolderKanban,
+    title: 'Projects',
+    subtitle: 'Manage your Yoda & Ronin projects',
+  });
+
   return (
     <div className="p-6 lg:p-8 max-w-5xl mx-auto animate-fade-in">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-[var(--color-text-primary)]">Projects</h1>
-          <p className="text-sm text-[var(--color-text-tertiary)] mt-1">
-            Manage your Yoda &amp; Ronin projects
-          </p>
-        </div>
+      {/* Action bar */}
+      <div className="flex items-center justify-end mb-6">
         <button
           onClick={() => setShowCreate(true)}
           className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[var(--color-gold-500)] text-[var(--color-navy-950)] text-sm font-semibold hover:bg-[var(--color-gold-400)] transition-colors"

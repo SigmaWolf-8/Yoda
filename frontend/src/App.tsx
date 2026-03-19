@@ -3,6 +3,7 @@ import { RouterProvider } from 'react-router-dom';
 import { router } from './router';
 import { ToastProvider } from './components/common/Toast';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
+import { PageHeaderProvider } from './context/PageHeader';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -22,7 +23,9 @@ export default function App() {
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
         <ToastProvider>
-          <RouterProvider router={router} />
+          <PageHeaderProvider>
+            <RouterProvider router={router} />
+          </PageHeaderProvider>
         </ToastProvider>
       </QueryClientProvider>
     </ErrorBoundary>

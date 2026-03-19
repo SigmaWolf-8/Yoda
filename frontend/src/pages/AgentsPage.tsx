@@ -7,6 +7,8 @@ import { AgentEditor } from '../components/agents/AgentEditor';
 import { useAgents, useAgentSyncStatus, useImportAgents } from '../api/hooks/useAgents';
 import type { AgentDivision, AgentWithStats } from '../types';
 import { DIVISIONS } from '../types/agent';
+import { usePageHeader } from '../context/PageHeader';
+import { HEADER_H } from '../components/layout/AppShell';
 
 type EditorMode =
   | { type: 'create' }
@@ -20,7 +22,6 @@ function MobileDivisionAccordion({
   selectedDivision,
   onSelectDivision,
   onEdit,
-  onCopyTemplate,
 }: {
   agents: AgentWithStats[];
   selectedDivision: AgentDivision | null;
@@ -41,19 +42,13 @@ function MobileDivisionAccordion({
 
         return (
           <div key={div.id}>
-            {/* Division header / toggle */}
             <button
               className="w-full flex items-center justify-between px-5 py-4 text-left transition-colors hover:bg-[var(--color-surface-secondary)]"
               onClick={() => onSelectDivision(isOpen ? null : div.id)}
             >
               <div className="flex items-center gap-3">
-                <span
-                  className="w-2.5 h-2.5 rounded-full flex-shrink-0"
-                  style={{ background: 'hsl(210,70%,65%)' }}
-                />
-                <span className="text-sm font-semibold text-[var(--color-text-primary)]">
-                  {div.label}
-                </span>
+                <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: 'hsl(210,70%,65%)' }} />
+                <span className="text-sm font-semibold text-[var(--color-text-primary)]">{div.label}</span>
                 <span className="text-[10px] text-[var(--color-text-muted)] font-mono">
                   {divAgents.length} agent{divAgents.length !== 1 ? 's' : ''}
                 </span>
@@ -64,13 +59,10 @@ function MobileDivisionAccordion({
               />
             </button>
 
-            {/* Expanded agent list */}
             {isOpen && (
               <div className="px-4 pb-4 space-y-2 bg-[var(--color-surface-secondary)]/40">
                 {divAgents.length === 0 ? (
-                  <p className="text-xs text-[var(--color-text-muted)] py-2 px-1">
-                    No agents in this division.
-                  </p>
+                  <p className="text-xs text-[var(--color-text-muted)] py-2 px-1">No agents in this division.</p>
                 ) : (
                   divAgents.map(agent => (
                     <div
@@ -80,31 +72,24 @@ function MobileDivisionAccordion({
                     >
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0">
-                          <p className="text-sm font-medium text-[var(--color-text-primary)] truncate">
-                            {agent.display_name}
-                          </p>
+                          <p className="text-sm font-medium text-[var(--color-text-primary)] truncate">{agent.display_name}</p>
                           <p className="text-[10px] text-[var(--color-text-muted)] mt-0.5 font-mono capitalize">
                             {agent.primary_role} · {agent.source}
                           </p>
                         </div>
                         {!agent.readonly && (
-                          <div className="flex gap-1 flex-shrink-0">
-                            <button
-                              onClick={() => onEdit(agent)}
-                              className="px-2.5 py-1 rounded text-[10px] font-medium bg-[hsl(210,80%,55%)]/10 text-[hsl(210,70%,65%)] border border-[hsl(210,80%,55%)]/20 hover:bg-[hsl(210,80%,55%)]/18 transition-colors"
-                            >
-                              Edit
-                            </button>
-                          </div>
+                          <button
+                            onClick={() => onEdit(agent)}
+                            className="px-2.5 py-1 rounded text-[10px] font-medium bg-[hsl(210,80%,55%)]/10 text-[hsl(210,70%,65%)] border border-[hsl(210,80%,55%)]/20 hover:bg-[hsl(210,80%,55%)]/18 transition-colors flex-shrink-0"
+                          >
+                            Edit
+                          </button>
                         )}
                       </div>
                       {agent.key_skills.length > 0 && (
                         <div className="flex flex-wrap gap-1 mt-2">
                           {agent.key_skills.slice(0, 4).map(skill => (
-                            <span
-                              key={skill}
-                              className="px-1.5 py-0.5 rounded text-[9px] bg-white/[0.05] text-[var(--color-text-muted)] border border-white/[0.06]"
-                            >
+                            <span key={skill} className="px-1.5 py-0.5 rounded text-[9px] bg-white/[0.05] text-[var(--color-text-muted)] border border-white/[0.06]">
                               {skill}
                             </span>
                           ))}
@@ -140,14 +125,23 @@ export function AgentsPage() {
     [agents],
   );
 
+  const subtitle = agentsQuery.isLoading
+    ? 'Loading…'
+    : `${agents.length} agent${agents.length !== 1 ? 's' : ''} · ${DIVISIONS.length} divisions · ${totalCalls.toLocaleString()} inference calls`;
+
+  usePageHeader({ icon: Users, title: 'Agent Roster', subtitle });
+
   const showBanner =
     !syncDismissed &&
     syncQuery.data != null &&
     !syncQuery.data.up_to_date &&
     (syncQuery.data.new_agents.length > 0 || syncQuery.data.updated_agents.length > 0);
 
+  /* Height of main content = full viewport minus the shared top bar */
+  const contentH = `calc(100vh - ${HEADER_H}px)`;
+
   return (
-    <div className="flex flex-col h-[calc(100vh-3.5rem)] overflow-hidden">
+    <div className="flex flex-col overflow-hidden" style={{ height: contentH }}>
       {/* Sync banner */}
       {showBanner && (
         <AgentSyncBanner
@@ -158,25 +152,14 @@ export function AgentsPage() {
         />
       )}
 
-      {/* Top bar */}
-      <div className="flex items-center justify-between px-5 py-3 border-b border-[var(--color-border-subtle)] bg-[var(--color-surface-secondary)]/30 flex-shrink-0">
-        <div className="flex items-center gap-3">
-          <Users className="w-5 h-5 text-[hsl(210,70%,65%)]" />
-          <div>
-            <h1 className="text-base font-bold text-[var(--color-text-primary)]">Agent roster</h1>
-            <p className="text-[10px] text-[var(--color-text-muted)] font-mono">
-              {agentsQuery.isLoading
-                ? 'Loading…'
-                : `${agents.length} agents · 13 divisions · 3 shells · ${totalCalls.toLocaleString()} inference calls`}
-            </p>
-          </div>
-        </div>
+      {/* Thin action strip — no title (title lives in the top bar now) */}
+      <div className="flex items-center justify-end px-5 py-2 border-b border-[var(--color-border-subtle)] bg-[var(--color-surface-secondary)]/30 flex-shrink-0">
         <button
           onClick={() => setEditorMode({ type: 'create' })}
-          className="flex items-center gap-2 px-3 py-2 rounded-lg bg-[hsl(210,80%,55%)]/10 text-[hsl(210,70%,65%)] text-xs font-semibold border border-[hsl(210,80%,55%)]/20 hover:bg-[hsl(210,80%,55%)]/18 transition-colors"
+          className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[hsl(210,80%,55%)]/10 text-[hsl(210,70%,65%)] text-xs font-semibold border border-[hsl(210,80%,55%)]/20 hover:bg-[hsl(210,80%,55%)]/18 transition-colors"
         >
-          <Plus className="w-4 h-4" />
-          <span className="hidden sm:inline">New agent</span>
+          <Plus className="w-3.5 h-3.5" />
+          New agent
         </button>
       </div>
 
@@ -194,10 +177,7 @@ export function AgentsPage() {
           <div>
             <p className="text-sm font-medium text-red-400 mb-1">Failed to load agents</p>
             <p className="text-xs text-[var(--color-text-muted)]">{String(agentsQuery.error)}</p>
-            <button
-              onClick={() => agentsQuery.refetch()}
-              className="mt-4 px-4 py-2 rounded-lg text-xs bg-[hsl(210,80%,55%)]/10 text-[hsl(210,70%,65%)] border border-[hsl(210,80%,55%)]/20"
-            >
+            <button onClick={() => agentsQuery.refetch()} className="mt-4 px-4 py-2 rounded-lg text-xs bg-[hsl(210,80%,55%)]/10 text-[hsl(210,70%,65%)] border border-[hsl(210,80%,55%)]/20">
               Retry
             </button>
           </div>
@@ -217,7 +197,6 @@ export function AgentsPage() {
                 onSelectAgent={setSelectedAgentIdx}
               />
             </div>
-
             <div className="flex-1 max-w-[400px] border-l border-[var(--color-border-subtle)] bg-[var(--color-surface-secondary)]">
               {selectedDivision ? (
                 <AgentDetailPanel
@@ -231,9 +210,7 @@ export function AgentsPage() {
               ) : (
                 <div className="flex flex-col items-center justify-center h-full text-center px-8">
                   <div className="text-4xl opacity-10 mb-4">⬡</div>
-                  <p className="text-sm font-medium text-[var(--color-text-secondary)] mb-2">
-                    Select a division
-                  </p>
+                  <p className="text-sm font-medium text-[var(--color-text-secondary)] mb-2">Select a division</p>
                   <p className="text-xs text-[var(--color-text-muted)] leading-relaxed">
                     Click any node on the geometry to browse its agents.
                     Each node is a division. Satellites are individual agents.
@@ -246,15 +223,12 @@ export function AgentsPage() {
             </div>
           </div>
 
-          {/* ── Mobile: Division accordion dropdowns (hidden on lg+) ── */}
+          {/* ── Mobile: Division accordion dropdowns ── */}
           <div className="lg:hidden flex flex-col flex-1 min-h-0 overflow-hidden">
             <MobileDivisionAccordion
               agents={agents}
               selectedDivision={selectedDivision}
-              onSelectDivision={(d) => {
-                setSelectedDivision(d);
-                setSelectedAgentIdx(null);
-              }}
+              onSelectDivision={(d) => { setSelectedDivision(d); setSelectedAgentIdx(null); }}
               onEdit={(agent) => setEditorMode({ type: 'edit', agent })}
               onCopyTemplate={(agent) => setEditorMode({ type: 'template', from: agent })}
             />
@@ -262,7 +236,6 @@ export function AgentsPage() {
         </>
       )}
 
-      {/* Editor modal */}
       {editorMode && (
         <AgentEditor
           agent={editorMode.type === 'edit' ? editorMode.agent : null}

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Cpu, ArrowLeft, MemoryStick } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { usePageHeader } from '../../context/PageHeader';
 import { useEngineConfigs } from '../../api/hooks';
 import { EngineSlotCard, MODEL_INFO, OS_OVERHEAD_GB } from '../../components/settings/EngineSlot';
 import { DiversityValidator } from '../../components/settings/DiversityValidator';
@@ -83,25 +84,27 @@ export function EngineSettingsPage() {
 
   const engineMap = new Map(engines?.map((e) => [e.slot, e]));
 
+  usePageHeader({
+    icon: Cpu,
+    title: 'AI Engines',
+    subtitle: 'Configure your three engine slots — self-hosted, commercial, or free-tier.',
+  });
+
   return (
     <div className="p-6 lg:p-8 max-w-4xl mx-auto animate-fade-in">
-      {/* Header */}
-      <div className="flex items-center gap-3 mb-2">
+      {/* Back breadcrumb */}
+      <div className="flex items-center gap-2 mb-6">
         <Link
           to="/settings"
           className="p-1.5 rounded-lg text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-tertiary)] transition-colors"
         >
           <ArrowLeft className="w-4 h-4" />
         </Link>
-        <Cpu className="w-5 h-5 text-[var(--color-gold-400)]" />
-        <h1 className="text-2xl font-bold text-[var(--color-text-primary)]">AI Engines</h1>
+        <span className="text-xs text-[var(--color-text-muted)]">Back to Settings</span>
       </div>
-      <p className="text-sm text-[var(--color-text-tertiary)] mb-6 ml-11">
-        Configure your three engine slots — self-hosted, commercial, or free-tier.
-      </p>
 
       {/* Host RAM selector */}
-      <div className="bg-[var(--color-surface-secondary)] border border-[var(--color-border-subtle)] rounded-xl p-4 mb-6 ml-11">
+      <div className="bg-[var(--color-surface-secondary)] border border-[var(--color-border-subtle)] rounded-xl p-4 mb-6">
         <div className="flex items-center gap-2 mb-3">
           <MemoryStick className="w-4 h-4 text-[var(--color-gold-400)]" />
           <span className="text-sm font-semibold text-[var(--color-text-primary)]">Self-Host Machine RAM</span>

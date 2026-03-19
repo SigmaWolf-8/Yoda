@@ -1,16 +1,16 @@
 import { Link } from 'react-router-dom';
-import { FolderOpen, Settings, BookOpen, Zap } from 'lucide-react';
+import { FolderOpen, Settings, BookOpen, Zap, LayoutDashboard } from 'lucide-react';
+import { usePageHeader } from '../context/PageHeader';
 
 export function DashboardPage() {
-  return (
-    <div className="animate-fade-in">
-      <div className="mb-8">
-        <h1 className="font-display text-2xl text-[var(--color-text-primary)] mb-1">Dashboard</h1>
-        <p className="text-sm text-[var(--color-text-tertiary)]">
-          Welcome to YODA — your development intelligence platform.
-        </p>
-      </div>
+  usePageHeader({
+    icon: LayoutDashboard,
+    title: 'Dashboard',
+    subtitle: 'Your development intelligence platform',
+  });
 
+  return (
+    <div className="p-6 lg:p-8 max-w-4xl mx-auto animate-fade-in">
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {[
           { to: '/projects', icon: FolderOpen, label: 'Projects', desc: 'View and manage your projects' },

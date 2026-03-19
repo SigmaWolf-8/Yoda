@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Key, Plus, Trash2, Copy, Check, Loader2, AlertTriangle } from 'lucide-react';
 import { useApiKeys, useCreateApiKey, useDeleteApiKey } from '../../api/hooks';
+import { usePageHeader } from '../../context/PageHeader';
 
 export function ApiKeyPage() {
   const { data: keys, isLoading } = useApiKeys();
@@ -46,13 +47,15 @@ export function ApiKeyPage() {
     createKey.reset();
   }
 
+  usePageHeader({
+    icon: Key,
+    title: 'API Keys',
+    subtitle: 'Programmatic access via the X-API-Key header.',
+  });
+
   return (
     <div className="p-6 lg:p-8 max-w-3xl mx-auto animate-fade-in">
-      <div className="flex items-center justify-between mb-8">
-        <div className="flex items-center gap-3">
-          <Key className="w-5 h-5 text-[var(--color-gold-400)]" />
-          <h1 className="text-2xl font-bold text-[var(--color-text-primary)]">API Keys</h1>
-        </div>
+      <div className="flex items-center justify-end mb-6">
         <button
           onClick={() => setShowCreate(true)}
           className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[var(--color-gold-500)] text-[var(--color-navy-950)] text-sm font-semibold hover:bg-[var(--color-gold-400)] transition-colors"
@@ -61,10 +64,6 @@ export function ApiKeyPage() {
           Create Key
         </button>
       </div>
-
-      <p className="text-sm text-[var(--color-text-tertiary)] mb-6">
-        API keys allow programmatic access to YODA via the <code className="text-xs bg-[var(--color-surface-tertiary)] px-1.5 py-0.5 rounded">X-API-Key</code> header.
-      </p>
 
       {/* Key list */}
       <div className="bg-[var(--color-surface-secondary)] border border-[var(--color-border-subtle)] rounded-xl overflow-hidden">

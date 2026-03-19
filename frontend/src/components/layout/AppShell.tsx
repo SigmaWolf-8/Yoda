@@ -13,17 +13,23 @@ import {
   ChevronRight,
 } from 'lucide-react';
 import { UserProfile } from '../auth/UserProfile';
+import { usePageHeaderCtx } from '../../context/PageHeader';
 
+/* ── Nav config ── */
 const MAIN_NAV = [
   { to: '/',           icon: LayoutDashboard, label: 'Dashboard' },
   { to: '/projects',   icon: FolderKanban,    label: 'Projects' },
   { to: '/agents',     icon: Users,           label: 'Agents' },
-  { to: '/monitoring', icon: BarChart3,        label: 'Monitoring' },
+  { to: '/monitoring', icon: BarChart3,       label: 'Monitoring' },
 ] as const;
+
+/* Sidebar logo-area height in px — top bar must match this */
+export const HEADER_H = 72;
 
 export function AppShell() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [collapsed, setCollapsed]     = useState(false);
+  const { header }                    = usePageHeaderCtx();
 
   const navCls = ({ isActive }: { isActive: boolean }) =>
     [
@@ -67,11 +73,14 @@ export function AppShell() {
           sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0',
         ].join(' ')}
       >
-        {/* Logo */}
-        <div className={[
-          'flex items-center gap-3 py-5 border-b border-white/[0.04]',
-          collapsed ? 'px-4 justify-center' : 'px-5',
-        ].join(' ')}>
+        {/* Logo — height must match top bar (HEADER_H) */}
+        <div
+          className={[
+            'flex items-center gap-3 border-b border-white/[0.04] flex-shrink-0',
+            collapsed ? 'px-4 justify-center' : 'px-5',
+          ].join(' ')}
+          style={{ height: HEADER_H }}
+        >
           <div
             className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
             style={{
@@ -113,7 +122,7 @@ export function AppShell() {
           ))}
         </nav>
 
-        {/* ── Bottom footer: Settings + Collapse ── */}
+        {/* ── Footer: Settings + Collapse ── */}
         <div
           className="border-t border-white/[0.04] px-3 py-3 space-y-2"
           style={{ boxShadow: 'inset 0 2px 12px rgba(0,0,0,0.35)' }}
@@ -130,7 +139,6 @@ export function AppShell() {
               {!collapsed && 'Settings'}
             </NavLink>
 
-            {/* Collapse toggle — right-justified */}
             <button
               onClick={() => setCollapsed(c => !c)}
               title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
@@ -154,14 +162,48 @@ export function AppShell() {
 
       {/* ── Main column ── */}
       <div className="flex-1 flex flex-col min-w-0">
-        <header className="sticky top-0 z-20 h-14 flex items-center gap-3 px-4 border-b border-[var(--color-border-subtle)] bg-[var(--color-surface-secondary)]/80 backdrop-blur-md">
+
+        {/* Top bar — same height as sidebar logo area */}
+        <header
+          className="sticky top-0 z-20 flex items-center gap-4 px-5 border-b border-[var(--color-border-subtle)] bg-[var(--color-surface-secondary)]/80 backdrop-blur-md flex-shrink-0"
+          style={{ height: HEADER_H }}
+        >
+          {/* Mobile hamburger */}
           <button
-            className="lg:hidden text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]"
+            className="lg:hidden text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)] flex-shrink-0"
             onClick={() => setSidebarOpen(true)}
           >
             <Menu className="w-5 h-5" />
           </button>
+
+          {/* Page icon + title injected by the active page */}
+          {header && (
+            <div className="flex items-center gap-3 min-w-0">
+              {header.icon && (
+                <header.icon className="w-5 h-5 text-[hsl(210,70%,65%)] flex-shrink-0" />
+              )}
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-[var(--color-text-primary)] leading-tight truncate">
+                  {header.title}
+                </p>
+                {header.subtitle && (
+                  <p className="text-[10px] text-[var(--color-text-muted)] font-mono leading-tight truncate">
+                    {header.subtitle}
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
+
           <div className="flex-1" />
+
+          {/* Page action (e.g. "New Agent" button) */}
+          {header?.action && (
+            <div className="flex-shrink-0">
+              {header.action}
+            </div>
+          )}
+
           <UserProfile />
         </header>
 

@@ -5,12 +5,17 @@ import { InferenceMetricsChart } from '../components/monitoring/InferenceMetrics
 import { CostTracker } from '../components/monitoring/CostTracker';
 import { CensorshipLog } from '../components/monitoring/CensorshipLog';
 import type { TaskReview } from '../types/task-review';
+import { usePageHeader } from '../context/PageHeader';
 
 export function MonitoringPage() {
   const { data: engines, isLoading } = useEngineConfigs();
 
-  // Metrics data will come from the backend via a dedicated endpoint
-  // For now, pass empty arrays — the components handle empty states gracefully
+  usePageHeader({
+    icon: BarChart3,
+    title: 'Monitoring',
+    subtitle: 'Engine health · AI metrics · cost tracking · censorship events',
+  });
+
   const metricsData: { timestamp: string; engine_a?: number; engine_b?: number; engine_c?: number }[] = [];
   const allReviews: TaskReview[] = [];
 
@@ -25,24 +30,9 @@ export function MonitoringPage() {
 
   return (
     <div className="p-6 lg:p-8 max-w-5xl mx-auto animate-fade-in space-y-6">
-      <div className="flex items-center gap-3 mb-2">
-        <BarChart3 className="w-5 h-5 text-[var(--color-gold-400)]" />
-        <h1 className="text-2xl font-bold text-[var(--color-text-primary)]">Monitoring</h1>
-      </div>
-      <p className="text-sm text-[var(--color-text-tertiary)]">
-        Engine health, AI metrics, cost tracking, and censorship events.
-      </p>
-
-      {/* Engine Health */}
       <EngineHealthDashboard engines={engines ?? []} />
-
-      {/* Latency Chart */}
       <InferenceMetricsChart data={metricsData} />
-
-      {/* Cost Tracking */}
       <CostTracker engines={engines ?? []} />
-
-      {/* Censorship Events */}
       <CensorshipLog reviews={allReviews} />
     </div>
   );
