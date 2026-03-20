@@ -706,29 +706,37 @@ export function EngineSlotCard({
                               >
                                 <div className="flex items-center gap-2">
                                   <FitDot fit={fit} />
-                                  <span className="text-sm text-[var(--color-text-secondary)] font-medium flex-1">{m}</span>
-                                  {downloaded.has(m) && (
-                                    <HardDriveDownload className="w-3 h-3 flex-shrink-0 text-emerald-400" aria-label="Already downloaded" />
-                                  )}
-                                  {ram && (
-                                    <span className="text-[10px] text-[var(--color-text-muted)] flex-shrink-0">
-                                      {ram.split('·')[0].trim()}
-                                    </span>
-                                  )}
-                                </div>
-                                {info && (
-                                  <div className="flex items-center gap-1.5 mt-0.5 pl-5 flex-wrap">
-                                    <span className="text-[10px] text-[var(--color-text-muted)]">{info.company}</span>
-                                    <span className="text-[10px] text-[var(--color-border-subtle)]">|</span>
-                                    <span className="text-[10px] text-[var(--color-text-muted)]">{info.type}</span>
-                                    {info.arch === 'MoE' && (
-                                      <>
-                                        <span className="text-[10px] text-[var(--color-border-subtle)]">|</span>
-                                        <span className="text-[10px] font-semibold text-[var(--color-gold-500)]">MoE</span>
-                                      </>
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-1.5">
+                                      {info && (
+                                        <span className="text-[11px] font-semibold text-[var(--color-gold-400)] shrink-0">{info.company}</span>
+                                      )}
+                                      {info && <span className="text-[10px] text-[var(--color-border-subtle)]">|</span>}
+                                      <span className="text-sm text-[var(--color-text-secondary)] font-medium truncate">{m}</span>
+                                    </div>
+                                    {info && (
+                                      <div className="flex items-center gap-1 mt-0.5">
+                                        <span className="text-[10px] text-[var(--color-text-muted)]">{info.type}</span>
+                                        {info.arch === 'MoE' && (
+                                          <>
+                                            <span className="text-[10px] text-[var(--color-border-subtle)]">·</span>
+                                            <span className="text-[10px] font-semibold text-[var(--color-gold-500)]">MoE</span>
+                                          </>
+                                        )}
+                                      </div>
                                     )}
                                   </div>
-                                )}
+                                  <div className="flex items-center gap-1.5 shrink-0">
+                                    {downloaded.has(m) && (
+                                      <HardDriveDownload className="w-3 h-3 text-emerald-400" aria-label="Already downloaded" />
+                                    )}
+                                    {ram && (
+                                      <span className="text-[10px] text-[var(--color-text-muted)]">
+                                        {ram.split('·')[0].trim()}
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
                               </button>
                             );
                           })}
