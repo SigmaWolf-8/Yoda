@@ -11,6 +11,7 @@
 //! B5.9: Rate limiting
 
 use axum::{
+    body::Bytes,
     extract::{Path, State},
     http::StatusCode,
     middleware,
@@ -41,7 +42,12 @@ pub fn build_router(state: AppState) -> Router {
         .route("/api/auth/login", post(auth::login))
         .route("/api/auth/refresh", post(auth::refresh_token))
         .route("/api/auth/logout", post(auth::logout))
-        .route("/api/lineages", get(get_lineages));
+        .route("/api/lineages", get(get_lineages))
+        // ── CRS proxy routes (unauthenticated — called by install scripts) ──
+        .route("/api/salvi/inter-cube/crs/register", post(crs_register))
+        .route("/api/salvi/inter-cube/crs/heartbeat", post(crs_heartbeat))
+        .route("/api/salvi/inter-cube/crs/stats", get(crs_stats))
+        .route("/api/yoda/crs/session/{token}", get(crs_session));
 
     // ── Protected routes (JWT or API key) ────────────────────────────
     let protected = Router::new()
@@ -413,4 +419,99 @@ async fn get_capabilities(
         .await
         .map_err(|e| AppError::Internal(format!("Capability query failed: {}", e)))?;
     Ok(Json(scores))
+}
+
+// ─── CRS Proxy ───────────────────────────────────────────────────────
+//
+// These handlers forward CRS traffic from port 3000 (publicly exposed) to
+// yoda-crs on 127.0.0.1:8081 (internal only). Install scripts and the
+// frontend polling both hit port 3000; they never speak to 8081 directly.
+
+const CRS_BASE: &str = "http://127.0.0.1:8081";
+
+/// Helper: build a one-shot reqwest client (no connection pooling needed).
+fn crs_client() -> Result<reqwest::Client, AppError> {
+    reqwest::Client::builder()
+        .build()
+        .map_err(|e| AppError::Internal(format!("CRS client: {e}")))
+}
+
+/// POST /api/salvi/inter-cube/crs/register → CRS register
+/// Body is forwarded verbatim so sessionToken is preserved.
+async fn crs_register(body: Bytes) -> Result<(StatusCode, Json<serde_json::Value>), AppError> {
+    let client = crs_client()?;
+    let resp = client
+        .post(format!("{CRS_BASE}/api/salvi/inter-cube/crs/register"))
+        .header("Content-Type", "application/json")
+        .body(body)
+        .send()
+        .await
+        .map_err(|e| AppError::Internal(format!("CRS unreachable: {e}")))?;
+
+    let status = StatusCode::from_u16(resp.status().as_u16())
+        .unwrap_or(StatusCode::INTERNAL_SERVER_ERROR);
+    let json: serde_json::Value = resp
+        .json()
+        .await
+        .map_err(|e| AppError::Internal(format!("CRS response: {e}")))?;
+    Ok((status, Json(json)))
+}
+
+/// POST /api/salvi/inter-cube/crs/heartbeat → CRS heartbeat
+async fn crs_heartbeat(body: Bytes) -> Result<(StatusCode, Json<serde_json::Value>), AppError> {
+    let client = crs_client()?;
+    let resp = client
+        .post(format!("{CRS_BASE}/api/salvi/inter-cube/crs/heartbeat"))
+        .header("Content-Type", "application/json")
+        .body(body)
+        .send()
+        .await
+        .map_err(|e| AppError::Internal(format!("CRS unreachable: {e}")))?;
+
+    let status = StatusCode::from_u16(resp.status().as_u16())
+        .unwrap_or(StatusCode::INTERNAL_SERVER_ERROR);
+    let json: serde_json::Value = resp
+        .json()
+        .await
+        .map_err(|e| AppError::Internal(format!("CRS response: {e}")))?;
+    Ok((status, Json(json)))
+}
+
+/// GET /api/salvi/inter-cube/crs/stats → CRS stats
+async fn crs_stats() -> Result<(StatusCode, Json<serde_json::Value>), AppError> {
+    let client = crs_client()?;
+    let resp = client
+        .get(format!("{CRS_BASE}/api/salvi/inter-cube/crs/stats"))
+        .send()
+        .await
+        .map_err(|e| AppError::Internal(format!("CRS unreachable: {e}")))?;
+
+    let status = StatusCode::from_u16(resp.status().as_u16())
+        .unwrap_or(StatusCode::INTERNAL_SERVER_ERROR);
+    let json: serde_json::Value = resp
+        .json()
+        .await
+        .map_err(|e| AppError::Internal(format!("CRS response: {e}")))?;
+    Ok((status, Json(json)))
+}
+
+/// GET /api/yoda/crs/session/{token} → CRS session poll
+/// Used by ModelInstallModal to track connection status.
+async fn crs_session(
+    Path(token): Path<String>,
+) -> Result<(StatusCode, Json<serde_json::Value>), AppError> {
+    let client = crs_client()?;
+    let resp = client
+        .get(format!("{CRS_BASE}/api/yoda/crs/session/{token}"))
+        .send()
+        .await
+        .map_err(|e| AppError::Internal(format!("CRS unreachable: {e}")))?;
+
+    let status = StatusCode::from_u16(resp.status().as_u16())
+        .unwrap_or(StatusCode::INTERNAL_SERVER_ERROR);
+    let json: serde_json::Value = resp
+        .json()
+        .await
+        .map_err(|e| AppError::Internal(format!("CRS response: {e}")))?;
+    Ok((status, Json(json)))
 }
