@@ -499,7 +499,7 @@ Write-Host "  Keep this window open to maintain the tunnel." -ForegroundColor Ye
 
 export function ModelInstallModal({ modelName, onClose, mode = 'install' }: Props) {
   const crsUrl = (import.meta.env.VITE_CRS_URL as string | undefined) ?? '';
-  // modelName may be a display name ('Gemma-3.4B') or an Ollama tag ('gemma3:4b').
+  // modelName may be a display name ('Gemma-3-4B') or an Ollama tag ('gemma3:4b').
   // Resolve whichever form is stored in the DB.
   const ollamaTag = OLLAMA_TAG[modelName] ?? (OLLAMA_TAG_DISPLAY[modelName] ? modelName : undefined);
   const manualUrl = MANUAL_INSTALL_URL[modelName] ?? MANUAL_INSTALL_URL[OLLAMA_TAG_DISPLAY[modelName] ?? ''];

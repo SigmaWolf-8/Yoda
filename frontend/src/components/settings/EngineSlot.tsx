@@ -68,7 +68,7 @@ export const MODEL_INFO: Record<string, ModelMeta> = {
     desc: "Alibaba's smallest Qwen3 model. Extremely low memory footprint — ideal as a fast secondary engine alongside a larger primary model.",
     ramGbQ4: 2.6,
   },
-  'Gemma-3.4B': {
+  'Gemma-3-4B': {
     type: 'LLM', specialty: 'Ultra-compact · Multilingual · Low memory',
     desc: "Google's compact 4B open model. Lightweight and fast — fits easily on machines with 8 GB RAM or more. Runs in Ollama with zero configuration.",
     ramGbQ4: 3.1,
@@ -162,7 +162,7 @@ export function ramDisplay(info: ModelMeta): string | undefined {
 const ALL_SELF_HOSTED = [
   'DeepSeek-R1-Distill-Llama-70B',
   'DeepSeek-R1-Distill-Qwen-32B',
-  'Gemma-3.4B',
+  'Gemma-3-4B',
   'GLM-5',
   'Kimi-K2.5',
   'Llama-3.1-70B',
@@ -179,7 +179,7 @@ const ALL_SELF_HOSTED = [
 
 export const OLLAMA_TAG: Record<string, string> = {
   'Qwen3-4B':                       'qwen3:4b',
-  'Gemma-3.4B':                     'gemma3:4b',
+  'Gemma-3-4B':                     'gemma3:4b',
   'Llama-3.1-8B':                   'llama3.1:8b',
   'Qwen3.5-9B':                     'qwen3:9b',
   'Mistral-Nemo-12B':               'mistral-nemo',
@@ -198,7 +198,7 @@ export const MANUAL_INSTALL_URL: Record<string, string> = {
   'Kimi-K2.5': 'https://huggingface.co/moonshotai/Kimi-K2-Instruct',
 };
 
-// Reverse map: Ollama tag → display name (e.g. 'gemma3:4b' → 'Gemma-3.4B').
+// Reverse map: Ollama tag → display name (e.g. 'gemma3:4b' → 'Gemma-3-4B').
 // The DB stores Ollama tags; the UI uses display names as keys.
 export const OLLAMA_TAG_DISPLAY: Record<string, string> = Object.fromEntries(
   Object.entries(OLLAMA_TAG).map(([display, tag]) => [tag, display]),
