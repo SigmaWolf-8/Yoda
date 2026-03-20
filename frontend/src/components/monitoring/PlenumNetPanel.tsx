@@ -71,7 +71,16 @@ export function PlenumNetPanel({ engines }: Props) {
       {/* Engine connection rows */}
       <div className="space-y-2 mb-4">
         {engines.length === 0 && (
-          <p className="text-xs text-[var(--color-text-muted)] py-2">No engines configured yet.</p>
+          <div className="flex items-center gap-3 px-3 py-3 rounded-lg bg-[var(--color-surface-tertiary)] border border-[var(--color-border-subtle)]">
+            <span className="w-2 h-2 rounded-full bg-[var(--color-text-muted)] flex-shrink-0" />
+            <p className="text-xs text-[var(--color-text-muted)]">
+              No engines configured yet.{' '}
+              <a href="/settings/engines" className="text-[var(--color-plex-400)] hover:underline">
+                Go to AI Engines settings
+              </a>{' '}
+              to set up your engine slots — selections now save automatically.
+            </p>
+          </div>
         )}
         {engines.map((eng) => {
           const isSelfHosted = eng.hosting_mode === 'self_hosted';
