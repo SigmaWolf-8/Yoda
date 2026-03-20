@@ -1,7 +1,10 @@
+import { useRef } from 'react';
 import { LayoutDashboard } from 'lucide-react';
 import { usePageHeader } from '../context/PageHeader';
 
 export function DashboardPage() {
+  const videoRef = useRef<HTMLVideoElement>(null);
+
   usePageHeader({
     icon: LayoutDashboard,
     title: 'Dashboard',
@@ -17,12 +20,18 @@ export function DashboardPage() {
       {/* ── Hero video — full width, no rounded corners ── */}
       <div style={{ height: '48vh', minHeight: 320 }}>
         <video
+          ref={videoRef}
           autoPlay
           muted
-          loop
           playsInline
           className="w-full h-full"
           style={{ display: 'block', objectFit: 'cover' }}
+          onEnded={() => {
+            if (videoRef.current) {
+              videoRef.current.currentTime = 0;
+              videoRef.current.pause();
+            }
+          }}
         >
           <source src={`${import.meta.env.BASE_URL}hero.mp4`} type="video/mp4" />
         </video>
