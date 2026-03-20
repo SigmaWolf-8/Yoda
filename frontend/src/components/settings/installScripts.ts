@@ -346,8 +346,8 @@ $MODEL_PATH    = "$MODELS_DIR\\$GGUF_FILE"
 $LOG_DIR       = "$MODELS_DIR\\logs"
 $LLAMA_DIR     = "$env:USERPROFILE\\llama.cpp"
 $PLENUMNET_DIR = "$env:USERPROFILE\\PlenumNET"
-$DAEMON_PATH   = "$PLENUMNET_DIR\\target\\release\\inter-cube-daemon.exe"
 $IDENTITY_DIR  = "$env:USERPROFILE\\.plenumnet\\identity"
+# $DAEMON_PATH is resolved after build (binary name may be inter-cube.exe or inter-cube-daemon.exe)
 
 Write-Host "=== YODA Self-Host Installer ===" -ForegroundColor Cyan
 Write-Host "Model  : ${modelName}"
@@ -381,14 +381,12 @@ if (-not (Get-Command cargo -ErrorAction SilentlyContinue)) {
   Write-Host "  OK Cargo already installed: $(cargo --version 2>$null)"
 }
 if (-not (Get-Command cargo -ErrorAction SilentlyContinue)) {
-  Write-Host "  FAIL cargo not found after install." -ForegroundColor Red; exit 1
+  throw "cargo not found after install — restart this script in a new terminal so PATH is refreshed."
 }
 
 # ── 3. Check Git ──────────────────────────────────────────────────────
 if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
-  Write-Host "Git not found. Install Git for Windows:" -ForegroundColor Yellow
-  Write-Host "  https://git-scm.com/download/win" -ForegroundColor Cyan
-  exit 1
+  throw "Git is not installed. Install it from https://git-scm.com/download/win then re-run this installer."
 }
 
 # ── 4. Sparse-clone + build PlenumNET daemon ──────────────────────────
@@ -413,9 +411,13 @@ Write-Host "  -> Building inter-cube daemon (first build takes a few minutes)...
 Push-Location $PLENUMNET_DIR
 cargo build --release --package inter-cube
 Pop-Location
-if (-not (Test-Path $DAEMON_PATH)) {
-  Write-Host "  FAIL Build succeeded but daemon binary not found at: $DAEMON_PATH" -ForegroundColor Red; exit 1
+# Locate the binary — cargo may name it inter-cube.exe or inter-cube-daemon.exe
+$daemonBin = Get-ChildItem -Path "$PLENUMNET_DIR\\target\\release" -Filter "inter-cube*.exe" -ErrorAction SilentlyContinue |
+  Where-Object { $_.Name -notlike "*.d" } | Select-Object -First 1
+if (-not $daemonBin) {
+  throw "Build completed but no inter-cube binary found in $PLENUMNET_DIR\target\release — check cargo output above for errors."
 }
+$DAEMON_PATH = $daemonBin.FullName
 Write-Host "  OK Daemon built: $DAEMON_PATH"
 
 # ── 5. Identity passphrase + PT26-DSA keygen ─────────────────────────
@@ -455,7 +457,7 @@ $keygenOutput = & $DAEMON_PATH 2>$keygenLog
 $env:CUBE_MODE = $null
 $PUB_KEY = ($keygenOutput | Select-Object -Last 1).Trim()
 if (-not $PUB_KEY) {
-  Write-Host "  FAIL keygen produced no output — check $keygenLog" -ForegroundColor Red; exit 1
+  throw "Daemon keygen produced no output — check $keygenLog for details."
 }
 Write-Host "  OK Public key: $($PUB_KEY.Substring(0, [Math]::Min(16, $PUB_KEY.Length)))..."
 
@@ -479,7 +481,7 @@ if ($llamaServer) {
   Expand-Archive -Path $zipPath -DestinationPath $LLAMA_DIR -Force
   Remove-Item $zipPath -Force -ErrorAction SilentlyContinue
   $llamaServer = Get-ChildItem -Path $LLAMA_DIR -Recurse -Filter "llama-server.exe" | Select-Object -First 1
-  if (-not $llamaServer) { Write-Host "  FAIL llama-server.exe not found after extraction." -ForegroundColor Red; exit 1 }
+  if (-not $llamaServer) { throw "llama-server.exe not found after extraction — the zip may be for a different CPU architecture." }
 }
 $LLAMA_SERVER = $llamaServer.FullName
 
@@ -499,7 +501,7 @@ for ($attempt = 1; $attempt -le 3; $attempt++) {
     Start-Sleep -Seconds 3
   }
 }
-if (-not $regOk) { Write-Host "  FAIL CRS registration failed after 3 attempts." -ForegroundColor Red; exit 1 }
+if (-not $regOk) { throw "CRS registration failed after 3 attempts — check your internet connection and that the YODA server is reachable." }
 Write-Host "  OK Registered with YODA CRS"
 
 # ── 8. Download GGUF model ────────────────────────────────────────────
@@ -529,7 +531,7 @@ if ((Test-Path $MODEL_PATH) -and (Get-Item $MODEL_PATH).Length -gt 0) {
   }
 }
 if (-not (Test-Path $MODEL_PATH) -or (Get-Item $MODEL_PATH).Length -eq 0) {
-  Write-Host "  FAIL Model file missing or empty after download." -ForegroundColor Red; exit 1
+  throw "Model file missing or empty after download — check your internet connection and disk space."
 }
 $modelSz = [math]::Round((Get-Item $MODEL_PATH).Length / 1GB, 2)
 Write-Host "  OK Model ready ($modelSz GB)"
@@ -549,7 +551,7 @@ Start-Sleep -Seconds 2
 # ── 10. Start PlenumNET tunnel daemon ─────────────────────────────────
 Write-Host ""
 Write-Host "Starting PlenumNET tunnel daemon..."
-Get-Process -Name "inter-cube-daemon" -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+Get-Process | Where-Object { $_.Name -like "inter-cube*" } | Stop-Process -Force -ErrorAction SilentlyContinue
 Start-Sleep -Milliseconds 800
 $env:CUBE_MODE          = "cube"
 $env:CUBE_CRS_URL       = $CRS_URL
@@ -703,13 +705,14 @@ $LOG_DIR       = "$MODELS_DIR\\logs"
 $LLAMA_DIR     = "$env:USERPROFILE\\llama.cpp"
 $IDENTITY_DIR  = "$env:USERPROFILE\\.plenumnet\\identity"
 
-# Locate PlenumNET in known paths
+# Locate PlenumNET daemon (binary may be inter-cube.exe or inter-cube-daemon.exe)
 $PLENUMNET_DIR = "$env:USERPROFILE\\PlenumNET"
-if ((-not (Test-Path "$PLENUMNET_DIR\\target\\release\\inter-cube-daemon.exe")) -and
-    (Test-Path "C:\\PlenumNET\\target\\release\\inter-cube-daemon.exe")) {
-  $PLENUMNET_DIR = "C:\\PlenumNET"
+if (-not (Test-Path "$PLENUMNET_DIR\\target\\release")) {
+  if (Test-Path "C:\\PlenumNET\\target\\release") { $PLENUMNET_DIR = "C:\\PlenumNET" }
 }
-$DAEMON_PATH = "$PLENUMNET_DIR\\target\\release\\inter-cube-daemon.exe"
+$daemonBin = Get-ChildItem -Path "$PLENUMNET_DIR\\target\\release" -Filter "inter-cube*.exe" -ErrorAction SilentlyContinue |
+  Where-Object { $_.Name -notlike "*.d" } | Select-Object -First 1
+$DAEMON_PATH = if ($daemonBin) { $daemonBin.FullName } else { "" }
 
 Write-Host "=== YODA Reconnect ===" -ForegroundColor Cyan
 Write-Host "Model : ${modelName}"
@@ -717,20 +720,15 @@ Write-Host "Port  : $SERVER_PORT"
 Write-Host ""
 
 # ── Preflight checks ──────────────────────────────────────────────────
-if (-not (Test-Path $DAEMON_PATH)) {
-  Write-Host "  FAIL PlenumNET daemon not found at: $DAEMON_PATH" -ForegroundColor Red
-  Write-Host "  Run the Install script first (Settings -> AI Engines -> Install)." -ForegroundColor Yellow
-  exit 1
+if (-not $DAEMON_PATH -or -not (Test-Path $DAEMON_PATH)) {
+  throw "PlenumNET daemon not found in $PLENUMNET_DIR\target\release — run the Install script first (Settings -> AI Engines -> Install)."
 }
 if (-not (Test-Path $MODEL_PATH) -or (Get-Item $MODEL_PATH).Length -eq 0) {
-  Write-Host "  FAIL Model not found or empty at: $MODEL_PATH" -ForegroundColor Red
-  Write-Host "  Run the Install script first." -ForegroundColor Yellow
-  exit 1
+  throw "Model not found or empty at $MODEL_PATH — run the Install script first."
 }
 $llamaServer = Get-ChildItem -Path $LLAMA_DIR -Recurse -Filter "llama-server.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
 if (-not $llamaServer) {
-  Write-Host "  FAIL llama-server.exe not found in $LLAMA_DIR. Run the Install script first." -ForegroundColor Red
-  exit 1
+  throw "llama-server.exe not found in $LLAMA_DIR — run the Install script first."
 }
 $LLAMA_SERVER = $llamaServer.FullName
 Write-Host "  OK llama-server: $LLAMA_SERVER"
@@ -768,7 +766,7 @@ Start-Sleep -Seconds 2
 # ── Restart PlenumNET daemon ──────────────────────────────────────────
 # The daemon self-registers with the CRS on startup using CUBE_CRS_URL +
 # CUBE_SESSION_TOKEN, so no explicit registration call is needed here.
-Get-Process -Name "inter-cube-daemon" -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+Get-Process | Where-Object { $_.Name -like "inter-cube*" } | Stop-Process -Force -ErrorAction SilentlyContinue
 Start-Sleep -Milliseconds 800
 $env:CUBE_MODE          = "cube"
 $env:CUBE_CRS_URL       = $CRS_URL

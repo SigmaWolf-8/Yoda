@@ -76,124 +76,102 @@ export const MODEL_INFO: Record<string, ModelMeta> = {
   'DeepSeek-V3.2': { company: 'DeepSeek', arch: 'MoE',   type: 'LLM',          specialty: 'Coding · Math · Cost-efficient frontier', desc: "DeepSeek's latest MoE model. 671B total weights, ~37B active per token — competitive with frontier LLMs at significantly lower cost." },
   'DeepSeek-R1':   { company: 'DeepSeek', arch: 'Dense', type: 'Reasoning LLM', specialty: 'Chain-of-thought · Math · Complex problem-solving', desc: "DeepSeek's flagship reasoning model. Publishes its thinking step-by-step; outstanding on logic, proofs, and algorithmic problems." },
 
-  // ── Self-hosted ──────────────────────────────────────────────────────────
-  // 27-slot layout: Coding / Reasoning / Well-Rounded × High / Mid / Low × Rank 1-3
-  // Several models appear in more than one section (e.g. GLM-5, Kimi-K2.5).
-
-  // ── Shared across multiple sections ─────────────────────────────────────
-  'GLM-5': {
-    company: 'Zhipu AI', arch: 'MoE', type: 'Coding LLM',
-    specialty: 'Agentic coding · Tool use · 1M context',
-    desc: "Zhipu AI's 744B MoE flagship. Top-ranked open-weight coder — exceptional at agentic workflows, multi-file edits, and long-context understanding. Requires a server rack at Q4; feasible at 1.58-bit (~176 GB).",
-    ramGbQ4: 350.0, ramGbQ3: 176.0,
-  },
-  'Kimi-K2.5': {
-    company: 'Moonshot AI', arch: 'MoE', type: 'Coding LLM',
-    specialty: 'Coding · Agentic · Long-context reasoning',
-    desc: "Moonshot AI's 1-trillion-parameter MoE model. World-class at coding and tool-use; its Thinking variant delivers top-tier reasoning — rivalling frontier commercial APIs at 1.58-bit quantization (~240 GB).",
-    ramGbQ4: 480.0, ramGbQ3: 240.0,
-  },
-  'DeepSeek-V3.2-685B': {
-    company: 'DeepSeek', arch: 'MoE', type: 'Coding LLM',
-    specialty: 'Coding · Math · Cost-efficient frontier',
-    desc: "DeepSeek's 685B MoE updated flagship. Competitive with GPT-4o on coding benchmarks and highly cost-efficient — the open-weight frontier at extreme quantization (~162 GB at 1.58-bit, ~350 GB at Q4). Requires a multi-GPU server rack.",
-    ramGbQ4: 350.0, ramGbQ3: 162.0,
-  },
-  'Qwen3.5-122B': {
+  // ── Self-hosted ─────────────────────────────────────────────────────────
+  'Qwen3-4B': {
     company: 'Alibaba', arch: 'Dense', type: 'LLM',
-    specialty: 'Coding · Reasoning · Near-frontier quality',
-    desc: "Alibaba's largest dense Qwen. Matches frontier commercial quality for code and reasoning — the best high-RAM workstation choice across all three categories.",
-    ramGbQ4: 73.0, ramGbQ3: 57.0,
+    specialty: 'Ultra-compact · Coding · Multilingual',
+    desc: "Alibaba's smallest Qwen3 model. Extremely low memory footprint — ideal as a fast secondary engine alongside a larger primary model.",
+    ramGbQ4: 2.6,
   },
-
-  // ── Coding-specific ──────────────────────────────────────────────────────
-  'Qwen3-235B-A22B': {
-    company: 'Alibaba', arch: 'MoE', type: 'Coding LLM',
-    specialty: 'Coding · Reasoning · 22B active params',
-    desc: "Alibaba's 235B MoE with 22B active parameters per token. Delivers high capability at reduced inference compute — a strong self-hosted coder for workstations that can hold the full model at lower quantization (~59 GB Q3).",
-    ramGbQ4: 118.0, ramGbQ3: 59.0,
+  'Gemma-3-4B': {
+    company: 'Google', arch: 'Dense', type: 'LLM',
+    specialty: 'Ultra-compact · Multilingual · Low memory',
+    desc: "Google's compact 4B open model. Lightweight and fast — fits easily on machines with 8 GB RAM or more.",
+    ramGbQ4: 3.1,
+  },
+  'Llama-3.1-8B': {
+    company: 'Meta', arch: 'Dense', type: 'LLM',
+    specialty: 'Compact · Fast · Widely supported',
+    desc: "Meta's compact open model. Supported by every inference server — excellent on ARM and NPU hardware.",
+    ramGbQ4: 4.7,
+  },
+  'Qwen3.5-9B': {
+    company: 'Alibaba', arch: 'Dense', type: 'LLM',
+    specialty: 'Compact · Fast · Coding · Multilingual',
+    desc: "Alibaba's compact 9B model. Efficient on CPU/NPU, strong multilingual and coding performance. A popular first self-hosted choice.",
+    ramGbQ4: 5.3,
+  },
+  'Mistral-Nemo-12B': {
+    company: 'Mistral AI', arch: 'Dense', type: 'LLM',
+    specialty: 'Efficient · Multilingual · Instruction-following',
+    desc: "Mistral's efficient 12B model. Great quality-to-size ratio — strong multilingual and instruction-following with a small footprint.",
+    ramGbQ4: 7.2,
+  },
+  'GLM-5': {
+    company: 'Zhipu AI', arch: 'Dense', type: 'LLM',
+    specialty: 'Chinese language · General reasoning',
+    desc: "Zhipu AI's ~9B general model. Excellent Chinese language support alongside solid general reasoning and coding ability.",
+    ramGbQ4: 5.3,
   },
   'Qwen3-Coder-30B': {
     company: 'Alibaba', arch: 'Dense', type: 'Coding LLM',
     specialty: 'Code generation · Agentic coding · Function calling',
-    desc: "Alibaba's dedicated 30B code model. State-of-the-art open-weight coder — strong at multi-file edits, tool use, and agentic coding tasks. The recommended primary engine for most YODA setups.",
+    desc: "Alibaba's dedicated 30B code model. State-of-the-art open-weight coder — strong at multi-file edits, tool use, and agentic coding tasks.",
     ramGbQ4: 18.5, ramGbQ3: 14.4,
   },
-  'Codestral-22B': {
-    company: 'Mistral AI', arch: 'Dense', type: 'Coding LLM',
-    specialty: 'Code completion · Fill-in-the-middle · 80+ languages',
-    desc: "Mistral's dedicated coding model. Trained on 80+ programming languages with fill-in-the-middle support — excellent for code completion, generation, and testing tasks on consumer hardware.",
-    ramGbQ4: 13.5, ramGbQ3: 10.5,
+  'Qwen3.5-27B': {
+    company: 'Alibaba', arch: 'Dense', type: 'LLM',
+    specialty: 'Coding · Multilingual · Balanced quality',
+    desc: "Alibaba's mid-size 27B dense model. Strong quality across reasoning and code — may need Q3 quantization on machines with limited RAM.",
+    ramGbQ4: 16.0, ramGbQ3: 12.5,
   },
-  'Llama-3.1-8B': {
-    company: 'Meta', arch: 'Dense', type: 'Coding LLM',
-    specialty: 'Compact · Fast · Coding fine-tunes',
-    desc: "Meta's 8B instruction model. The base for many coding fine-tunes — lightweight, widely supported by every inference server, and excellent on Apple Silicon and low-RAM machines.",
-    ramGbQ4: 4.7,
+  'Qwen3.5-35B-A3B': {
+    company: 'Alibaba', arch: 'MoE', type: 'LLM',
+    specialty: 'High capability · Efficient active compute · Coding',
+    desc: "Alibaba's 35B MoE model — only 3B parameters active per token, but all 35B weights must load into RAM for fast routing.",
+    ramGbQ4: 21.6, ramGbQ3: 16.8,
   },
-  'DeepSeek-R1-Distill-Qwen-7B': {
-    company: 'DeepSeek', arch: 'Dense', type: 'Coding LLM',
-    specialty: 'Reasoning · Coding · Ultralight footprint',
-    desc: "DeepSeek-R1's reasoning distilled into a 7B Qwen backbone. Punches well above its size for code and logic — the best choice for laptops and machines with under 8 GB free RAM.",
-    ramGbQ4: 4.5,
-  },
-
-  // ── Reasoning-specific ───────────────────────────────────────────────────
-  'DeepSeek-R1-671B': {
+  'DeepSeek-R1-Distill-Qwen-32B': {
     company: 'DeepSeek', arch: 'Dense', type: 'Reasoning LLM',
-    specialty: 'Chain-of-thought · Math · Complex problem-solving',
-    desc: "DeepSeek's full 671B flagship reasoning model. The open-weight equivalent of o1 — transparent step-by-step thinking, outstanding on maths, logic, and long-form analysis. Requires a multi-GPU server at Q4; ~162 GB at Q1.58.",
-    ramGbQ4: 400.0, ramGbQ3: 162.0,
+    specialty: 'Math · Code · Chain-of-thought reasoning',
+    desc: "DeepSeek-R1's reasoning capability distilled into a 32B Qwen backbone. Excellent step-by-step reasoning at self-hosted scale.",
+    ramGbQ4: 19.8, ramGbQ3: 15.4,
   },
   'DeepSeek-R1-Distill-Llama-70B': {
     company: 'DeepSeek', arch: 'Dense', type: 'Reasoning LLM',
-    specialty: 'Complex reasoning · Math · Large self-hosted',
-    desc: "DeepSeek-R1's reasoning distilled into a Llama-70B backbone. Powerful open-weight reasoning for high-RAM workstations — the best balance of capability and size in the reasoning mid tier.",
+    specialty: 'Complex reasoning · Large self-hosted option',
+    desc: "DeepSeek-R1's reasoning capability distilled into Llama-70B. Powerful open-weight reasoning model for high-RAM workstations.",
     ramGbQ4: 41.0, ramGbQ3: 31.9,
   },
-  'Qwen-QwQ-32B': {
-    company: 'Alibaba', arch: 'Dense', type: 'Reasoning LLM',
-    specialty: 'Deep thinking · Math · Multi-step logic',
-    desc: "Alibaba's QwQ reasoning model. Uses extended chain-of-thought to tackle hard mathematical and logical problems — comparable to o1-mini at self-hosted scale on a high-end consumer machine.",
-    ramGbQ4: 19.8, ramGbQ3: 15.4,
+  'Llama-3.1-70B': {
+    company: 'Meta', arch: 'Dense', type: 'LLM',
+    specialty: 'Strong open-weight · Coding · General tasks',
+    desc: "Meta's strong 70B open model. Competitive with many commercial models for coding and instruction-following tasks.",
+    ramGbQ4: 41.0, ramGbQ3: 31.9,
   },
-  'Phi-4-14B': {
-    company: 'Microsoft', arch: 'Dense', type: 'Reasoning LLM',
-    specialty: 'Reasoning · STEM · Compact footprint',
-    desc: "Microsoft's Phi-4 14B model. Exceptionally strong on STEM reasoning and structured problem-solving for its size — fits comfortably on a 16 GB RAM machine and outperforms many larger models on benchmarks.",
-    ramGbQ4: 8.5,
+  'Mistral-Large-3': {
+    company: 'Mistral AI', arch: 'Dense', type: 'LLM',
+    specialty: 'Top-tier reasoning · Coding · Multilingual',
+    desc: "Mistral's 123B flagship open model. Top-tier open-weight performance across coding, reasoning, and multilingual tasks.",
+    ramGbQ4: 72.0, ramGbQ3: 56.0,
   },
-  'Mathstral-7B': {
-    company: 'Mistral AI', arch: 'Dense', type: 'Reasoning LLM',
-    specialty: 'Mathematics · Formal proofs · Scientific reasoning',
-    desc: "Mistral's math-specialist 7B model. Fine-tuned specifically for mathematical reasoning and formal proof generation — the lightest option for structured quantitative tasks.",
-    ramGbQ4: 4.5,
+  'Qwen3.5-122B': {
+    company: 'Alibaba', arch: 'Dense', type: 'LLM',
+    specialty: 'Near-frontier quality · Complex reasoning · Coding',
+    desc: "Alibaba's largest dense Qwen. Matches frontier commercial quality for reasoning and code — requires a high-RAM workstation.",
+    ramGbQ4: 73.0, ramGbQ3: 57.0,
   },
-
-  // ── Well-Rounded-specific ────────────────────────────────────────────────
   'Llama-4-Maverick': {
     company: 'Meta', arch: 'MoE', type: 'Multimodal LLM',
-    specialty: 'Multimodal · General purpose · Instruction-following',
-    desc: "Meta's Llama 4 Maverick MoE model. Strong general-purpose performance across text, code, and image understanding — a well-rounded option for multi-task YODA pipelines.",
+    specialty: 'Native multimodal · Extended context · Next-gen',
+    desc: "Meta's next-gen MoE flagship. ~400B total weights with native multimodal capability — requires enterprise-grade multi-GPU infrastructure.",
     ramGbQ4: 229.0,
   },
-  'Qwen3.5-72B': {
-    company: 'Alibaba', arch: 'Dense', type: 'LLM',
-    specialty: 'General purpose · Coding · Multilingual',
-    desc: "Alibaba's 72B dense model. Excellent across coding, instruction-following, and multilingual tasks — a versatile well-rounded engine for high-RAM workstations.",
-    ramGbQ4: 42.0, ramGbQ3: 32.5,
-  },
-  'Mistral-Small-3.2-24B': {
-    company: 'Mistral AI', arch: 'Dense', type: 'LLM',
-    specialty: 'Instruction-following · Multilingual · Efficient',
-    desc: "Mistral's 24B general-purpose model. Outstanding quality-to-size ratio — excellent multilingual support, strong instruction-following, and fits on a 16–24 GB RAM machine.",
-    ramGbQ4: 14.3, ramGbQ3: 11.1,
-  },
-  'Gemma-3-27B': {
-    company: 'Google', arch: 'Dense', type: 'LLM',
-    specialty: 'Multilingual · Vision · Broad capability',
-    desc: "Google's 27B Gemma 3 model. Strong general-purpose performance with vision capability — well-rounded across text, code, and image tasks on a mid-range workstation.",
-    ramGbQ4: 16.0, ramGbQ3: 12.5,
+  'Kimi-K2.5': {
+    company: 'Moonshot AI', arch: 'MoE', type: 'LLM',
+    specialty: 'Long context · Document understanding · 200K tokens',
+    desc: "Moonshot AI's large MoE model. Exceptional 200K-token context — the full weight set far exceeds any consumer or prosumer machine.",
+    ramGbQ4: 500.0,
   },
 };
 
