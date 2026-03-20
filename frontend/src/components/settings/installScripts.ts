@@ -165,36 +165,25 @@ fi
 # ── 4. Clone/update PlenumNET and build daemon ────────────────────────
 echo ""
 echo "Installing PlenumNET (inter-cube)..."
+_clone_plenumnet() {
+  echo "  → Cloning PlenumNET..."
+  git clone --depth 1 https://github.com/SigmaWolf-8/Ternary "\$PLENUMNET_DIR"
+}
 if [[ -d "\$PLENUMNET_DIR/.git" ]]; then
   echo "  → Repository exists, updating..."
   git -C "\$PLENUMNET_DIR" pull --ff-only 2>/dev/null || true
-else
-  echo "  → Cloning PlenumNET..."
-  git clone \\
-    --depth 1 \\
-    --filter=blob:none \\
-    --sparse \\
-    https://github.com/SigmaWolf-8/Ternary \\
-    "\$PLENUMNET_DIR"
-  git -C "\$PLENUMNET_DIR" sparse-checkout set inter-cube ternary-math
-fi
-
-# Check each required workspace Cargo.toml individually — fetch that path if missing.
-# In a partial clone (--filter=blob:none) sparse-checkout add + explicit fetch
-# is required to pull blobs that were never downloaded in a previous sparse clone.
-for member in "inter-cube/Cargo.toml" "ternary-math/Cargo.toml"; do
-  dir="\${member%%/*}"
-  if [[ ! -f "\$PLENUMNET_DIR/\$member" ]]; then
-    echo "  → \$member missing — fetching from remote..."
-    git -C "\$PLENUMNET_DIR" sparse-checkout add "\$dir" 2>/dev/null || true
-    git -C "\$PLENUMNET_DIR" fetch --filter=blob:none origin 2>/dev/null || true
-    git -C "\$PLENUMNET_DIR" sparse-checkout reapply 2>/dev/null || true
-    if [[ ! -f "\$PLENUMNET_DIR/\$member" ]]; then
-      echo "  ✗ \$member still missing after fetch — delete \$PLENUMNET_DIR and re-run."
-      exit 1
-    fi
-    echo "  ✓ \$dir fetched"
+  # If key files are still missing the previous clone was a broken sparse clone — re-clone fresh
+  if [[ ! -f "\$PLENUMNET_DIR/inter-cube/Cargo.toml" ]]; then
+    echo "  → Existing checkout is incomplete — re-cloning..."
+    rm -rf "\$PLENUMNET_DIR"
+    _clone_plenumnet
   fi
+else
+  _clone_plenumnet
+fi
+# Hard stop if source is still missing after clone
+for member in "inter-cube/Cargo.toml" "ternary-math/Cargo.toml"; do
+  [[ -f "\$PLENUMNET_DIR/\$member" ]] || { echo "  ✗ \$member missing after clone — check network and try again."; exit 1; }
 done
 
 echo "  → Building inter-cube daemon (first build takes a few minutes)..."
@@ -425,36 +414,26 @@ if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
 Write-Host ""
 Write-Host "Installing PlenumNET (inter-cube)..."
 New-Item -ItemType Directory -Force -Path $LOG_DIR | Out-Null
+function Invoke-ClonePlenumNET {
+  Write-Host "  -> Cloning PlenumNET..."
+  git clone --depth 1 https://github.com/SigmaWolf-8/Ternary $PLENUMNET_DIR
+}
 if (Test-Path "$PLENUMNET_DIR\\.git") {
   Write-Host "  -> Repository exists, updating..."
   git -C $PLENUMNET_DIR pull --ff-only 2>$null
+  # If key files are missing the previous clone was a broken sparse clone — re-clone fresh
+  if (-not (Test-Path "$PLENUMNET_DIR/inter-cube/Cargo.toml")) {
+    Write-Host "  -> Existing checkout is incomplete — re-cloning..."
+    Remove-Item -Recurse -Force $PLENUMNET_DIR
+    Invoke-ClonePlenumNET
+  }
 } else {
-  Write-Host "  -> Cloning PlenumNET..."
-  git clone \`
-    --depth 1 \`
-    --filter=blob:none \`
-    --sparse \`
-    https://github.com/SigmaWolf-8/Ternary \`
-    $PLENUMNET_DIR
-  git -C $PLENUMNET_DIR sparse-checkout set inter-cube ternary-math
+  Invoke-ClonePlenumNET
 }
-
-# Check each required workspace Cargo.toml individually.
-# In a partial clone (--filter=blob:none) a path that was never in the sparse
-# checkout has no local blobs — sparse-checkout add + fetch + checkout HEAD
-# forces git to download and write exactly those files.
+# Hard stop if source is still missing after clone
 foreach ($member in @("inter-cube/Cargo.toml", "ternary-math/Cargo.toml")) {
-  $memberPath = "$PLENUMNET_DIR/$member"
-  if (-not (Test-Path $memberPath)) {
-    $dir = ($member -split '/')[0]
-    Write-Host "  -> $member missing — fetching from remote..."
-    git -C $PLENUMNET_DIR sparse-checkout add $dir 2>$null
-    git -C $PLENUMNET_DIR fetch --filter=blob:none origin 2>$null
-    git -C $PLENUMNET_DIR sparse-checkout reapply 2>$null
-    if (-not (Test-Path $memberPath)) {
-      throw "$member still missing after fetch — delete $PLENUMNET_DIR and re-run."
-    }
-    Write-Host "  OK $dir fetched"
+  if (-not (Test-Path "$PLENUMNET_DIR/$member")) {
+    throw "$member missing after clone — check network and try again."
   }
 }
 Write-Host "  -> Building inter-cube daemon (first build takes a few minutes)..."
