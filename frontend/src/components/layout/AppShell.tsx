@@ -126,8 +126,8 @@ export function AppShell() {
         {/* Logo — height must match top bar (HEADER_H) */}
         <div
           className={[
-            'flex items-center gap-3 border-b flex-shrink-0',
-            collapsed ? 'px-4 justify-center' : 'px-5',
+            'flex items-center border-b flex-shrink-0 overflow-hidden',
+            collapsed ? 'justify-center gap-0 p-0' : 'gap-3 p-0',
           ].join(' ')}
           style={{
             height: HEADER_H,
@@ -143,10 +143,8 @@ export function AppShell() {
         >
           <video
             src="/yoda-logo.mp4"
-            className={[
-              'object-contain flex-shrink-0',
-              collapsed ? 'h-10 w-10' : 'h-24 w-auto',
-            ].join(' ')}
+            className="flex-shrink-0 object-cover"
+            style={{ height: HEADER_H, width: HEADER_H }}
             autoPlay
             muted
             playsInline
