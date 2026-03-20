@@ -12,6 +12,7 @@ import {
   AlertTriangle,
   Ban,
   Download,
+  Radio,
 } from 'lucide-react';
 import { ModelInstallModal } from './ModelInstallModal';
 import { useUpdateEngine } from '../../api/hooks';
@@ -316,7 +317,7 @@ export function EngineSlotCard({
   const [provider, setProvider] = useState('');
   const [familyOverride, setFamilyOverride] = useState(config?.family_override ?? '');
   const [showSuggest, setShowSuggest] = useState(false);
-  const [installModalOpen, setInstallModalOpen] = useState(false);
+  const [installModalMode, setInstallModalMode] = useState<'install' | 'connect' | null>(null);
 
   const hasMountedRef  = useRef(false);
   const autoSaveTimer  = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -535,15 +536,24 @@ export function EngineSlotCard({
 
             <ModelCard modelName={modelName} hostRam={hostRam} reservedRam={reservedRam} />
 
-            {/* Install & Connect button — works whether DB stores display name or Ollama tag */}
+            {/* Install / Connect buttons — visible for Ollama-compatible models */}
             {modelName && (OLLAMA_TAG[modelName] || OLLAMA_TAG_DISPLAY[modelName] || MANUAL_INSTALL_URL[modelName]) && (
-              <button
-                onClick={() => setInstallModalOpen(true)}
-                className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg border border-[var(--color-gold-500)]/40 bg-[var(--color-gold-500)]/8 text-[var(--color-gold-400)] text-xs font-medium hover:bg-[var(--color-gold-500)]/15 hover:border-[var(--color-gold-500)]/70 transition-colors"
-              >
-                <Download className="w-3.5 h-3.5" />
-                Install &amp; Connect
-              </button>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setInstallModalMode('install')}
+                  className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border border-[var(--color-gold-500)]/40 bg-[var(--color-gold-500)]/8 text-[var(--color-gold-400)] text-xs font-medium hover:bg-[var(--color-gold-500)]/15 hover:border-[var(--color-gold-500)]/70 transition-colors"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  Install
+                </button>
+                <button
+                  onClick={() => setInstallModalMode('connect')}
+                  className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border border-blue-500/40 bg-blue-500/8 text-blue-400 text-xs font-medium hover:bg-blue-500/15 hover:border-blue-500/70 transition-colors"
+                >
+                  <Radio className="w-3.5 h-3.5" />
+                  Connect
+                </button>
+              </div>
             )}
 
             <div>
@@ -677,11 +687,12 @@ export function EngineSlotCard({
         </button>
       </div>
 
-      {/* Install & Connect modal */}
-      {installModalOpen && (
+      {/* Install / Connect modal */}
+      {installModalMode !== null && (
         <ModelInstallModal
           modelName={modelName}
-          onClose={() => setInstallModalOpen(false)}
+          mode={installModalMode}
+          onClose={() => setInstallModalMode(null)}
         />
       )}
     </div>

@@ -28,6 +28,7 @@ type PollingState =
 interface Props {
   modelName: string;
   onClose: () => void;
+  mode?: 'install' | 'connect';
 }
 
 // ── Script generators ─────────────────────────────────────────────────────────
@@ -345,9 +346,126 @@ Write-Host "Persistent service install (Windows Service) is planned for a future
 `;
 }
 
+// ── Reconnect-only scripts (no Ollama install / model pull) ──────────────────
+
+function makeReconnectBashScript(sessionToken: string, crsUrl: string): string {
+  return `#!/usr/bin/env bash
+# YODA — PlenumNET reconnect (tunnel only, no reinstall)
+# Token: ${sessionToken}
+set -euo pipefail
+
+SESSION_TOKEN="${sessionToken}"
+CRS_URL="${crsUrl}"
+PLENUMNET_DIR="\$HOME/PlenumNET"
+
+echo "=== YODA PlenumNET Reconnect ==="
+
+# ── 1. Detect local IP ────────────────────────────────────────────────
+if [[ "\$(uname -s)" == "Darwin" ]]; then
+  LOCAL_IP=\$(ipconfig getifaddr en0 2>/dev/null || ipconfig getifaddr en1 2>/dev/null || echo "0.0.0.0")
+else
+  LOCAL_IP=\$(hostname -I 2>/dev/null | awk '{print \$1}' || echo "0.0.0.0")
+fi
+CUBE_ENDPOINT="\${LOCAL_IP}:51820"
+echo "Local endpoint : \$CUBE_ENDPOINT"
+
+# ── 2. Register with YODA CRS ─────────────────────────────────────────
+echo ""
+echo "Registering with YODA CRS..."
+if [[ "\$(uname -s)" == "Darwin" ]]; then
+  PUB_KEY=\$(echo -n "\${LOCAL_IP}:51820" | shasum -a 256 | cut -d' ' -f1)
+else
+  PUB_KEY=\$(echo -n "\${LOCAL_IP}:51820" | sha256sum | cut -d' ' -f1)
+fi
+
+curl -sf -X POST "\${CRS_URL}/api/salvi/inter-cube/crs/register" \\
+  -H "Content-Type: application/json" \\
+  -d '{"endpoint":"'\$CUBE_ENDPOINT'","publicKey":"'\$PUB_KEY'","sessionToken":"'\$SESSION_TOKEN'"}' \\
+  > /dev/null || { echo "  ✗ Registration failed. Is your internet connected?"; exit 1; }
+echo "  ✓ Registered with YODA CRS"
+
+# ── 3. Start PlenumNET tunnel daemon ──────────────────────────────────
+echo ""
+echo "Starting PlenumNET tunnel daemon..."
+CUBE_MODE=cube \\
+CUBE_CRS_URL="\$CRS_URL" \\
+CUBE_ENDPOINT="\$CUBE_ENDPOINT" \\
+CUBE_SESSION_TOKEN="\$SESSION_TOKEN" \\
+CUBE_ROLE=inference \\
+"\$PLENUMNET_DIR/target/release/inter-cube-daemon" &
+echo "  ✓ Daemon started (PID \$!)"
+
+echo ""
+echo "  Tunnel active — YODA Monitoring will update within 10s."
+echo "  This terminal must stay open to keep the tunnel alive."
+`;
+}
+
+function makeReconnectPsScript(sessionToken: string, crsUrl: string): string {
+  return `# YODA — PlenumNET reconnect (tunnel only, no reinstall)
+# Token: ${sessionToken}
+$ErrorActionPreference = "Stop"
+
+$SESSION_TOKEN = "${sessionToken}"
+$CRS_URL = "${crsUrl}"
+$PLENUMNET_DIR = "$env:USERPROFILE\\PlenumNET"
+
+Write-Host "=== YODA PlenumNET Reconnect ===" -ForegroundColor Cyan
+
+# ── 1. Detect local IP ────────────────────────────────────────────────
+$ip = (Get-NetIPAddress -AddressFamily IPv4 |
+  Where-Object { $_.InterfaceAlias -match 'Wi-Fi|Ethernet|Local Area Connection' -and $_.IPAddress -notmatch '^169' } |
+  Select-Object -First 1).IPAddress
+if (-not $ip) { $ip = "0.0.0.0" }
+$CUBE_ENDPOINT = "$ip:51820"
+Write-Host "Local endpoint : $CUBE_ENDPOINT"
+
+# ── 2. Register with YODA CRS ─────────────────────────────────────────
+Write-Host ""
+Write-Host "Registering with YODA CRS..."
+$pubKey = ([System.Security.Cryptography.SHA256]::Create().ComputeHash(
+  [System.Text.Encoding]::UTF8.GetBytes($CUBE_ENDPOINT)) |
+  ForEach-Object { $_.ToString("x2") }) -join ""
+
+$regBody = ConvertTo-Json @{
+  endpoint     = $CUBE_ENDPOINT
+  publicKey    = $pubKey
+  sessionToken = $SESSION_TOKEN
+}
+
+try {
+  $regResp = Invoke-RestMethod \`
+    -Uri "$CRS_URL/api/salvi/inter-cube/crs/register" \`
+    -Method Post \`
+    -ContentType "application/json" \`
+    -Body $regBody
+  Write-Host "  OK Registered as $($regResp.address)"
+} catch {
+  Write-Host "  FAIL Registration failed: $_" -ForegroundColor Red
+  exit 1
+}
+
+# ── 3. Start PlenumNET tunnel daemon ──────────────────────────────────
+Write-Host ""
+Write-Host "Starting PlenumNET tunnel daemon..."
+$daemonPath = "$PLENUMNET_DIR\\target\\release\\inter-cube-daemon.exe"
+$env:CUBE_MODE = "cube"
+$env:CUBE_CRS_URL = $CRS_URL
+$env:CUBE_ENDPOINT = $CUBE_ENDPOINT
+$env:CUBE_SESSION_TOKEN = $SESSION_TOKEN
+$env:CUBE_ROLE = "inference"
+$daemonProc = Start-Process -FilePath $daemonPath -NoNewWindow -PassThru
+Write-Host "  OK Daemon started (PID $($daemonProc.Id))"
+
+Write-Host ""
+Write-Host "  Tunnel active - YODA Monitoring will update within 10s." -ForegroundColor Green
+Write-Host "  Keep this window open to maintain the tunnel." -ForegroundColor Yellow
+`;
+}
+
 // ── Component ─────────────────────────────────────────────────────────────────
 
-export function ModelInstallModal({ modelName, onClose }: Props) {
+export function ModelInstallModal({ modelName, onClose, mode = 'install' }: Props) {
   const crsUrl = (import.meta.env.VITE_CRS_URL as string | undefined) ?? '';
   // modelName may be a display name ('Gemma-3.4B') or an Ollama tag ('gemma3:4b').
   // Resolve whichever form is stored in the DB.
@@ -366,10 +484,18 @@ export function ModelInstallModal({ modelName, onClose }: Props) {
   const modalRef = useRef<HTMLDivElement>(null);
   const previousFocusRef = useRef<HTMLElement | null>(null);
 
-  const bashScript = makeBashScript(modelName, ollamaTag ?? '', sessionToken, crsUrl);
-  const psScript = makePsScript(modelName, ollamaTag ?? '', sessionToken, crsUrl);
+  const isConnect = mode === 'connect';
+
+  const bashScript = isConnect
+    ? makeReconnectBashScript(sessionToken, crsUrl)
+    : makeBashScript(modelName, ollamaTag ?? '', sessionToken, crsUrl);
+  const psScript = isConnect
+    ? makeReconnectPsScript(sessionToken, crsUrl)
+    : makePsScript(modelName, ollamaTag ?? '', sessionToken, crsUrl);
   const script = os === 'bash' ? bashScript : psScript;
-  const fileName = os === 'bash' ? 'yoda-setup.sh' : 'yoda-setup.ps1';
+  const fileName = os === 'bash'
+    ? (isConnect ? 'yoda-reconnect.sh' : 'yoda-setup.sh')
+    : (isConnect ? 'yoda-reconnect.ps1' : 'yoda-setup.ps1');
   const mime = os === 'bash' ? 'text/x-shellscript' : 'text/plain';
 
   const startPolling = useCallback(() => {
@@ -474,7 +600,7 @@ export function ModelInstallModal({ modelName, onClose }: Props) {
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
       role="dialog"
       aria-modal="true"
-      aria-label={`Install ${modelName}`}
+      aria-label={isConnect ? `Reconnect ${modelName} to PlenumNET` : `Install ${modelName}`}
     >
       <div
         className="absolute inset-0 bg-black/60 backdrop-blur-sm"
@@ -486,15 +612,17 @@ export function ModelInstallModal({ modelName, onClose }: Props) {
         {/* Header */}
         <div className="flex items-center justify-between p-5 border-b border-[var(--color-border-subtle)]">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-[var(--color-gold-500)]/15 flex items-center justify-center">
-              <Terminal className="w-4 h-4 text-[var(--color-gold-400)]" />
+            <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${isConnect ? 'bg-blue-500/15' : 'bg-[var(--color-gold-500)]/15'}`}>
+              <Terminal className={`w-4 h-4 ${isConnect ? 'text-blue-400' : 'text-[var(--color-gold-400)]'}`} />
             </div>
             <div>
               <h2 className="text-sm font-semibold text-[var(--color-text-primary)]">
-                Install &amp; Connect — {modelName}
+                {isConnect ? <>Reconnect to PlenumNET — {modelName}</> : <>Install &amp; Connect — {modelName}</>}
               </h2>
               <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
-                Run the script on your server to establish a PlenumNET tunnel
+                {isConnect
+                  ? 'Re-run the tunnel script on your machine to restore the connection'
+                  : 'Run the script on your server to establish a PlenumNET tunnel'}
               </p>
             </div>
           </div>
