@@ -505,6 +505,7 @@ export function EngineSlotCard({
   const [provider, setProvider] = useState('');
   const [familyOverride, setFamilyOverride] = useState(config?.family_override ?? '');
   const [showSuggest, setShowSuggest] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const [installModalMode, setInstallModalMode] = useState<'connect' | null>(null);
   const [downloaded, markDownloaded] = useDownloadedModels();
   type ProbeResult = { reachable: boolean; latency_ms?: number; http_status?: number; error?: string };
@@ -695,7 +696,7 @@ export function EngineSlotCard({
       ? 'bg-[var(--color-warn)]'
       : 'bg-[var(--color-err)]';
 
-  const grouped = groupedModels(modelName, usedModels);
+  const grouped = groupedModels(searchQuery, usedModels);
   const availableGb  = hostRam - OS_OVERHEAD_GB - reservedRam;
 
   const MODE_TIPS: Record<HostingMode, string> = {
@@ -778,10 +779,10 @@ export function EngineSlotCard({
               <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">Model</label>
               <input
                 type="text"
-                value={modelName}
-                onChange={(e) => { changeModel(e.target.value); setShowSuggest(true); }}
-                onFocus={() => setShowSuggest(true)}
-                onBlur={() => setTimeout(() => setShowSuggest(false), 150)}
+                value={showSuggest ? searchQuery : modelName}
+                onChange={(e) => { setSearchQuery(e.target.value); setShowSuggest(true); }}
+                onFocus={() => { setSearchQuery(''); setShowSuggest(true); }}
+                onBlur={() => setTimeout(() => { setShowSuggest(false); setSearchQuery(''); }, 150)}
                 placeholder="e.g. Llama-3.1-8B"
                 className="w-full px-3 py-2 rounded-lg bg-[var(--color-surface-secondary)] border border-[var(--color-border-default)] text-sm text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-gold-500)] focus:ring-1 focus:ring-[var(--color-gold-500)]/30 transition-colors"
               />
@@ -810,7 +811,7 @@ export function EngineSlotCard({
                             return (
                               <button
                                 key={m}
-                                onMouseDown={() => { changeModel(m); setShowSuggest(false); }}
+                                onMouseDown={() => { changeModel(m); setShowSuggest(false); setSearchQuery(''); }}
                                 className={`w-full text-left px-3 py-2 transition-colors border-b border-[var(--color-border-subtle)] last:border-0 ${inUse ? 'opacity-60 hover:opacity-80' : 'hover:bg-[var(--color-surface-hover)]'}`}
                               >
                                 <div className="flex items-center gap-2">
