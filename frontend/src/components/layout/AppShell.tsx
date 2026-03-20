@@ -239,8 +239,19 @@ export function AppShell() {
 
         {/* Top bar — same height as sidebar logo area */}
         <header
-          className="sticky top-0 z-20 flex items-center gap-4 px-5 border-b border-[var(--color-border-subtle)] bg-[var(--color-surface-secondary)]/80 backdrop-blur-md flex-shrink-0"
-          style={{ height: HEADER_H }}
+          className="sticky top-0 z-20 flex items-center gap-4 px-5 border-b border-[var(--color-border-subtle)] flex-shrink-0 relative overflow-hidden"
+          style={{
+            height: HEADER_H,
+            background: 'linear-gradient(180deg, hsl(20,14%,8%) 0%, hsl(20,12%,6%) 100%)',
+            boxShadow: [
+              'inset 0 1px 0 rgba(255,255,255,0.07)',
+              'inset 0 -1px 0 rgba(255,255,255,0.03)',
+              'inset 0 14px 48px rgba(0,0,0,0.60)',
+              'inset 0 -14px 48px rgba(0,0,0,0.45)',
+              '0 4px 28px rgba(0,0,0,0.65)',
+              '0 1px 0 rgba(255,255,255,0.04)',
+            ].join(', '),
+          }}
         >
           {/* Mobile hamburger */}
           <button
@@ -256,7 +267,7 @@ export function AppShell() {
               {header.icon && (
                 <header.icon className="w-9 h-9 text-[hsl(210,70%,65%)] flex-shrink-0" />
               )}
-              <div className="min-w-0 flex-1">
+              <div className="min-w-0">
                 <p
                   className="truncate"
                   style={{
@@ -268,39 +279,16 @@ export function AppShell() {
                     lineHeight: 1.15,
                     color: 'var(--color-text-primary)',
                     margin: 0,
-                    textShadow:
-                      '0 1px 0 rgba(0,0,0,0.15), 0 2px 0 rgba(0,0,0,0.1), 0 4px 12px rgba(0,0,0,0.12)',
+                    textShadow: [
+                      '0 1px 0 rgba(0,0,0,0.4)',
+                      '0 2px 0 rgba(0,0,0,0.3)',
+                      '0 4px 16px rgba(0,0,0,0.5)',
+                      '0 0 60px hsl(210,70%,65%,0.12)',
+                    ].join(', '),
                   }}
                 >
                   {header.title}
                 </p>
-
-                {/* Geometric SVG underline — same spec as SectionHeader */}
-                <svg
-                  aria-hidden="true"
-                  width="100%"
-                  height="16"
-                  viewBox="0 0 1000 16"
-                  preserveAspectRatio="none"
-                  fill="none"
-                  style={{
-                    display: 'block',
-                    marginTop: '6px',
-                    color: 'hsl(210,70%,65%)',
-                  }}
-                >
-                  <line x1="0"    y1="8"  x2="1000" y2="8"  stroke="currentColor" strokeWidth="1"   opacity="0.25" />
-                  <line x1="0"    y1="1"  x2="0"    y2="15" stroke="currentColor" strokeWidth="2"   opacity="0.8"  />
-                  <line x1="60"   y1="2"  x2="60"   y2="14" stroke="currentColor" strokeWidth="1.5" opacity="0.55" />
-                  <line x1="72"   y1="2"  x2="72"   y2="14" stroke="currentColor" strokeWidth="1.5" opacity="0.55" />
-                  <polygon points="90,8 104,2 118,8 104,14" stroke="currentColor" strokeWidth="1" fill="none" opacity="0.4" />
-                  <line x1="400"  y1="4"  x2="400"  y2="12" stroke="currentColor" strokeWidth="1"   opacity="0.3"  />
-                  <line x1="500"  y1="4"  x2="500"  y2="12" stroke="currentColor" strokeWidth="1"   opacity="0.3"  />
-                  <line x1="850"  y1="2"  x2="850"  y2="14" stroke="currentColor" strokeWidth="1.5" opacity="0.45" />
-                  <line x1="862"  y1="2"  x2="862"  y2="14" stroke="currentColor" strokeWidth="1.5" opacity="0.45" />
-                  <line x1="1000" y1="1"  x2="1000" y2="15" stroke="currentColor" strokeWidth="2"   opacity="0.8"  />
-                </svg>
-
                 {header.subtitle && (
                   <p className="text-sm text-[var(--color-text-muted)] font-mono leading-tight truncate mt-1">
                     {header.subtitle}
@@ -310,8 +298,6 @@ export function AppShell() {
             </div>
           )}
 
-          <div className="flex-1" />
-
           {/* Page action (e.g. "New Agent" button) */}
           {header?.action && (
             <div className="flex-shrink-0">
@@ -320,6 +306,38 @@ export function AppShell() {
           )}
 
           <UserProfile />
+
+          {/* ── Full-width geometric underline ── absolutely positioned so it
+               spans the entire header width, anchored near the bottom */}
+          {header && (
+            <svg
+              aria-hidden="true"
+              viewBox="0 0 1000 16"
+              preserveAspectRatio="none"
+              fill="none"
+              style={{
+                position: 'absolute',
+                bottom: 14,
+                left: 0,
+                right: 0,
+                width: '100%',
+                height: 16,
+                pointerEvents: 'none',
+                color: 'hsl(210,70%,65%)',
+              }}
+            >
+              <line x1="0"    y1="8"  x2="1000" y2="8"  stroke="currentColor" strokeWidth="1"   opacity="0.25" />
+              <line x1="0"    y1="1"  x2="0"    y2="15" stroke="currentColor" strokeWidth="2"   opacity="0.8"  />
+              <line x1="60"   y1="2"  x2="60"   y2="14" stroke="currentColor" strokeWidth="1.5" opacity="0.55" />
+              <line x1="72"   y1="2"  x2="72"   y2="14" stroke="currentColor" strokeWidth="1.5" opacity="0.55" />
+              <polygon points="90,8 104,2 118,8 104,14" stroke="currentColor" strokeWidth="1" fill="none" opacity="0.4" />
+              <line x1="400"  y1="4"  x2="400"  y2="12" stroke="currentColor" strokeWidth="1"   opacity="0.3"  />
+              <line x1="500"  y1="4"  x2="500"  y2="12" stroke="currentColor" strokeWidth="1"   opacity="0.3"  />
+              <line x1="850"  y1="2"  x2="850"  y2="14" stroke="currentColor" strokeWidth="1.5" opacity="0.45" />
+              <line x1="862"  y1="2"  x2="862"  y2="14" stroke="currentColor" strokeWidth="1.5" opacity="0.45" />
+              <line x1="1000" y1="1"  x2="1000" y2="15" stroke="currentColor" strokeWidth="2"   opacity="0.8"  />
+            </svg>
+          )}
         </header>
 
         <main id="main-content" className="flex-1 overflow-y-auto" aria-label="Page content">
