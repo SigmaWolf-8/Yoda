@@ -32,6 +32,16 @@ export function useUpdateEngine() {
   });
 }
 
+export function useDeleteEngine() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (slot: EngineSlot) => {
+      await apiClient.delete(`/settings/engines/${slot}`);
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['engines'] }),
+  });
+}
+
 export function useValidateDiversity() {
   return useMutation({
     mutationFn: async () => {

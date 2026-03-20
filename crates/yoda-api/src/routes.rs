@@ -91,6 +91,7 @@ pub fn build_router(state: AppState) -> Router {
         // Engine configuration
         .route("/api/settings/engines", get(get_engines))
         .route("/api/settings/engines/{slot}", put(update_engine))
+        .route("/api/settings/engines/{slot}", delete(clear_engine))
         .route("/api/settings/engines/{slot}/probe", get(probe_engine))
         .route("/api/settings/engines/validate-diversity", post(validate_diversity))
 
@@ -381,6 +382,32 @@ async fn update_engine(
     .execute(&state.db).await.map_err(AppError::Database)?;
 
     Ok(Json(serde_json::json!({"status":"updated","slot":slot})))
+}
+
+/// DELETE /api/settings/engines/{slot}
+/// Clears a slot — resets model_name to empty and restores the default endpoint.
+async fn clear_engine(
+    State(state): State<AppState>,
+    user: axum::Extension<auth::AuthenticatedUser>,
+    Path(slot): Path<String>,
+) -> Result<StatusCode, AppError> {
+    if !["a","b","c"].contains(&slot.as_str()) {
+        return Err(AppError::Validation("Slot must be 'a', 'b', or 'c'".into()));
+    }
+    let default_port: u16 = match slot.as_str() { "a" => 8080, "b" => 8081, _ => 8082 };
+    sqlx::query(
+        "UPDATE engine_configs \
+         SET model_name='', model_family='', family_override=NULL, \
+             endpoint_url=$3, credentials_encrypted=NULL \
+         WHERE org_id=$1 AND slot=$2"
+    )
+    .bind(user.org_id)
+    .bind(&slot)
+    .bind(format!("http://localhost:{}", default_port))
+    .execute(&state.db)
+    .await
+    .map_err(AppError::Database)?;
+    Ok(StatusCode::NO_CONTENT)
 }
 
 async fn validate_diversity(

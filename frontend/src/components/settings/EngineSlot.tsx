@@ -14,9 +14,10 @@ import {
   Download,
   HardDriveDownload,
   Radio,
+  Trash2,
 } from 'lucide-react';
 import { ModelInstallModal } from './ModelInstallModal';
-import { useUpdateEngine } from '../../api/hooks';
+import { useUpdateEngine, useDeleteEngine } from '../../api/hooks';
 import { useToast } from '../common/Toast';
 import type {
   EngineConfig,
@@ -414,9 +415,11 @@ export function EngineSlotCard({
   onModelChange, onModeChange,
 }: EngineSlotCardProps) {
   const update = useUpdateEngine();
+  const clearSlot = useDeleteEngine();
   const { toast } = useToast();
 
   const [mode, setMode] = useState<HostingMode>(config?.hosting_mode ?? 'self_hosted');
+  const [confirmClear, setConfirmClear] = useState(false);
   const [endpoint, setEndpoint] = useState(config?.endpoint_url ?? '');
   const [authType, setAuthType] = useState<AuthType>(config?.auth_type ?? 'none');
   const [credentials, setCredentials] = useState('');
@@ -508,7 +511,7 @@ export function EngineSlotCard({
     return {
       slot,
       hosting_mode: mode,
-      endpoint_url: endpoint || 'http://localhost:11434',
+      endpoint_url: endpoint || `http://localhost:${SLOT_PORT[slot]}`,
       auth_type: authType,
       credentials: credentials || undefined,
       model_name: modelName,
@@ -521,6 +524,25 @@ export function EngineSlotCard({
     update.mutate(buildPayload(), {
       onSuccess: () => toast('success', `Engine ${slot.toUpperCase()} saved — ${modelName || 'configuration updated'}.`),
       onError:   () => toast('error',   `Failed to save Engine ${slot.toUpperCase()}. Check your connection and try again.`),
+    });
+  }
+
+  function handleClear() {
+    if (!confirmClear) { setConfirmClear(true); return; }
+    clearSlot.mutate(slot, {
+      onSuccess: () => {
+        setModelName('');
+        setFamilyOverride('');
+        setEndpoint(`http://localhost:${SLOT_PORT[slot]}`);
+        setCredentials('');
+        setConfirmClear(false);
+        onModelChange('');
+        toast('success', `Engine ${slot.toUpperCase()} slot cleared.`);
+      },
+      onError: () => {
+        setConfirmClear(false);
+        toast('error', `Failed to clear Engine ${slot.toUpperCase()}.`);
+      },
     });
   }
 
@@ -871,8 +893,27 @@ export function EngineSlotCard({
         </div>
       </div>
 
-      {/* Save */}
-      <div className="mt-4 flex justify-end">
+      {/* Actions */}
+      <div className="mt-4 flex items-center justify-between gap-2">
+        {/* Clear slot — two-click confirm pattern */}
+        {config && (
+          <button
+            onClick={handleClear}
+            onBlur={() => setConfirmClear(false)}
+            disabled={clearSlot.isPending}
+            className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium border transition-colors ${
+              confirmClear
+                ? 'bg-red-500/10 text-red-400 border-red-500/30 hover:bg-red-500/20'
+                : 'bg-[var(--color-surface-tertiary)] text-[var(--color-text-muted)] border-[var(--color-border-default)] hover:text-red-400 hover:border-red-500/30'
+            }`}
+          >
+            {clearSlot.isPending
+              ? <Loader2 className="w-3 h-3 animate-spin" />
+              : <Trash2 className="w-3 h-3" />}
+            {confirmClear ? 'Confirm clear?' : 'Clear slot'}
+          </button>
+        )}
+        <div className="flex-1" />
         <button
           onClick={handleSave}
           disabled={update.isPending || !modelName}

@@ -27,6 +27,7 @@ export { useKnowledgeBase, useUpdateKBEntry, useDeleteKBEntry } from './useKnowl
 export {
   useEngineConfigs,
   useUpdateEngine,
+  useDeleteEngine,
   useValidateDiversity,
   useModelLineages,
 } from './useEngines';

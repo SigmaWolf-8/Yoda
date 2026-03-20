@@ -9,7 +9,7 @@
 run = "bash scripts/replit-run.sh"
 
 entrypoint = "crates/yoda-api/src/main.rs"
-modules = ["rust-stable", "nodejs-22"]
+modules = ["rust-stable", "nodejs-22", "postgresql-16"]
 
 [nix]
 channel = "stable-24_05"
