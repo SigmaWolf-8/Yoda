@@ -26,7 +26,7 @@ const MAIN_NAV = [
 ] as const;
 
 /* Sidebar logo-area height in px — top bar must match this */
-export const HEADER_H = 72;
+export const HEADER_H = 144;
 
 const SIDEBAR_MIN = 160;
 const SIDEBAR_MAX = 480;
@@ -121,8 +121,10 @@ export function AppShell() {
         {/* Logo — height must match top bar (HEADER_H) */}
         <div
           className={[
-            'flex items-center gap-3 border-b flex-shrink-0',
-            collapsed ? 'px-4 justify-center' : 'px-5',
+            'relative flex border-b flex-shrink-0',
+            collapsed
+              ? 'items-center justify-center px-4'
+              : 'flex-col items-center justify-center gap-3',
           ].join(' ')}
           style={{
             height: HEADER_H,
@@ -130,32 +132,48 @@ export function AppShell() {
             boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
           }}
         >
+          {/* Mobile close — absolute top-right */}
+          {!collapsed && (
+            <button
+              className="absolute top-3 right-3 lg:hidden text-[hsl(220,12%,50%)] hover:text-[hsl(220,15%,20%)]"
+              onClick={() => setSidebarOpen(false)}
+            >
+              <X className="w-5 h-5" />
+            </button>
+          )}
+
           <div
-            className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
+            className={[
+              'rounded-xl flex items-center justify-center flex-shrink-0',
+              collapsed ? 'w-8 h-8' : 'w-12 h-12',
+            ].join(' ')}
             style={{
               background: 'var(--color-gold-500)',
               boxShadow: [
-                '0 3px 14px rgba(0,0,0,0.65)',
-                '0 0 18px var(--color-gold-500)',
+                '0 3px 14px rgba(0,0,0,0.40)',
+                '0 0 18px hsl(210,80%,55%,0.45)',
                 'inset 0 1px 0 rgba(255,255,255,0.35)',
-                'inset 0 -1px 0 rgba(0,0,0,0.25)',
+                'inset 0 -1px 0 rgba(0,0,0,0.20)',
               ].join(', '),
             }}
           >
-            <Zap className="w-4 h-4 text-[var(--color-navy-950)]" />
+            <Zap className={collapsed ? 'w-4 h-4 text-white' : 'w-6 h-6 text-white'} />
           </div>
+
           {!collapsed && (
-            <>
-              <span className="text-lg font-bold tracking-wide text-[hsl(220,15%,12%)]">
-                YODA
-              </span>
-              <button
-                className="ml-auto lg:hidden text-[hsl(220,12%,50%)] hover:text-[hsl(220,15%,20%)]"
-                onClick={() => setSidebarOpen(false)}
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </>
+            <span
+              style={{
+                fontFamily: "'Orbitron', sans-serif",
+                fontSize: '20px',
+                fontWeight: 800,
+                letterSpacing: '0.14em',
+                textTransform: 'uppercase',
+                color: 'hsl(220,15%,12%)',
+                lineHeight: 1,
+              }}
+            >
+              YODA
+            </span>
           )}
         </div>
 
