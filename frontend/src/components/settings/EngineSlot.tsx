@@ -10,7 +10,6 @@ import {
   CheckCircle2,
   XCircle,
   AlertTriangle,
-  Ban,
   Download,
   HardDriveDownload,
   Radio,
@@ -357,7 +356,7 @@ function groupedModels(
 ): { category: ModelCategory; tiers: { label: string; models: string[] }[] }[] {
   const q = normalizeQuery(filter);
   const isVisible = (m: string) =>
-    (q === '' || normalizeQuery(m).includes(q)) && m !== filter && !usedModels.includes(m);
+    (q === '' || normalizeQuery(m).includes(q)) && m !== filter;
 
   return CATEGORY_ORDER
     .map((cat) => ({
@@ -803,22 +802,34 @@ export function EngineSlotCard({
                             {label}
                           </div>
                           {models.map((m) => {
-                            const info = MODEL_INFO[m];
-                            const fit  = computeFit(info, hostRam, reservedRam);
-                            const ram  = ramDisplay(info);
+                            const info    = MODEL_INFO[m];
+                            const fit     = computeFit(info, hostRam, reservedRam);
+                            const ram     = ramDisplay(info);
+                            const inUse   = usedModels.includes(m);
+                            const isDl    = downloaded.has(m);
                             return (
                               <button
                                 key={m}
                                 onMouseDown={() => { changeModel(m); setShowSuggest(false); }}
-                                className="w-full text-left px-3 py-2 hover:bg-[var(--color-surface-hover)] transition-colors border-b border-[var(--color-border-subtle)] last:border-0"
+                                className={`w-full text-left px-3 py-2 transition-colors border-b border-[var(--color-border-subtle)] last:border-0 ${inUse ? 'opacity-60 hover:opacity-80' : 'hover:bg-[var(--color-surface-hover)]'}`}
                               >
                                 <div className="flex items-center gap-2">
                                   <FitDot fit={fit} />
                                   <span className="text-sm text-[var(--color-text-primary)] font-medium flex-1 truncate">
                                     {info ? `${info.company} | ${m}` : m}
                                   </span>
-                                  {downloaded.has(m) && (
-                                    <HardDriveDownload className="w-3.5 h-3.5 shrink-0 text-emerald-400" aria-label="Already downloaded" />
+                                  {inUse && (
+                                    <span className="text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded bg-blue-500/15 text-blue-400 border border-blue-500/25 shrink-0">
+                                      In Use
+                                    </span>
+                                  )}
+                                  {isDl && !inUse && (
+                                    <HardDriveDownload className="w-3.5 h-3.5 shrink-0 text-emerald-400" aria-label="Installed" />
+                                  )}
+                                  {isDl && (
+                                    <span className="text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-400 border border-emerald-500/25 shrink-0">
+                                      Installed
+                                    </span>
                                   )}
                                   {ram && (
                                     <span className="text-sm text-[var(--color-text-muted)] shrink-0">
@@ -834,16 +845,6 @@ export function EngineSlotCard({
                     </div>
                   ))}
 
-                  {/* Models assigned to other slots */}
-                  {usedModels.filter((u) => ALL_SELF_HOSTED_SET.has(u)).length > 0 && (
-                    <div className="px-3 py-2 flex items-center gap-1.5 text-sm text-[var(--color-text-muted)] border-t border-[var(--color-border-subtle)]">
-                      <Ban className="w-3 h-3 flex-shrink-0" />
-                      {usedModels.filter((u) => ALL_SELF_HOSTED_SET.has(u)).map((u) => (
-                        <span key={u} className="line-through opacity-60">{u}</span>
-                      )).reduce((acc: React.ReactNode[], el, i) => i === 0 ? [el] : [...acc, ', ', el], [])}
-                      {' '}already assigned
-                    </div>
-                  )}
                 </div>
               )}
             </div>

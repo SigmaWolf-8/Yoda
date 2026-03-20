@@ -103,10 +103,10 @@ body {
   --color-surface-tertiary:  var(--color-warm-800);
   --color-surface-hover:     var(--color-warm-600);
 
-  --color-text-primary:   var(--color-warm-100);
-  --color-text-secondary: var(--color-warm-200);
-  --color-text-tertiary:  var(--color-warm-300);
-  --color-text-muted:     var(--color-warm-300);
+  --color-text-primary:   hsl(45, 35%, 96%);
+  --color-text-secondary: hsl(42, 28%, 82%);
+  --color-text-tertiary:  hsl(38, 18%, 65%);
+  --color-text-muted:     hsl(36, 14%, 58%);
 
   --color-border-default: var(--color-warm-500);
   --color-border-subtle:  var(--color-warm-750);
