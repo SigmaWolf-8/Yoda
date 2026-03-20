@@ -141,11 +141,19 @@ echo "  ✓ Model ready"
 # ── 4. Install PlenumNET daemon ───────────────────────────────────────
 echo ""
 echo "Installing PlenumNET (inter-cube)..."
-if [[ -d "\$PLENUMNET_DIR" ]]; then
+if [[ -d "\$PLENUMNET_DIR/.git" ]]; then
   echo "  → Directory exists, pulling latest..."
+  git -C "\$PLENUMNET_DIR" sparse-checkout set inter-cube 2>/dev/null || true
   git -C "\$PLENUMNET_DIR" pull --ff-only || true
 else
-  git clone https://github.com/SigmaWolf-8/Ternary "\$PLENUMNET_DIR"
+  echo "  → Sparse-cloning inter-cube package only (no full repo)..."
+  git clone \\
+    --depth 1 \\
+    --filter=blob:none \\
+    --sparse \\
+    https://github.com/SigmaWolf-8/Ternary \\
+    "\$PLENUMNET_DIR"
+  git -C "\$PLENUMNET_DIR" sparse-checkout set inter-cube
 fi
 echo "  → Building inter-cube daemon (a few minutes)..."
 cd "\$PLENUMNET_DIR"
@@ -314,9 +322,17 @@ Write-Host ""
 Write-Host "Installing PlenumNET (inter-cube)..."
 if (Test-Path $PLENUMNET_DIR) {
   Write-Host "  -> Directory exists, pulling latest..."
+  git -C $PLENUMNET_DIR sparse-checkout set inter-cube 2>$null
   git -C $PLENUMNET_DIR pull --ff-only 2>$null
 } else {
-  git clone https://github.com/SigmaWolf-8/Ternary $PLENUMNET_DIR
+  Write-Host "  -> Sparse-cloning inter-cube package only (no full repo)..."
+  git clone \`
+    --depth 1 \`
+    --filter=blob:none \`
+    --sparse \`
+    https://github.com/SigmaWolf-8/Ternary \`
+    $PLENUMNET_DIR
+  git -C $PLENUMNET_DIR sparse-checkout set inter-cube
 }
 Write-Host "  -> Building inter-cube daemon (a few minutes)..."
 Push-Location $PLENUMNET_DIR
