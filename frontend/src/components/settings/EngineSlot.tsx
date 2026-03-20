@@ -206,23 +206,24 @@ export const OLLAMA_TAG_DISPLAY: Record<string, string> = Object.fromEntries(
 
 const FIT_ORDER: Record<string, number> = { ok: 0, tight: 1, no: 2 };
 
+function normalizeQuery(s: string): string {
+  return s.toLowerCase().replace(/[\s\-_.]/g, '');
+}
+
 function sortedModels(
   hostRam: number,
   filter: string,
   usedModels: string[],
   reservedRam: number,
 ): string[] {
+  const q = normalizeQuery(filter);
   return ALL_SELF_HOSTED
     .filter((m) =>
-      m.toLowerCase().includes(filter.toLowerCase())
+      (q === '' || normalizeQuery(m).includes(q))
       && m !== filter
       && !usedModels.includes(m),
     )
-    .sort((a, b) => {
-      const fa = FIT_ORDER[computeFit(MODEL_INFO[a], hostRam, reservedRam) ?? 'no'];
-      const fb = FIT_ORDER[computeFit(MODEL_INFO[b], hostRam, reservedRam) ?? 'no'];
-      return fa - fb;
-    });
+    .sort((a, b) => a.localeCompare(b));
 }
 
 const PROVIDERS: Record<string, { authType: AuthType; models: string[] }> = {
