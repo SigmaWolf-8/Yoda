@@ -181,7 +181,7 @@ if [[ -d "\$PLENUMNET_DIR/.git" ]]; then
   echo "  → Repository exists, updating..."
   git -C "\$PLENUMNET_DIR" pull --ff-only 2>/dev/null || true
   # If key files are still missing the previous clone was a broken sparse clone — re-clone fresh
-  if [[ ! -f "\$PLENUMNET_DIR/inter-cube/Cargo.toml" ]]; then
+  if [[ ! -f "\$PLENUMNET_DIR/services/inter-cube/Cargo.toml" ]]; then
     echo "  → Existing checkout is incomplete — re-cloning..."
     rm -rf "\$PLENUMNET_DIR"
     _clone_plenumnet
@@ -190,7 +190,7 @@ else
   _clone_plenumnet
 fi
 # Hard stop if source is still missing after clone
-for member in "inter-cube/Cargo.toml" "ternary-math/Cargo.toml"; do
+for member in "services/inter-cube/Cargo.toml" "ternary-math/Cargo.toml"; do
   [[ -f "\$PLENUMNET_DIR/\$member" ]] || { echo "  ✗ \$member missing after clone — check network and try again."; exit 1; }
 done
 
@@ -224,9 +224,15 @@ fi
 export CUBE_IDENTITY_PASSPHRASE="\$CUBE_PASSPHRASE"
 
 echo "  → Generating PT26-DSA identity keypair..."
-PUB_KEY=\$(CUBE_MODE=keygen "\$DAEMON" 2>"\$LOG_DIR/keygen.log" | tail -1 | tr -d '[:space:]')
-[[ -n "\$PUB_KEY" ]] || { echo "  ✗ keygen produced no output — check \$LOG_DIR/keygen.log"; exit 1; }
-echo "  ✓ Public key: \${PUB_KEY:0:16}..."
+_keygen_raw=\$(CUBE_MODE=keygen "\$DAEMON" 2>"\$LOG_DIR/keygen.log")
+PUB_KEY=\$(echo "\$_keygen_raw" | grep "PT26-DSA Public Key" | grep -o '[0-9a-fA-F]*\$' | tr -d '[:space:]')
+if [[ -z "\$PUB_KEY" ]]; then
+  echo "  Keygen output:"
+  echo "\$_keygen_raw" | while IFS= read -r _line; do echo "    \$_line"; done
+  echo "  ✗ keygen produced no public key -- check \$LOG_DIR/keygen.log"
+  exit 1
+fi
+echo "  ✓ Public key: \${PUB_KEY:0:32}..."
 
 # ── 6. Install llama.cpp (llama-server) ──────────────────────────────
 echo ""
@@ -528,9 +534,16 @@ foreach ($member in @((Join-Path (Join-Path "services" "inter-cube") "Cargo.toml
   }
 }
 Write-Host "  -> Building inter-cube daemon (first build takes a few minutes)..."
+Write-Host "  Cargo warnings are normal -- only errors matter." -ForegroundColor Gray
 Push-Location $PLENUMNET_DIR
-cargo build --release --package inter-cube
+$ErrorActionPreference = "Continue"
+cargo build --release --package inter-cube 2>&1 | ForEach-Object { Write-Host $_ }
+$cargoBuildExit = $LASTEXITCODE
+$ErrorActionPreference = "Stop"
 Pop-Location
+if ($cargoBuildExit -ne 0) {
+  throw "cargo build failed with exit code $cargoBuildExit -- check the output above for errors."
+}
 $relDir = Join-Path (Join-Path $PLENUMNET_DIR "target") "release"
 $daemonBin = Get-ChildItem -Path $relDir -Filter "inter-cube*.exe" -ErrorAction SilentlyContinue |
   Where-Object { $_.Name -notlike "*.d" } | Select-Object -First 1
@@ -571,13 +584,22 @@ $env:CUBE_IDENTITY_PASSPHRASE = $CUBE_PASSPHRASE
 Write-Host "  -> Generating PT26-DSA identity keypair..."
 $env:CUBE_MODE = "keygen"
 $keygenLog = Join-Path $LOG_DIR "keygen.log"
+$ErrorActionPreference = "Continue"
 $keygenOutput = & $DAEMON_PATH 2>$keygenLog
+$ErrorActionPreference = "Stop"
 $env:CUBE_MODE = $null
-$PUB_KEY = ($keygenOutput | Select-Object -Last 1).Trim()
-if (-not $PUB_KEY) {
-  throw "Daemon keygen produced no output -- check $keygenLog for details."
+$pkLine = $keygenOutput | Where-Object { $_ -match "PT26-DSA Public Key" } | Select-Object -First 1
+if ($pkLine -match ':\s*([0-9a-fA-F]+)\s*$') {
+  $PUB_KEY = $matches[1]
+} else {
+  $PUB_KEY = ""
 }
-Write-Host "  OK Public key: $($PUB_KEY.Substring(0, [Math]::Min(16, $PUB_KEY.Length)))..."
+if (-not $PUB_KEY) {
+  Write-Host "  Keygen output:" -ForegroundColor Yellow
+  $keygenOutput | ForEach-Object { Write-Host "    $_" }
+  throw "Daemon keygen produced no public key -- check $keygenLog for details."
+}
+Write-Host "  OK Public key: $($PUB_KEY.Substring(0, [Math]::Min(32, $PUB_KEY.Length)))..."
 
 # -- 6. Install llama.cpp -------------------------------------------------
 Write-Host ""
