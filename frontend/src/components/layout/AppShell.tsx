@@ -221,7 +221,10 @@ export function AppShell() {
           </div>
 
           {!collapsed && (
-            <p className="text-xs text-[hsl(220,12%,55%)] leading-tight px-3 pb-1">
+            <p
+              className="text-[hsl(220,12%,55%)] leading-tight px-3 pb-1 whitespace-nowrap overflow-hidden"
+              style={{ fontSize: Math.max(9, Math.min(12, (sidebarWidth - 48) / 14)) }}
+            >
               Capomastro Holdings Ltd.
             </p>
           )}
