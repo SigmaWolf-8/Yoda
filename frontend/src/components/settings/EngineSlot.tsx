@@ -891,7 +891,7 @@ export function EngineSlotCard({
                   )}
                   <button
                     onClick={() => setInstallModalMode('connect')}
-                    className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border border-blue-500/40 bg-blue-500/8 text-blue-400 text-sm font-medium hover:bg-blue-500/15 hover:border-blue-500/70 transition-colors"
+                    className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border border-[var(--color-plex-500)]/40 bg-[var(--color-plex-500)]/8 text-[var(--color-plex-400)] text-sm font-medium hover:bg-[var(--color-plex-500)]/15 hover:border-[var(--color-plex-500)]/70 transition-colors"
                   >
                     <Radio className="w-3.5 h-3.5" />
                     Connect
