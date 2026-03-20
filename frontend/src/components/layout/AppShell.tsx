@@ -108,7 +108,15 @@ export function AppShell() {
         style={{
           width: asideWidth,
           background: 'linear-gradient(160deg, hsl(220,20%,98%) 0%, hsl(220,15%,95%) 100%)',
-          boxShadow: '2px 0 16px rgba(0,0,0,0.10)',
+          boxShadow: [
+            'inset 0 1px 0 rgba(255,255,255,1.0)',
+            'inset 1px 0 0 rgba(255,255,255,0.8)',
+            'inset 0 -12px 40px rgba(0,0,0,0.07)',
+            'inset 0 12px 40px rgba(0,0,0,0.04)',
+            'inset -4px 0 24px rgba(0,0,0,0.05)',
+            '4px 0 28px rgba(0,0,0,0.22)',
+            '8px 0 56px rgba(0,0,0,0.12)',
+          ].join(', '),
         }}
         className={[
           'fixed lg:sticky top-0 left-0 z-40 h-screen flex-shrink-0 relative',
