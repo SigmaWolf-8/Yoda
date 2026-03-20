@@ -188,7 +188,7 @@ for member in "inter-cube/Cargo.toml" "ternary-math/Cargo.toml"; do
     echo "  → \$member missing — fetching from remote..."
     git -C "\$PLENUMNET_DIR" sparse-checkout add "\$dir" 2>/dev/null || true
     git -C "\$PLENUMNET_DIR" fetch --filter=blob:none origin 2>/dev/null || true
-    git -C "\$PLENUMNET_DIR" checkout origin/HEAD -- "\$dir" 2>/dev/null || true
+    git -C "\$PLENUMNET_DIR" sparse-checkout reapply 2>/dev/null || true
     if [[ ! -f "\$PLENUMNET_DIR/\$member" ]]; then
       echo "  ✗ \$member still missing after fetch — delete \$PLENUMNET_DIR and re-run."
       exit 1
@@ -450,7 +450,7 @@ foreach ($member in @("inter-cube/Cargo.toml", "ternary-math/Cargo.toml")) {
     Write-Host "  -> $member missing — fetching from remote..."
     git -C $PLENUMNET_DIR sparse-checkout add $dir 2>$null
     git -C $PLENUMNET_DIR fetch --filter=blob:none origin 2>$null
-    git -C $PLENUMNET_DIR checkout origin/HEAD -- $dir 2>$null
+    git -C $PLENUMNET_DIR sparse-checkout reapply 2>$null
     if (-not (Test-Path $memberPath)) {
       throw "$member still missing after fetch — delete $PLENUMNET_DIR and re-run."
     }
