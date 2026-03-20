@@ -85,8 +85,8 @@ export function AppShell() {
       'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors duration-150',
       collapsed && 'justify-center',
       isActive
-        ? 'bg-[hsl(210,80%,50%)]/10 text-[hsl(210,80%,42%)] border border-[hsl(210,80%,50%)]/22'
-        : 'text-[hsl(220,12%,42%)] hover:text-[hsl(220,15%,15%)] hover:bg-[hsl(220,15%,90%)]',
+        ? 'bg-[hsl(210,80%,55%)]/15 text-[hsl(210,80%,68%)] border border-[hsl(210,80%,55%)]/28'
+        : 'text-[hsl(220,15%,58%)] hover:text-[hsl(220,15%,85%)] hover:bg-[hsl(220,15%,13%)]',
     ].filter(Boolean).join(' ');
 
   const asideWidth = collapsed ? '4rem' : `${sidebarWidth}px`;
@@ -107,20 +107,20 @@ export function AppShell() {
       <aside
         style={{
           width: asideWidth,
-          background: 'linear-gradient(160deg, hsl(220,20%,98%) 0%, hsl(220,15%,95%) 100%)',
+          background: 'linear-gradient(160deg, hsl(220,18%,9%) 0%, hsl(220,16%,7%) 100%)',
           boxShadow: [
-            'inset 0 1px 0 rgba(255,255,255,1.0)',
-            'inset 1px 0 0 rgba(255,255,255,0.8)',
-            'inset 0 -12px 40px rgba(0,0,0,0.07)',
-            'inset 0 12px 40px rgba(0,0,0,0.04)',
-            'inset -4px 0 24px rgba(0,0,0,0.05)',
-            '4px 0 28px rgba(0,0,0,0.22)',
-            '8px 0 56px rgba(0,0,0,0.12)',
+            'inset 1px 0 0 rgba(255,255,255,0.045)',
+            'inset 0 1px 0 rgba(255,255,255,0.05)',
+            'inset -6px 0 32px rgba(0,0,0,0.55)',
+            'inset 0 -14px 48px rgba(0,0,0,0.50)',
+            'inset 0 14px 48px rgba(0,0,0,0.35)',
+            '4px 0 28px rgba(0,0,0,0.60)',
+            '8px 0 56px rgba(0,0,0,0.35)',
           ].join(', '),
         }}
         className={[
           'fixed lg:sticky top-0 left-0 z-40 h-screen flex-shrink-0 relative',
-          'border-r border-[hsl(220,15%,86%)]',
+          'border-r border-[hsl(220,15%,16%)]',
           'flex flex-col overflow-hidden',
           isResizing ? '' : 'transition-all duration-200',
           sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0',
@@ -134,8 +134,8 @@ export function AppShell() {
           ].join(' ')}
           style={{
             height: HEADER_H,
-            borderBottomColor: 'hsl(220,15%,86%)',
-            boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+            borderBottomColor: 'hsl(220,15%,16%)',
+            boxShadow: '0 2px 16px rgba(0,0,0,0.45)',
           }}
         >
           <div
@@ -154,11 +154,11 @@ export function AppShell() {
           </div>
           {!collapsed && (
             <>
-              <span className="text-lg font-bold tracking-wide text-[hsl(220,15%,12%)]">
+              <span className="text-lg font-bold tracking-wide text-[hsl(220,15%,88%)]">
                 YODA
               </span>
               <button
-                className="ml-auto lg:hidden text-[hsl(220,12%,50%)] hover:text-[hsl(220,15%,20%)]"
+                className="ml-auto lg:hidden text-[hsl(220,12%,55%)] hover:text-[hsl(220,15%,82%)]"
                 onClick={() => setSidebarOpen(false)}
               >
                 <X className="w-5 h-5" />
@@ -188,8 +188,8 @@ export function AppShell() {
         <div
           className="border-t px-3 py-3 space-y-2"
           style={{
-            borderTopColor: 'hsl(220,15%,86%)',
-            boxShadow: '0 -2px 8px rgba(0,0,0,0.04)',
+            borderTopColor: 'hsl(220,15%,16%)',
+            boxShadow: '0 -2px 20px rgba(0,0,0,0.50)',
           }}
         >
           <div className="flex items-center gap-1">
@@ -208,7 +208,7 @@ export function AppShell() {
               onClick={() => setCollapsed(c => !c)}
               title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
               aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-              className="ml-auto p-2.5 rounded-lg text-[hsl(220,12%,50%)] hover:text-[hsl(220,15%,20%)] hover:bg-[hsl(220,15%,90%)] transition-colors flex-shrink-0"
+              className="ml-auto p-2.5 rounded-lg text-[hsl(220,12%,52%)] hover:text-[hsl(220,15%,82%)] hover:bg-[hsl(220,15%,13%)] transition-colors flex-shrink-0"
             >
               {collapsed
                 ? <ChevronRight className="w-4 h-4" />
@@ -217,7 +217,7 @@ export function AppShell() {
           </div>
 
           {!collapsed && (
-            <p className="text-xs text-[hsl(220,12%,55%)] leading-tight px-3 pb-1">
+            <p className="text-xs text-[hsl(220,12%,40%)] leading-tight px-3 pb-1">
               Capomastro Holdings Ltd.
               <br />Applied Physics Division
             </p>
