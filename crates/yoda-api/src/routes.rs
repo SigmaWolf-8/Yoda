@@ -93,6 +93,8 @@ pub fn build_router(state: AppState) -> Router {
         .route("/api/settings/engines/{slot}", put(update_engine))
         .route("/api/settings/engines/{slot}", delete(clear_engine))
         .route("/api/settings/engines/{slot}/probe", get(probe_engine))
+        .route("/api/settings/engines/{slot}/mark-online", post(mark_engine_online))
+        .route("/api/settings/engines/{slot}/mark-offline", post(mark_engine_offline))
         .route("/api/settings/engines/validate-diversity", post(validate_diversity))
 
         // Project settings (B5.7)
@@ -439,9 +441,9 @@ async fn validate_diversity(
 // ─── Engine Probe ────────────────────────────────────────────────────
 
 /// GET /api/settings/engines/{slot}/probe
-/// Attempts to reach the engine's endpoint URL from the server side.
-/// For Ollama engines this calls GET {endpoint}/api/tags with a 5-second timeout.
-/// Returns {"reachable": bool, "latency_ms": u64, "endpoint_url": str}.
+/// Tries the engine endpoint from the server side.
+/// Checks /health (PlenumNET / inter-cube) first, then /api/tags (Ollama) as fallback.
+/// Writes health_status + avg_latency_ms back to the DB on success.
 async fn probe_engine(
     State(state): State<AppState>,
     user: axum::Extension<auth::AuthenticatedUser>,
@@ -466,31 +468,97 @@ async fn probe_engine(
         }
     };
 
-    let probe_url = format!("{}/api/tags", endpoint_url.trim_end_matches('/'));
-
+    let base = endpoint_url.trim_end_matches('/');
     let client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(5))
         .build()
         .map_err(|e| AppError::Internal(format!("HTTP client: {e}")))?;
 
+    // Try /health first (PlenumNET/inter-cube), then /api/tags (Ollama)
+    let candidates = [
+        format!("{base}/health"),
+        format!("{base}/api/tags"),
+    ];
+
     let start = std::time::Instant::now();
-    let result = client.get(&probe_url).send().await;
+    let mut reachable = false;
+    let mut http_status: Option<u16> = None;
+    let mut probe_url_used = candidates[0].clone();
+
+    for url in &candidates {
+        match client.get(url).send().await {
+            Ok(resp) => {
+                let status = resp.status().as_u16();
+                if status < 500 {
+                    reachable = true;
+                    http_status = Some(status);
+                    probe_url_used = url.clone();
+                    break;
+                }
+            }
+            Err(_) => continue,
+        }
+    }
+
     let latency_ms = start.elapsed().as_millis() as u64;
 
-    match result {
-        Ok(resp) => Ok(Json(serde_json::json!({
-            "reachable": resp.status().is_success() || resp.status().as_u16() < 500,
-            "latency_ms": latency_ms,
-            "http_status": resp.status().as_u16(),
-            "endpoint_url": endpoint_url,
-        }))),
-        Err(e) => Ok(Json(serde_json::json!({
-            "reachable": false,
-            "latency_ms": latency_ms,
-            "error": e.to_string(),
-            "endpoint_url": endpoint_url,
-        }))),
-    }
+    // Write health result back to DB
+    let health_str = if reachable { "online" } else { "offline" };
+    let latency_i = latency_ms as i32;
+    let _ = sqlx::query(
+        "UPDATE engine_configs SET health_status=$1, avg_latency_ms=$2 \
+         WHERE org_id=$3 AND slot=$4",
+    )
+    .bind(health_str)
+    .bind(latency_i)
+    .bind(user.org_id)
+    .bind(&slot)
+    .execute(&state.db)
+    .await;
+
+    Ok(Json(serde_json::json!({
+        "reachable": reachable,
+        "latency_ms": latency_ms,
+        "http_status": http_status,
+        "probe_url": probe_url_used,
+        "endpoint_url": endpoint_url,
+    })))
+}
+
+/// POST /api/settings/engines/{slot}/mark-online
+/// Called by the frontend when the CRS session confirms the local node is registered.
+async fn mark_engine_online(
+    State(state): State<AppState>,
+    user: axum::Extension<auth::AuthenticatedUser>,
+    Path(slot): Path<String>,
+) -> Result<Json<serde_json::Value>, AppError> {
+    sqlx::query(
+        "UPDATE engine_configs SET health_status='online' WHERE org_id=$1 AND slot=$2",
+    )
+    .bind(user.org_id)
+    .bind(&slot)
+    .execute(&state.db)
+    .await
+    .map_err(AppError::Database)?;
+    Ok(Json(serde_json::json!({"status": "online", "slot": slot})))
+}
+
+/// POST /api/settings/engines/{slot}/mark-offline
+/// Called by the frontend when CRS polling times out or fails.
+async fn mark_engine_offline(
+    State(state): State<AppState>,
+    user: axum::Extension<auth::AuthenticatedUser>,
+    Path(slot): Path<String>,
+) -> Result<Json<serde_json::Value>, AppError> {
+    sqlx::query(
+        "UPDATE engine_configs SET health_status='offline' WHERE org_id=$1 AND slot=$2",
+    )
+    .bind(user.org_id)
+    .bind(&slot)
+    .execute(&state.db)
+    .await
+    .map_err(AppError::Database)?;
+    Ok(Json(serde_json::json!({"status": "offline", "slot": slot})))
 }
 
 // ─── Capability Matrix ───────────────────────────────────────────────

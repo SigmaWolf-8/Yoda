@@ -33,16 +33,18 @@ type PollingState =
 
 interface Props {
   modelName: string;
+  slot?: string;
   port?: number;
   onClose: () => void;
   mode?: 'install' | 'connect';
   isDownloaded?: boolean;
   onMarkDownloaded?: () => void;
+  onConnected?: (address: string) => void;
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
-export function ModelInstallModal({ modelName, port = 8080, onClose, mode = 'connect', isDownloaded = false, onMarkDownloaded }: Props) {
+export function ModelInstallModal({ modelName, slot, port = 8080, onClose, mode = 'connect', isDownloaded = false, onMarkDownloaded, onConnected }: Props) {
   const crsUrl   = (import.meta.env.VITE_CRS_URL as string | undefined) ?? '';
   const ggufInfo = GGUF_INFO[modelName];
   const ggufRepo = ggufInfo?.repo ?? '';
@@ -92,6 +94,7 @@ export function ModelInstallModal({ modelName, port = 8080, onClose, mode = 'con
         if (data.status === 'registered' && data.address) {
           clearInterval(pollRef.current!);
           setPolling({ phase: 'connected', address: data.address });
+          onConnected?.(data.address);
         }
       } catch (e) {
         clearInterval(pollRef.current!);

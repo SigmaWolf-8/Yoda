@@ -42,6 +42,26 @@ export function useDeleteEngine() {
   });
 }
 
+export function useMarkEngineOnline() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (slot: EngineSlot) => {
+      await apiClient.post(`/settings/engines/${slot}/mark-online`);
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['engines'] }),
+  });
+}
+
+export function useMarkEngineOffline() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (slot: EngineSlot) => {
+      await apiClient.post(`/settings/engines/${slot}/mark-offline`);
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['engines'] }),
+  });
+}
+
 export function useValidateDiversity() {
   return useMutation({
     mutationFn: async () => {

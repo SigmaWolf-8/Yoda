@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import {
   Server,
   Cloud,
@@ -25,7 +26,7 @@ import {
   makeBatWrapper,
   triggerDownload,
 } from './installScripts';
-import { useUpdateEngine, useDeleteEngine } from '../../api/hooks';
+import { useUpdateEngine, useDeleteEngine, useMarkEngineOnline, useMarkEngineOffline } from '../../api/hooks';
 import { useToast } from '../common/Toast';
 import type {
   EngineConfig,
@@ -494,6 +495,9 @@ export function EngineSlotCard({
 }: EngineSlotCardProps) {
   const update = useUpdateEngine();
   const clearSlot = useDeleteEngine();
+  const markOnline = useMarkEngineOnline();
+  const markOffline = useMarkEngineOffline();
+  const qc = useQueryClient();
   const { toast } = useToast();
 
   const [mode, setMode] = useState<HostingMode>(config?.hosting_mode ?? 'self_hosted');
@@ -583,6 +587,7 @@ export function EngineSlotCard({
       });
       const data: ProbeResult = await res.json();
       setProbeState(data);
+      qc.invalidateQueries({ queryKey: ['engines'] });
     } catch {
       setProbeState({ reachable: false, error: 'Network error — could not reach server' });
     }
@@ -617,6 +622,7 @@ export function EngineSlotCard({
       if (count > 200) {
         clearInterval(installPollRef.current!);
         setInstallPhase('timeout');
+        markOffline.mutate(slot);
         return;
       }
       try {
@@ -628,6 +634,7 @@ export function EngineSlotCard({
           setInstallPhase('connected');
           setInstallAddress(data.address);
           markDownloaded(modelName);
+          markOnline.mutate(slot);
         }
       } catch { /* keep polling */ }
     }, 3000);
@@ -1082,11 +1089,13 @@ export function EngineSlotCard({
       {installModalMode === 'connect' && (
         <ModelInstallModal
           modelName={modelName}
+          slot={slot}
           port={SLOT_PORT[slot]}
           mode="connect"
           onClose={() => setInstallModalMode(null)}
           isDownloaded={downloaded.has(modelName)}
           onMarkDownloaded={() => markDownloaded(modelName)}
+          onConnected={() => markOnline.mutate(slot)}
         />
       )}
     </div>
