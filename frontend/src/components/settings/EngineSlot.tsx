@@ -176,59 +176,100 @@ const ALL_SELF_HOSTED = [
   'Mistral-Large-3',
   'Mistral-Nemo-12B',
   'Qwen3-4B',
+  'Qwen3-Coder-30B',
   'Qwen3.5-122B',
   'Qwen3.5-27B',
   'Qwen3.5-35B-A3B',
   'Qwen3.5-9B',
 ];
 
+const CATEGORY_ORDER = ['Coding', 'Reasoning', 'General'] as const;
+type ModelCategory = typeof CATEGORY_ORDER[number];
+
+const MODEL_CATEGORY: Record<string, ModelCategory> = {
+  'Kimi-K2.5':                      'Coding',
+  'Mistral-Large-3':                'Coding',
+  'Mistral-Nemo-12B':               'Coding',
+  'Qwen3-4B':                       'Coding',
+  'Qwen3-Coder-30B':                'Coding',
+  'Qwen3.5-9B':                     'Coding',
+  'DeepSeek-R1-Distill-Llama-70B':  'Reasoning',
+  'DeepSeek-R1-Distill-Qwen-32B':   'Reasoning',
+  'Llama-4-Maverick':               'Reasoning',
+  'Qwen3.5-27B':                    'Reasoning',
+  'Qwen3.5-35B-A3B':                'Reasoning',
+  'Qwen3.5-122B':                   'Reasoning',
+  'Gemma-3-4B':                     'General',
+  'GLM-5':                          'General',
+  'Llama-3.1-8B':                   'General',
+  'Llama-3.1-70B':                  'General',
+};
+
+// ── llama.cpp (llama-server) config ──────────────────────────────────────────
+// Each engine slot gets its own port so instances can run truly in parallel.
+export const SLOT_PORT: Record<Slot, number> = { a: 8080, b: 8081, c: 8082 };
+
+// HuggingFace GGUF source for every self-hosted model.
+// llama-server downloads the file on first run, then serves on SLOT_PORT.
+export const GGUF_INFO: Record<string, { repo: string; file: string }> = {
+  'Qwen3-4B':                      { repo: 'Qwen/Qwen3-4B-GGUF',                                      file: 'Qwen3-4B-Q4_K_M.gguf'                              },
+  'Qwen3-Coder-30B':               { repo: 'Qwen/Qwen3-Coder-30B-GGUF',                               file: 'Qwen3-Coder-30B-Q4_K_M.gguf'                       },
+  'Gemma-3-4B':                    { repo: 'google/gemma-3-4b-it-GGUF',                                file: 'gemma-3-4b-it-Q4_K_M.gguf'                         },
+  'Llama-3.1-8B':                  { repo: 'bartowski/Meta-Llama-3.1-8B-Instruct-GGUF',               file: 'Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf'            },
+  'Qwen3.5-9B':                    { repo: 'Qwen/Qwen3.5-9B-Instruct-GGUF',                           file: 'Qwen3.5-9B-Instruct-Q4_K_M.gguf'                   },
+  'Mistral-Nemo-12B':              { repo: 'bartowski/Mistral-Nemo-Instruct-2407-GGUF',               file: 'Mistral-Nemo-Instruct-2407-Q4_K_M.gguf'            },
+  'GLM-5':                         { repo: 'THUDM/GLM-4-9B-Chat-GGUF',                                file: 'glm-4-9b-chat-Q4_K_M.gguf'                         },
+  'Qwen3.5-27B':                   { repo: 'Qwen/Qwen3.5-27B-Instruct-GGUF',                          file: 'Qwen3.5-27B-Instruct-Q4_K_M.gguf'                  },
+  'Qwen3.5-35B-A3B':               { repo: 'Qwen/Qwen3.5-35B-A3B-Instruct-GGUF',                     file: 'Qwen3.5-35B-A3B-Instruct-Q4_K_M.gguf'              },
+  'DeepSeek-R1-Distill-Qwen-32B':  { repo: 'bartowski/DeepSeek-R1-Distill-Qwen-32B-GGUF',            file: 'DeepSeek-R1-Distill-Qwen-32B-Q4_K_M.gguf'          },
+  'DeepSeek-R1-Distill-Llama-70B': { repo: 'bartowski/DeepSeek-R1-Distill-Llama-70B-GGUF',           file: 'DeepSeek-R1-Distill-Llama-70B-Q4_K_M.gguf'         },
+  'Llama-3.1-70B':                 { repo: 'bartowski/Meta-Llama-3.1-70B-Instruct-GGUF',              file: 'Meta-Llama-3.1-70B-Instruct-Q4_K_M.gguf'           },
+  'Mistral-Large-3':               { repo: 'bartowski/Mistral-Large-Instruct-2411-GGUF',              file: 'Mistral-Large-Instruct-2411-Q4_K_M.gguf'           },
+  'Qwen3.5-122B':                  { repo: 'Qwen/Qwen3.5-122B-Instruct-GGUF',                        file: 'Qwen3.5-122B-Instruct-Q4_K_M.gguf'                 },
+  'Llama-4-Maverick':              { repo: 'meta-llama/Llama-4-Maverick-17B-128E-Instruct-GGUF',      file: 'Llama-4-Maverick-17B-128E-Instruct-Q4_K_M.gguf'    },
+  'Kimi-K2.5':                     { repo: 'moonshotai/Kimi-K2-Instruct-GGUF',                        file: 'Kimi-K2-Instruct-Q4_K_M.gguf'                      },
+};
+
+// Kept for resolving legacy DB records that stored Ollama tags (e.g. 'gemma3:4b').
 export const OLLAMA_TAG: Record<string, string> = {
-  'Qwen3-4B':                       'qwen3:4b',
-  'Gemma-3-4B':                     'gemma3:4b',
-  'Llama-3.1-8B':                   'llama3.1:8b',
-  'Qwen3.5-9B':                     'qwen3:9b',
-  'Mistral-Nemo-12B':               'mistral-nemo',
-  'Qwen3.5-27B':                    'qwen3:27b',
-  'Qwen3.5-35B-A3B':                'qwen3:35b-a3b',
-  'DeepSeek-R1-Distill-Qwen-32B':   'deepseek-r1:32b',
-  'DeepSeek-R1-Distill-Llama-70B':  'deepseek-r1:70b',
-  'Llama-3.1-70B':                  'llama3.1:70b',
-  'Mistral-Large-3':                'mistral-large:123b',
-  'Qwen3.5-122B':                   'qwen3:122b',
-  'Llama-4-Maverick':               'llama4:maverick',
+  'Qwen3-4B':                      'qwen3:4b',
+  'Gemma-3-4B':                    'gemma3:4b',
+  'Llama-3.1-8B':                  'llama3.1:8b',
+  'Qwen3.5-9B':                    'qwen3:9b',
+  'Mistral-Nemo-12B':              'mistral-nemo',
+  'Qwen3.5-27B':                   'qwen3:27b',
+  'Qwen3.5-35B-A3B':               'qwen3:35b-a3b',
+  'DeepSeek-R1-Distill-Qwen-32B':  'deepseek-r1:32b',
+  'DeepSeek-R1-Distill-Llama-70B': 'deepseek-r1:70b',
+  'Llama-3.1-70B':                 'llama3.1:70b',
+  'Mistral-Large-3':               'mistral-large:123b',
+  'Qwen3.5-122B':                  'qwen3:122b',
+  'Llama-4-Maverick':              'llama4:maverick',
 };
 
-export const MANUAL_INSTALL_URL: Record<string, string> = {
-  'GLM-5':     'https://huggingface.co/THUDM/GLM-4',
-  'Kimi-K2.5': 'https://huggingface.co/moonshotai/Kimi-K2-Instruct',
-};
-
-// Reverse map: Ollama tag → display name (e.g. 'gemma3:4b' → 'Gemma-3-4B').
-// The DB stores Ollama tags; the UI uses display names as keys.
+// Reverse map: legacy Ollama tag → display name (e.g. 'gemma3:4b' → 'Gemma-3-4B').
 export const OLLAMA_TAG_DISPLAY: Record<string, string> = Object.fromEntries(
   Object.entries(OLLAMA_TAG).map(([display, tag]) => [tag, display]),
 );
-
-const FIT_ORDER: Record<string, number> = { ok: 0, tight: 1, no: 2 };
 
 function normalizeQuery(s: string): string {
   return s.toLowerCase().replace(/[\s\-_.]/g, '');
 }
 
-function sortedModels(
-  hostRam: number,
+function groupedModels(
   filter: string,
   usedModels: string[],
-  reservedRam: number,
-): string[] {
+): { category: ModelCategory; models: string[] }[] {
   const q = normalizeQuery(filter);
-  return ALL_SELF_HOSTED
-    .filter((m) =>
-      (q === '' || normalizeQuery(m).includes(q))
-      && m !== filter
-      && !usedModels.includes(m),
-    )
-    .sort((a, b) => a.localeCompare(b));
+  const eligible = ALL_SELF_HOSTED.filter(
+    (m) => (q === '' || normalizeQuery(m).includes(q)) && m !== filter && !usedModels.includes(m),
+  );
+  return CATEGORY_ORDER
+    .map((cat) => ({
+      category: cat,
+      models: eligible.filter((m) => MODEL_CATEGORY[m] === cat).sort((a, b) => a.localeCompare(b)),
+    }))
+    .filter((g) => g.models.length > 0);
 }
 
 const PROVIDERS: Record<string, { authType: AuthType; models: string[] }> = {
@@ -348,9 +389,8 @@ export function EngineSlotCard({
   const lastAutoFill     = useRef<string>('');
 
   function defaultEndpointFor(name: string): string {
-    if (OLLAMA_TAG[name] || OLLAMA_TAG_DISPLAY[name]) return 'http://localhost:11434';
-    if (MANUAL_INSTALL_URL[name]) return 'http://localhost:8001';
-    return 'http://localhost:11434';
+    if (GGUF_INFO[name]) return `http://localhost:${SLOT_PORT[slot]}`;
+    return `http://localhost:${SLOT_PORT[slot]}`;
   }
 
   function applyAutoEndpoint(name: string) {
@@ -457,7 +497,7 @@ export function EngineSlotCard({
       ? 'bg-[var(--color-warn)]'
       : 'bg-[var(--color-err)]';
 
-  const suggestions = sortedModels(hostRam, modelName, usedModels, reservedRam);
+  const grouped = groupedModels(modelName, usedModels);
   const availableGb  = hostRam - OS_OVERHEAD_GB - reservedRam;
 
   const MODE_TIPS: Record<HostingMode, string> = {
@@ -549,37 +589,44 @@ export function EngineSlotCard({
               />
               {showSuggest && (
                 <div className="absolute z-20 w-full mt-1 max-h-72 overflow-y-auto rounded-lg bg-[var(--color-surface-tertiary)] border border-[var(--color-border-default)] shadow-lg">
-                  {suggestions.length === 0 ? (
+                  {grouped.length === 0 ? (
                     <div className="px-3 py-3 text-xs text-[var(--color-text-muted)] italic">
                       No matching models available
                     </div>
-                  ) : suggestions.map((m) => {
-                    const info = MODEL_INFO[m];
-                    const fit  = computeFit(info, hostRam, reservedRam);
-                    const ram  = ramDisplay(info);
-                    return (
-                      <button
-                        key={m}
-                        onMouseDown={() => { changeModel(m); setShowSuggest(false); }}
-                        className="w-full text-left px-3 py-2 hover:bg-[var(--color-surface-hover)] transition-colors border-b border-[var(--color-border-subtle)] last:border-0"
-                      >
-                        <div className="flex items-center gap-2">
-                          <FitDot fit={fit} />
-                          <span className="text-sm text-[var(--color-text-secondary)] font-medium flex-1">{m}</span>
-                          {ram && (
-                            <span className="text-[10px] text-[var(--color-text-muted)] flex-shrink-0">
-                              {ram.split('·')[0].trim()}
-                            </span>
-                          )}
-                        </div>
-                        {info && (
-                          <div className="text-[10px] text-[var(--color-text-muted)] mt-0.5 pl-5">{info.specialty}</div>
-                        )}
-                      </button>
-                    );
-                  })}
+                  ) : grouped.map(({ category, models }) => (
+                    <div key={category}>
+                      <div className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-widest text-[var(--color-text-muted)] bg-[var(--color-surface-secondary)] border-b border-[var(--color-border-subtle)] sticky top-0">
+                        {category}
+                      </div>
+                      {models.map((m) => {
+                        const info = MODEL_INFO[m];
+                        const fit  = computeFit(info, hostRam, reservedRam);
+                        const ram  = ramDisplay(info);
+                        return (
+                          <button
+                            key={m}
+                            onMouseDown={() => { changeModel(m); setShowSuggest(false); }}
+                            className="w-full text-left px-3 py-2 hover:bg-[var(--color-surface-hover)] transition-colors border-b border-[var(--color-border-subtle)] last:border-0"
+                          >
+                            <div className="flex items-center gap-2">
+                              <FitDot fit={fit} />
+                              <span className="text-sm text-[var(--color-text-secondary)] font-medium flex-1">{m}</span>
+                              {ram && (
+                                <span className="text-[10px] text-[var(--color-text-muted)] flex-shrink-0">
+                                  {ram.split('·')[0].trim()}
+                                </span>
+                              )}
+                            </div>
+                            {info && (
+                              <div className="text-[10px] text-[var(--color-text-muted)] mt-0.5 pl-5">{info.specialty}</div>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  ))}
 
-                  {/* Show count of models hidden because they're used elsewhere */}
+                  {/* Models assigned to other slots */}
                   {usedModels.filter((u) => ALL_SELF_HOSTED.includes(u)).length > 0 && (
                     <div className="px-3 py-2 flex items-center gap-1.5 text-[10px] text-[var(--color-text-muted)] border-t border-[var(--color-border-subtle)]">
                       <Ban className="w-3 h-3 flex-shrink-0" />
@@ -595,8 +642,8 @@ export function EngineSlotCard({
 
             <ModelCard modelName={modelName} hostRam={hostRam} reservedRam={reservedRam} />
 
-            {/* Install / Connect buttons — visible for Ollama-compatible models */}
-            {modelName && (OLLAMA_TAG[modelName] || OLLAMA_TAG_DISPLAY[modelName] || MANUAL_INSTALL_URL[modelName]) && (
+            {/* Install / Connect buttons — visible for all self-hosted models */}
+            {modelName && GGUF_INFO[modelName] && (
               <div className="flex gap-2">
                 <button
                   onClick={() => setInstallModalMode('install')}
@@ -772,6 +819,7 @@ export function EngineSlotCard({
       {installModalMode !== null && (
         <ModelInstallModal
           modelName={modelName}
+          port={SLOT_PORT[slot]}
           mode={installModalMode}
           onClose={() => setInstallModalMode(null)}
         />
