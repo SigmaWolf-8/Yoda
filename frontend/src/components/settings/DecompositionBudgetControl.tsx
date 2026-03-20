@@ -35,7 +35,7 @@ export function DecompositionBudgetControl({ value, onChange }: Props) {
           Unlimited
         </label>
       </div>
-      <p className="text-xs text-[var(--color-text-muted)] mt-2">
+      <p className="text-sm text-[var(--color-text-muted)] mt-2">
         Max atomic tasks per decomposition. Exceeding this asks for approval before proceeding.
       </p>
     </div>

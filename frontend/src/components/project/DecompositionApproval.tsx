@@ -43,17 +43,17 @@ export function DecompositionApproval({ projectId, taskTree, onClose, onApproved
             {taskTree.tasks.map((t) => (
               <div key={t.task_number} className="px-3 py-2 hover:bg-[var(--color-surface-tertiary)]/30 transition-colors">
                 <div className="flex items-center gap-2">
-                  <code className="text-[10px] font-mono text-[var(--color-text-muted)] bg-[var(--color-surface-tertiary)] px-1.5 py-0.5 rounded flex-shrink-0">
+                  <code className="text-xs font-mono text-[var(--color-text-muted)] bg-[var(--color-surface-tertiary)] px-1.5 py-0.5 rounded flex-shrink-0">
                     {t.task_number}
                   </code>
-                  <span className="text-xs text-[var(--color-text-primary)] truncate">{t.title}</span>
+                  <span className="text-sm text-[var(--color-text-primary)] truncate">{t.title}</span>
                 </div>
                 {t.competencies.length > 0 && (
                   <div className="mt-1 flex gap-1 flex-wrap">
                     {t.competencies.map((c) => (
                       <span
                         key={c}
-                        className="px-1.5 py-0.5 rounded text-[9px] font-medium bg-[var(--color-plex-500)]/10 text-[var(--color-plex-400)] border border-[var(--color-plex-500)]/20"
+                        className="px-1.5 py-0.5 rounded text-[11px] font-medium bg-[var(--color-plex-500)]/10 text-[var(--color-plex-400)] border border-[var(--color-plex-500)]/20"
                       >
                         {c}
                       </span>

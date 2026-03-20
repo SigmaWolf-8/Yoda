@@ -32,7 +32,7 @@ export function KBSearchBar({ value, onChange, resultCount }: Props) {
       />
       <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-2">
         {resultCount !== undefined && (
-          <span className="text-[10px] text-[var(--color-text-muted)]">
+          <span className="text-xs text-[var(--color-text-muted)]">
             {resultCount} result{resultCount !== 1 ? 's' : ''}
           </span>
         )}

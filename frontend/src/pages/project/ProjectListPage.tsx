@@ -89,7 +89,7 @@ export function ProjectListPage() {
               {/* Mode badge */}
               <div className="flex items-center justify-between mb-3">
                 <span
-                  className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wider border ${
+                  className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-semibold uppercase tracking-wider border ${
                     p.mode === 'ronin'
                       ? 'bg-[var(--color-ronin-500)]/10 text-[var(--color-ronin-400)] border-[var(--color-ronin-500)]/20'
                       : 'bg-[var(--color-yoda-500)]/10 text-[var(--color-yoda-400)] border-[var(--color-yoda-500)]/20'
@@ -130,7 +130,7 @@ export function ProjectListPage() {
               </h3>
 
               {/* Meta */}
-              <div className="flex items-center gap-1.5 text-xs text-[var(--color-text-muted)]">
+              <div className="flex items-center gap-1.5 text-sm text-[var(--color-text-muted)]">
                 <Clock className="w-3 h-3" />
                 {new Date(p.updated_at).toLocaleDateString()}
               </div>
@@ -185,7 +185,7 @@ export function ProjectListPage() {
                   >
                     <GraduationCap className="w-5 h-5" />
                     <span className="text-sm font-semibold">Yoda</span>
-                    <span className="text-[10px] text-[var(--color-text-muted)]">Research &amp; Analysis</span>
+                    <span className="text-xs text-[var(--color-text-muted)]">Research &amp; Analysis</span>
                   </button>
                   <button
                     type="button"
@@ -198,7 +198,7 @@ export function ProjectListPage() {
                   >
                     <Swords className="w-5 h-5" />
                     <span className="text-sm font-semibold">Ronin</span>
-                    <span className="text-[10px] text-[var(--color-text-muted)]">Code &amp; Implementation</span>
+                    <span className="text-xs text-[var(--color-text-muted)]">Code &amp; Implementation</span>
                   </button>
                 </div>
               </div>

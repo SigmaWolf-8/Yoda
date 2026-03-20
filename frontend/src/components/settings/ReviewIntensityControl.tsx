@@ -32,12 +32,12 @@ export function ReviewIntensityControl({ value, onChange }: Props) {
             <p className={`text-sm font-semibold ${value === v ? 'text-[var(--color-gold-400)]' : 'text-[var(--color-text-primary)]'}`}>
               {label}
             </p>
-            <p className="text-xs text-[var(--color-text-muted)] mt-0.5">{calls} calls/task</p>
-            <p className="text-xs text-[var(--color-text-muted)]">{desc}</p>
+            <p className="text-sm text-[var(--color-text-muted)] mt-0.5">{calls} calls/task</p>
+            <p className="text-sm text-[var(--color-text-muted)]">{desc}</p>
           </button>
         ))}
       </div>
-      <p className="text-xs text-[var(--color-text-muted)] mt-2">
+      <p className="text-sm text-[var(--color-text-muted)] mt-2">
         Defaults — Ronin: Full · Yoda: Medium
       </p>
     </div>

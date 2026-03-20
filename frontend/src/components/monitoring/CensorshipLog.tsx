@@ -25,7 +25,7 @@ export function CensorshipLog({ reviews }: Props) {
           <ShieldAlert className="w-4 h-4 text-[var(--color-warn)]" />
           <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">Censorship Events</h3>
           {flagged.length > 0 && (
-            <span className="text-[10px] font-semibold text-[var(--color-warn)] bg-[var(--color-warn)]/10 px-1.5 py-0.5 rounded">
+            <span className="text-xs font-semibold text-[var(--color-warn)] bg-[var(--color-warn)]/10 px-1.5 py-0.5 rounded">
               {flagged.length}
             </span>
           )}
@@ -33,7 +33,7 @@ export function CensorshipLog({ reviews }: Props) {
         {flagged.length > 10 && (
           <button
             onClick={() => setShowAll(!showAll)}
-            className="flex items-center gap-1 text-[10px] text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)] transition-colors"
+            className="flex items-center gap-1 text-xs text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)] transition-colors"
           >
             {showAll ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
             {showAll ? 'Show less' : `Show all ${flagged.length}`}
@@ -47,7 +47,7 @@ export function CensorshipLog({ reviews }: Props) {
           {[...engineCounts.entries()].map(([eng, count]) => (
             <div
               key={eng}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-[var(--color-warn)]/5 border border-[var(--color-warn)]/15 text-[10px]"
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-[var(--color-warn)]/5 border border-[var(--color-warn)]/15 text-xs"
             >
               <Filter className="w-3 h-3 text-[var(--color-warn)]" />
               <span className="font-semibold text-[var(--color-text-secondary)]">Engine {eng.toUpperCase()}</span>
@@ -58,19 +58,19 @@ export function CensorshipLog({ reviews }: Props) {
       )}
 
       {flagged.length === 0 ? (
-        <p className="text-xs text-[var(--color-text-muted)] py-4 text-center">
+        <p className="text-sm text-[var(--color-text-muted)] py-4 text-center">
           No censorship events detected. Self-hosted engines are never subject to censorship detection.
         </p>
       ) : (
         <div className="overflow-x-auto rounded-lg border border-[var(--color-border-subtle)]">
-          <table className="w-full text-xs">
+          <table className="w-full text-sm">
             <thead>
               <tr className="bg-[var(--color-surface-tertiary)]/30">
-                <th className="text-left font-medium text-[var(--color-text-muted)] uppercase tracking-wider px-3 py-2 text-[9px]">Engine</th>
-                <th className="text-left font-medium text-[var(--color-text-muted)] uppercase tracking-wider px-3 py-2 text-[9px]">Step</th>
-                <th className="text-left font-medium text-[var(--color-text-muted)] uppercase tracking-wider px-3 py-2 text-[9px]">Agent Role</th>
-                <th className="text-left font-medium text-[var(--color-text-muted)] uppercase tracking-wider px-3 py-2 text-[9px]">Confidence</th>
-                <th className="text-left font-medium text-[var(--color-text-muted)] uppercase tracking-wider px-3 py-2 text-[9px]">Time</th>
+                <th className="text-left font-medium text-[var(--color-text-muted)] uppercase tracking-wider px-3 py-2 text-[11px]">Engine</th>
+                <th className="text-left font-medium text-[var(--color-text-muted)] uppercase tracking-wider px-3 py-2 text-[11px]">Step</th>
+                <th className="text-left font-medium text-[var(--color-text-muted)] uppercase tracking-wider px-3 py-2 text-[11px]">Agent Role</th>
+                <th className="text-left font-medium text-[var(--color-text-muted)] uppercase tracking-wider px-3 py-2 text-[11px]">Confidence</th>
+                <th className="text-left font-medium text-[var(--color-text-muted)] uppercase tracking-wider px-3 py-2 text-[11px]">Time</th>
               </tr>
             </thead>
             <tbody>

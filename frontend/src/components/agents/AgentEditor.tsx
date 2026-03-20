@@ -89,24 +89,24 @@ export function AgentEditor({ agent, templateFrom, onClose }: Props) {
         {/* Form */}
         <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
           {error && (
-            <div className="p-3 rounded-lg bg-[hsl(210,80%,55%)]/5 border border-[hsl(210,80%,55%)]/15 text-[hsl(210,70%,65%)] text-xs">
+            <div className="p-3 rounded-lg bg-[hsl(210,80%,55%)]/5 border border-[hsl(210,80%,55%)]/15 text-[hsl(210,70%,65%)] text-sm">
               {extractErrorMessage(error, 'Failed to save agent')}
             </div>
           )}
 
-          <p className="text-[10px] text-[var(--color-text-muted)] leading-relaxed">
+          <p className="text-xs text-[var(--color-text-muted)] leading-relaxed">
             Write the "About" and "Key skills" in first-person plural voice — "We specialize in..." not "This agent specializes in..."
             Enhancement is automatically included as the first review criteria.
           </p>
 
           <div className="grid grid-cols-3 gap-3">
             <div className="col-span-2">
-              <label className="block text-xs font-medium text-[var(--color-text-secondary)] mb-1">Display name</label>
+              <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">Display name</label>
               <input type="text" value={displayName} onChange={e => setDisplayName(e.target.value)} required placeholder="e.g. API Security Reviewer"
                 className="w-full px-3 py-2 rounded-lg bg-[var(--color-surface-tertiary)] border border-[var(--color-border-default)] text-sm text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] focus:outline-none focus:border-[hsl(210,80%,55%)] transition-colors" />
             </div>
             <div>
-              <label className="block text-xs font-medium text-[var(--color-text-secondary)] mb-1">Role</label>
+              <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">Role</label>
               <select value={role} onChange={e => setRole(e.target.value as typeof role)}
                 className="w-full px-3 py-2 rounded-lg bg-[var(--color-surface-tertiary)] border border-[var(--color-border-default)] text-sm text-[var(--color-text-primary)] focus:outline-none focus:border-[hsl(210,80%,55%)]">
                 <option value="Producer">Producer</option>
@@ -117,7 +117,7 @@ export function AgentEditor({ agent, templateFrom, onClose }: Props) {
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-[var(--color-text-secondary)] mb-1">Division</label>
+            <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">Division</label>
             <select value={division} onChange={e => setDivision(e.target.value as AgentDivision)}
               className="w-full px-3 py-2 rounded-lg bg-[var(--color-surface-tertiary)] border border-[var(--color-border-default)] text-sm text-[var(--color-text-primary)] focus:outline-none focus:border-[hsl(210,80%,55%)]">
               {EDITABLE_DIVISIONS.map(d => <option key={d.id} value={d.id}>{d.label} ({d.ring} shell)</option>)}
@@ -125,31 +125,31 @@ export function AgentEditor({ agent, templateFrom, onClose }: Props) {
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-[var(--color-text-secondary)] mb-1">About this agent <span className="font-normal text-[var(--color-text-muted)]">(first-person "we" voice)</span></label>
+            <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">About this agent <span className="font-normal text-[var(--color-text-muted)]">(first-person "we" voice)</span></label>
             <textarea value={about} onChange={e => setAbout(e.target.value)} required rows={5} placeholder="We are a senior ... specializing in ..."
-              className="w-full px-3 py-2 rounded-lg bg-[var(--color-surface-tertiary)] border border-[var(--color-border-default)] text-xs text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] focus:outline-none focus:border-[hsl(210,80%,55%)] resize-y" />
+              className="w-full px-3 py-2 rounded-lg bg-[var(--color-surface-tertiary)] border border-[var(--color-border-default)] text-sm text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] focus:outline-none focus:border-[hsl(210,80%,55%)] resize-y" />
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-[var(--color-text-secondary)] mb-1">Key skills <span className="font-normal text-[var(--color-text-muted)]">(one per line)</span></label>
+            <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">Key skills <span className="font-normal text-[var(--color-text-muted)]">(one per line)</span></label>
             <textarea value={keySkills} onChange={e => setKeySkills(e.target.value)} rows={4} placeholder={"Architecture decisions — we define service boundaries\nCode quality — we evaluate naming and structure"}
-              className="w-full px-3 py-2 rounded-lg bg-[var(--color-surface-tertiary)] border border-[var(--color-border-default)] text-xs font-mono text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] focus:outline-none focus:border-[hsl(210,80%,55%)] resize-y" />
+              className="w-full px-3 py-2 rounded-lg bg-[var(--color-surface-tertiary)] border border-[var(--color-border-default)] text-sm font-mono text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] focus:outline-none focus:border-[hsl(210,80%,55%)] resize-y" />
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-[var(--color-text-secondary)] mb-1">Competencies <span className="font-normal text-[var(--color-text-muted)]">(comma-separated)</span></label>
+            <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">Competencies <span className="font-normal text-[var(--color-text-muted)]">(comma-separated)</span></label>
             <input type="text" value={competencies} onChange={e => setCompetencies(e.target.value)} placeholder="react, typescript, security, performance"
               className="w-full px-3 py-2 rounded-lg bg-[var(--color-surface-tertiary)] border border-[var(--color-border-default)] text-sm text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] focus:outline-none focus:border-[hsl(210,80%,55%)]" />
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-[var(--color-text-secondary)] mb-1">Additional review criteria <span className="font-normal text-[var(--color-text-muted)]">(enhancement is auto-included first)</span></label>
+            <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">Additional review criteria <span className="font-normal text-[var(--color-text-muted)]">(enhancement is auto-included first)</span></label>
             <input type="text" value={reviewCriteria} onChange={e => setReviewCriteria(e.target.value)} placeholder="compilation, test-coverage, error-handling"
               className="w-full px-3 py-2 rounded-lg bg-[var(--color-surface-tertiary)] border border-[var(--color-border-default)] text-sm text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] focus:outline-none focus:border-[hsl(210,80%,55%)]" />
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-[var(--color-text-secondary)] mb-1">Compatible reviewers <span className="font-normal text-[var(--color-text-muted)]">(comma-separated agent IDs)</span></label>
+            <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">Compatible reviewers <span className="font-normal text-[var(--color-text-muted)]">(comma-separated agent IDs)</span></label>
             <input type="text" value={compatReviewers} onChange={e => setCompatReviewers(e.target.value)} placeholder="testing-evidence-collector, engineering-security-engineer"
               className="w-full px-3 py-2 rounded-lg bg-[var(--color-surface-tertiary)] border border-[var(--color-border-default)] text-sm text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] focus:outline-none focus:border-[hsl(210,80%,55%)]" />
           </div>

@@ -179,7 +179,7 @@ export function EngineSettingsPage() {
               </div>
 
               {/* Legend row */}
-              <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-[var(--color-text-muted)]">
+              <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-[var(--color-text-muted)]">
                 <span className="flex items-center gap-1">
                   <span className="w-2 h-2 rounded-sm bg-[var(--color-gold-500)]/40 inline-block" />
                   OS overhead: <strong className="ml-0.5 text-[var(--color-text-secondary)]">{OS_OVERHEAD_GB} GB</strong>
@@ -200,7 +200,7 @@ export function EngineSettingsPage() {
 
               {/* "What fits?" hint when there is free space */}
               {!overBudget && free > 0 && (
-                <p className="mt-1.5 text-xs text-[var(--color-text-muted)]">
+                <p className="mt-1.5 text-sm text-[var(--color-text-muted)]">
                   Models that fit in remaining space:{' '}
                   {Object.entries(MODEL_INFO)
                     .filter(([, m]) => m.ramGbQ4 !== undefined && m.ramGbQ4 <= free)

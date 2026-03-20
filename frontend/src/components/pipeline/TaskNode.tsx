@@ -59,10 +59,10 @@ export function TaskNode({ task, selected, onClick }: Props) {
       >
         {/* Header: task number + status */}
         <div className="flex items-center justify-between mb-1.5">
-          <code className="text-[10px] font-mono text-[var(--color-text-muted)]">
+          <code className="text-xs font-mono text-[var(--color-text-muted)]">
             {task.task_number}
           </code>
-          <span className={`text-[9px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded ${
+          <span className={`text-[11px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded ${
             task.status === 'FINAL'
               ? 'text-[var(--color-ok)] bg-[var(--color-ok)]/10'
               : task.status === 'ESCALATED'
@@ -78,7 +78,7 @@ export function TaskNode({ task, selected, onClick }: Props) {
         </div>
 
         {/* Title */}
-        <p className="text-xs font-medium text-[var(--color-text-primary)] mb-2 line-clamp-2 leading-tight">
+        <p className="text-sm font-medium text-[var(--color-text-primary)] mb-2 line-clamp-2 leading-tight">
           {task.title}
         </p>
 
@@ -88,7 +88,7 @@ export function TaskNode({ task, selected, onClick }: Props) {
         </div>
 
         {/* Footer: engine + elapsed */}
-        <div className="flex items-center justify-between text-[9px] text-[var(--color-text-muted)]">
+        <div className="flex items-center justify-between text-[11px] text-[var(--color-text-muted)]">
           <div className="flex items-center gap-1">
             <Cpu className="w-3 h-3" />
             <span>Engine {task.primary_engine?.toUpperCase()}</span>

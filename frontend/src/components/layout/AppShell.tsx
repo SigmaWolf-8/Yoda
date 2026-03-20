@@ -209,7 +209,7 @@ export function AppShell() {
           </div>
 
           {!collapsed && (
-            <p className="text-[10px] text-[hsl(220,12%,55%)] leading-tight px-3 pb-1">
+            <p className="text-xs text-[hsl(220,12%,55%)] leading-tight px-3 pb-1">
               Capomastro Holdings Ltd.
               <br />Applied Physics Division
             </p>
@@ -283,7 +283,7 @@ export function AppShell() {
                   }}
                 />
                 {header.subtitle && (
-                  <p className="text-[10px] text-[var(--color-text-muted)] font-mono leading-tight truncate mt-0.5">
+                  <p className="text-xs text-[var(--color-text-muted)] font-mono leading-tight truncate mt-0.5">
                     {header.subtitle}
                   </p>
                 )}

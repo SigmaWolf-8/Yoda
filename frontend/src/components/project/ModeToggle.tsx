@@ -12,7 +12,7 @@ export function ModeToggle({ mode, onChange, disabled }: Props) {
       <button
         onClick={() => onChange('yoda')}
         disabled={disabled}
-        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-colors ${
+        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-semibold transition-colors ${
           mode === 'yoda'
             ? 'bg-[var(--color-yoda-500)]/15 text-[var(--color-yoda-400)] shadow-sm'
             : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]'
@@ -24,7 +24,7 @@ export function ModeToggle({ mode, onChange, disabled }: Props) {
       <button
         onClick={() => onChange('ronin')}
         disabled={disabled}
-        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-colors ${
+        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-semibold transition-colors ${
           mode === 'ronin'
             ? 'bg-[var(--color-ronin-500)]/15 text-[var(--color-ronin-400)] shadow-sm'
             : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]'

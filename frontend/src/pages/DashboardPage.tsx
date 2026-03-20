@@ -24,7 +24,7 @@ export function DashboardPage() {
           >
             <Icon className="w-5 h-5 text-[var(--color-gold-500)] mb-3 group-hover:scale-110 transition-transform" />
             <h3 className="text-sm font-semibold text-[var(--color-text-primary)] mb-1">{label}</h3>
-            <p className="text-xs text-[var(--color-text-tertiary)]">{desc}</p>
+            <p className="text-sm text-[var(--color-text-tertiary)]">{desc}</p>
           </Link>
         ))}
       </div>

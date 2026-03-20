@@ -92,7 +92,7 @@ export function RegisterPage() {
                   <div className="flex-1 h-1.5 rounded-full bg-[var(--color-surface-tertiary)] overflow-hidden">
                     <div className={`h-full rounded-full transition-all ${strengthColors[strength]}`} style={{ width: `${(strength / 3) * 100}%` }} />
                   </div>
-                  <span className="text-xs text-[var(--color-text-tertiary)]">{strengthLabels[strength]}</span>
+                  <span className="text-sm text-[var(--color-text-tertiary)]">{strengthLabels[strength]}</span>
                 </div>
               )}
             </div>

@@ -136,7 +136,7 @@ function TreeNodeRow({
         {statusIndicator(node.task.status)}
 
         {/* Task number + title */}
-        <span className="flex-1 min-w-0 truncate text-xs">
+        <span className="flex-1 min-w-0 truncate text-sm">
           <span className="font-mono text-[var(--color-text-muted)] mr-1.5">{node.task.task_number}</span>
           {node.task.title}
         </span>
@@ -168,7 +168,7 @@ export function TaskTree({ tasks, selectedId, onSelect }: Props) {
   if (!tasks.length) {
     return (
       <div className="p-4 text-center">
-        <p className="text-xs text-[var(--color-text-muted)]">
+        <p className="text-sm text-[var(--color-text-muted)]">
           Submit a query to see tasks here.
         </p>
       </div>

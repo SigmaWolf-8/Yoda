@@ -60,7 +60,7 @@ export function ProjectWorkspacePage() {
       {sidebarOpen && (
         <aside className="w-64 flex-shrink-0 border-r border-[var(--color-border-subtle)] bg-[var(--color-surface-secondary)] flex flex-col">
           <div className="flex items-center justify-between px-3 py-3 border-b border-[var(--color-border-subtle)]">
-            <span className="text-xs font-semibold text-[var(--color-text-muted)] uppercase tracking-wider">
+            <span className="text-sm font-semibold text-[var(--color-text-muted)] uppercase tracking-wider">
               Tasks
             </span>
             <button
@@ -142,10 +142,10 @@ export function ProjectWorkspacePage() {
           {selectedTaskId && taskDetail ? (
             <div className="mb-6 bg-[var(--color-surface-secondary)] border border-[var(--color-border-subtle)] rounded-xl p-5 animate-fade-in">
               <div className="flex items-center gap-2 mb-2">
-                <code className="text-xs font-mono text-[var(--color-text-muted)] bg-[var(--color-surface-tertiary)] px-1.5 py-0.5 rounded">
+                <code className="text-sm font-mono text-[var(--color-text-muted)] bg-[var(--color-surface-tertiary)] px-1.5 py-0.5 rounded">
                   {taskDetail.task.task_number}
                 </code>
-                <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase ${
+                <span className={`px-2 py-0.5 rounded-full text-xs font-semibold uppercase ${
                   taskDetail.task.status === 'FINAL'
                     ? 'bg-[var(--color-ok)]/10 text-[var(--color-ok)]'
                     : taskDetail.task.status === 'ESCALATED'
@@ -164,7 +164,7 @@ export function ProjectWorkspacePage() {
                 {taskDetail.task.competencies.map((c) => (
                   <span
                     key={c}
-                    className="px-2 py-0.5 rounded text-[10px] font-medium bg-[var(--color-plex-500)]/10 text-[var(--color-plex-400)] border border-[var(--color-plex-500)]/20"
+                    className="px-2 py-0.5 rounded text-xs font-medium bg-[var(--color-plex-500)]/10 text-[var(--color-plex-400)] border border-[var(--color-plex-500)]/20"
                   >
                     {c}
                   </span>
@@ -172,7 +172,7 @@ export function ProjectWorkspacePage() {
               </div>
 
               {/* Results summary */}
-              <div className="text-xs text-[var(--color-text-muted)]">
+              <div className="text-sm text-[var(--color-text-muted)]">
                 {taskDetail.results.length} result(s) · {taskDetail.reviews.length} review(s)
                 {taskDetail.task.primary_agent_role && (
                   <> · Agent: <span className="text-[var(--color-text-tertiary)]">{taskDetail.task.primary_agent_role}</span></>
@@ -188,7 +188,7 @@ export function ProjectWorkspacePage() {
               <h3 className="text-sm font-semibold text-[var(--color-text-primary)] mb-1">
                 No tasks yet
               </h3>
-              <p className="text-xs text-[var(--color-text-muted)] max-w-xs">
+              <p className="text-sm text-[var(--color-text-muted)] max-w-xs">
                 Submit a query below to decompose it into tasks. Each task passes through the four-step adversarial refinement protocol.
               </p>
             </div>

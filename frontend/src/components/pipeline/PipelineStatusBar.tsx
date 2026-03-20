@@ -34,7 +34,7 @@ export function PipelineStatusBar({ tasks, connected, intensity = 'full', starte
   };
 
   return (
-    <div className="flex items-center gap-4 px-4 py-2 border-t border-[var(--color-border-subtle)] bg-[var(--color-surface-secondary)]/80 backdrop-blur-sm text-[10px]">
+    <div className="flex items-center gap-4 px-4 py-2 border-t border-[var(--color-border-subtle)] bg-[var(--color-surface-secondary)]/80 backdrop-blur-sm text-xs">
       {/* Connection */}
       <div className="flex items-center gap-1.5">
         {connected ? (

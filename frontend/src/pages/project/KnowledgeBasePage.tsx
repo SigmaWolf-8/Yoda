@@ -53,7 +53,7 @@ export function KnowledgeBasePage() {
           <Search className="w-4 h-4 text-[var(--color-gold-400)]" />
           <div>
             <h1 className="text-sm font-semibold text-[var(--color-text-primary)]">Knowledge Base</h1>
-            {project && <p className="text-[10px] text-[var(--color-text-muted)]">{project.name}</p>}
+            {project && <p className="text-xs text-[var(--color-text-muted)]">{project.name}</p>}
           </div>
         </div>
 
@@ -73,7 +73,7 @@ export function KnowledgeBasePage() {
               onChange={(e) => setShowArchived(e.target.checked)}
               className="w-3.5 h-3.5 rounded border-[var(--color-border-default)] bg-[var(--color-surface-tertiary)] accent-[var(--color-gold-500)]"
             />
-            <span className="text-[11px] text-[var(--color-text-muted)]">Show archived</span>
+            <span className="text-xs text-[var(--color-text-muted)]">Show archived</span>
           </label>
         </div>
       </aside>

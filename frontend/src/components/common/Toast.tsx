@@ -94,7 +94,7 @@ function ToastItem({ toast, onDismiss }: { toast: Toast; onDismiss: () => void }
       role="alert"
     >
       <Icon className={`w-4 h-4 flex-shrink-0 mt-0.5 ${TEXT_MAP[toast.type]}`} />
-      <p className="flex-1 text-xs text-[var(--color-text-secondary)] leading-relaxed">
+      <p className="flex-1 text-sm text-[var(--color-text-secondary)] leading-relaxed">
         {toast.message}
       </p>
       <button

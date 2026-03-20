@@ -92,12 +92,12 @@ function TagNodeRow({
             onChange={() => onToggle(node.fullPath)}
             className="w-3.5 h-3.5 rounded border-[var(--color-border-default)] bg-[var(--color-surface-tertiary)] accent-[var(--color-gold-500)] flex-shrink-0"
           />
-          <span className={`text-[11px] truncate ${isSelected ? 'text-[var(--color-gold-400)] font-medium' : 'text-[var(--color-text-secondary)]'}`}>
+          <span className={`text-xs truncate ${isSelected ? 'text-[var(--color-gold-400)] font-medium' : 'text-[var(--color-text-secondary)]'}`}>
             {node.name}
           </span>
         </label>
         {node.count > 0 && (
-          <span className="text-[9px] text-[var(--color-text-muted)] pr-2">{node.count}</span>
+          <span className="text-[11px] text-[var(--color-text-muted)] pr-2">{node.count}</span>
         )}
       </div>
       {expanded && hasChildren && node.children.map((child) => (
@@ -115,12 +115,12 @@ export function KBTagFilter({ allTags, selected, onToggle, onClear }: Props) {
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-1.5">
           <Tag className="w-3.5 h-3.5 text-[var(--color-gold-400)]" />
-          <span className="text-[10px] font-semibold text-[var(--color-text-muted)] uppercase tracking-wider">Tags</span>
+          <span className="text-xs font-semibold text-[var(--color-text-muted)] uppercase tracking-wider">Tags</span>
         </div>
         {selected.size > 0 && (
           <button
             onClick={onClear}
-            className="flex items-center gap-1 text-[9px] text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)] transition-colors"
+            className="flex items-center gap-1 text-[11px] text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)] transition-colors"
           >
             <X className="w-2.5 h-2.5" />
             Clear ({selected.size})
@@ -128,7 +128,7 @@ export function KBTagFilter({ allTags, selected, onToggle, onClear }: Props) {
         )}
       </div>
       {tree.length === 0 ? (
-        <p className="text-[10px] text-[var(--color-text-muted)] py-2">No tags yet.</p>
+        <p className="text-xs text-[var(--color-text-muted)] py-2">No tags yet.</p>
       ) : (
         <div className="space-y-0">
           {tree.map((node) => (

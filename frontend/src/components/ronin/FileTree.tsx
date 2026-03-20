@@ -109,7 +109,7 @@ function TreeNodeRow({
           ) : (
             <Folder className="w-3.5 h-3.5 text-[var(--color-gold-400)]" />
           )}
-          <span className="text-[11px] font-medium text-[var(--color-text-secondary)]">
+          <span className="text-xs font-medium text-[var(--color-text-secondary)]">
             {node.name}
           </span>
         </button>
@@ -141,7 +141,7 @@ function TreeNodeRow({
     >
       <span className="w-3 flex-shrink-0" /> {/* align with chevrons */}
       <FileCode className="w-3.5 h-3.5 flex-shrink-0" />
-      <span className="text-[11px] font-mono truncate">{node.name}</span>
+      <span className="text-xs font-mono truncate">{node.name}</span>
       <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${dotColor}`} />
     </button>
   );
@@ -156,7 +156,7 @@ export function FileTree({ files, activeFile, onSelectFile }: Props) {
     return (
       <div className="p-4 text-center">
         <FileCode className="w-6 h-6 text-[var(--color-text-muted)] mx-auto mb-2" />
-        <p className="text-[10px] text-[var(--color-text-muted)]">No files generated yet.</p>
+        <p className="text-xs text-[var(--color-text-muted)]">No files generated yet.</p>
       </div>
     );
   }
@@ -172,7 +172,7 @@ export function FileTree({ files, activeFile, onSelectFile }: Props) {
           onSelectFile={onSelectFile}
         />
       ))}
-      <div className="px-3 pt-2 text-[9px] text-[var(--color-text-muted)]">
+      <div className="px-3 pt-2 text-[11px] text-[var(--color-text-muted)]">
         {files.length} file{files.length !== 1 ? 's' : ''} · {files.reduce((s, f) => s + f.line_count, 0)} lines
       </div>
     </div>

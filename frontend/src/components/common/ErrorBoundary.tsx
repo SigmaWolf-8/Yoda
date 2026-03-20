@@ -37,12 +37,12 @@ export class ErrorBoundary extends Component<Props, State> {
           <h2 className="text-sm font-semibold text-[var(--color-text-primary)] mb-1">
             Something went wrong
           </h2>
-          <p className="text-xs text-[var(--color-text-muted)] mb-4 max-w-sm">
+          <p className="text-sm text-[var(--color-text-muted)] mb-4 max-w-sm">
             {this.state.error?.message ?? 'An unexpected error occurred.'}
           </p>
           <button
             onClick={this.handleRetry}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold bg-[var(--color-gold-500)] text-[var(--color-navy-950)] hover:bg-[var(--color-gold-400)] transition-colors"
+            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold bg-[var(--color-gold-500)] text-[var(--color-navy-950)] hover:bg-[var(--color-gold-400)] transition-colors"
           >
             <RefreshCw className="w-3.5 h-3.5" />
             Try Again

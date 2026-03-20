@@ -17,7 +17,7 @@ export function ResultViewer({ results }: Props) {
   const activeResult = sorted.find((r) => r.step_number === activeStep);
 
   if (!sorted.length) {
-    return <p className="text-xs text-[var(--color-text-muted)] p-4">No results available.</p>;
+    return <p className="text-sm text-[var(--color-text-muted)] p-4">No results available.</p>;
   }
 
   return (
@@ -31,7 +31,7 @@ export function ResultViewer({ results }: Props) {
               <button
                 key={r.step_number}
                 onClick={() => { setActiveStep(r.step_number); setDiffMode(false); }}
-                className={`px-4 py-2.5 text-xs font-medium transition-colors ${
+                className={`px-4 py-2.5 text-sm font-medium transition-colors ${
                   !diffMode && activeStep === r.step_number
                     ? 'text-[var(--color-gold-400)] border-b-2 border-[var(--color-gold-500)]'
                     : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]'
@@ -45,7 +45,7 @@ export function ResultViewer({ results }: Props) {
         {sorted.length >= 2 && (
           <button
             onClick={() => setDiffMode(!diffMode)}
-            className={`flex items-center gap-1.5 px-3 py-2 text-xs font-medium transition-colors ${
+            className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium transition-colors ${
               diffMode
                 ? 'text-[var(--color-gold-400)]'
                 : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]'
@@ -65,7 +65,7 @@ export function ResultViewer({ results }: Props) {
             <select
               value={diffLeft}
               onChange={(e) => setDiffLeft(Number(e.target.value))}
-              className="px-2 py-1 rounded text-xs bg-[var(--color-surface-tertiary)] border border-[var(--color-border-default)] text-[var(--color-text-primary)]"
+              className="px-2 py-1 rounded text-sm bg-[var(--color-surface-tertiary)] border border-[var(--color-border-default)] text-[var(--color-text-primary)]"
             >
               {sorted.map((r, i) => (
                 <option key={i} value={i}>
@@ -77,7 +77,7 @@ export function ResultViewer({ results }: Props) {
             <select
               value={diffRight}
               onChange={(e) => setDiffRight(Number(e.target.value))}
-              className="px-2 py-1 rounded text-xs bg-[var(--color-surface-tertiary)] border border-[var(--color-border-default)] text-[var(--color-text-primary)]"
+              className="px-2 py-1 rounded text-sm bg-[var(--color-surface-tertiary)] border border-[var(--color-border-default)] text-[var(--color-text-primary)]"
             >
               {sorted.map((r, i) => (
                 <option key={i} value={i}>
@@ -86,7 +86,7 @@ export function ResultViewer({ results }: Props) {
               ))}
             </select>
           </div>
-          <div className="overflow-x-auto text-xs">
+          <div className="overflow-x-auto text-sm">
             <ReactDiffViewer
               oldValue={sorted[diffLeft]?.result_content ?? ''}
               newValue={sorted[diffRight]?.result_content ?? ''}
@@ -110,7 +110,7 @@ export function ResultViewer({ results }: Props) {
                     emptyLineBackground: 'var(--color-navy-900)',
                   },
                 },
-                line: { fontSize: '11px', lineHeight: '1.5' },
+                line: { fontSize: '13px', lineHeight: '1.5' },
               }}
             />
           </div>
@@ -118,13 +118,13 @@ export function ResultViewer({ results }: Props) {
       ) : activeResult ? (
         <div className="p-4">
           {/* TIS-27 hash badge */}
-          <div className="flex items-center gap-1.5 mb-3 text-[9px] text-[var(--color-text-muted)]">
+          <div className="flex items-center gap-1.5 mb-3 text-[11px] text-[var(--color-text-muted)]">
             <Hash className="w-3 h-3" />
             <span className="font-mono">TIS-27: {activeResult.tis27_hash}</span>
             <span>· Engine {activeResult.engine_id.toUpperCase()}</span>
             <span>· {activeResult.agent_role}</span>
           </div>
-          <pre className="text-xs text-[var(--color-text-secondary)] whitespace-pre-wrap break-words leading-relaxed">
+          <pre className="text-sm text-[var(--color-text-secondary)] whitespace-pre-wrap break-words leading-relaxed">
             {activeResult.result_content}
           </pre>
         </div>

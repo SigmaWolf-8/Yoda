@@ -79,7 +79,7 @@ export function RecommendedConfigs({ onApply }: Props) {
         <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">Recommended Configurations</h3>
       </div>
       <div className="overflow-x-auto rounded-lg border border-[var(--color-border-subtle)]">
-        <table className="w-full text-xs">
+        <table className="w-full text-sm">
           <thead>
             <tr className="bg-[var(--color-surface-tertiary)]/50">
               <th className="text-left font-medium text-[var(--color-text-muted)] uppercase tracking-wider px-3 py-2">Scenario</th>
@@ -96,7 +96,7 @@ export function RecommendedConfigs({ onApply }: Props) {
                 <td className="px-3 py-2.5 text-[var(--color-text-primary)] font-medium">{p.label}</td>
                 {p.engines.map((eng, i) => (
                   <td key={i} className="px-3 py-2.5">
-                    <span className={`inline-block px-1.5 py-0.5 rounded border text-[10px] font-medium ${MODE_BADGE[eng.mode]}`}>
+                    <span className={`inline-block px-1.5 py-0.5 rounded border text-xs font-medium ${MODE_BADGE[eng.mode]}`}>
                       {eng.mode.replace('_', ' ')}
                     </span>
                     <br />
@@ -108,7 +108,7 @@ export function RecommendedConfigs({ onApply }: Props) {
                   {onApply && (
                     <button
                       onClick={() => onApply(p)}
-                      className="px-2 py-1 rounded text-[10px] font-semibold bg-[var(--color-gold-500)]/10 text-[var(--color-gold-400)] border border-[var(--color-gold-500)]/20 hover:bg-[var(--color-gold-500)]/20 transition-colors"
+                      className="px-2 py-1 rounded text-xs font-semibold bg-[var(--color-gold-500)]/10 text-[var(--color-gold-400)] border border-[var(--color-gold-500)]/20 hover:bg-[var(--color-gold-500)]/20 transition-colors"
                     >
                       Apply
                     </button>
@@ -119,7 +119,7 @@ export function RecommendedConfigs({ onApply }: Props) {
           </tbody>
         </table>
       </div>
-      <p className="text-xs text-[var(--color-text-muted)] mt-2">
+      <p className="text-sm text-[var(--color-text-muted)] mt-2">
         Verify each model's license at its Hugging Face model card before downloading.
       </p>
     </div>

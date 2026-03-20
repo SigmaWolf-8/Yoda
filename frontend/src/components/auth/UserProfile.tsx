@@ -57,7 +57,7 @@ export function UserProfile() {
         className="flex items-center gap-2.5 px-3 py-1.5 rounded-lg hover:bg-[var(--color-surface-tertiary)] transition-colors"
       >
         <div className="w-7 h-7 rounded-full bg-[var(--color-gold-500)]/20 border border-[var(--color-gold-500)]/30 flex items-center justify-center">
-          <span className="text-[10px] font-bold text-[var(--color-gold-400)] leading-none">
+          <span className="text-xs font-bold text-[var(--color-gold-400)] leading-none">
             {initials}
           </span>
         </div>
@@ -77,7 +77,7 @@ export function UserProfile() {
             {user && (
               <div className="px-4 py-3 border-b border-[var(--color-border-subtle)]">
                 <p className="text-sm font-medium text-[var(--color-text-primary)] truncate">{user.name}</p>
-                <p className="text-xs text-[var(--color-text-muted)] truncate">{user.email}</p>
+                <p className="text-sm text-[var(--color-text-muted)] truncate">{user.email}</p>
               </div>
             )}
 

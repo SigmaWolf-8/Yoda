@@ -42,7 +42,7 @@ export function OrgSettingsPage() {
       member: 'bg-[var(--color-navy-700)]/50 text-[var(--color-text-tertiary)] border-[var(--color-border-default)]',
     };
     return (
-      <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium border ${colors[role] ?? colors.member}`}>
+      <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-sm font-medium border ${colors[role] ?? colors.member}`}>
         {roleIcon(role)}
         {role.charAt(0).toUpperCase() + role.slice(1)}
       </span>
@@ -97,11 +97,11 @@ export function OrgSettingsPage() {
           <div className="flex items-center justify-between py-3 px-4 rounded-lg bg-[var(--color-surface-tertiary)]/50">
             <div className="flex items-center gap-3">
               <div className="w-8 h-8 rounded-full bg-[var(--color-gold-500)]/20 flex items-center justify-center">
-                <span className="text-xs font-semibold text-[var(--color-gold-400)]">Y</span>
+                <span className="text-sm font-semibold text-[var(--color-gold-400)]">Y</span>
               </div>
               <div>
                 <p className="text-sm font-medium text-[var(--color-text-primary)]">You</p>
-                <p className="text-xs text-[var(--color-text-muted)]">{org?.role ?? 'owner'}</p>
+                <p className="text-sm text-[var(--color-text-muted)]">{org?.role ?? 'owner'}</p>
               </div>
             </div>
             {roleBadge(org?.role ?? 'owner')}

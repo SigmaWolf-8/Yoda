@@ -43,18 +43,18 @@ export function AgentDetailPanel({ agents, division, selectedIdx, onSelectIdx, o
         <div className="flex items-center gap-2.5 mb-1">
           <span className="w-3 h-3 rounded-full bg-[hsl(210,70%,65%)]" />
           <h2 className="text-base font-semibold text-[var(--color-text-primary)]">{divMeta.label}</h2>
-          <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-[hsl(210,80%,55%)]/8 text-[hsl(210,70%,65%)] border border-[hsl(210,80%,55%)]/15">
+          <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-[hsl(210,80%,55%)]/8 text-[hsl(210,70%,65%)] border border-[hsl(210,80%,55%)]/15">
             {isCM ? 'Proprietary' : 'MIT licensed'}
           </span>
         </div>
-        <p className="text-xs text-[var(--color-text-muted)] font-mono">
+        <p className="text-sm text-[var(--color-text-muted)] font-mono">
           {divAgents.length} agents · {divMeta.ring} shell
         </p>
       </div>
 
       {/* Agent dropdown selector */}
       <div className="px-5 py-3 border-b border-[var(--color-border-subtle)]">
-        <label className="block text-[11px] text-[var(--color-text-muted)] uppercase tracking-wider font-semibold mb-1.5">
+        <label className="block text-xs text-[var(--color-text-muted)] uppercase tracking-wider font-semibold mb-1.5">
           Agent ({divAgents.length} in division)
         </label>
         <select
@@ -75,9 +75,9 @@ export function AgentDetailPanel({ agents, division, selectedIdx, onSelectIdx, o
         {/* Header */}
         <div>
           <h3 className="text-base font-semibold text-[var(--color-text-primary)]">{agent.display_name}</h3>
-          <p className="text-xs text-[var(--color-text-muted)] font-mono mt-0.5">{agent.agent_id}</p>
+          <p className="text-sm text-[var(--color-text-muted)] font-mono mt-0.5">{agent.agent_id}</p>
           <div className="mt-2 flex items-center gap-2">
-            <span className="px-2 py-0.5 rounded-md text-[11px] font-medium bg-[hsl(210,80%,55%)]/6 text-[hsl(210,70%,65%)]">
+            <span className="px-2 py-0.5 rounded-md text-xs font-medium bg-[hsl(210,80%,55%)]/6 text-[hsl(210,70%,65%)]">
               {agent.primary_role === 'Both' ? 'Producer + Reviewer' : agent.primary_role}
             </span>
           </div>
@@ -85,7 +85,7 @@ export function AgentDetailPanel({ agents, division, selectedIdx, onSelectIdx, o
 
         {/* Locked banner for Capomastro */}
         {isCM && (
-          <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-[hsl(210,80%,55%)]/4 border border-[hsl(210,80%,55%)]/12 text-xs text-[hsl(210,70%,65%)]">
+          <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-[hsl(210,80%,55%)]/4 border border-[hsl(210,80%,55%)]/12 text-sm text-[hsl(210,70%,65%)]">
             <Lock className="w-3.5 h-3.5" />
             Capomastro proprietary · Read-only for non-owners
           </div>
@@ -103,7 +103,7 @@ export function AgentDetailPanel({ agents, division, selectedIdx, onSelectIdx, o
           <Section label="Key skills">
             <div className="space-y-1.5">
               {agent.key_skills.map((sk, i) => (
-                <div key={i} className="flex items-start gap-2 text-xs text-[var(--color-text-secondary)] leading-relaxed">
+                <div key={i} className="flex items-start gap-2 text-sm text-[var(--color-text-secondary)] leading-relaxed">
                   <span className="w-1.5 h-1.5 rounded-full bg-[hsl(210,70%,65%)] flex-shrink-0 mt-[5px]" />
                   {sk}
                 </div>
@@ -133,7 +133,7 @@ export function AgentDetailPanel({ agents, division, selectedIdx, onSelectIdx, o
         <Section label="Competencies">
           <div className="flex flex-wrap gap-1.5">
             {agent.competencies.map(c => (
-              <span key={c} className="px-2 py-0.5 rounded text-[11px] font-medium bg-[hsl(210,80%,55%)]/6 text-[hsl(210,70%,65%)] border border-[hsl(210,80%,55%)]/12">
+              <span key={c} className="px-2 py-0.5 rounded text-xs font-medium bg-[hsl(210,80%,55%)]/6 text-[hsl(210,70%,65%)] border border-[hsl(210,80%,55%)]/12">
                 {c}
               </span>
             ))}
@@ -146,7 +146,7 @@ export function AgentDetailPanel({ agents, division, selectedIdx, onSelectIdx, o
             {agent.review_criteria.map((c, i) => (
               <span
                 key={c}
-                className={`px-2 py-0.5 rounded text-[11px] font-medium border ${
+                className={`px-2 py-0.5 rounded text-xs font-medium border ${
                   i === 0
                     ? 'bg-[hsl(210,80%,55%)]/6 text-[hsl(210,70%,65%)] border-[hsl(210,80%,55%)]/15'
                     : 'bg-[var(--color-surface-tertiary)] text-[var(--color-text-muted)] border-[var(--color-border-default)]'
@@ -163,7 +163,7 @@ export function AgentDetailPanel({ agents, division, selectedIdx, onSelectIdx, o
           <Section label="Compatible reviewers">
             <div className="space-y-1.5">
               {agent.compatible_reviewers.map(r => (
-                <div key={r} className="flex items-center gap-2 text-xs text-[var(--color-text-secondary)] font-mono">
+                <div key={r} className="flex items-center gap-2 text-sm text-[var(--color-text-secondary)] font-mono">
                   <span className="w-1.5 h-1.5 rounded-full bg-[hsl(210,70%,65%)]" />
                   {r}
                 </div>
@@ -175,20 +175,20 @@ export function AgentDetailPanel({ agents, division, selectedIdx, onSelectIdx, o
         {/* Recent Tasks — live system activity from the database */}
         <Section label="Recent tasks">
           {tasksLoading ? (
-            <div className="flex items-center gap-2 py-2 text-xs text-[var(--color-text-muted)]">
+            <div className="flex items-center gap-2 py-2 text-sm text-[var(--color-text-muted)]">
               <Loader2 className="w-3.5 h-3.5 animate-spin" />
               Loading…
             </div>
           ) : !recentTasks || recentTasks.length === 0 ? (
-            <p className="text-xs text-[var(--color-text-muted)] italic py-1">No tasks recorded yet.</p>
+            <p className="text-sm text-[var(--color-text-muted)] italic py-1">No tasks recorded yet.</p>
           ) : (
             <div className="space-y-0">
               {recentTasks.map((t, i) => (
-                <div key={i} className="flex items-center gap-2 py-2 border-b border-[var(--color-border-subtle)] last:border-0 text-xs">
+                <div key={i} className="flex items-center gap-2 py-2 border-b border-[var(--color-border-subtle)] last:border-0 text-sm">
                   <span className="flex-1 min-w-0 truncate text-[var(--color-text-secondary)] font-mono">
                     {t.task_number} — {t.title}
                   </span>
-                  <span className={`px-1.5 py-0.5 rounded text-[10px] font-semibold flex-shrink-0 ${
+                  <span className={`px-1.5 py-0.5 rounded text-xs font-semibold flex-shrink-0 ${
                     t.status === 'ESCALATED'
                       ? 'bg-[hsl(270,50%,65%)]/8 text-[hsl(270,50%,65%)]'
                       : 'bg-[hsl(210,80%,55%)]/6 text-[hsl(210,70%,65%)]'
@@ -206,7 +206,7 @@ export function AgentDetailPanel({ agents, division, selectedIdx, onSelectIdx, o
         <div className="flex gap-2 pt-2">
           <button
             onClick={() => onCopyTemplate(agent)}
-            className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-medium bg-[var(--color-surface-tertiary)] text-[var(--color-text-secondary)] border border-[var(--color-border-default)] hover:bg-[var(--color-surface-hover)] transition-colors"
+            className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-sm font-medium bg-[var(--color-surface-tertiary)] text-[var(--color-text-secondary)] border border-[var(--color-border-default)] hover:bg-[var(--color-surface-hover)] transition-colors"
           >
             <Copy className="w-3.5 h-3.5" />
             Copy as template
@@ -214,7 +214,7 @@ export function AgentDetailPanel({ agents, division, selectedIdx, onSelectIdx, o
           {isCM ? (
             <button
               disabled
-              className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-medium bg-[var(--color-surface-tertiary)] text-[var(--color-text-muted)] border border-[var(--color-border-default)] opacity-30 cursor-not-allowed"
+              className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-sm font-medium bg-[var(--color-surface-tertiary)] text-[var(--color-text-muted)] border border-[var(--color-border-default)] opacity-30 cursor-not-allowed"
             >
               <Lock className="w-3.5 h-3.5" />
               Locked
@@ -222,7 +222,7 @@ export function AgentDetailPanel({ agents, division, selectedIdx, onSelectIdx, o
           ) : (
             <button
               onClick={() => onEdit(agent)}
-              className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-medium bg-[hsl(210,80%,55%)]/8 text-[hsl(210,70%,65%)] border border-[hsl(210,80%,55%)]/18 hover:bg-[hsl(210,80%,55%)]/15 transition-colors"
+              className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-sm font-medium bg-[hsl(210,80%,55%)]/8 text-[hsl(210,70%,65%)] border border-[hsl(210,80%,55%)]/18 hover:bg-[hsl(210,80%,55%)]/15 transition-colors"
             >
               <Pencil className="w-3.5 h-3.5" />
               Edit
@@ -239,7 +239,7 @@ export function AgentDetailPanel({ agents, division, selectedIdx, onSelectIdx, o
 function Section({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div>
-      <p className="text-[11px] text-[var(--color-text-muted)] uppercase tracking-wider font-semibold mb-2">{label}</p>
+      <p className="text-xs text-[var(--color-text-muted)] uppercase tracking-wider font-semibold mb-2">{label}</p>
       {children}
     </div>
   );
@@ -248,8 +248,8 @@ function Section({ label, children }: { label: string; children: React.ReactNode
 function StatBox({ label, value, small }: { label: string; value: string; small?: boolean }) {
   return (
     <div className="rounded-md bg-[var(--color-surface-tertiary)]/50 px-2.5 py-2 border border-[var(--color-border-subtle)]">
-      <p className="text-[10px] text-[var(--color-text-muted)] uppercase tracking-wider">{label}</p>
-      <p className={`font-semibold text-[var(--color-text-primary)] mt-0.5 ${small ? 'text-xs' : 'text-sm'}`}>{value}</p>
+      <p className="text-xs text-[var(--color-text-muted)] uppercase tracking-wider">{label}</p>
+      <p className={`font-semibold text-[var(--color-text-primary)] mt-0.5 ${small ? 'text-sm' : 'text-sm'}`}>{value}</p>
     </div>
   );
 }
@@ -257,7 +257,7 @@ function StatBox({ label, value, small }: { label: string; value: string; small?
 function StatBoxBar({ label, value, pct, color }: { label: string; value: string; pct: number; color: string }) {
   return (
     <div className="rounded-md bg-[var(--color-surface-tertiary)]/50 px-2.5 py-2 border border-[var(--color-border-subtle)]">
-      <p className="text-[10px] text-[var(--color-text-muted)] uppercase tracking-wider">{label}</p>
+      <p className="text-xs text-[var(--color-text-muted)] uppercase tracking-wider">{label}</p>
       <p className="text-sm font-semibold text-[var(--color-text-primary)] mt-0.5">{value}</p>
       <div className="h-1 rounded-full bg-[var(--color-border-subtle)] mt-1.5 overflow-hidden">
         <div className="h-full rounded-full" style={{ width: `${pct}%`, backgroundColor: color }} />

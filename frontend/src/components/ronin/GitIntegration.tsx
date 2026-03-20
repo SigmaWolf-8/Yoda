@@ -134,7 +134,7 @@ export function GitIntegration({ projectName, codeBlocks }: Props) {
   if (!patStatus?.configured) {
     return (
       <div className="p-4 rounded-xl bg-[var(--color-surface-secondary)] border border-[var(--color-border-subtle)]">
-        <div className="flex items-center gap-2 text-xs text-[var(--color-text-muted)]">
+        <div className="flex items-center gap-2 text-sm text-[var(--color-text-muted)]">
           <AlertCircle className="w-4 h-4" />
           <span>
             Configure a GitHub Personal Access Token in{' '}
@@ -153,14 +153,14 @@ export function GitIntegration({ projectName, codeBlocks }: Props) {
       <div className="flex items-center gap-2 mb-1">
         <GitBranch className="w-4 h-4 text-[var(--color-ronin-400)]" />
         <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">Push to GitHub</h3>
-        <span className="text-[9px] text-[var(--color-ok)] bg-[var(--color-ok)]/10 px-1.5 py-0.5 rounded">
+        <span className="text-[11px] text-[var(--color-ok)] bg-[var(--color-ok)]/10 px-1.5 py-0.5 rounded">
           Connected as {patStatus.username}
         </span>
       </div>
 
       <div className="space-y-2">
         <div>
-          <label className="block text-[10px] font-medium text-[var(--color-text-muted)] mb-1">
+          <label className="block text-xs font-medium text-[var(--color-text-muted)] mb-1">
             Repository
           </label>
           <input
@@ -169,12 +169,12 @@ export function GitIntegration({ projectName, codeBlocks }: Props) {
             onChange={(e) => setRepoUrl(e.target.value)}
             placeholder="owner/repo or https://github.com/owner/repo"
             disabled={isWorking}
-            className="w-full px-3 py-2 rounded-lg bg-[var(--color-surface-tertiary)] border border-[var(--color-border-default)] text-xs text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-gold-500)] disabled:opacity-50 transition-colors"
+            className="w-full px-3 py-2 rounded-lg bg-[var(--color-surface-tertiary)] border border-[var(--color-border-default)] text-sm text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-gold-500)] disabled:opacity-50 transition-colors"
           />
         </div>
         <div className="grid grid-cols-2 gap-2">
           <div>
-            <label className="block text-[10px] font-medium text-[var(--color-text-muted)] mb-1">
+            <label className="block text-xs font-medium text-[var(--color-text-muted)] mb-1">
               Branch
             </label>
             <input
@@ -182,11 +182,11 @@ export function GitIntegration({ projectName, codeBlocks }: Props) {
               value={branchName}
               onChange={(e) => setBranchName(e.target.value)}
               disabled={isWorking}
-              className="w-full px-3 py-2 rounded-lg bg-[var(--color-surface-tertiary)] border border-[var(--color-border-default)] text-xs text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-gold-500)] disabled:opacity-50 transition-colors"
+              className="w-full px-3 py-2 rounded-lg bg-[var(--color-surface-tertiary)] border border-[var(--color-border-default)] text-sm text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-gold-500)] disabled:opacity-50 transition-colors"
             />
           </div>
           <div>
-            <label className="block text-[10px] font-medium text-[var(--color-text-muted)] mb-1">
+            <label className="block text-xs font-medium text-[var(--color-text-muted)] mb-1">
               Commit Message
             </label>
             <input
@@ -194,7 +194,7 @@ export function GitIntegration({ projectName, codeBlocks }: Props) {
               value={commitMessage}
               onChange={(e) => setCommitMessage(e.target.value)}
               disabled={isWorking}
-              className="w-full px-3 py-2 rounded-lg bg-[var(--color-surface-tertiary)] border border-[var(--color-border-default)] text-xs text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-gold-500)] disabled:opacity-50 transition-colors"
+              className="w-full px-3 py-2 rounded-lg bg-[var(--color-surface-tertiary)] border border-[var(--color-border-default)] text-sm text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-gold-500)] disabled:opacity-50 transition-colors"
             />
           </div>
         </div>
@@ -202,7 +202,7 @@ export function GitIntegration({ projectName, codeBlocks }: Props) {
 
       {/* Progress indicators */}
       {stage !== 'idle' && (
-        <div className="flex items-center gap-3 text-[10px]">
+        <div className="flex items-center gap-3 text-xs">
           {(['branch', 'commit', 'pr'] as const).map((s, i) => {
             const stageIndex = ['branch', 'commit', 'pr'].indexOf(stage);
             const thisIndex = i;
@@ -227,7 +227,7 @@ export function GitIntegration({ projectName, codeBlocks }: Props) {
       )}
 
       {error && (
-        <p className="text-[10px] text-[var(--color-err)]">{error}</p>
+        <p className="text-xs text-[var(--color-err)]">{error}</p>
       )}
 
       {prUrl && (
@@ -235,7 +235,7 @@ export function GitIntegration({ projectName, codeBlocks }: Props) {
           href={prUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className="flex items-center gap-1.5 text-xs text-[var(--color-ronin-400)] hover:underline"
+          className="flex items-center gap-1.5 text-sm text-[var(--color-ronin-400)] hover:underline"
         >
           <GitPullRequest className="w-3.5 h-3.5" />
           View Pull Request

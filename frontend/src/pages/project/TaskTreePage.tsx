@@ -47,7 +47,7 @@ export function TaskTreePage() {
           DAG Pipeline
         </h1>
         {project && (
-          <span className="text-xs text-[var(--color-text-muted)]">— {project.name}</span>
+          <span className="text-sm text-[var(--color-text-muted)]">— {project.name}</span>
         )}
 
         <div className="flex-1" />
@@ -79,10 +79,10 @@ export function TaskTreePage() {
               {/* Header */}
               <div>
                 <div className="flex items-center gap-2 mb-1">
-                  <code className="text-[10px] font-mono text-[var(--color-text-muted)] bg-[var(--color-surface-tertiary)] px-1.5 py-0.5 rounded">
+                  <code className="text-xs font-mono text-[var(--color-text-muted)] bg-[var(--color-surface-tertiary)] px-1.5 py-0.5 rounded">
                     {taskDetail.task.task_number}
                   </code>
-                  <span className={`text-[9px] font-semibold uppercase px-1.5 py-0.5 rounded ${
+                  <span className={`text-[11px] font-semibold uppercase px-1.5 py-0.5 rounded ${
                     taskDetail.task.status === 'FINAL'
                       ? 'text-[var(--color-ok)] bg-[var(--color-ok)]/10'
                       : taskDetail.task.status === 'ESCALATED'
@@ -99,7 +99,7 @@ export function TaskTreePage() {
 
               {/* Step progress */}
               <div>
-                <p className="text-[10px] font-medium text-[var(--color-text-muted)] uppercase tracking-wider mb-2">
+                <p className="text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider mb-2">
                   Pipeline Progress
                 </p>
                 <StepProgressIndicator status={taskDetail.task.status} />
@@ -108,14 +108,14 @@ export function TaskTreePage() {
               {/* Competencies */}
               {taskDetail.task.competencies.length > 0 && (
                 <div>
-                  <p className="text-[10px] font-medium text-[var(--color-text-muted)] uppercase tracking-wider mb-1.5">
+                  <p className="text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider mb-1.5">
                     Competencies
                   </p>
                   <div className="flex gap-1 flex-wrap">
                     {taskDetail.task.competencies.map((c) => (
                       <span
                         key={c}
-                        className="px-1.5 py-0.5 rounded text-[9px] font-medium bg-[var(--color-plex-500)]/10 text-[var(--color-plex-400)] border border-[var(--color-plex-500)]/20"
+                        className="px-1.5 py-0.5 rounded text-[11px] font-medium bg-[var(--color-plex-500)]/10 text-[var(--color-plex-400)] border border-[var(--color-plex-500)]/20"
                       >
                         {c}
                       </span>
@@ -126,10 +126,10 @@ export function TaskTreePage() {
 
               {/* Agent info */}
               <div>
-                <p className="text-[10px] font-medium text-[var(--color-text-muted)] uppercase tracking-wider mb-1.5">
+                <p className="text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider mb-1.5">
                   Assignment
                 </p>
-                <div className="space-y-1 text-xs text-[var(--color-text-tertiary)]">
+                <div className="space-y-1 text-sm text-[var(--color-text-tertiary)]">
                   <p>Engine: <span className="text-[var(--color-text-secondary)]">{taskDetail.task.primary_engine?.toUpperCase()}</span></p>
                   <p>Agent: <span className="text-[var(--color-text-secondary)]">{taskDetail.task.primary_agent_role}</span></p>
                   <p>Position: <span className="text-[var(--color-text-secondary)]">#{taskDetail.task.workflow_position}</span></p>
@@ -138,10 +138,10 @@ export function TaskTreePage() {
 
               {/* Results summary */}
               <div>
-                <p className="text-[10px] font-medium text-[var(--color-text-muted)] uppercase tracking-wider mb-1.5">
+                <p className="text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider mb-1.5">
                   History
                 </p>
-                <div className="space-y-1 text-xs text-[var(--color-text-tertiary)]">
+                <div className="space-y-1 text-sm text-[var(--color-text-tertiary)]">
                   <p>{taskDetail.results.length} result version(s)</p>
                   <p>{taskDetail.reviews.length} review assessment(s)</p>
                   {taskDetail.reviews.some((r) => r.censorship_flagged) && (
@@ -153,7 +153,7 @@ export function TaskTreePage() {
               {/* Dependencies */}
               {taskDetail.task.dependencies.length > 0 && (
                 <div>
-                  <p className="text-[10px] font-medium text-[var(--color-text-muted)] uppercase tracking-wider mb-1.5">
+                  <p className="text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider mb-1.5">
                     Dependencies
                   </p>
                   <div className="space-y-0.5">
@@ -163,7 +163,7 @@ export function TaskTreePage() {
                         <button
                           key={depId}
                           onClick={() => setSelectedId(depId)}
-                          className="w-full text-left px-2 py-1 rounded text-[10px] bg-[var(--color-surface-tertiary)]/50 text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-tertiary)] transition-colors"
+                          className="w-full text-left px-2 py-1 rounded text-xs bg-[var(--color-surface-tertiary)]/50 text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-tertiary)] transition-colors"
                         >
                           {dep ? `${dep.task_number} — ${dep.title}` : depId.slice(0, 8)}
                         </button>

@@ -188,7 +188,7 @@ export function ModelInstallModal({ modelName, port = 8080, onClose, mode = 'con
               <h2 className="text-sm font-semibold text-[var(--color-text-primary)]">
                 Reconnect to PlenumNET — {modelName}
               </h2>
-              <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
+              <p className="text-sm text-[var(--color-text-muted)] mt-0.5">
                 Re-run the tunnel script on your machine to restore the connection
               </p>
             </div>
@@ -206,7 +206,7 @@ export function ModelInstallModal({ modelName, port = 8080, onClose, mode = 'con
 
           {/* CRS URL warning */}
           {!crsUrl && (
-            <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-500/10 border border-amber-500/30 text-xs text-amber-300">
+            <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-500/10 border border-amber-500/30 text-sm text-amber-300">
               <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
               <span>
                 <strong>CRS URL not configured.</strong> The generated script will only work when YODA is deployed.
@@ -221,7 +221,7 @@ export function ModelInstallModal({ modelName, port = 8080, onClose, mode = 'con
               <button
                 key={tab}
                 onClick={() => setOs(tab)}
-                className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
                   os === tab
                     ? 'bg-[var(--color-surface-primary)] text-[var(--color-text-primary)] shadow-sm'
                     : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]'
@@ -234,7 +234,7 @@ export function ModelInstallModal({ modelName, port = 8080, onClose, mode = 'con
 
           {/* Script block */}
           <div className="relative">
-            <pre className="w-full h-64 overflow-auto p-3 rounded-xl bg-[var(--color-navy-950)] border border-[var(--color-border-subtle)] text-[10px] text-[var(--color-text-secondary)] font-mono leading-relaxed whitespace-pre select-all">
+            <pre className="w-full h-64 overflow-auto p-3 rounded-xl bg-[var(--color-navy-950)] border border-[var(--color-border-subtle)] text-xs text-[var(--color-text-secondary)] font-mono leading-relaxed whitespace-pre select-all">
               {script}
             </pre>
           </div>
@@ -243,14 +243,14 @@ export function ModelInstallModal({ modelName, port = 8080, onClose, mode = 'con
           <div className="flex items-center gap-2">
             <button
               onClick={handleCopy}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[var(--color-gold-500)] text-[var(--color-navy-950)] text-xs font-semibold hover:bg-[var(--color-gold-400)] transition-colors"
+              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[var(--color-gold-500)] text-[var(--color-navy-950)] text-sm font-semibold hover:bg-[var(--color-gold-400)] transition-colors"
             >
               {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
               {copied ? 'Copied!' : 'Copy script'}
             </button>
             <button
               onClick={handleDownload}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[var(--color-surface-tertiary)] text-[var(--color-text-secondary)] text-xs font-medium hover:bg-[var(--color-surface-hover)] transition-colors border border-[var(--color-border-default)]"
+              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[var(--color-surface-tertiary)] text-[var(--color-text-secondary)] text-sm font-medium hover:bg-[var(--color-surface-hover)] transition-colors border border-[var(--color-border-default)]"
             >
               <Download className="w-3.5 h-3.5" />
               Download {fileName}
@@ -259,7 +259,7 @@ export function ModelInstallModal({ modelName, port = 8080, onClose, mode = 'con
 
           {/* Polling state */}
           {polling.phase !== 'idle' && (
-            <div className={`flex items-start gap-3 p-3.5 rounded-xl border text-xs ${
+            <div className={`flex items-start gap-3 p-3.5 rounded-xl border text-sm ${
               polling.phase === 'waiting'
                 ? 'bg-blue-500/10 border-blue-500/30 text-blue-300'
                 : polling.phase === 'connected'
@@ -312,8 +312,8 @@ export function ModelInstallModal({ modelName, port = 8080, onClose, mode = 'con
 
           {/* What this script does */}
           <div className="p-3 rounded-lg bg-[var(--color-surface-tertiary)] border border-[var(--color-border-subtle)] space-y-1.5">
-            <p className="text-[10px] font-semibold text-[var(--color-text-secondary)] uppercase tracking-wide">What the script does</p>
-            <ol className="text-xs text-[var(--color-text-muted)] space-y-1 list-decimal list-inside leading-relaxed">
+            <p className="text-xs font-semibold text-[var(--color-text-secondary)] uppercase tracking-wide">What the script does</p>
+            <ol className="text-sm text-[var(--color-text-muted)] space-y-1 list-decimal list-inside leading-relaxed">
               <li>Checks that llama-server and the model file are already present</li>
               <li>Restarts <code className="bg-[var(--color-surface-primary)] px-1 rounded">llama-server</code> on port <code className="bg-[var(--color-surface-primary)] px-1 rounded">{port}</code></li>
               <li>Re-registers with YODA CRS and restarts the PlenumNET tunnel daemon</li>
@@ -326,15 +326,15 @@ export function ModelInstallModal({ modelName, port = 8080, onClose, mode = 'con
               {isDownloaded ? (
                 <>
                   <HardDriveDownload className="w-4 h-4 flex-shrink-0 text-emerald-400" />
-                  <span className="text-xs text-emerald-400 flex-1">Marked as installed on this machine</span>
+                  <span className="text-sm text-emerald-400 flex-1">Marked as installed on this machine</span>
                 </>
               ) : (
                 <>
                   <HardDriveDownload className="w-4 h-4 flex-shrink-0 text-[var(--color-text-muted)]" />
-                  <span className="text-xs text-[var(--color-text-muted)] flex-1">Already ran the Install script and the model is on disk?</span>
+                  <span className="text-sm text-[var(--color-text-muted)] flex-1">Already ran the Install script and the model is on disk?</span>
                   <button
                     onClick={onMarkDownloaded}
-                    className="px-3 py-1.5 rounded-lg border border-emerald-500/40 bg-emerald-500/8 text-emerald-400 text-xs font-medium hover:bg-emerald-500/15 hover:border-emerald-500/70 transition-colors flex-shrink-0"
+                    className="px-3 py-1.5 rounded-lg border border-emerald-500/40 bg-emerald-500/8 text-emerald-400 text-sm font-medium hover:bg-emerald-500/15 hover:border-emerald-500/70 transition-colors flex-shrink-0"
                   >
                     Mark as installed
                   </button>

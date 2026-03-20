@@ -51,13 +51,13 @@ export function EngineHealthDashboard({ engines }: Props) {
 
             {/* Model + mode */}
             <div className="space-y-2 mb-3">
-              <div className="flex items-center gap-1.5 text-xs">
+              <div className="flex items-center gap-1.5 text-sm">
                 <Cpu className="w-3 h-3 text-[var(--color-text-muted)]" />
                 <span className="text-[var(--color-text-secondary)] font-medium truncate">
                   {eng.model_name || 'Not configured'}
                 </span>
               </div>
-              <div className="flex items-center gap-1.5 text-xs">
+              <div className="flex items-center gap-1.5 text-sm">
                 <Layers className="w-3 h-3 text-[var(--color-text-muted)]" />
                 <span className="text-[var(--color-text-muted)]">{MODE_LABEL[eng.hosting_mode]}</span>
                 <span className="text-[var(--color-text-muted)]">·</span>
@@ -68,7 +68,7 @@ export function EngineHealthDashboard({ engines }: Props) {
             {/* Metrics */}
             <div className="grid grid-cols-3 gap-2">
               <div className="rounded-lg bg-[var(--color-surface-tertiary)]/50 px-2.5 py-2">
-                <div className="flex items-center gap-1 text-[9px] text-[var(--color-text-muted)] mb-0.5">
+                <div className="flex items-center gap-1 text-[11px] text-[var(--color-text-muted)] mb-0.5">
                   <Clock className="w-2.5 h-2.5" /> Latency
                 </div>
                 <p className="text-sm font-semibold text-[var(--color-text-primary)]">
@@ -78,7 +78,7 @@ export function EngineHealthDashboard({ engines }: Props) {
                 </p>
               </div>
               <div className="rounded-lg bg-[var(--color-surface-tertiary)]/50 px-2.5 py-2">
-                <div className="flex items-center gap-1 text-[9px] text-[var(--color-text-muted)] mb-0.5">
+                <div className="flex items-center gap-1 text-[11px] text-[var(--color-text-muted)] mb-0.5">
                   <TrendingUp className="w-2.5 h-2.5" /> Err %
                 </div>
                 <p className={`text-sm font-semibold ${
@@ -92,7 +92,7 @@ export function EngineHealthDashboard({ engines }: Props) {
                 </p>
               </div>
               <div className="rounded-lg bg-[var(--color-surface-tertiary)]/50 px-2.5 py-2">
-                <div className="flex items-center gap-1 text-[9px] text-[var(--color-text-muted)] mb-0.5">
+                <div className="flex items-center gap-1 text-[11px] text-[var(--color-text-muted)] mb-0.5">
                   <Gauge className="w-2.5 h-2.5" /> Queue
                 </div>
                 <p className="text-sm font-semibold text-[var(--color-text-primary)]">
@@ -104,7 +104,7 @@ export function EngineHealthDashboard({ engines }: Props) {
             {/* Free tier quota */}
             {eng.daily_messages_limit != null && (
               <div className="mt-2">
-                <div className="flex items-center justify-between text-[9px] text-[var(--color-text-muted)] mb-1">
+                <div className="flex items-center justify-between text-[11px] text-[var(--color-text-muted)] mb-1">
                   <span>Daily messages</span>
                   <span>{eng.daily_messages_used ?? 0} / {eng.daily_messages_limit}</span>
                 </div>

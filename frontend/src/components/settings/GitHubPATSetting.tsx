@@ -21,22 +21,22 @@ export function GitHubPATSetting() {
         <Github className="w-4 h-4 text-[var(--color-gold-400)]" />
         <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">GitHub Integration</h3>
       </div>
-      <p className="text-xs text-[var(--color-text-muted)] mb-3">
+      <p className="text-sm text-[var(--color-text-muted)] mb-3">
         Personal Access Token for Ronin Git integration — create branches, commit code, open PRs.
       </p>
 
       {/* Status */}
       {isLoading ? (
-        <div className="flex items-center gap-2 text-xs text-[var(--color-text-muted)] mb-3">
+        <div className="flex items-center gap-2 text-sm text-[var(--color-text-muted)] mb-3">
           <Loader2 className="w-3 h-3 animate-spin" /> Checking…
         </div>
       ) : status?.configured ? (
-        <div className="flex items-center gap-2 text-xs text-[var(--color-ok)] mb-3">
+        <div className="flex items-center gap-2 text-sm text-[var(--color-ok)] mb-3">
           <Check className="w-3.5 h-3.5" />
           Connected as <span className="font-semibold">{status.username}</span>
         </div>
       ) : (
-        <div className="flex items-center gap-2 text-xs text-[var(--color-text-muted)] mb-3">
+        <div className="flex items-center gap-2 text-sm text-[var(--color-text-muted)] mb-3">
           <X className="w-3.5 h-3.5" />
           Not configured
         </div>
@@ -60,7 +60,7 @@ export function GitHubPATSetting() {
       </form>
 
       {update.error && (
-        <p className="text-xs text-[var(--color-err)] mt-2">
+        <p className="text-sm text-[var(--color-err)] mt-2">
           Failed to validate token. Check that it has the correct scopes.
         </p>
       )}

@@ -63,17 +63,17 @@ export function QueryInput({ projectId, mode, onResult }: Props) {
           className="w-full px-4 pt-4 pb-2 bg-transparent text-sm text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] resize-none focus:outline-none disabled:opacity-60"
         />
         <div className="flex items-center justify-between px-4 pb-3">
-          <span className="text-[10px] text-[var(--color-text-muted)]">
+          <span className="text-xs text-[var(--color-text-muted)]">
             {mode === 'ronin' ? 'Produces code + implementation instructions' : 'Produces research + analysis'}
             {' · '}
-            <kbd className="px-1 py-0.5 rounded bg-[var(--color-surface-tertiary)] text-[9px]">Enter</kbd> to send
+            <kbd className="px-1 py-0.5 rounded bg-[var(--color-surface-tertiary)] text-[11px]">Enter</kbd> to send
             {' · '}
-            <kbd className="px-1 py-0.5 rounded bg-[var(--color-surface-tertiary)] text-[9px]">Shift+Enter</kbd> for newline
+            <kbd className="px-1 py-0.5 rounded bg-[var(--color-surface-tertiary)] text-[11px]">Shift+Enter</kbd> for newline
           </span>
           <button
             type="submit"
             disabled={!text.trim() || submit.isPending}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[var(--color-gold-500)] text-[var(--color-navy-950)] text-xs font-semibold hover:bg-[var(--color-gold-400)] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[var(--color-gold-500)] text-[var(--color-navy-950)] text-sm font-semibold hover:bg-[var(--color-gold-400)] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
           >
             {submit.isPending ? (
               <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -86,7 +86,7 @@ export function QueryInput({ projectId, mode, onResult }: Props) {
       </div>
 
       {submit.error && (
-        <p className="mt-2 text-xs text-[var(--color-err)]">
+        <p className="mt-2 text-sm text-[var(--color-err)]">
           Failed to submit query. Check that your engines are configured and online.
         </p>
       )}

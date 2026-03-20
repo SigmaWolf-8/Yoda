@@ -38,19 +38,19 @@ function CodeBlockCard({ block }: { block: CodeBlock }) {
             {expanded ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
           </button>
           <FileCode className="w-3.5 h-3.5 text-[var(--color-text-muted)]" />
-          <span className="text-xs font-medium text-[var(--color-text-primary)] font-mono">
+          <span className="text-sm font-medium text-[var(--color-text-primary)] font-mono">
             {block.filename}
           </span>
-          <span className={`px-1.5 py-0.5 rounded text-[9px] font-semibold border ${langStyle}`}>
+          <span className={`px-1.5 py-0.5 rounded text-[11px] font-semibold border ${langStyle}`}>
             {block.language}
           </span>
-          <span className="text-[9px] text-[var(--color-text-muted)]">
+          <span className="text-[11px] text-[var(--color-text-muted)]">
             {block.line_count} lines
           </span>
         </div>
         <button
           onClick={handleCopy}
-          className="flex items-center gap-1 px-2 py-1 rounded text-[10px] font-medium text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)] transition-colors"
+          className="flex items-center gap-1 px-2 py-1 rounded text-xs font-medium text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)] transition-colors"
         >
           {copied ? <Check className="w-3 h-3 text-[var(--color-ok)]" /> : <Copy className="w-3 h-3" />}
           {copied ? 'Copied' : 'Copy'}
@@ -91,7 +91,7 @@ export function InlineCodeBlocks({ codeBlocks }: Props) {
 
   return (
     <div className="space-y-3">
-      <p className="text-[10px] font-semibold text-[var(--color-text-muted)] uppercase tracking-wider">
+      <p className="text-xs font-semibold text-[var(--color-text-muted)] uppercase tracking-wider">
         Code Blocks ({codeBlocks.length})
       </p>
       {codeBlocks.map((block, i) => (

@@ -49,7 +49,7 @@ function MobileDivisionAccordion({
               <div className="flex items-center gap-3">
                 <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: 'hsl(210,70%,65%)' }} />
                 <span className="text-sm font-semibold text-[var(--color-text-primary)]">{div.label}</span>
-                <span className="text-xs text-[var(--color-text-muted)] font-mono">
+                <span className="text-sm text-[var(--color-text-muted)] font-mono">
                   {divAgents.length} agent{divAgents.length !== 1 ? 's' : ''}
                 </span>
               </div>
@@ -62,7 +62,7 @@ function MobileDivisionAccordion({
             {isOpen && (
               <div className="px-4 pb-4 space-y-2 bg-[var(--color-surface-secondary)]/40">
                 {divAgents.length === 0 ? (
-                  <p className="text-xs text-[var(--color-text-muted)] py-2 px-1">No agents in this division.</p>
+                  <p className="text-sm text-[var(--color-text-muted)] py-2 px-1">No agents in this division.</p>
                 ) : (
                   divAgents.map(agent => (
                     <div
@@ -73,14 +73,14 @@ function MobileDivisionAccordion({
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0">
                           <p className="text-sm font-medium text-[var(--color-text-primary)] truncate">{agent.display_name}</p>
-                          <p className="text-xs text-[var(--color-text-muted)] mt-0.5 font-mono capitalize">
+                          <p className="text-sm text-[var(--color-text-muted)] mt-0.5 font-mono capitalize">
                             {agent.primary_role} · {agent.source}
                           </p>
                         </div>
                         {!agent.readonly && (
                           <button
                             onClick={() => onEdit(agent)}
-                            className="px-2.5 py-1 rounded text-[10px] font-medium bg-[hsl(210,80%,55%)]/10 text-[hsl(210,70%,65%)] border border-[hsl(210,80%,55%)]/20 hover:bg-[hsl(210,80%,55%)]/18 transition-colors flex-shrink-0"
+                            className="px-2.5 py-1 rounded text-xs font-medium bg-[hsl(210,80%,55%)]/10 text-[hsl(210,70%,65%)] border border-[hsl(210,80%,55%)]/20 hover:bg-[hsl(210,80%,55%)]/18 transition-colors flex-shrink-0"
                           >
                             Edit
                           </button>
@@ -89,7 +89,7 @@ function MobileDivisionAccordion({
                       {agent.key_skills.length > 0 && (
                         <div className="flex flex-wrap gap-1 mt-2">
                           {agent.key_skills.slice(0, 4).map(skill => (
-                            <span key={skill} className="px-1.5 py-0.5 rounded text-[11px] bg-white/[0.05] text-[var(--color-text-muted)] border border-white/[0.06]">
+                            <span key={skill} className="px-1.5 py-0.5 rounded text-xs bg-white/[0.05] text-[var(--color-text-muted)] border border-white/[0.06]">
                               {skill}
                             </span>
                           ))}
@@ -156,7 +156,7 @@ export function AgentsPage() {
       <div className="flex items-center justify-end px-5 py-3 border-b border-[var(--color-border-subtle)] bg-[var(--color-surface-secondary)]/30 flex-shrink-0">
         <button
           onClick={() => setEditorMode({ type: 'create' })}
-          className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[hsl(210,80%,55%)]/10 text-[hsl(210,70%,65%)] text-xs font-semibold border border-[hsl(210,80%,55%)]/20 hover:bg-[hsl(210,80%,55%)]/18 transition-colors"
+          className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[hsl(210,80%,55%)]/10 text-[hsl(210,70%,65%)] text-sm font-semibold border border-[hsl(210,80%,55%)]/20 hover:bg-[hsl(210,80%,55%)]/18 transition-colors"
         >
           <Plus className="w-3.5 h-3.5" />
           New agent
@@ -176,8 +176,8 @@ export function AgentsPage() {
         <div className="flex-1 flex items-center justify-center text-center px-8">
           <div>
             <p className="text-sm font-medium text-red-400 mb-1">Failed to load agents</p>
-            <p className="text-xs text-[var(--color-text-muted)]">{String(agentsQuery.error)}</p>
-            <button onClick={() => agentsQuery.refetch()} className="mt-4 px-4 py-2 rounded-lg text-xs bg-[hsl(210,80%,55%)]/10 text-[hsl(210,70%,65%)] border border-[hsl(210,80%,55%)]/20">
+            <p className="text-sm text-[var(--color-text-muted)]">{String(agentsQuery.error)}</p>
+            <button onClick={() => agentsQuery.refetch()} className="mt-4 px-4 py-2 rounded-lg text-sm bg-[hsl(210,80%,55%)]/10 text-[hsl(210,70%,65%)] border border-[hsl(210,80%,55%)]/20">
               Retry
             </button>
           </div>
@@ -211,11 +211,11 @@ export function AgentsPage() {
                 <div className="flex flex-col items-center justify-center h-full text-center px-8">
                   <div className="text-4xl opacity-10 mb-4">⬡</div>
                   <p className="text-sm font-medium text-[var(--color-text-secondary)] mb-2">Select a division</p>
-                  <p className="text-xs text-[var(--color-text-muted)] leading-relaxed">
+                  <p className="text-sm text-[var(--color-text-muted)] leading-relaxed">
                     Click any node on the geometry to browse its agents.
                     Each node is a division. Satellites are individual agents.
                   </p>
-                  <p className="text-xs text-[var(--color-text-muted)] mt-4 opacity-50">
+                  <p className="text-sm text-[var(--color-text-muted)] mt-4 opacity-50">
                     Node size = usage intensity · Pulse = active this week
                   </p>
                 </div>

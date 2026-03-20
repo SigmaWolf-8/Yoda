@@ -51,7 +51,7 @@ export function CodeEditorPanel({ files, activeFile, onSelectFile }: Props) {
             <button
               key={f.filename}
               onClick={() => onSelectFile(f.filename)}
-              className={`flex items-center gap-1.5 px-3 py-2 text-xs font-mono whitespace-nowrap border-r border-[var(--color-border-subtle)] transition-colors ${
+              className={`flex items-center gap-1.5 px-3 py-2 text-sm font-mono whitespace-nowrap border-r border-[var(--color-border-subtle)] transition-colors ${
                 isActive
                   ? 'bg-[var(--color-surface-tertiary)] text-[var(--color-text-primary)] border-b-2 border-b-[var(--color-gold-500)]'
                   : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-tertiary)]/30'
@@ -92,7 +92,7 @@ export function CodeEditorPanel({ files, activeFile, onSelectFile }: Props) {
 
       {/* Status bar */}
       {active && (
-        <div className="flex items-center justify-between px-3 py-1.5 border-t border-[var(--color-border-subtle)] text-[9px] text-[var(--color-text-muted)]">
+        <div className="flex items-center justify-between px-3 py-1.5 border-t border-[var(--color-border-subtle)] text-[11px] text-[var(--color-text-muted)]">
           <span>{active.language} · {active.line_count} lines</span>
           <span>Version: {active.version}</span>
         </div>

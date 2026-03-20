@@ -28,7 +28,7 @@ export function DiversityValidator() {
 
         {/* Quick status pill when a result exists */}
         {result && !open && (
-          <span className={`px-2 py-0.5 rounded-full text-xs font-semibold border ${
+          <span className={`px-2 py-0.5 rounded-full text-sm font-semibold border ${
             result.valid ? STATUS_STYLES.green : STATUS_STYLES.red
           }`}>
             {result.valid ? 'Pass' : 'Fail'}
@@ -65,13 +65,13 @@ export function DiversityValidator() {
           {result.engines.map((eng) => (
             <div
               key={eng.slot}
-              className={`flex items-center justify-between px-3 py-2 rounded-lg border text-xs font-medium ${STATUS_STYLES[eng.status]}`}
+              className={`flex items-center justify-between px-3 py-2 rounded-lg border text-sm font-medium ${STATUS_STYLES[eng.status]}`}
             >
               <span>Engine {eng.slot.toUpperCase()}: {eng.model_name || '(not configured)'}</span>
               <span className="uppercase opacity-70">{eng.family}</span>
             </div>
           ))}
-          <div className={`flex items-start gap-2 text-xs pt-1 ${result.valid ? 'text-[var(--color-ok)]' : 'text-[var(--color-err)]'}`}>
+          <div className={`flex items-start gap-2 text-sm pt-1 ${result.valid ? 'text-[var(--color-ok)]' : 'text-[var(--color-err)]'}`}>
             {result.valid
               ? <ShieldCheck className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
               : <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />

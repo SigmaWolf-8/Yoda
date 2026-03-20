@@ -81,9 +81,9 @@ export function ApiKeyPage() {
           <table className="w-full">
             <thead>
               <tr className="border-b border-[var(--color-border-subtle)]">
-                <th className="text-left text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider px-5 py-3">Name</th>
-                <th className="text-left text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider px-5 py-3">Key Prefix</th>
-                <th className="text-left text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider px-5 py-3">Created</th>
+                <th className="text-left text-sm font-medium text-[var(--color-text-muted)] uppercase tracking-wider px-5 py-3">Name</th>
+                <th className="text-left text-sm font-medium text-[var(--color-text-muted)] uppercase tracking-wider px-5 py-3">Key Prefix</th>
+                <th className="text-left text-sm font-medium text-[var(--color-text-muted)] uppercase tracking-wider px-5 py-3">Created</th>
                 <th className="w-12 px-5 py-3" />
               </tr>
             </thead>
@@ -92,7 +92,7 @@ export function ApiKeyPage() {
                 <tr key={k.id} className="border-b border-[var(--color-border-subtle)] last:border-0 hover:bg-[var(--color-surface-tertiary)]/30 transition-colors">
                   <td className="px-5 py-3 text-sm text-[var(--color-text-primary)] font-medium">{k.name}</td>
                   <td className="px-5 py-3">
-                    <code className="text-xs bg-[var(--color-surface-tertiary)] px-2 py-0.5 rounded text-[var(--color-text-secondary)]">
+                    <code className="text-sm bg-[var(--color-surface-tertiary)] px-2 py-0.5 rounded text-[var(--color-text-secondary)]">
                       {k.prefix}…
                     </code>
                   </td>
@@ -127,12 +127,12 @@ export function ApiKeyPage() {
                 </h3>
                 <div className="flex items-start gap-2 mb-4 p-3 rounded-lg bg-[var(--color-gold-500)]/5 border border-[var(--color-gold-500)]/20">
                   <AlertTriangle className="w-4 h-4 text-[var(--color-gold-400)] flex-shrink-0 mt-0.5" />
-                  <p className="text-xs text-[var(--color-gold-300)]">
+                  <p className="text-sm text-[var(--color-gold-300)]">
                     This key will only be shown once. Copy it now.
                   </p>
                 </div>
                 <div className="relative mb-4">
-                  <code className="block w-full p-3 pr-12 rounded-lg bg-[var(--color-surface-tertiary)] border border-[var(--color-border-default)] text-xs text-[var(--color-text-primary)] break-all select-all">
+                  <code className="block w-full p-3 pr-12 rounded-lg bg-[var(--color-surface-tertiary)] border border-[var(--color-border-default)] text-sm text-[var(--color-text-primary)] break-all select-all">
                     {newSecret}
                   </code>
                   <button

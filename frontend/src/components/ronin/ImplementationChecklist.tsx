@@ -39,13 +39,13 @@ export function ImplementationChecklist({ tasks }: Props) {
           </h3>
         </div>
         <div className="flex items-center gap-2">
-          <span className="text-[10px] text-[var(--color-text-muted)]">
+          <span className="text-xs text-[var(--color-text-muted)]">
             {totalChecked}/{sorted.length}
           </span>
           {finalTasks.length > 0 && totalChecked < finalTasks.length && (
             <button
               onClick={checkAllFinal}
-              className="text-[10px] text-[var(--color-ronin-400)] hover:underline"
+              className="text-xs text-[var(--color-ronin-400)] hover:underline"
             >
               Check all complete
             </button>
@@ -90,7 +90,7 @@ export function ImplementationChecklist({ tasks }: Props) {
               {/* Content */}
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-1.5">
-                  <code className="text-[9px] font-mono text-[var(--color-text-muted)]">
+                  <code className="text-[11px] font-mono text-[var(--color-text-muted)]">
                     {task.task_number}
                   </code>
                   {isEscalated && (
@@ -99,7 +99,7 @@ export function ImplementationChecklist({ tasks }: Props) {
                     </span>
                   )}
                 </div>
-                <p className={`text-xs leading-tight ${
+                <p className={`text-sm leading-tight ${
                   isChecked
                     ? 'text-[var(--color-text-muted)] line-through'
                     : 'text-[var(--color-text-secondary)]'

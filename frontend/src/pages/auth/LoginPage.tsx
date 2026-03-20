@@ -121,7 +121,7 @@ export function LoginPage() {
           </p>
         </div>
 
-        <p className="mt-8 text-center text-xs text-[var(--color-text-muted)]">
+        <p className="mt-8 text-center text-sm text-[var(--color-text-muted)]">
           Capomastro Holdings Ltd. — Applied Physics Division
         </p>
       </div>

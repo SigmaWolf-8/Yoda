@@ -368,7 +368,7 @@ function Tooltip({ content, children, wide }: { content: React.ReactNode; childr
       {children}
       <span className={`absolute bottom-full left-1/2 -translate-x-1/2 mb-2.5 ${wide ? 'w-80' : 'w-60'} p-3 rounded-xl
         bg-[var(--color-navy-850,#0d1829)] border border-[var(--color-navy-600)]
-        text-xs text-[var(--color-navy-100)] shadow-xl
+        text-sm text-[var(--color-navy-100)] shadow-xl
         opacity-0 pointer-events-none group-hover/tip:opacity-100
         transition-opacity duration-150 z-50 leading-relaxed text-left`}
       >
@@ -383,17 +383,17 @@ function Tooltip({ content, children, wide }: { content: React.ReactNode; childr
 
 function ResourceBadge({ fit, ram }: { fit: FitLevel; ram: string }) {
   if (fit === 'ok') return (
-    <span className="flex items-center gap-1 text-xs font-medium text-emerald-400">
+    <span className="flex items-center gap-1 text-sm font-medium text-emerald-400">
       <CheckCircle2 className="w-3.5 h-3.5" />{ram} · Fits
     </span>
   );
   if (fit === 'tight') return (
-    <span className="flex items-center gap-1 text-xs font-medium text-amber-400">
+    <span className="flex items-center gap-1 text-sm font-medium text-amber-400">
       <AlertTriangle className="w-3.5 h-3.5" />{ram} · Tight — use Q3 quant
     </span>
   );
   return (
-    <span className="flex items-center gap-1 text-xs font-medium text-red-400">
+    <span className="flex items-center gap-1 text-sm font-medium text-red-400">
       <XCircle className="w-3.5 h-3.5" />{ram} · Needs more RAM
     </span>
   );
@@ -409,7 +409,7 @@ function ModelCard({ modelName, hostRam, reservedRam }: { modelName: string; hos
   return (
     <div className="mt-2 px-3 py-2.5 rounded-lg bg-[var(--color-surface-secondary)] border border-[var(--color-border-subtle)] text-sm space-y-1.5">
       <div className="flex items-center gap-2 flex-wrap">
-        <span className="px-1.5 py-0.5 rounded bg-[var(--color-gold-500)]/10 text-[var(--color-gold-400)] font-medium text-xs">
+        <span className="px-1.5 py-0.5 rounded bg-[var(--color-gold-500)]/10 text-[var(--color-gold-400)] font-medium text-sm">
           {info.type}
         </span>
         <span className="text-[var(--color-text-secondary)]">{info.specialty}</span>
@@ -705,7 +705,7 @@ export function EngineSlotCard({
         {mode === 'self_hosted' && (
           <>
             {/* RAM context banner — shows available RAM accounting for other slots */}
-            <div className="flex items-start gap-2 px-3 py-2 rounded-lg bg-[var(--color-surface-secondary)] border border-[var(--color-border-subtle)] text-xs text-[var(--color-text-muted)] leading-relaxed">
+            <div className="flex items-start gap-2 px-3 py-2 rounded-lg bg-[var(--color-surface-secondary)] border border-[var(--color-border-subtle)] text-sm text-[var(--color-text-muted)] leading-relaxed">
               <span className="mt-0.5 flex-shrink-0">💡</span>
               <span>
                 {reservedRam > 0
@@ -743,17 +743,17 @@ export function EngineSlotCard({
               {showSuggest && (
                 <div className="absolute z-20 w-full mt-1 overflow-y-auto rounded-lg bg-[var(--color-surface-secondary)] border border-[var(--color-border-default)] shadow-lg" style={{ maxHeight: '32rem' }}>
                   {grouped.length === 0 ? (
-                    <div className="px-3 py-3 text-xs text-[var(--color-text-muted)] italic">
+                    <div className="px-3 py-3 text-sm text-[var(--color-text-muted)] italic">
                       No matching models available
                     </div>
                   ) : grouped.map(({ category, tiers }) => (
                     <div key={category}>
-                      <div className="px-3 py-2 text-xs font-bold uppercase tracking-widest text-white bg-black border-b border-[var(--color-border-subtle)] sticky top-0">
+                      <div className="px-3 py-2 text-sm font-bold uppercase tracking-widest text-white bg-black border-b border-[var(--color-border-subtle)] sticky top-0">
                         {category}
                       </div>
                       {tiers.map(({ label, models }) => (
                         <div key={label}>
-                          <div className="px-3 py-1.5 text-xs font-semibold uppercase tracking-wider text-[var(--color-text-secondary)] bg-[var(--color-surface-primary)] border-b border-[var(--color-border-subtle)]">
+                          <div className="px-3 py-1.5 text-sm font-semibold uppercase tracking-wider text-[var(--color-text-secondary)] bg-[var(--color-surface-primary)] border-b border-[var(--color-border-subtle)]">
                             {label}
                           </div>
                           {models.map((m) => {
@@ -775,7 +775,7 @@ export function EngineSlotCard({
                                     <HardDriveDownload className="w-3.5 h-3.5 shrink-0 text-emerald-400" aria-label="Already downloaded" />
                                   )}
                                   {ram && (
-                                    <span className="text-xs text-[var(--color-text-muted)] shrink-0">
+                                    <span className="text-sm text-[var(--color-text-muted)] shrink-0">
                                       {ram.split('·')[0].trim()}
                                     </span>
                                   )}
@@ -790,7 +790,7 @@ export function EngineSlotCard({
 
                   {/* Models assigned to other slots */}
                   {usedModels.filter((u) => ALL_SELF_HOSTED_SET.has(u)).length > 0 && (
-                    <div className="px-3 py-2 flex items-center gap-1.5 text-xs text-[var(--color-text-muted)] border-t border-[var(--color-border-subtle)]">
+                    <div className="px-3 py-2 flex items-center gap-1.5 text-sm text-[var(--color-text-muted)] border-t border-[var(--color-border-subtle)]">
                       <Ban className="w-3 h-3 flex-shrink-0" />
                       {usedModels.filter((u) => ALL_SELF_HOSTED_SET.has(u)).map((u) => (
                         <span key={u} className="line-through opacity-60">{u}</span>
@@ -811,7 +811,7 @@ export function EngineSlotCard({
                   {downloaded.has(modelName) ? (
                     <button
                       onClick={handleDirectInstall}
-                      className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border border-emerald-500/40 bg-emerald-500/8 text-emerald-400 text-xs font-medium hover:bg-emerald-500/15 hover:border-emerald-500/70 transition-colors"
+                      className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border border-emerald-500/40 bg-emerald-500/8 text-emerald-400 text-sm font-medium hover:bg-emerald-500/15 hover:border-emerald-500/70 transition-colors"
                     >
                       <HardDriveDownload className="w-3.5 h-3.5" />
                       Re-Install
@@ -819,7 +819,7 @@ export function EngineSlotCard({
                   ) : (
                     <button
                       onClick={handleDirectInstall}
-                      className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border border-[var(--color-gold-500)]/40 bg-[var(--color-gold-500)]/8 text-[var(--color-gold-400)] text-xs font-medium hover:bg-[var(--color-gold-500)]/15 hover:border-[var(--color-gold-500)]/70 transition-colors"
+                      className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border border-[var(--color-gold-500)]/40 bg-[var(--color-gold-500)]/8 text-[var(--color-gold-400)] text-sm font-medium hover:bg-[var(--color-gold-500)]/15 hover:border-[var(--color-gold-500)]/70 transition-colors"
                     >
                       <Download className="w-3.5 h-3.5" />
                       Install
@@ -827,7 +827,7 @@ export function EngineSlotCard({
                   )}
                   <button
                     onClick={() => setInstallModalMode('connect')}
-                    className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border border-blue-500/40 bg-blue-500/8 text-blue-400 text-xs font-medium hover:bg-blue-500/15 hover:border-blue-500/70 transition-colors"
+                    className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border border-blue-500/40 bg-blue-500/8 text-blue-400 text-sm font-medium hover:bg-blue-500/15 hover:border-blue-500/70 transition-colors"
                   >
                     <Radio className="w-3.5 h-3.5" />
                     Connect
@@ -836,7 +836,7 @@ export function EngineSlotCard({
 
                 {/* Inline install status — replaces the modal for install flow */}
                 {installPhase === 'polling' && (
-                  <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-[var(--color-gold-500)]/8 border border-[var(--color-gold-500)]/25 text-xs text-[var(--color-gold-300)]">
+                  <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-[var(--color-gold-500)]/8 border border-[var(--color-gold-500)]/25 text-sm text-[var(--color-gold-300)]">
                     <Loader2 className="w-3 h-3 animate-spin flex-shrink-0" />
                     <span>
                       Script downloaded — double-click it to run, then wait here for connection…
@@ -844,13 +844,13 @@ export function EngineSlotCard({
                   </div>
                 )}
                 {installPhase === 'connected' && (
-                  <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-xs text-emerald-300">
+                  <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-sm text-emerald-300">
                     <Wifi className="w-3 h-3 flex-shrink-0" />
                     <span>Connected — {installAddress}</span>
                   </div>
                 )}
                 {installPhase === 'timeout' && (
-                  <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-amber-500/10 border border-amber-500/30 text-xs text-amber-300">
+                  <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-amber-500/10 border border-amber-500/30 text-sm text-amber-300">
                     <WifiOff className="w-3 h-3 flex-shrink-0" />
                     <span>Timed out. Click Install again and run the downloaded file.</span>
                   </div>
@@ -881,7 +881,7 @@ export function EngineSlotCard({
                 className="w-full px-3 py-2 rounded-lg bg-[var(--color-surface-secondary)] border border-[var(--color-border-default)] text-sm text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-gold-500)] focus:ring-1 focus:ring-[var(--color-gold-500)]/30 transition-colors"
               />
               {probeState !== null && probeState !== 'loading' && (
-                <div className={`mt-1.5 flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-md ${probeState.reachable ? 'bg-[var(--color-ok)]/10 text-[var(--color-ok)]' : 'bg-red-500/10 text-red-400'}`}>
+                <div className={`mt-1.5 flex items-center gap-1.5 text-sm px-2.5 py-1.5 rounded-md ${probeState.reachable ? 'bg-[var(--color-ok)]/10 text-[var(--color-ok)]' : 'bg-red-500/10 text-red-400'}`}>
                   {probeState.reachable ? (
                     <><CheckCircle2 className="w-3 h-3 flex-shrink-0" /> Reachable — {probeState.latency_ms} ms</>
                   ) : (
@@ -966,7 +966,7 @@ export function EngineSlotCard({
               />
             </div>
             {config?.daily_messages_limit && (
-              <div className="flex items-center gap-2 text-xs text-[var(--color-text-muted)]">
+              <div className="flex items-center gap-2 text-sm text-[var(--color-text-muted)]">
                 <AlertCircle className="w-3.5 h-3.5" />
                 {config.daily_messages_used ?? 0} / {config.daily_messages_limit} daily messages
               </div>
