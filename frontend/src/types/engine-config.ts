@@ -15,7 +15,9 @@ export interface EngineConfig {
   health_status: HealthStatus;
   last_health_check: string;
   latency_ms?: number;
+  avg_latency_ms?: number;
   queue_depth?: number;
+  error_rate?: number;
   daily_messages_used?: number;
   daily_messages_limit?: number;
 }
@@ -26,6 +28,7 @@ export interface EngineUpdatePayload {
   auth_type: AuthType;
   credentials?: string;
   model_name: string;
+  model_family: string;
   family_override?: string | null;
 }
 

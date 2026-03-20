@@ -1,5 +1,6 @@
 import { BarChart3, Loader2 } from 'lucide-react';
 import { useEngineConfigs } from '../api/hooks';
+import { PlenumNetPanel } from '../components/monitoring/PlenumNetPanel';
 import { EngineHealthDashboard } from '../components/monitoring/EngineHealthDashboard';
 import { InferenceMetricsChart } from '../components/monitoring/InferenceMetricsChart';
 import { CostTracker } from '../components/monitoring/CostTracker';
@@ -13,7 +14,7 @@ export function MonitoringPage() {
   usePageHeader({
     icon: BarChart3,
     title: 'Monitoring',
-    subtitle: 'Engine health · AI metrics · cost tracking · censorship events',
+    subtitle: 'Open connections · engine health · AI metrics · cost tracking',
   });
 
   const metricsData: { timestamp: string; engine_a?: number; engine_b?: number; engine_c?: number }[] = [];
@@ -30,6 +31,7 @@ export function MonitoringPage() {
 
   return (
     <div className="p-6 lg:p-8 max-w-5xl mx-auto animate-fade-in space-y-6">
+      <PlenumNetPanel engines={engines ?? []} />
       <EngineHealthDashboard engines={engines ?? []} />
       <InferenceMetricsChart data={metricsData} />
       <CostTracker engines={engines ?? []} />

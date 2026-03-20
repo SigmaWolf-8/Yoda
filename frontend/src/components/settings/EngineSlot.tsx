@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   Server,
   Cloud,
@@ -306,6 +306,9 @@ export function EngineSlotCard({
   const [showSuggest, setShowSuggest] = useState(false);
   const [installModalOpen, setInstallModalOpen] = useState(false);
 
+  const hasMountedRef  = useRef(false);
+  const autoSaveTimer  = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   function changeMode(m: HostingMode) {
     setMode(m);
     onModeChange(m);
@@ -344,23 +347,37 @@ export function EngineSlotCard({
   useEffect(() => { onModelChange(modelName); }, []);
   useEffect(() => { onModeChange(mode); }, []);
 
-  function handleSave() {
-    update.mutate(
-      {
-        slot,
-        hosting_mode: mode,
-        endpoint_url: endpoint,
-        auth_type: authType,
-        credentials: credentials || undefined,
-        model_name: modelName,
-        family_override: familyOverride || null,
-      },
-      {
-        onSuccess: () => toast('success', `Engine ${slot.toUpperCase()} saved — ${modelName || 'configuration updated'}.`),
-        onError:   () => toast('error',   `Failed to save Engine ${slot.toUpperCase()}. Check your connection and try again.`),
-      },
-    );
+  function buildPayload() {
+    return {
+      slot,
+      hosting_mode: mode,
+      endpoint_url: endpoint || 'http://localhost:11434',
+      auth_type: authType,
+      credentials: credentials || undefined,
+      model_name: modelName,
+      model_family: '',
+      family_override: familyOverride || null,
+    };
   }
+
+  function handleSave() {
+    update.mutate(buildPayload(), {
+      onSuccess: () => toast('success', `Engine ${slot.toUpperCase()} saved — ${modelName || 'configuration updated'}.`),
+      onError:   () => toast('error',   `Failed to save Engine ${slot.toUpperCase()}. Check your connection and try again.`),
+    });
+  }
+
+  useEffect(() => {
+    if (!hasMountedRef.current) { hasMountedRef.current = true; return; }
+    if (!modelName) return;
+    if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
+    autoSaveTimer.current = setTimeout(() => {
+      update.mutate(buildPayload(), {
+        onSuccess: () => toast('success', `Engine ${slot.toUpperCase()} — ${modelName} saved.`),
+      });
+    }, 800);
+    return () => { if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current); };
+  }, [modelName]);
 
   const healthDot = config?.health_status === 'online'
     ? 'bg-[var(--color-ok)]'

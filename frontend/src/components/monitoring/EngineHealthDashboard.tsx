@@ -6,6 +6,7 @@ import {
   Clock,
   Layers,
   Gauge,
+  TrendingUp,
 } from 'lucide-react';
 import type { EngineConfig } from '../../types';
 
@@ -65,13 +66,29 @@ export function EngineHealthDashboard({ engines }: Props) {
             </div>
 
             {/* Metrics */}
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-3 gap-2">
               <div className="rounded-lg bg-[var(--color-surface-tertiary)]/50 px-2.5 py-2">
                 <div className="flex items-center gap-1 text-[9px] text-[var(--color-text-muted)] mb-0.5">
                   <Clock className="w-2.5 h-2.5" /> Latency
                 </div>
                 <p className="text-sm font-semibold text-[var(--color-text-primary)]">
-                  {eng.latency_ms != null ? `${eng.latency_ms}ms` : '—'}
+                  {(eng.latency_ms ?? eng.avg_latency_ms) != null
+                    ? `${eng.latency_ms ?? eng.avg_latency_ms}ms`
+                    : '—'}
+                </p>
+              </div>
+              <div className="rounded-lg bg-[var(--color-surface-tertiary)]/50 px-2.5 py-2">
+                <div className="flex items-center gap-1 text-[9px] text-[var(--color-text-muted)] mb-0.5">
+                  <TrendingUp className="w-2.5 h-2.5" /> Err %
+                </div>
+                <p className={`text-sm font-semibold ${
+                  (eng.error_rate ?? 0) > 0.05
+                    ? 'text-[var(--color-err)]'
+                    : 'text-[var(--color-text-primary)]'
+                }`}>
+                  {eng.error_rate != null
+                    ? `${(eng.error_rate * 100).toFixed(1)}%`
+                    : '—'}
                 </p>
               </div>
               <div className="rounded-lg bg-[var(--color-surface-tertiary)]/50 px-2.5 py-2">
