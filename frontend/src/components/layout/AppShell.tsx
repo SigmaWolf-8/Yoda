@@ -133,7 +133,13 @@ export function AppShell() {
           style={{
             height: HEADER_H,
             borderBottomColor: 'hsl(220,15%,86%)',
-            boxShadow: '0 2px 16px rgba(0,0,0,0.45)',
+            boxShadow: [
+              'inset 0 16px 40px rgba(0,0,0,0.22)',
+              'inset 0 -8px 24px rgba(0,0,0,0.12)',
+              'inset 8px 0 28px rgba(0,0,0,0.14)',
+              'inset -8px 0 28px rgba(0,0,0,0.14)',
+              '0 3px 12px rgba(0,0,0,0.18)',
+            ].join(', '),
           }}
         >
           <div
