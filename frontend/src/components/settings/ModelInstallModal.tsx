@@ -12,7 +12,7 @@ import {
   WifiOff,
   AlertCircle,
 } from 'lucide-react';
-import { OLLAMA_TAG, MANUAL_INSTALL_URL } from './EngineSlot';
+import { OLLAMA_TAG, OLLAMA_TAG_DISPLAY, MANUAL_INSTALL_URL } from './EngineSlot';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -349,8 +349,10 @@ Write-Host "Persistent service install (Windows Service) is planned for a future
 
 export function ModelInstallModal({ modelName, onClose }: Props) {
   const crsUrl = (import.meta.env.VITE_CRS_URL as string | undefined) ?? '';
-  const ollamaTag = OLLAMA_TAG[modelName];
-  const manualUrl = MANUAL_INSTALL_URL[modelName];
+  // modelName may be a display name ('Gemma-3.4B') or an Ollama tag ('gemma3:4b').
+  // Resolve whichever form is stored in the DB.
+  const ollamaTag = OLLAMA_TAG[modelName] ?? (OLLAMA_TAG_DISPLAY[modelName] ? modelName : undefined);
+  const manualUrl = MANUAL_INSTALL_URL[modelName] ?? MANUAL_INSTALL_URL[OLLAMA_TAG_DISPLAY[modelName] ?? ''];
   const isManual = !!manualUrl && !ollamaTag;
 
   const [sessionToken] = useState<string>(() => crypto.randomUUID());

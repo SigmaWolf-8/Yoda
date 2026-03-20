@@ -181,6 +181,12 @@ export const MANUAL_INSTALL_URL: Record<string, string> = {
   'Kimi-K2.5': 'https://huggingface.co/moonshotai/Kimi-K2-Instruct',
 };
 
+// Reverse map: Ollama tag → display name (e.g. 'gemma3:4b' → 'Gemma-3.4B').
+// The DB stores Ollama tags; the UI uses display names as keys.
+export const OLLAMA_TAG_DISPLAY: Record<string, string> = Object.fromEntries(
+  Object.entries(OLLAMA_TAG).map(([display, tag]) => [tag, display]),
+);
+
 const FIT_ORDER: Record<string, number> = { ok: 0, tight: 1, no: 2 };
 
 function sortedModels(
@@ -529,8 +535,8 @@ export function EngineSlotCard({
 
             <ModelCard modelName={modelName} hostRam={hostRam} reservedRam={reservedRam} />
 
-            {/* Install & Connect button — only for Ollama-compatible and manual-install models */}
-            {modelName && (OLLAMA_TAG[modelName] || MANUAL_INSTALL_URL[modelName]) && (
+            {/* Install & Connect button — works whether DB stores display name or Ollama tag */}
+            {modelName && (OLLAMA_TAG[modelName] || OLLAMA_TAG_DISPLAY[modelName] || MANUAL_INSTALL_URL[modelName]) && (
               <button
                 onClick={() => setInstallModalOpen(true)}
                 className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg border border-[var(--color-gold-500)]/40 bg-[var(--color-gold-500)]/8 text-[var(--color-gold-400)] text-xs font-medium hover:bg-[var(--color-gold-500)]/15 hover:border-[var(--color-gold-500)]/70 transition-colors"
