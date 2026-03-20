@@ -22,8 +22,6 @@ import { ModelInstallModal } from './ModelInstallModal';
 import {
   detectOS,
   makeBashInstallScript,
-  makePsInstallScript,
-  makeBatWrapper,
   triggerDownload,
 } from './installScripts';
 import { useUpdateEngine, useDeleteEngine, useMarkEngineOnline, useMarkEngineOffline } from '../../api/hooks';
@@ -515,7 +513,7 @@ export function EngineSlotCard({
   type ProbeResult = { reachable: boolean; latency_ms?: number; http_status?: number; error?: string };
   const [probeState, setProbeState] = useState<null | 'loading' | ProbeResult>(null);
 
-  type InstallPhase = 'idle' | 'polling' | 'connected' | 'timeout';
+  type InstallPhase = 'idle' | 'downloaded' | 'polling' | 'connected' | 'timeout';
   const [installPhase,   setInstallPhase]   = useState<InstallPhase>('idle');
   const [installAddress, setInstallAddress] = useState('');
   const installPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -593,18 +591,29 @@ export function EngineSlotCard({
     }
   }
 
+  const PLENUMNET_INSTALLER_URL = 'https://plenumnet.replit.app/api/yoda-installer.bat';
+
   function handleDirectInstall() {
     const info = GGUF_INFO[modelName];
     if (!info) return;
 
-    const token = crypto.randomUUID();
-    const os    = detectOS();
+    const os = detectOS();
 
     if (os === 'windows') {
-      const ps  = makePsInstallScript(modelName, info.repo, info.file, SLOT_PORT[slot], token, crsUrl);
-      const bat = makeBatWrapper(ps, modelName);
-      triggerDownload(bat, 'yoda-setup.bat', 'text/plain');
-    } else if (os === 'mac') {
+      // Serve fresh from PlenumNET — no local script generation needed
+      const a = document.createElement('a');
+      a.href     = PLENUMNET_INSTALLER_URL;
+      a.download = 'yoda-installer.bat';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setInstallPhase('downloaded');
+      return;
+    }
+
+    // macOS / Linux — still generated locally with CRS session token
+    const token = crypto.randomUUID();
+    if (os === 'mac') {
       const sh = makeBashInstallScript(modelName, info.repo, info.file, SLOT_PORT[slot], token, crsUrl);
       triggerDownload(sh, 'yoda-setup.command', 'text/x-shellscript');
     } else {
@@ -890,6 +899,14 @@ export function EngineSlotCard({
                 </div>
 
                 {/* Inline install status — replaces the modal for install flow */}
+                {installPhase === 'downloaded' && (
+                  <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-[var(--color-gold-500)]/8 border border-[var(--color-gold-500)]/25 text-sm text-[var(--color-gold-300)]">
+                    <HardDriveDownload className="w-3 h-3 flex-shrink-0" />
+                    <span>
+                      Installer downloaded — double-click <strong>yoda-installer.bat</strong> to run it, then click <strong>Mark Online</strong> when your engine is ready.
+                    </span>
+                  </div>
+                )}
                 {installPhase === 'polling' && (
                   <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-[var(--color-gold-500)]/8 border border-[var(--color-gold-500)]/25 text-sm text-[var(--color-gold-300)]">
                     <Loader2 className="w-3 h-3 animate-spin flex-shrink-0" />

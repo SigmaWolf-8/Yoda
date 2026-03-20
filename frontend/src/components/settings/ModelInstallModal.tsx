@@ -266,8 +266,8 @@ export function ModelInstallModal({ modelName, slot, port = 8080, onClose, mode 
               polling.phase === 'waiting'
                 ? 'bg-blue-500/10 border-blue-500/30 text-blue-300'
                 : polling.phase === 'connected'
-                ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300'
-                : 'bg-red-500/10 border-red-500/30 text-red-300'
+                ? 'bg-[var(--color-plex-500)]/10 border-[var(--color-plex-500)]/30 text-[var(--color-plex-300)]'
+                : 'bg-[var(--color-surface-tertiary)] border-[var(--color-border-default)] text-[var(--color-text-muted)]'
             }`}>
               {polling.phase === 'waiting' && (
                 <>
@@ -283,11 +283,11 @@ export function ModelInstallModal({ modelName, slot, port = 8080, onClose, mode 
                   <Wifi className="w-4 h-4 flex-shrink-0 mt-0.5" />
                   <div>
                     <p className="font-medium">
-                      Connected — registered as <code className="bg-emerald-500/20 px-1 rounded">{polling.address}</code>
+                      Connected — registered as <code className="bg-[var(--color-plex-500)]/20 px-1 rounded">{polling.address}</code>
                     </p>
                     <p className="mt-0.5 opacity-75">
                       Tunnel is live. Set this engine's Endpoint in YODA Settings to{' '}
-                      <code className="bg-emerald-500/20 px-1 rounded">http://localhost:{port}</code>.
+                      <code className="bg-[var(--color-plex-500)]/20 px-1 rounded">http://localhost:{port}</code>.
                     </p>
                   </div>
                 </>
@@ -328,8 +328,8 @@ export function ModelInstallModal({ modelName, slot, port = 8080, onClose, mode 
             <div className="flex items-center gap-3 pt-1 border-t border-[var(--color-border-subtle)]">
               {isDownloaded ? (
                 <>
-                  <HardDriveDownload className="w-4 h-4 flex-shrink-0 text-emerald-400" />
-                  <span className="text-sm text-emerald-400 flex-1">Marked as installed on this machine</span>
+                  <HardDriveDownload className="w-4 h-4 flex-shrink-0 text-[var(--color-plex-400)]" />
+                  <span className="text-sm text-[var(--color-plex-400)] flex-1">Marked as installed on this machine</span>
                 </>
               ) : (
                 <>
@@ -337,7 +337,7 @@ export function ModelInstallModal({ modelName, slot, port = 8080, onClose, mode 
                   <span className="text-sm text-[var(--color-text-muted)] flex-1">Already ran the Install script and the model is on disk?</span>
                   <button
                     onClick={onMarkDownloaded}
-                    className="px-3 py-1.5 rounded-lg border border-emerald-500/40 bg-emerald-500/8 text-emerald-400 text-sm font-medium hover:bg-emerald-500/15 hover:border-emerald-500/70 transition-colors flex-shrink-0"
+                    className="px-3 py-1.5 rounded-lg border border-[var(--color-plex-500)]/40 bg-[var(--color-plex-500)]/8 text-[var(--color-plex-400)] text-sm font-medium hover:bg-[var(--color-plex-500)]/15 hover:border-[var(--color-plex-500)]/70 transition-colors flex-shrink-0"
                   >
                     Mark as installed
                   </button>
