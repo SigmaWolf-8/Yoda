@@ -8,6 +8,7 @@ import {
   Menu,
   X,
   Users,
+  Info,
   Cpu,
   ChevronLeft,
   ChevronRight,
@@ -22,6 +23,7 @@ const MAIN_NAV = [
   { to: '/agents',           icon: Users,           label: 'Agents'     },
   { to: '/settings/engines', icon: Cpu,             label: 'AI Engines' },
   { to: '/monitoring',       icon: BarChart3,       label: 'Monitoring' },
+  { to: '/about',            icon: Info,            label: 'About'      },
 ] as const;
 
 /* Sidebar logo-area height in px — top bar must match this */
