@@ -1,0 +1,62 @@
+Windows PowerShell
+Copyright (C) Microsoft Corporation. All rights reserved.
+
+Install the latest PowerShell for new features and improvements! https://aka.ms/PSWindows
+
+PS C:\Users\Sigma> cd C:\PlenumNET
+PS C:\PlenumNET> cd \scripts\setup-mathstral.ps1
+cd : Cannot find path 'C:\scripts\setup-mathstral.ps1' because it does not exist.
+At line:1 char:1
++ cd \scripts\setup-mathstral.ps1
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ObjectNotFound: (C:\scripts\setup-mathstral.ps1:String) [Set-Location], ItemNotFoundExce
+   ption
+    + FullyQualifiedErrorId : PathNotFound,Microsoft.PowerShell.Commands.SetLocationCommand
+
+PS C:\PlenumNET> cd C:\PlenumNET\scripts\setup-mathstral.ps1
+cd : Cannot find path 'C:\PlenumNET\scripts\setup-mathstral.ps1' because it does not exist.
+At line:1 char:1
++ cd C:\PlenumNET\scripts\setup-mathstral.ps1
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ObjectNotFound: (C:\PlenumNET\scripts\setup-mathstral.ps1:String) [Set-Location], ItemNo
+   tFoundException
+    + FullyQualifiedErrorId : PathNotFound,Microsoft.PowerShell.Commands.SetLocationCommand
+
+PS C:\PlenumNET> cd C:\PlenumNET\scripts\setup-mathstral.ps1
+cd : Cannot find path 'C:\PlenumNET\scripts\setup-mathstral.ps1' because it does not exist.
+At line:1 char:1
++ cd C:\PlenumNET\scripts\setup-mathstral.ps1
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ObjectNotFound: (C:\PlenumNET\scripts\setup-mathstral.ps1:String) [Set-Location], ItemNo
+   tFoundException
+    + FullyQualifiedErrorId : PathNotFound,Microsoft.PowerShell.Commands.SetLocationCommand
+
+PS C:\PlenumNET> cd C:\PlenumNET\scripts\setup-mathstral.ps1
+cd : Cannot find path 'C:\PlenumNET\scripts\setup-mathstral.ps1' because it does not exist.
+At line:1 char:1
++ cd C:\PlenumNET\scripts\setup-mathstral.ps1
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ObjectNotFound: (C:\PlenumNET\scripts\setup-mathstral.ps1:String) [Set-Location], ItemNo
+   tFoundException
+    + FullyQualifiedErrorId : PathNotFound,Microsoft.PowerShell.Commands.SetLocationCommand
+
+PS C:\PlenumNET> setup-mathstral.psl
+setup-mathstral.psl : The term 'setup-mathstral.psl' is not recognized as the name of a cmdlet, function, script file,
+or operable program. Check the spelling of the name, or if a path was included, verify that the path is correct and
+try again.
+At line:1 char:1
++ setup-mathstral.psl
++ ~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ObjectNotFound: (setup-mathstral.psl:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\PlenumNET> cd C:\PlenumNET\scripts\setup-mathstral.ps1
+cd : Cannot find path 'C:\PlenumNET\scripts\setup-mathstral.ps1' because it does not exist.
+At line:1 char:1
++ cd C:\PlenumNET\scripts\setup-mathstral.ps1
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ObjectNotFound: (C:\PlenumNET\scripts\setup-mathstral.ps1:String) [Set-Location], ItemNo
+   tFoundException
+    + FullyQualifiedErrorId : PathNotFound,Microsoft.PowerShell.Commands.SetLocationCommand
+
+PS C:\PlenumNET>
