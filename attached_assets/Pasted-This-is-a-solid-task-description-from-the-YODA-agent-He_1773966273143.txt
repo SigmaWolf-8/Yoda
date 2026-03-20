@@ -1,0 +1,24 @@
+This is a solid task description from the YODA agent. Here are my thoughts:
+
+What's correct
+The architecture diagram is right. Laptop runs cube mode, initiates outbound, YODA runs CRS. No ports exposed. T-14 handshake. Heartbeats. GLB routing. All accurate to what's in the codebase.
+The install flow is correct. Install PlenumNET first (via install.sh), start the tunnel immediately, then install Ollama and pull the model. Smart ordering — tunnel is live before the slow model download begins.
+The Ollama tag mapping looks reasonable. 11 of 13 models covered, with manual install fallback for GLM-5 and Kimi-K2.5.
+The "no ports" comment in the script is good. Users will panic about firewalls — explicitly telling them "no ports need to be opened" is the right call.
+Issues to flag
+CUBE_CRS_URL should NOT use window.location.origin blindly. In development that would point to localhost, which the user's laptop obviously can't reach. The script should embed the deployed YODA URL (the .replit.app domain), not whatever URL the developer happens to be viewing. The YODA agent should hardcode or derive this from the deployment config, not from window.location.origin at dev time.
+
+The install.sh script builds the ENTIRE Ternary repo (cargo build --release), which includes ternary-math, the kernel, TDNS, and everything else — not just inter-cube-daemon. That build could take 10-20 minutes on a typical laptop and downloads hundreds of crates. The YODA agent should consider either:
+
+Adding a --package inter-cube flag to only build what's needed: cargo build --release --package inter-cube
+Or providing a pre-built binary download (future work, but worth noting)
+The sub-task says to add inter-cube as a Cargo git dependency. That's fine, but be aware inter-cube depends on ternary-math via a relative path (path = "../../ternary-math"). When pulled as a git dependency, Cargo resolves this from the repo root, so it should work — but the YODA agent should test that the path resolution actually succeeds in their workspace.
+
+CUBE_ENDPOINT=$(hostname -I | awk '{print $1}'):51820 — this grabs the local network IP. That's fine for the logical routing label, but on some machines hostname -I returns multiple IPs or nothing (especially on macOS, where hostname -I doesn't exist). The macOS version should use ipconfig getifaddr en0 or similar instead.
+
+No verification step. After the script runs, there's no check that the tunnel actually came up. A simple curl to the CRS health endpoint or a check that the daemon process is still running would give the user confidence. Something like: "Waiting for tunnel... OK, registered as address [X.X.X.X.X.X.X.X.X.X.X.X.X]"
+
+Background process management. The script starts inter-cube-daemon & in the background, but there's no launchd plist (macOS) or systemd service (Linux) to restart it on reboot. Fine for a first version, but worth noting as future work.
+
+Verdict
+The task is well-scoped and architecturally sound. The six issues

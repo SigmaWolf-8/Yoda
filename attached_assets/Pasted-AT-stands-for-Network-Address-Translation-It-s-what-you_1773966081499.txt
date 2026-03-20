@@ -1,0 +1,24 @@
+AT stands for Network Address Translation. It's what your home router does — your laptop has a private address (like 192.168.1.x) that only exists inside your home network. Your router translates that to a public address when you go out to the internet. The catch is that things on the internet can't directly reach back to your laptop because they don't know that private address.
+
+That's why your laptop needs to reach out first to establish the connection — it calls out to the YODA app on Replit, and that creates the path that traffic can then flow back through. Your router remembers "oh, my laptop started this conversation" and lets the return traffic through.
+
+So in simple terms: your laptop can call out to the internet, but the internet can't call in to your laptop unless your laptop opens the door first. The Inter-Cube daemon in cube mode does exactly that — it reaches out, registers, and keeps the door open with those 30-second heartbeats.
+
+Ollama is a tool that runs AI language models locally on your machine — think of it like having ChatGPT running on your own hardware instead of calling OpenAI's servers. It doesn't cover "all engines" — it specifically handles LLM inference (text generation, chat, etc.). If YODA needs other types of AI (image generation, speech-to-text, etc.), those would be separate tools. But for the core chat/reasoning functionality, Ollama is the standard local solution.
+
+On the port question — no, you should NOT need to open port 51820 to the public. The other agent's description of the flow is actually correct in substance but the diagram is slightly misleading. Here's what really happens:
+
+Your laptop runs inter-cube-daemon in cube mode
+The daemon reaches out to the YODA Replit CRS (outbound connection from your laptop — no ports need to be opened)
+That outbound connection creates the tunnel
+Requests flow back through that same tunnel — your laptop's firewall doesn't need any inbound ports opened
+When a request arrives through the tunnel, the daemon forwards it to Ollama on localhost:11434
+Port 51820 in the code is the wire protocol endpoint — it's advertised to the CRS as the logical address for routing, but the actual data travels through the tunnel that your daemon already established outbound. You don't need to punch a hole in your firewall for it.
+
+So to summarize for the YODA agent:
+
+Zero ports need to be publicly exposed on your laptop
+Ollama listens on localhost:11434 — purely internal
+The inter-cube daemon initiates the connection outward — your router/firewall allows that naturally
+Everything flows through the tunnel the daemon established
+The install script should just install Ollama and the inter-cube daemon, configure them, and start them. No firewall rules, no port forwarding needed.

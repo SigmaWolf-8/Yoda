@@ -1,0 +1,24 @@
+This is a much stronger version. All six issues from my review are properly addressed. A few remaining observations:
+
+Looks good
+All six issues incorporated correctly — VITE_CRS_URL instead of window.location.origin, --package inter-cube, path resolution fallback plan, OS-specific IP detection, verification loop, persistence warning.
+The session token binding is clever. Generating a UUID in the browser, embedding it in the script, and having yoda-crs track it separately from the inner CRS means zero changes to the inter-cube library itself. That's the right boundary.
+The yoda-crs wrapper approach is clean. It intercepts registrations, extracts the token, forwards the stripped request to the real CRS. The inter-cube crate never knows about session tokens. Good separation.
+The polling state machine is well-defined — four states, clear transitions, cleanup on unmount. 3-second interval with 10-minute timeout is reasonable.
+Minor things worth noting
+The verification step in the bash script (Issue 5) checks /health on the CRS URL — but the yoda-crs wrapper needs to actually expose a /health endpoint. The standard inter-cube CRS router may not have one. Make sure sub-task 1 includes adding that health route to the yoda-crs wrapper, not just assuming it exists.
+
+CUBE_SESSION_TOKEN is a new env var the inter-cube daemon doesn't know about. The task says the daemon "sends the token in the registration body," but inter-cube-daemon's run_cube_mode() hardcodes the registration JSON as { endpoint, publicKey }. Either:
+
+The yoda-crs wrapper needs to be the thing that runs in cube mode too (unlikely — that defeats the purpose), OR
+The registration POST needs to be modified to include sessionToken — but the task says "no changes to the inter-cube library itself"
+This is a contradiction. The simplest fix: have the yoda-crs CRS side match registrations by endpoint address rather than requiring the daemon to send a token. Or, accept that inter-cube's run_cube_mode() needs a small change to forward unknown env vars as extra JSON fields. Either way, this needs to be resolved before the agent starts building.
+
+ipconfig getifaddr en0 on macOS — works for Wi-Fi, but if the user is on Ethernet it's en0 on some Macs and en1 on others (flipped depending on the model). The script already handles this with the fallback chain (en0 || en1), so that's fine.
+
+Windows PowerShell script is listed as a deliverable but has almost no detail in the sub-tasks. Sub-task 3 says "same 6 steps adapted for PowerShell" but doesn't specify how Rust gets installed on Windows (the install.sh script assumes Unix). The PowerShell version needs rustup-init.exe from rustup.rs, and cargo build on Windows has different path conventions. This should get at least a few lines of specificity so the agent doesn't get stuck.
+
+The contradiction in item 2 is the only real blocker
+Everything else is refinement. But the session token flow needs clarification — either the inter-cube-daemon passes through CUBE_SESSION_TOKEN in the registration body (which requires a change to run_cube_mode() in the inter-cube crate), or the matching has to work differently. I'd recommend the simplest path: have yoda-crs match by endpoint address instead of token, and drop the token from the daemon side entirely. The browser can poll by the endpoint it generated in the script.
+
+Otherwise — this is ready to build.
