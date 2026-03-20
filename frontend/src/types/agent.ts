@@ -35,23 +35,22 @@ export interface DivisionMeta {
 export const DIVISIONS: DivisionMeta[] = [
   // [0] central
   { id: 'capomastro',         label: 'Capomastro',   ring: 'central' },
-  // [1-6] inner ring (6 nodes — clean hexagon)
+  // [1-7] inner ring (7 nodes — heptagon; Academic sits beside Engineering)
   { id: 'engineering',        label: 'Engineering',  ring: 'inner' },
+  { id: 'academic',           label: 'Academic',     ring: 'inner' },
   { id: 'testing',            label: 'Testing',      ring: 'inner' },
   { id: 'design',             label: 'Design',       ring: 'inner' },
   { id: 'product',            label: 'Product',      ring: 'inner' },
   { id: 'project-management', label: 'Project Mgmt', ring: 'inner' },
   { id: 'specialized',        label: 'Specialized',  ring: 'inner' },
-  // [7-11] outer ring (5 nodes — pentagon)
+  // [8-12] outer ring (5 nodes — pentagon)
   { id: 'marketing',          label: 'Marketing',    ring: 'outer' },
   { id: 'sales',              label: 'Sales',        ring: 'outer' },
   { id: 'paid-media',         label: 'Paid Media',   ring: 'outer' },
   { id: 'support',            label: 'Support',      ring: 'outer' },
   { id: 'game-development',   label: 'Game Dev',     ring: 'outer' },
-  // [12] depth
+  // [13] depth
   { id: 'spatial-computing',  label: 'Spatial',      ring: 'depth' },
-  // [13] satellite sub-node — tethered to parent inner node
-  { id: 'academic', label: 'Academic', ring: 'satellite', satelliteParent: 'engineering', satelliteAngleOffset: -Math.PI / 5 },
 ];
 
 export interface AgentConfig {

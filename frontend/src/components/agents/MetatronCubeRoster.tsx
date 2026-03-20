@@ -60,10 +60,12 @@ function edgeStyles(eA: number) {
   };
 }
 
-/* Satellite DIVISIONS (ring === 'satellite') */
-const SAT_DIVS = DIVISIONS.filter(d => d.ring === 'satellite');
-/* Main ring DIVISIONS (first 13) */
-const MAIN_DIVS = DIVISIONS.filter(d => d.ring !== 'satellite');
+/* Derived ring arrays — all geometry driven from these */
+const SAT_DIVS    = DIVISIONS.filter(d => d.ring === 'satellite');
+const INNER_DIVS  = DIVISIONS.filter(d => d.ring === 'inner');
+const OUTER_DIVS  = DIVISIONS.filter(d => d.ring === 'outer');
+const CENTRAL_DIV = DIVISIONS.find(d => d.ring === 'central')!;
+const DEPTH_DIV   = DIVISIONS.find(d => d.ring === 'depth')!;
 
 type NodePos    = { div: typeof DIVISIONS[number]; x: number; y: number; ring: CubeRing };
 type SubNodePos = NodePos & { parentId: AgentDivision };
@@ -134,19 +136,19 @@ export function MetatronCubeRoster({
   const rD  = sz * 0.43;
   const rS  = rI * 0.72;   // satellite orbit radius from parent
 
-  /* Main node positions (13 nodes: 1 central + 6 inner + 5 outer + 1 depth) */
+  /* Main node positions — driven by INNER_DIVS / OUTER_DIVS counts, no hardcoding */
   const positions: NodePos[] = useMemo(() => {
     const pos: NodePos[] = [];
-    pos.push({ div: MAIN_DIVS[0], x: cx, y: cy, ring: 'central' });
-    for (let i = 0; i < 6; i++) {
-      const a = (i * Math.PI * 2) / 6 + phase * 0.25;
-      pos.push({ div: MAIN_DIVS[1 + i], x: cx + rI * Math.cos(a), y: cy + rI * Math.sin(a), ring: 'inner' });
-    }
-    for (let i = 0; i < 5; i++) {
-      const a = (i * Math.PI * 2) / 5 + Math.PI / 10 - phase * 0.15;
-      pos.push({ div: MAIN_DIVS[7 + i], x: cx + rO * Math.cos(a), y: cy + rO * Math.sin(a), ring: 'outer' });
-    }
-    pos.push({ div: MAIN_DIVS[12], x: cx, y: cy - rD, ring: 'depth' });
+    pos.push({ div: CENTRAL_DIV, x: cx, y: cy, ring: 'central' });
+    INNER_DIVS.forEach((div, i) => {
+      const a = (i * Math.PI * 2) / INNER_DIVS.length + phase * 0.25;
+      pos.push({ div, x: cx + rI * Math.cos(a), y: cy + rI * Math.sin(a), ring: 'inner' });
+    });
+    OUTER_DIVS.forEach((div, i) => {
+      const a = (i * Math.PI * 2) / OUTER_DIVS.length + Math.PI / 10 - phase * 0.15;
+      pos.push({ div, x: cx + rO * Math.cos(a), y: cy + rO * Math.sin(a), ring: 'outer' });
+    });
+    pos.push({ div: DEPTH_DIV, x: cx, y: cy - rD, ring: 'depth' });
     return pos;
   }, [cx, cy, rI, rO, rD, phase]);
 
@@ -202,30 +204,32 @@ export function MetatronCubeRoster({
   };
 
   /* ── Build visual SVG string ── */
-  const inn = positions.slice(1, 7);
-  const out = positions.slice(7, 12);
+  const nI  = INNER_DIVS.length;
+  const nO  = OUTER_DIVS.length;
   const cen = positions[0];
-  const dep = positions[12];
+  const inn = positions.slice(1, 1 + nI);
+  const out = positions.slice(1 + nI, 1 + nI + nO);
+  const dep = positions[1 + nI + nO];
 
   const buildEdges = () => {
     const lines: string[] = [];
     /* Central → inner */
     inn.forEach(n => lines.push(`<line x1="${cen.x}" y1="${cen.y}" x2="${n.x}" y2="${n.y}" stroke="${EC.f}" stroke-width="0.9"/>`));
-    /* Inner ring: hexagon adjacent + skip-1 + diameter */
-    for (let i = 0; i < 6; i++) {
-      lines.push(`<line x1="${inn[i].x}" y1="${inn[i].y}" x2="${inn[(i+1)%6].x}" y2="${inn[(i+1)%6].y}" stroke="${EC.i}" stroke-width="0.5"/>`);
-      lines.push(`<line x1="${inn[i].x}" y1="${inn[i].y}" x2="${inn[(i+2)%6].x}" y2="${inn[(i+2)%6].y}" stroke="${EC.is}" stroke-width="0.4"/>`);
-      lines.push(`<line x1="${inn[i].x}" y1="${inn[i].y}" x2="${inn[(i+3)%6].x}" y2="${inn[(i+3)%6].y}" stroke="${EC.io}" stroke-width="0.3"/>`);
+    /* Inner ring: adjacent + skip-1 + near-diameter */
+    for (let i = 0; i < nI; i++) {
+      lines.push(`<line x1="${inn[i].x}" y1="${inn[i].y}" x2="${inn[(i+1)%nI].x}" y2="${inn[(i+1)%nI].y}" stroke="${EC.i}" stroke-width="0.5"/>`);
+      lines.push(`<line x1="${inn[i].x}" y1="${inn[i].y}" x2="${inn[(i+2)%nI].x}" y2="${inn[(i+2)%nI].y}" stroke="${EC.is}" stroke-width="0.4"/>`);
+      lines.push(`<line x1="${inn[i].x}" y1="${inn[i].y}" x2="${inn[(i+Math.floor(nI/2))%nI].x}" y2="${inn[(i+Math.floor(nI/2))%nI].y}" stroke="${EC.io}" stroke-width="0.3"/>`);
     }
     /* Outer ring: pentagon adjacent + skip-1 */
-    for (let i = 0; i < 5; i++) {
-      lines.push(`<line x1="${out[i].x}" y1="${out[i].y}" x2="${out[(i+1)%5].x}" y2="${out[(i+1)%5].y}" stroke="${EC.o}" stroke-width="0.5"/>`);
-      lines.push(`<line x1="${out[i].x}" y1="${out[i].y}" x2="${out[(i+2)%5].x}" y2="${out[(i+2)%5].y}" stroke="${EC.os}" stroke-width="0.3"/>`);
+    for (let i = 0; i < nO; i++) {
+      lines.push(`<line x1="${out[i].x}" y1="${out[i].y}" x2="${out[(i+1)%nO].x}" y2="${out[(i+1)%nO].y}" stroke="${EC.o}" stroke-width="0.5"/>`);
+      lines.push(`<line x1="${out[i].x}" y1="${out[i].y}" x2="${out[(i+2)%nO].x}" y2="${out[(i+2)%nO].y}" stroke="${EC.os}" stroke-width="0.3"/>`);
     }
-    /* Cross: inner → outer */
-    for (let i = 0; i < 5; i++) {
-      lines.push(`<line x1="${inn[i].x}" y1="${inn[i].y}" x2="${out[i].x}" y2="${out[i].y}" stroke="${EC.c}" stroke-width="0.4"/>`);
-      lines.push(`<line x1="${inn[i+1].x}" y1="${inn[i+1].y}" x2="${out[i].x}" y2="${out[i].y}" stroke="${EC.c}" stroke-width="0.4"/>`);
+    /* Cross: inner → outer (use nO pairs so we never go out of bounds) */
+    for (let i = 0; i < nO; i++) {
+      lines.push(`<line x1="${inn[i % nI].x}" y1="${inn[i % nI].y}" x2="${out[i].x}" y2="${out[i].y}" stroke="${EC.c}" stroke-width="0.4"/>`);
+      lines.push(`<line x1="${inn[(i+1) % nI].x}" y1="${inn[(i+1) % nI].y}" x2="${out[i].x}" y2="${out[i].y}" stroke="${EC.c}" stroke-width="0.4"/>`);
     }
     /* Depth → inner */
     inn.forEach(n => lines.push(`<line x1="${dep.x}" y1="${dep.y}" x2="${n.x}" y2="${n.y}" stroke="${EC.d}" stroke-width="0.4"/>`));
@@ -348,7 +352,8 @@ export function MetatronCubeRoster({
     const orbits = [rI + 18, rO + 18, rD].map((r, i) =>
       `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${P.orb}" stroke-width="0.6" ${i === 2 ? 'stroke-dasharray="3 5"' : ''} pointer-events="none"/>`,
     ).join('');
-    const footer = `<text x="${cx}" y="${h - 24}" text-anchor="middle" fill="${P.fgFaint}" font-size="11" font-family="'JetBrains Mono', monospace" letter-spacing="0.5" pointer-events="none">${DIVISIONS.length} divisions · 3 shells + ${SAT_DIVS.length} satellite · ${agents.length} agent${agents.length !== 1 ? 's' : ''}</text>`;
+    const shellDesc = SAT_DIVS.length > 0 ? `3 shells + ${SAT_DIVS.length} satellite` : '3 shells';
+    const footer = `<text x="${cx}" y="${h - 24}" text-anchor="middle" fill="${P.fgFaint}" font-size="11" font-family="'JetBrains Mono', monospace" letter-spacing="0.5" pointer-events="none">${DIVISIONS.length} divisions · ${shellDesc} · ${agents.length} agent${agents.length !== 1 ? 's' : ''}</text>`;
     return `${defs}${glow}${orbits}${buildEdges()}${buildNodes()}${footer}`;
   }, [positions, subNodes, P, EC, cx, cy, rI, rO, rD, h, agents.length, divCounts, divAgents, selectedDivision, selectedAgentIdx]);
 
