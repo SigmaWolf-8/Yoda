@@ -91,8 +91,12 @@ export function PlenumNetPanel({ engines }: Props) {
           // Green API dot for commercial/free-tier when online
           const showApi = !isSelfHosted && isOnline;
 
-          const dotColor = showTunnel
-            ? 'bg-blue-400 animate-pulse'
+          // Self-hosted engines always show blue (pulsing when tunnel active,
+          // solid dim when inactive). Red is only for commercial/free-tier offline.
+          const dotColor = isSelfHosted
+            ? showTunnel
+              ? 'bg-blue-400 animate-pulse'
+              : 'bg-blue-500/50'
             : isOnline
               ? 'bg-[var(--color-ok)]'
               : 'bg-[var(--color-err)]';

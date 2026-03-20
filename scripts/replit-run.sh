@@ -45,13 +45,11 @@ echo "Building YODA CRS daemon (release)..."
 if cargo build --release --bin yoda-crs 2>&1; then
     CRS_PORT="${CUBE_API_PORT:-8081}"
 
-    # Kill any previous yoda-crs still holding the port (survives SIGTERM to shell)
-    OLD_PID=$(lsof -ti tcp:"$CRS_PORT" 2>/dev/null || true)
-    if [ -n "$OLD_PID" ]; then
-        echo "Releasing port $CRS_PORT from PID $OLD_PID..."
-        kill "$OLD_PID" 2>/dev/null || true
-        sleep 1
-    fi
+    # Kill any previous yoda-crs still holding the port (survives SIGTERM to shell).
+    # Use pkill by name first (most reliable), then fall back to fuser/lsof.
+    pkill -x yoda-crs 2>/dev/null || true
+    fuser -k "${CRS_PORT}/tcp" 2>/dev/null || true
+    sleep 1
 
     echo "Starting YODA CRS on port $CRS_PORT..."
     CUBE_MODE=crs \
