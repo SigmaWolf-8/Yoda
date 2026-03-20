@@ -273,7 +273,7 @@ export function AppShell() {
                   className="truncate"
                   style={{
                     fontFamily: "'Orbitron', sans-serif",
-                    fontSize: '34px',
+                    fontSize: '30px',
                     fontWeight: 800,
                     letterSpacing: '0.12em',
                     textTransform: 'uppercase',
