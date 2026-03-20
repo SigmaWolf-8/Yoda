@@ -183,8 +183,11 @@ if [[ -f "\$PASSPHRASE_FILE" ]]; then
   CUBE_PASSPHRASE=\$(cat "\$PASSPHRASE_FILE")
   echo "  → Loaded existing identity passphrase"
 else
-  # Generate a random 48-char alphanumeric passphrase (openssl preferred, /dev/urandom fallback)
-  CUBE_PASSPHRASE=\$(openssl rand -hex 24 2>/dev/null || LC_ALL=C tr -dc 'A-Za-z0-9' < /dev/urandom | head -c 48)
+  # openssl preferred; python fallbacks avoid tr|head SIGPIPE under set -o pipefail
+  CUBE_PASSPHRASE=\$(openssl rand -hex 24 2>/dev/null \
+    || python3 -c "import os,sys; sys.stdout.write(os.urandom(24).hex())" 2>/dev/null \
+    || python  -c "import os,binascii,sys; sys.stdout.write(binascii.hexlify(os.urandom(24)).decode())" 2>/dev/null \
+    || echo "")
   printf '%s' "\$CUBE_PASSPHRASE" > "\$PASSPHRASE_FILE"
   chmod 600 "\$PASSPHRASE_FILE"
   echo "  ✓ Generated and saved identity passphrase"
@@ -417,8 +420,12 @@ if (Test-Path $PASSPHRASE_FILE) {
   $CUBE_PASSPHRASE = (Get-Content $PASSPHRASE_FILE -Raw).Trim()
   Write-Host "  -> Loaded existing identity passphrase"
 } else {
-  $chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
-  $CUBE_PASSPHRASE = -join ((1..48) | ForEach-Object { $chars[(Get-Random -Minimum 0 -Maximum $chars.Length)] })
+  # Use RNGCryptoServiceProvider for OS-level CSPRNG (PowerShell 5+ / Windows 10+)
+  $rng   = [System.Security.Cryptography.RNGCryptoServiceProvider]::new()
+  $bytes = [byte[]]::new(24)
+  $rng.GetBytes($bytes)
+  $CUBE_PASSPHRASE = ($bytes | ForEach-Object { $_.ToString("x2") }) -join ""
+  $rng.Dispose()
   $CUBE_PASSPHRASE | Set-Content -Path $PASSPHRASE_FILE -NoNewline
   # Restrict passphrase file to current user only
   $acl = Get-Acl $PASSPHRASE_FILE
