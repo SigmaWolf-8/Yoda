@@ -31,8 +31,11 @@ import type {
 // Fit is computed dynamically — nothing hardcoded.
 
 export type FitLevel = 'ok' | 'tight' | 'no';
+export type ModelArch = 'Dense' | 'MoE';
 
 export interface ModelMeta {
+  company: string;
+  arch: ModelArch;
   desc: string;
   specialty: string;
   type: string;
@@ -42,105 +45,121 @@ export interface ModelMeta {
 
 export const MODEL_INFO: Record<string, ModelMeta> = {
   // ── Anthropic (cloud) ───────────────────────────────────────────────────
-  'claude-opus-4-6':   { type: 'LLM', specialty: 'Complex reasoning · Long documents · Nuanced writing', desc: "Anthropic's most powerful model. Best for deep analysis, intricate code review, and tasks requiring careful multi-step reasoning." },
-  'claude-sonnet-4-6': { type: 'LLM', specialty: 'Coding · Analysis · Speed + quality balance', desc: "Anthropic's balanced workhorse. Strong reasoning at faster speeds — the best all-round choice for most YODA pipelines." },
-  'claude-haiku-4-5':  { type: 'LLM', specialty: 'Fast summaries · Simple edits · Low latency', desc: "Anthropic's lightest Claude. Excellent for rapid classification, quick rewrites, and high-volume lightweight tasks." },
+  'claude-opus-4-6':   { company: 'Anthropic', arch: 'Dense', type: 'LLM', specialty: 'Complex reasoning · Long documents · Nuanced writing', desc: "Anthropic's most powerful model. Best for deep analysis, intricate code review, and tasks requiring careful multi-step reasoning." },
+  'claude-sonnet-4-6': { company: 'Anthropic', arch: 'Dense', type: 'LLM', specialty: 'Coding · Analysis · Speed + quality balance', desc: "Anthropic's balanced workhorse. Strong reasoning at faster speeds — the best all-round choice for most YODA pipelines." },
+  'claude-haiku-4-5':  { company: 'Anthropic', arch: 'Dense', type: 'LLM', specialty: 'Fast summaries · Simple edits · Low latency', desc: "Anthropic's lightest Claude. Excellent for rapid classification, quick rewrites, and high-volume lightweight tasks." },
   // ── OpenAI (cloud) ──────────────────────────────────────────────────────
-  'gpt-4.5':  { type: 'LLM', specialty: 'Frontier reasoning · Instruction-following · Multimodal', desc: "OpenAI's most capable model. Handles complex instructions with high fidelity; strong across coding, math, and creative tasks." },
-  'gpt-4o':   { type: 'LLM', specialty: 'Fast · Multimodal · General purpose', desc: "OpenAI's versatile everyday model. Rapid responses with strong reasoning — ideal as a second or third reviewer engine." },
-  'o3-mini':  { type: 'Reasoning LLM', specialty: 'Math · Code · Step-by-step logic', desc: "OpenAI's compact reasoning model. Uses chain-of-thought internally to excel at structured problem-solving at lower cost than o3." },
+  'gpt-4.5':  { company: 'OpenAI', arch: 'Dense', type: 'LLM',          specialty: 'Frontier reasoning · Instruction-following · Multimodal', desc: "OpenAI's most capable model. Handles complex instructions with high fidelity; strong across coding, math, and creative tasks." },
+  'gpt-4o':   { company: 'OpenAI', arch: 'Dense', type: 'LLM',          specialty: 'Fast · Multimodal · General purpose', desc: "OpenAI's versatile everyday model. Rapid responses with strong reasoning — ideal as a second or third reviewer engine." },
+  'o3-mini':  { company: 'OpenAI', arch: 'Dense', type: 'Reasoning LLM', specialty: 'Math · Code · Step-by-step logic', desc: "OpenAI's compact reasoning model. Uses chain-of-thought internally to excel at structured problem-solving at lower cost than o3." },
   // ── xAI (cloud) ─────────────────────────────────────────────────────────
-  'grok-3':           { type: 'LLM', specialty: 'Real-time data · Long context · Coding', desc: "xAI's flagship model. Live web search, very long context, and top coding performance." },
-  'grok-3-fast':      { type: 'LLM', specialty: 'High throughput · Real-time data · Coding', desc: "Faster-throughput variant of Grok 3. Same capability ceiling at higher request volumes." },
-  'grok-3-mini':      { type: 'Reasoning LLM', specialty: 'Efficient · Chain-of-thought · Cost-effective', desc: "xAI's compact reasoning model. Thinks before answering — great for structured logic at lower cost than Grok 3." },
-  'grok-3-mini-fast': { type: 'Reasoning LLM', specialty: 'Fastest · Low latency · High volume', desc: "xAI's fastest and most cost-efficient model. Best for high-volume, latency-sensitive review passes." },
+  'grok-3':           { company: 'xAI', arch: 'Dense', type: 'LLM',          specialty: 'Real-time data · Long context · Coding', desc: "xAI's flagship model. Live web search, very long context, and top coding performance." },
+  'grok-3-fast':      { company: 'xAI', arch: 'Dense', type: 'LLM',          specialty: 'High throughput · Real-time data · Coding', desc: "Faster-throughput variant of Grok 3. Same capability ceiling at higher request volumes." },
+  'grok-3-mini':      { company: 'xAI', arch: 'Dense', type: 'Reasoning LLM', specialty: 'Efficient · Chain-of-thought · Cost-effective', desc: "xAI's compact reasoning model. Thinks before answering — great for structured logic at lower cost than Grok 3." },
+  'grok-3-mini-fast': { company: 'xAI', arch: 'Dense', type: 'Reasoning LLM', specialty: 'Fastest · Low latency · High volume', desc: "xAI's fastest and most cost-efficient model. Best for high-volume, latency-sensitive review passes." },
   // ── Google (cloud) ──────────────────────────────────────────────────────
-  'gemini-2.5-pro':   { type: 'LLM', specialty: 'Long context · Code · Multi-step reasoning', desc: "Google's most capable model. Handles up to 1M-token contexts, excels at large codebase analysis and document-heavy tasks." },
-  'gemini-2.5-flash': { type: 'LLM', specialty: 'High throughput · Summarisation · Extraction', desc: "Google's speed-optimised model. Very fast token generation — ideal for high-volume extraction and summarisation passes." },
-  'gemini-3-pro':     { type: 'LLM', specialty: 'Advanced reasoning · Multimodal · Next-gen', desc: "Google's next-generation flagship. State-of-the-art reasoning across text, code, and images." },
+  'gemini-2.5-pro':   { company: 'Google', arch: 'Dense', type: 'LLM', specialty: 'Long context · Code · Multi-step reasoning', desc: "Google's most capable model. Handles up to 1M-token contexts, excels at large codebase analysis and document-heavy tasks." },
+  'gemini-2.5-flash': { company: 'Google', arch: 'Dense', type: 'LLM', specialty: 'High throughput · Summarisation · Extraction', desc: "Google's speed-optimised model. Very fast token generation — ideal for high-volume extraction and summarisation passes." },
+  'gemini-3-pro':     { company: 'Google', arch: 'Dense', type: 'LLM', specialty: 'Advanced reasoning · Multimodal · Next-gen', desc: "Google's next-generation flagship. State-of-the-art reasoning across text, code, and images." },
   // ── DeepSeek (cloud) ────────────────────────────────────────────────────
-  'DeepSeek-V3.2': { type: 'LLM', specialty: 'Coding · Math · Cost-efficient frontier', desc: "DeepSeek's latest dense model. Competitive with frontier LLMs on coding and math benchmarks at significantly lower cost." },
-  'DeepSeek-R1':   { type: 'Reasoning LLM', specialty: 'Chain-of-thought · Math · Complex problem-solving', desc: "DeepSeek's reasoning model. Publishes its thinking process step-by-step; outstanding on logic, proofs, and algorithmic problems." },
+  'DeepSeek-V3.2': { company: 'DeepSeek', arch: 'MoE',   type: 'LLM',          specialty: 'Coding · Math · Cost-efficient frontier', desc: "DeepSeek's latest MoE model. 671B total weights, ~37B active per token — competitive with frontier LLMs at significantly lower cost." },
+  'DeepSeek-R1':   { company: 'DeepSeek', arch: 'Dense', type: 'Reasoning LLM', specialty: 'Chain-of-thought · Math · Complex problem-solving', desc: "DeepSeek's flagship reasoning model. Publishes its thinking step-by-step; outstanding on logic, proofs, and algorithmic problems." },
 
   // ── Self-hosted ─────────────────────────────────────────────────────────
   'Qwen3-4B': {
-    type: 'LLM', specialty: 'Ultra-compact · Coding · Multilingual',
+    company: 'Alibaba', arch: 'Dense', type: 'LLM',
+    specialty: 'Ultra-compact · Coding · Multilingual',
     desc: "Alibaba's smallest Qwen3 model. Extremely low memory footprint — ideal as a fast secondary engine alongside a larger primary model.",
     ramGbQ4: 2.6,
   },
   'Gemma-3-4B': {
-    type: 'LLM', specialty: 'Ultra-compact · Multilingual · Low memory',
-    desc: "Google's compact 4B open model. Lightweight and fast — fits easily on machines with 8 GB RAM or more. Runs in Ollama with zero configuration.",
+    company: 'Google', arch: 'Dense', type: 'LLM',
+    specialty: 'Ultra-compact · Multilingual · Low memory',
+    desc: "Google's compact 4B open model. Lightweight and fast — fits easily on machines with 8 GB RAM or more.",
     ramGbQ4: 3.1,
   },
   'Llama-3.1-8B': {
-    type: 'LLM', specialty: 'Compact · Fast · Widely supported',
-    desc: "Meta's compact open model. Supported by every inference server (Ollama, llama.cpp, LM Studio). Excellent on ARM/NPU hardware.",
+    company: 'Meta', arch: 'Dense', type: 'LLM',
+    specialty: 'Compact · Fast · Widely supported',
+    desc: "Meta's compact open model. Supported by every inference server — excellent on ARM and NPU hardware.",
     ramGbQ4: 4.7,
   },
   'Qwen3.5-9B': {
-    type: 'LLM', specialty: 'Compact · Fast · Coding · Multilingual',
-    desc: "Qwen's compact 9B model. Efficient on CPU/NPU, strong multilingual and coding performance. A popular first self-hosted choice.",
+    company: 'Alibaba', arch: 'Dense', type: 'LLM',
+    specialty: 'Compact · Fast · Coding · Multilingual',
+    desc: "Alibaba's compact 9B model. Efficient on CPU/NPU, strong multilingual and coding performance. A popular first self-hosted choice.",
     ramGbQ4: 5.3,
   },
   'Mistral-Nemo-12B': {
-    type: 'LLM', specialty: 'Efficient · Multilingual · Instruction-following',
+    company: 'Mistral AI', arch: 'Dense', type: 'LLM',
+    specialty: 'Efficient · Multilingual · Instruction-following',
     desc: "Mistral's efficient 12B model. Great quality-to-size ratio — strong multilingual and instruction-following with a small footprint.",
     ramGbQ4: 7.2,
   },
   'GLM-5': {
-    type: 'LLM', specialty: 'Chinese language · General reasoning',
-    desc: "Zhipu AI's ~9B model. Excellent Chinese language support alongside solid general reasoning and coding ability.",
+    company: 'Zhipu AI', arch: 'Dense', type: 'LLM',
+    specialty: 'Chinese language · General reasoning',
+    desc: "Zhipu AI's ~9B general model. Excellent Chinese language support alongside solid general reasoning and coding ability.",
     ramGbQ4: 5.3,
   },
   'Qwen3-Coder-30B': {
-    type: 'Coding LLM', specialty: 'Code generation · Agentic coding · Function calling',
+    company: 'Alibaba', arch: 'Dense', type: 'Coding LLM',
+    specialty: 'Code generation · Agentic coding · Function calling',
     desc: "Alibaba's dedicated 30B code model. State-of-the-art open-weight coder — strong at multi-file edits, tool use, and agentic coding tasks.",
     ramGbQ4: 18.5, ramGbQ3: 14.4,
   },
   'Qwen3.5-27B': {
-    type: 'LLM', specialty: 'Coding · Multilingual · Balanced quality',
-    desc: "Alibaba's mid-size 27B model. Strong quality — may need Q3 quantization on machines with less RAM.",
+    company: 'Alibaba', arch: 'Dense', type: 'LLM',
+    specialty: 'Coding · Multilingual · Balanced quality',
+    desc: "Alibaba's mid-size 27B dense model. Strong quality across reasoning and code — may need Q3 quantization on machines with limited RAM.",
     ramGbQ4: 16.0, ramGbQ3: 12.5,
   },
   'Qwen3.5-35B-A3B': {
-    type: 'Mixture-of-Experts LLM', specialty: 'High capability · Efficient active compute · Coding',
-    desc: "MoE model with only 3B active parameters per token — but all 35B weights must still load into RAM for fast routing.",
+    company: 'Alibaba', arch: 'MoE', type: 'LLM',
+    specialty: 'High capability · Efficient active compute · Coding',
+    desc: "Alibaba's 35B MoE model — only 3B parameters active per token, but all 35B weights must load into RAM for fast routing.",
     ramGbQ4: 21.6, ramGbQ3: 16.8,
   },
   'DeepSeek-R1-Distill-Qwen-32B': {
-    type: 'Reasoning LLM', specialty: 'Math · Code · Chain-of-thought reasoning',
-    desc: "DeepSeek-R1 reasoning distilled into a 32B Qwen model. Excellent step-by-step reasoning at self-hosted scale.",
+    company: 'DeepSeek', arch: 'Dense', type: 'Reasoning LLM',
+    specialty: 'Math · Code · Chain-of-thought reasoning',
+    desc: "DeepSeek-R1's reasoning capability distilled into a 32B Qwen backbone. Excellent step-by-step reasoning at self-hosted scale.",
     ramGbQ4: 19.8, ramGbQ3: 15.4,
   },
   'DeepSeek-R1-Distill-Llama-70B': {
-    type: 'Reasoning LLM', specialty: 'Complex reasoning · Large self-hosted option',
-    desc: "DeepSeek-R1 reasoning distilled into Llama-70B. Powerful open-weight reasoning model for high-RAM workstations.",
+    company: 'DeepSeek', arch: 'Dense', type: 'Reasoning LLM',
+    specialty: 'Complex reasoning · Large self-hosted option',
+    desc: "DeepSeek-R1's reasoning capability distilled into Llama-70B. Powerful open-weight reasoning model for high-RAM workstations.",
     ramGbQ4: 41.0, ramGbQ3: 31.9,
   },
   'Llama-3.1-70B': {
-    type: 'LLM', specialty: 'Strong open-weight · Coding · General tasks',
-    desc: "Meta's strong 70B open model. Competitive with many commercial models for coding and instruction-following.",
+    company: 'Meta', arch: 'Dense', type: 'LLM',
+    specialty: 'Strong open-weight · Coding · General tasks',
+    desc: "Meta's strong 70B open model. Competitive with many commercial models for coding and instruction-following tasks.",
     ramGbQ4: 41.0, ramGbQ3: 31.9,
   },
   'Mistral-Large-3': {
-    type: 'LLM', specialty: 'Top-tier reasoning · Coding · Multilingual',
-    desc: "Mistral's 123B flagship open model. Top-tier performance across coding, reasoning, and multilingual tasks.",
+    company: 'Mistral AI', arch: 'Dense', type: 'LLM',
+    specialty: 'Top-tier reasoning · Coding · Multilingual',
+    desc: "Mistral's 123B flagship open model. Top-tier open-weight performance across coding, reasoning, and multilingual tasks.",
     ramGbQ4: 72.0, ramGbQ3: 56.0,
   },
   'Qwen3.5-122B': {
-    type: 'LLM', specialty: 'Near-frontier quality · Complex reasoning · Coding',
-    desc: "Alibaba's largest Qwen. Matches frontier commercial quality for reasoning and code — requires a high-RAM workstation.",
+    company: 'Alibaba', arch: 'Dense', type: 'LLM',
+    specialty: 'Near-frontier quality · Complex reasoning · Coding',
+    desc: "Alibaba's largest dense Qwen. Matches frontier commercial quality for reasoning and code — requires a high-RAM workstation.",
     ramGbQ4: 73.0, ramGbQ3: 57.0,
   },
   'Llama-4-Maverick': {
-    type: 'Multimodal LLM', specialty: 'Native multimodal · Extended context · Next-gen',
-    desc: "Meta's next-gen MoE model (~400B total weights). Requires enterprise-grade multi-GPU infrastructure.",
+    company: 'Meta', arch: 'MoE', type: 'Multimodal LLM',
+    specialty: 'Native multimodal · Extended context · Next-gen',
+    desc: "Meta's next-gen MoE flagship. ~400B total weights with native multimodal capability — requires enterprise-grade multi-GPU infrastructure.",
     ramGbQ4: 229.0,
   },
   'Kimi-K2.5': {
-    type: 'Mixture-of-Experts LLM', specialty: 'Long context · Document understanding · 200K tokens',
-    desc: "Moonshot AI's large MoE model. The full weight set far exceeds any consumer or prosumer machine.",
+    company: 'Moonshot AI', arch: 'MoE', type: 'LLM',
+    specialty: 'Long context · Document understanding · 200K tokens',
+    desc: "Moonshot AI's large MoE model. Exceptional 200K-token context — the full weight set far exceeds any consumer or prosumer machine.",
     ramGbQ4: 500.0,
   },
 };
@@ -618,7 +637,17 @@ export function EngineSlotCard({
                               )}
                             </div>
                             {info && (
-                              <div className="text-[10px] text-[var(--color-text-muted)] mt-0.5 pl-5">{info.specialty}</div>
+                              <div className="flex items-center gap-1.5 mt-0.5 pl-5 flex-wrap">
+                                <span className="text-[10px] text-[var(--color-text-muted)]">{info.company}</span>
+                                <span className="text-[10px] text-[var(--color-border-subtle)]">|</span>
+                                <span className="text-[10px] text-[var(--color-text-muted)]">{info.type}</span>
+                                {info.arch === 'MoE' && (
+                                  <>
+                                    <span className="text-[10px] text-[var(--color-border-subtle)]">|</span>
+                                    <span className="text-[10px] font-semibold text-[var(--color-gold-500)]">MoE</span>
+                                  </>
+                                )}
+                              </div>
                             )}
                           </button>
                         );
