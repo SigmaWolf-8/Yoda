@@ -40,5 +40,18 @@ fi
 echo "Building Axum backend..."
 cargo build --bin yoda-api 2>&1
 
+# ── 4. Build and start CRS daemon (non-fatal) ─────────────────────────
+echo "Building YODA CRS daemon..."
+if cargo build --bin yoda-crs 2>&1; then
+    echo "Starting YODA CRS on port ${CUBE_API_PORT:-8081}..."
+    CUBE_API_PORT="${CUBE_API_PORT:-8081}" \
+    RUST_LOG="${RUST_LOG:-info}" \
+    ./target/debug/yoda-crs &
+    CRS_PID=$!
+    echo "CRS daemon started (PID $CRS_PID)"
+else
+    echo "⚠ yoda-crs build failed — CRS features will be unavailable"
+fi
+
 echo "Starting YODA API server on ${BIND_ADDR:-0.0.0.0}:${BIND_PORT:-3000}"
 cargo run --bin yoda-api

@@ -18,7 +18,7 @@ Preferred communication style: Simple, everyday language.
 
 ### Backend (Rust / Axum)
 
-The backend is a Rust workspace at the repo root with six crates:
+The backend is a Rust workspace at the repo root with seven crates:
 
 | Crate | Purpose |
 |---|---|
@@ -28,6 +28,7 @@ The backend is a Rust workspace at the repo root with six crates:
 | `yoda-task-bible` | Append-only auditable task record CRUD with TL-DSA signature chains |
 | `yoda-api` | Axum HTTP routes, WebSocket pipeline events, auth middleware |
 | `yoda-plenumnet-bridge` | Ternary crypto primitives: TIS-27, TL-DSA, Phase Encryption, tunnels |
+| `yoda-crs` | Cube Registration Service — PlenumNET tunnel coordinator on port 8081; adds session token support via `ExtendedRegisterRequest`, exposes `GET /api/yoda/crs/session/:token` for frontend polling |
 
 **Key backend patterns:**
 - `sqlx` with compile-time checked queries against PostgreSQL
@@ -123,6 +124,12 @@ Binary trigger: if a query decomposed into sub-tasks → store everything; if no
 ## External Dependencies
 
 ### AI Inference Engines
+
+Engine-agnostic design supporting three slots (A, B, C) with mandatory family diversity enforcement.
+
+**Self-hosted model install:** The "Install & Connect" button on each self-hosted engine slot opens `ModelInstallModal.tsx`. The modal generates a platform-specific setup script (bash for macOS/Linux, PowerShell for Windows) that installs PlenumNET, registers via CRS with a session token, installs Ollama, and pulls the selected model. The modal polls `GET /api/yoda/crs/session/{token}` on yoda-crs every 3s to show live connection status.
+
+**Ollama-compatible models:** Llama-3.1-8B, Qwen3.5-9B, Mistral-Nemo-12B, Qwen3.5-27B, Qwen3.5-35B-A3B, DeepSeek-R1-Distill-Qwen-32B, DeepSeek-R1-Distill-Llama-70B, Llama-3.1-70B, Mistral-Large-3, Qwen3.5-122B, Llama-4-Maverick. Manual install (HuggingFace links): GLM-5, Kimi-K2.5.
 
 Engine-agnostic design supporting three slots (A, B, C) with mandatory family diversity enforcement:
 

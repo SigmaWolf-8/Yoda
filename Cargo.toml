@@ -6,6 +6,7 @@ members = [
     "crates/yoda-task-bible",
     "crates/yoda-api",
     "crates/yoda-plenumnet-bridge",
+    "crates/yoda-crs",
     "tools/yoda-agent-compiler",
 ]
 resolver = "2"

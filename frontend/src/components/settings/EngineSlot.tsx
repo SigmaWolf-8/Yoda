@@ -11,7 +11,9 @@ import {
   XCircle,
   AlertTriangle,
   Ban,
+  Download,
 } from 'lucide-react';
+import { ModelInstallModal } from './ModelInstallModal';
 import { useUpdateEngine } from '../../api/hooks';
 import { useToast } from '../common/Toast';
 import type {
@@ -154,6 +156,25 @@ const ALL_SELF_HOSTED = [
   'Llama-4-Maverick', 'Kimi-K2.5',
 ];
 
+export const OLLAMA_TAG: Record<string, string> = {
+  'Llama-3.1-8B':                   'llama3.1:8b',
+  'Qwen3.5-9B':                     'qwen3:9b',
+  'Mistral-Nemo-12B':               'mistral-nemo',
+  'Qwen3.5-27B':                    'qwen3:27b',
+  'Qwen3.5-35B-A3B':                'qwen3:35b-a3b',
+  'DeepSeek-R1-Distill-Qwen-32B':   'deepseek-r1:32b',
+  'DeepSeek-R1-Distill-Llama-70B':  'deepseek-r1:70b',
+  'Llama-3.1-70B':                  'llama3.1:70b',
+  'Mistral-Large-3':                'mistral-large:123b',
+  'Qwen3.5-122B':                   'qwen3:122b',
+  'Llama-4-Maverick':               'llama4:maverick',
+};
+
+export const MANUAL_INSTALL_URL: Record<string, string> = {
+  'GLM-5':     'https://huggingface.co/THUDM/GLM-4',
+  'Kimi-K2.5': 'https://huggingface.co/moonshotai/Kimi-K2-Instruct',
+};
+
 const FIT_ORDER: Record<string, number> = { ok: 0, tight: 1, no: 2 };
 
 function sortedModels(
@@ -283,6 +304,7 @@ export function EngineSlotCard({
   const [provider, setProvider] = useState('');
   const [familyOverride, setFamilyOverride] = useState(config?.family_override ?? '');
   const [showSuggest, setShowSuggest] = useState(false);
+  const [installModalOpen, setInstallModalOpen] = useState(false);
 
   function changeMode(m: HostingMode) {
     setMode(m);
@@ -484,6 +506,17 @@ export function EngineSlotCard({
 
             <ModelCard modelName={modelName} hostRam={hostRam} reservedRam={reservedRam} />
 
+            {/* Install & Connect button — only for Ollama-compatible and manual-install models */}
+            {modelName && (OLLAMA_TAG[modelName] || MANUAL_INSTALL_URL[modelName]) && (
+              <button
+                onClick={() => setInstallModalOpen(true)}
+                className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg border border-[var(--color-gold-500)]/40 bg-[var(--color-gold-500)]/8 text-[var(--color-gold-400)] text-xs font-medium hover:bg-[var(--color-gold-500)]/15 hover:border-[var(--color-gold-500)]/70 transition-colors"
+              >
+                <Download className="w-3.5 h-3.5" />
+                Install &amp; Connect
+              </button>
+            )}
+
             <div>
               <label className="block text-xs font-medium text-[var(--color-text-secondary)] mb-1">Endpoint URL</label>
               <input
@@ -614,6 +647,14 @@ export function EngineSlotCard({
           Save
         </button>
       </div>
+
+      {/* Install & Connect modal */}
+      {installModalOpen && (
+        <ModelInstallModal
+          modelName={modelName}
+          onClose={() => setInstallModalOpen(false)}
+        />
+      )}
     </div>
   );
 }

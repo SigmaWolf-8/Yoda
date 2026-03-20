@@ -1,0 +1,18 @@
+[package]
+name = "yoda-crs"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[dependencies]
+tokio.workspace = true
+axum.workspace = true
+tower-http = { workspace = true, features = ["cors"] }
+serde.workspace = true
+serde_json.workspace = true
+uuid = { workspace = true }
+tracing.workspace = true
+tracing-subscriber.workspace = true
+
+inter-cube = { git = "https://github.com/SigmaWolf-8/Ternary", package = "inter-cube" }
