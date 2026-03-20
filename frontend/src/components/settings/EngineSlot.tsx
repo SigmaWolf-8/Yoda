@@ -334,9 +334,24 @@ export function EngineSlotCard({
   const [familyOverride, setFamilyOverride] = useState(config?.family_override ?? '');
   const [showSuggest, setShowSuggest] = useState(false);
   const [installModalMode, setInstallModalMode] = useState<'install' | 'connect' | null>(null);
+  type ProbeResult = { reachable: boolean; latency_ms?: number; http_status?: number; error?: string };
+  const [probeState, setProbeState] = useState<null | 'loading' | ProbeResult>(null);
 
-  const hasMountedRef  = useRef(false);
-  const autoSaveTimer  = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const hasMountedRef    = useRef(false);
+  const autoSaveTimer    = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastAutoFill     = useRef<string>('');
+
+  function defaultEndpointFor(name: string): string {
+    if (OLLAMA_TAG[name] || OLLAMA_TAG_DISPLAY[name]) return 'http://localhost:11434';
+    if (MANUAL_INSTALL_URL[name]) return 'http://localhost:8001';
+    return 'http://localhost:11434';
+  }
+
+  function applyAutoEndpoint(name: string) {
+    const def = defaultEndpointFor(name);
+    lastAutoFill.current = def;
+    setEndpoint(def);
+  }
 
   function changeMode(m: HostingMode) {
     setMode(m);
@@ -351,9 +366,18 @@ export function EngineSlotCard({
   useEffect(() => {
     if (mode === 'self_hosted') {
       setAuthType('none');
-      if (!endpoint) setEndpoint('http://localhost:8001');
+      if (!endpoint || endpoint === lastAutoFill.current) {
+        applyAutoEndpoint(modelName);
+      }
     }
   }, [mode]);
+
+  useEffect(() => {
+    if (mode === 'self_hosted' && modelName && (!endpoint || endpoint === lastAutoFill.current)) {
+      applyAutoEndpoint(modelName);
+    }
+    setProbeState(null);
+  }, [modelName]);
 
   useEffect(() => {
     const p = PROVIDERS[provider];
@@ -371,6 +395,19 @@ export function EngineSlotCard({
       }
     }
   }, [provider]);
+
+  async function probeEndpoint() {
+    setProbeState('loading');
+    try {
+      const res = await fetch(`/api/settings/engines/${slot}/probe`, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('token') ?? ''}` },
+      });
+      const data: ProbeResult = await res.json();
+      setProbeState(data);
+    } catch {
+      setProbeState({ reachable: false, error: 'Network error — could not reach server' });
+    }
+  }
 
   // Notify parent on first render so parent state is in sync
   useEffect(() => { onModelChange(modelName); }, []);
@@ -573,14 +610,36 @@ export function EngineSlotCard({
             )}
 
             <div>
-              <label className="block text-xs font-medium text-[var(--color-text-secondary)] mb-1">Endpoint URL</label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="text-xs font-medium text-[var(--color-text-secondary)]">Endpoint URL</label>
+                <button
+                  onClick={probeEndpoint}
+                  disabled={probeState === 'loading' || !endpoint}
+                  className="flex items-center gap-1 text-xs px-2 py-0.5 rounded-md border border-[var(--color-border-default)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:border-[var(--color-border-hover)] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  {probeState === 'loading' ? (
+                    <><Loader2 className="w-3 h-3 animate-spin" /> Testing…</>
+                  ) : (
+                    <><Radio className="w-3 h-3" /> Test</>
+                  )}
+                </button>
+              </div>
               <input
                 type="text"
                 value={endpoint}
-                onChange={(e) => setEndpoint(e.target.value)}
-                placeholder="http://localhost:8001"
+                onChange={(e) => { setEndpoint(e.target.value); setProbeState(null); }}
+                placeholder="http://localhost:11434"
                 className="w-full px-3 py-2 rounded-lg bg-[var(--color-surface-tertiary)] border border-[var(--color-border-default)] text-sm text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-gold-500)] focus:ring-1 focus:ring-[var(--color-gold-500)]/30 transition-colors"
               />
+              {probeState !== null && probeState !== 'loading' && (
+                <div className={`mt-1.5 flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-md ${probeState.reachable ? 'bg-[var(--color-ok)]/10 text-[var(--color-ok)]' : 'bg-red-500/10 text-red-400'}`}>
+                  {probeState.reachable ? (
+                    <><CheckCircle2 className="w-3 h-3 flex-shrink-0" /> Reachable — {probeState.latency_ms} ms</>
+                  ) : (
+                    <><XCircle className="w-3 h-3 flex-shrink-0" /> Unreachable{probeState.error ? ` — ${probeState.error.split('error sending')[0].trim()}` : ''}{!probeState.error && '. Start PlenumNET then try again.'}</>
+                  )}
+                </div>
+              )}
             </div>
           </>
         )}
