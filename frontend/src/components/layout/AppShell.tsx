@@ -7,7 +7,6 @@ import {
   BarChart3,
   Menu,
   X,
-  Zap,
   Users,
   Cpu,
   ChevronLeft,
@@ -142,20 +141,16 @@ export function AppShell() {
             ].join(', '),
           }}
         >
-          <div
-            className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
-            style={{
-              background: 'var(--color-gold-500)',
-              boxShadow: [
-                '0 3px 14px rgba(0,0,0,0.65)',
-                '0 0 18px var(--color-gold-500)',
-                'inset 0 1px 0 rgba(255,255,255,0.35)',
-                'inset 0 -1px 0 rgba(0,0,0,0.25)',
-              ].join(', '),
-            }}
-          >
-            <Zap className="w-4 h-4 text-[var(--color-navy-950)]" />
-          </div>
+          <video
+            src="/yoda-logo.mp4"
+            className={[
+              'object-contain flex-shrink-0',
+              collapsed ? 'h-10 w-10' : 'h-24 w-auto',
+            ].join(' ')}
+            autoPlay
+            muted
+            playsInline
+          />
           {!collapsed && (
             <>
               <span className="text-lg font-bold tracking-wide text-[hsl(220,15%,12%)]">
