@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
-import { Network, Radio, Globe2, Cpu, RefreshCw, AlertTriangle } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Network, Radio, Globe2, Cpu, RefreshCw, AlertTriangle, Terminal } from 'lucide-react';
 import type { EngineConfig } from '../../types';
+import { ModelInstallModal } from '../settings/ModelInstallModal';
+import { OLLAMA_TAG_DISPLAY } from '../settings/EngineSlot';
 
 interface CrsStats {
   registeredCount: number;
@@ -18,6 +19,7 @@ const CRS_URL = (import.meta.env.VITE_CRS_URL as string | undefined) ?? '';
 export function PlenumNetPanel({ engines }: Props) {
   const [stats, setStats] = useState<CrsStats | null>(null);
   const [error, setError] = useState(false);
+  const [connectingEngine, setConnectingEngine] = useState<EngineConfig | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -41,9 +43,12 @@ export function PlenumNetPanel({ engines }: Props) {
 
   const selfHostedEngines = engines.filter((e) => e.hosting_mode === 'self_hosted');
   const hasActiveTunnel = !error && stats !== null && stats.registeredCount > 0;
-
-  // Any self-hosted engine that is configured but has no active tunnel needs reconnecting
   const needsReconnect = selfHostedEngines.length > 0 && !hasActiveTunnel && !error;
+
+  function resolveModelName(eng: EngineConfig): string {
+    const raw = eng.model_name ?? '';
+    return OLLAMA_TAG_DISPLAY[raw] ?? raw;
+  }
 
   return (
     <div className="bg-[var(--color-surface-secondary)] border border-[var(--color-border-subtle)] rounded-xl p-5">
@@ -53,7 +58,6 @@ export function PlenumNetPanel({ engines }: Props) {
           <Network className="w-4 h-4 text-[var(--color-text-muted)]" />
           <h2 className="text-sm font-semibold text-[var(--color-text-primary)]">Open Connections</h2>
         </div>
-        {/* Overall PlenumNET status badge */}
         <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border ${
           hasActiveTunnel
             ? 'bg-blue-500/10 border-blue-500/30 text-blue-400'
@@ -72,19 +76,13 @@ export function PlenumNetPanel({ engines }: Props) {
         </div>
       </div>
 
-      {/* Reconnect notice — shown when self-hosted engines are configured but tunnel is down */}
+      {/* Reconnect notice */}
       {needsReconnect && (
         <div className="flex items-start gap-2.5 px-3 py-2.5 rounded-lg bg-amber-500/5 border border-amber-500/20 mb-3">
           <AlertTriangle className="w-3.5 h-3.5 text-amber-400 flex-shrink-0 mt-0.5" />
           <div className="text-[11px] text-[var(--color-text-muted)] leading-relaxed">
-            <span className="font-medium text-amber-400">Tunnel disconnected.</span>{' '}
-            PlenumNET registrations reset when the server restarts. Re-run the install script on your
-            machine to reconnect.{' '}
-            <Link to="/settings/engines" className="text-blue-400 hover:underline inline-flex items-center gap-0.5">
-              <RefreshCw className="w-2.5 h-2.5" />
-              Go to Engine Settings
-            </Link>
-            {' '}and click <strong className="text-[var(--color-text-secondary)]">Install &amp; Connect</strong> to get a fresh script.
+            <span className="font-medium text-amber-400">No tunnel active.</span>{' '}
+            Click <span className="font-medium text-[var(--color-text-secondary)]">Connect</span> on an engine below to get a script that starts the PlenumNET daemon on your machine.
           </div>
         </div>
       )}
@@ -95,18 +93,17 @@ export function PlenumNetPanel({ engines }: Props) {
           <div className="flex items-center gap-3 px-3 py-3 rounded-lg bg-[var(--color-surface-tertiary)] border border-[var(--color-border-subtle)]">
             <span className="w-2 h-2 rounded-full bg-[var(--color-text-muted)] flex-shrink-0" />
             <p className="text-xs text-[var(--color-text-muted)]">
-              No engines configured yet.{' '}
-              <Link to="/settings/engines" className="text-[var(--color-plex-400)] hover:underline">
-                Go to AI Engines settings
-              </Link>{' '}
-              to set up your engine slots — selections save automatically.
+              No engines configured yet. Go to{' '}
+              <a href="/settings/engines" className="text-[var(--color-plex-400)] hover:underline">
+                AI Engines settings
+              </a>{' '}
+              to set up your engine slots.
             </p>
           </div>
         )}
         {engines.map((eng) => {
           const isSelfHosted = eng.hosting_mode === 'self_hosted';
           const isOnline = eng.health_status === 'online';
-
           const showTunnel = isSelfHosted && hasActiveTunnel;
           const showApi = !isSelfHosted && isOnline;
 
@@ -117,6 +114,8 @@ export function PlenumNetPanel({ engines }: Props) {
             : isOnline
               ? 'bg-[var(--color-ok)]'
               : 'bg-[var(--color-err)]';
+
+          const displayName = resolveModelName(eng);
 
           return (
             <div
@@ -131,7 +130,7 @@ export function PlenumNetPanel({ engines }: Props) {
                     Engine {eng.slot.toUpperCase()}
                   </span>
                   <span className="text-xs text-[var(--color-text-muted)] ml-1.5 truncate">
-                    {eng.model_name || 'Not configured'}
+                    {displayName || 'Not configured'}
                   </span>
                 </div>
               </div>
@@ -149,16 +148,23 @@ export function PlenumNetPanel({ engines }: Props) {
                     API online
                   </span>
                 )}
-                {!showTunnel && !showApi && isSelfHosted && (
-                  <Link
-                    to="/settings/engines"
-                    className="flex items-center gap-1 text-[10px] text-amber-400/80 hover:text-amber-400 transition-colors"
+                {/* Reconnect button — only for self-hosted engines without active tunnel */}
+                {isSelfHosted && !showTunnel && displayName && (
+                  <button
+                    onClick={() => setConnectingEngine(eng)}
+                    className="flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-md border border-blue-500/40 bg-blue-500/8 text-blue-400 hover:bg-blue-500/15 hover:border-blue-500/70 transition-colors"
                   >
-                    <RefreshCw className="w-2.5 h-2.5" />
-                    Reconnect
-                  </Link>
+                    <Terminal className="w-2.5 h-2.5" />
+                    Connect
+                  </button>
                 )}
-                {!showTunnel && !showApi && !isSelfHosted && (
+                {isSelfHosted && !showTunnel && !displayName && (
+                  <span className="flex items-center gap-1 text-[10px] text-amber-400/80">
+                    <RefreshCw className="w-2.5 h-2.5" />
+                    Not configured
+                  </span>
+                )}
+                {!isSelfHosted && !showApi && (
                   <span className="text-[10px] text-[var(--color-text-muted)]">Offline</span>
                 )}
               </div>
@@ -182,15 +188,21 @@ export function PlenumNetPanel({ engines }: Props) {
             <span className="font-medium text-[var(--color-text-secondary)]">Utilization: </span>
             {(stats.utilizationPercent * 100).toFixed(6)}%
           </span>
-          <span className="text-[var(--color-text-muted)]/60 italic">
-            Registrations reset on server restart
-          </span>
         </div>
       )}
       {error && (
         <p className="text-[10px] text-[var(--color-text-muted)] pt-2 border-t border-[var(--color-border-subtle)]">
           CRS stats unavailable — ensure the tunnel service is running.
         </p>
+      )}
+
+      {/* Connect modal — opened inline from this panel */}
+      {connectingEngine && (
+        <ModelInstallModal
+          modelName={resolveModelName(connectingEngine)}
+          mode="connect"
+          onClose={() => setConnectingEngine(null)}
+        />
       )}
     </div>
   );
