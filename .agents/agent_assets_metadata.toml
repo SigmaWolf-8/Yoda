@@ -5,7 +5,7 @@ generated = []
 id = "DUCm6_nOEhFplh9WAQoWy"
 uri = "file://yoda-install.txt"
 type = "text"
-title = "yoda-install.ps1"
+title = "yoda-install.bat (rename from .txt)"
 
 [[outputs]]
 id = "AFdg17M667fEqlAcMoaDP"
@@ -17,10 +17,22 @@ title = "yoda-install.bat"
 id = "SFVeWVU_-gOUCc0LA7mJZ"
 uri = "file://yoda-reconnect.txt"
 type = "text"
-title = "yoda-reconnect.ps1"
+title = "yoda-reconnect.bat (rename from .txt)"
 
 [[outputs]]
 id = "TBCVPA_UB-613OIBJGxsp"
 uri = "file://yoda-reconnect-bat.txt"
 type = "text"
 title = "yoda-reconnect.bat"
+
+[[outputs]]
+id = "U3bGRak8n4um8jHIgpD0N"
+uri = "file://yoda-install-ps1.txt"
+type = "text"
+title = "yoda-install.ps1 (rename from .txt)"
+
+[[outputs]]
+id = "u02BI5XdhNuajkWH2mGdB"
+uri = "file://yoda-reconnect-ps1.txt"
+type = "text"
+title = "yoda-reconnect.ps1 (rename from .txt)"
