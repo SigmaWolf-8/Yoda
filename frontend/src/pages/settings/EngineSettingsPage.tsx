@@ -100,22 +100,22 @@ export function EngineSettingsPage() {
         >
           <ArrowLeft className="w-4 h-4" />
         </Link>
-        <span className="text-xs text-[var(--color-text-muted)]">Back to Settings</span>
+        <span className="text-sm text-[var(--color-text-muted)]">Back to Settings</span>
       </div>
 
       {/* Host RAM selector */}
-      <div className="bg-[var(--color-surface-secondary)] border border-[var(--color-border-subtle)] rounded-xl p-4 mb-6">
+      <div className="bg-[var(--color-surface-primary)] border border-[var(--color-border-subtle)] rounded-xl p-4 mb-6">
         <div className="flex items-center gap-2 mb-3">
           <MemoryStick className="w-4 h-4 text-[var(--color-gold-400)]" />
           <span className="text-sm font-semibold text-[var(--color-text-primary)]">Self-Host Machine RAM</span>
-          <span className="text-xs text-[var(--color-text-muted)]">— used to calculate which models fit</span>
+          <span className="text-sm text-[var(--color-text-muted)]">— used to calculate which models fit</span>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           {RAM_PRESETS.map((gb) => (
             <button
               key={gb}
               onClick={() => applyRam(gb)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
+              className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors ${
                 hostRam === gb
                   ? 'bg-[var(--color-gold-500)]/10 text-[var(--color-gold-400)] border-[var(--color-gold-500)]/30'
                   : 'bg-[var(--color-surface-tertiary)] text-[var(--color-text-tertiary)] border-[var(--color-border-default)] hover:border-[var(--color-border-strong)]'
@@ -125,16 +125,16 @@ export function EngineSettingsPage() {
             </button>
           ))}
           <div className="flex items-center gap-1.5 ml-1">
-            <span className="text-xs text-[var(--color-text-muted)]">Custom:</span>
+            <span className="text-sm text-[var(--color-text-muted)]">Custom:</span>
             <input
               type="number"
               min={1}
               max={1024}
               value={ramInput}
               onChange={(e) => handleRamInputChange(e.target.value)}
-              className="w-20 px-2 py-1.5 rounded-lg bg-[var(--color-surface-tertiary)] border border-[var(--color-border-default)] text-xs text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-gold-500)] transition-colors text-center"
+              className="w-20 px-2 py-1.5 rounded-lg bg-[var(--color-surface-secondary)] border border-[var(--color-border-default)] text-sm text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-gold-500)] transition-colors text-center"
             />
-            <span className="text-xs text-[var(--color-text-muted)]">GB</span>
+            <span className="text-sm text-[var(--color-text-muted)]">GB</span>
           </div>
         </div>
 
@@ -179,7 +179,7 @@ export function EngineSettingsPage() {
               </div>
 
               {/* Legend row */}
-              <div className="flex flex-wrap gap-x-4 gap-y-1 text-[10px] text-[var(--color-text-muted)]">
+              <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-[var(--color-text-muted)]">
                 <span className="flex items-center gap-1">
                   <span className="w-2 h-2 rounded-sm bg-[var(--color-gold-500)]/40 inline-block" />
                   OS overhead: <strong className="ml-0.5 text-[var(--color-text-secondary)]">{OS_OVERHEAD_GB} GB</strong>
@@ -200,7 +200,7 @@ export function EngineSettingsPage() {
 
               {/* "What fits?" hint when there is free space */}
               {!overBudget && free > 0 && (
-                <p className="mt-1.5 text-[10px] text-[var(--color-text-muted)]">
+                <p className="mt-1.5 text-xs text-[var(--color-text-muted)]">
                   Models that fit in remaining space:{' '}
                   {Object.entries(MODEL_INFO)
                     .filter(([, m]) => m.ramGbQ4 !== undefined && m.ramGbQ4 <= free)
@@ -237,14 +237,14 @@ export function EngineSettingsPage() {
       </div>
 
       {/* Project Defaults */}
-      <div className="bg-[var(--color-surface-secondary)] border border-[var(--color-border-subtle)] rounded-xl p-5 mb-8 space-y-6">
+      <div className="bg-[var(--color-surface-primary)] border border-[var(--color-border-subtle)] rounded-xl p-5 mb-8 space-y-6">
         <h2 className="text-base font-semibold text-[var(--color-text-primary)]">Project Defaults</h2>
         <ReviewIntensityControl value={intensity} onChange={setIntensity} />
         <DecompositionBudgetControl value={budget} onChange={setBudget} />
       </div>
 
       {/* GitHub PAT */}
-      <div className="bg-[var(--color-surface-secondary)] border border-[var(--color-border-subtle)] rounded-xl p-5 mb-8">
+      <div className="bg-[var(--color-surface-primary)] border border-[var(--color-border-subtle)] rounded-xl p-5 mb-8">
         <GitHubPATSetting />
       </div>
 

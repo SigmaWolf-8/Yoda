@@ -374,18 +374,18 @@ function Tooltip({ content, children, wide }: { content: React.ReactNode; childr
 
 function ResourceBadge({ fit, ram }: { fit: FitLevel; ram: string }) {
   if (fit === 'ok') return (
-    <span className="flex items-center gap-1 text-[10px] font-medium text-emerald-400">
-      <CheckCircle2 className="w-3 h-3" />{ram} · Fits
+    <span className="flex items-center gap-1 text-xs font-medium text-emerald-400">
+      <CheckCircle2 className="w-3.5 h-3.5" />{ram} · Fits
     </span>
   );
   if (fit === 'tight') return (
-    <span className="flex items-center gap-1 text-[10px] font-medium text-amber-400">
-      <AlertTriangle className="w-3 h-3" />{ram} · Tight — use Q3 quant
+    <span className="flex items-center gap-1 text-xs font-medium text-amber-400">
+      <AlertTriangle className="w-3.5 h-3.5" />{ram} · Tight — use Q3 quant
     </span>
   );
   return (
-    <span className="flex items-center gap-1 text-[10px] font-medium text-red-400">
-      <XCircle className="w-3 h-3" />{ram} · Needs more RAM
+    <span className="flex items-center gap-1 text-xs font-medium text-red-400">
+      <XCircle className="w-3.5 h-3.5" />{ram} · Needs more RAM
     </span>
   );
 }
@@ -398,15 +398,15 @@ function ModelCard({ modelName, hostRam, reservedRam }: { modelName: string; hos
   const fit = computeFit(info, hostRam, reservedRam);
   const ram = ramDisplay(info);
   return (
-    <div className="mt-2 px-3 py-2.5 rounded-lg bg-[var(--color-surface-tertiary)] border border-[var(--color-border-subtle)] text-xs space-y-1.5">
+    <div className="mt-2 px-3 py-2.5 rounded-lg bg-[var(--color-surface-secondary)] border border-[var(--color-border-subtle)] text-sm space-y-1.5">
       <div className="flex items-center gap-2 flex-wrap">
-        <span className="px-1.5 py-0.5 rounded bg-[var(--color-gold-500)]/10 text-[var(--color-gold-400)] font-medium text-[10px]">
+        <span className="px-1.5 py-0.5 rounded bg-[var(--color-gold-500)]/10 text-[var(--color-gold-400)] font-medium text-xs">
           {info.type}
         </span>
-        <span className="text-[var(--color-text-muted)]">{info.specialty}</span>
+        <span className="text-[var(--color-text-secondary)]">{info.specialty}</span>
       </div>
       {fit && ram && <ResourceBadge fit={fit} ram={ram} />}
-      <p className="text-[var(--color-text-tertiary)] leading-relaxed">{info.desc}</p>
+      <p className="text-[var(--color-text-muted)] leading-relaxed">{info.desc}</p>
     </div>
   );
 }
@@ -598,7 +598,7 @@ export function EngineSlotCard({
   };
 
   return (
-    <div className="bg-[var(--color-surface-secondary)] border border-[var(--color-border-subtle)] rounded-xl p-5">
+    <div className="bg-[var(--color-surface-primary)] border border-[var(--color-border-subtle)] rounded-xl p-5">
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-base font-semibold text-[var(--color-text-primary)]">{SLOT_LABELS[slot]}</h3>
@@ -606,7 +606,7 @@ export function EngineSlotCard({
           {config && (
             <>
               <span className={`w-2 h-2 rounded-full ${healthDot}`} />
-              <span className="text-xs text-[var(--color-text-muted)]">
+              <span className="text-sm text-[var(--color-text-muted)]">
                 {config.health_status ?? 'unknown'}
                 {config.latency_ms ? ` · ${config.latency_ms}ms` : ''}
               </span>
@@ -625,10 +625,10 @@ export function EngineSlotCard({
           <Tooltip key={m} content={MODE_TIPS[m]}>
             <button
               onClick={() => changeMode(m)}
-              className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-medium border transition-colors ${
+              className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-medium border transition-colors ${
                 mode === m
                   ? 'bg-[var(--color-gold-500)]/10 text-[var(--color-gold-400)] border-[var(--color-gold-500)]/30'
-                  : 'bg-[var(--color-surface-tertiary)] text-[var(--color-text-tertiary)] border-[var(--color-border-default)] hover:border-[var(--color-border-strong)]'
+                  : 'bg-[var(--color-surface-secondary)] text-[var(--color-text-secondary)] border-[var(--color-border-default)] hover:border-[var(--color-border-strong)]'
               }`}
             >
               <Icon className="w-3.5 h-3.5" />
@@ -643,7 +643,7 @@ export function EngineSlotCard({
         {mode === 'self_hosted' && (
           <>
             {/* RAM context banner — shows available RAM accounting for other slots */}
-            <div className="flex items-start gap-2 px-3 py-2 rounded-lg bg-[var(--color-surface-tertiary)] border border-[var(--color-border-subtle)] text-[10px] text-[var(--color-text-muted)] leading-relaxed">
+            <div className="flex items-start gap-2 px-3 py-2 rounded-lg bg-[var(--color-surface-secondary)] border border-[var(--color-border-subtle)] text-xs text-[var(--color-text-muted)] leading-relaxed">
               <span className="mt-0.5 flex-shrink-0">💡</span>
               <span>
                 {reservedRam > 0
@@ -668,7 +668,7 @@ export function EngineSlotCard({
 
             {/* Model typeahead */}
             <div className="relative">
-              <label className="block text-xs font-medium text-[var(--color-text-secondary)] mb-1">Model</label>
+              <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">Model</label>
               <input
                 type="text"
                 value={modelName}
@@ -676,10 +676,10 @@ export function EngineSlotCard({
                 onFocus={() => setShowSuggest(true)}
                 onBlur={() => setTimeout(() => setShowSuggest(false), 150)}
                 placeholder="e.g. Llama-3.1-8B"
-                className="w-full px-3 py-2 rounded-lg bg-[var(--color-surface-tertiary)] border border-[var(--color-border-default)] text-sm text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-gold-500)] focus:ring-1 focus:ring-[var(--color-gold-500)]/30 transition-colors"
+                className="w-full px-3 py-2 rounded-lg bg-[var(--color-surface-secondary)] border border-[var(--color-border-default)] text-sm text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-gold-500)] focus:ring-1 focus:ring-[var(--color-gold-500)]/30 transition-colors"
               />
               {showSuggest && (
-                <div className="absolute z-20 w-full mt-1 overflow-y-auto rounded-lg bg-[var(--color-surface-tertiary)] border border-[var(--color-border-default)] shadow-lg" style={{ maxHeight: '32rem' }}>
+                <div className="absolute z-20 w-full mt-1 overflow-y-auto rounded-lg bg-[var(--color-surface-secondary)] border border-[var(--color-border-default)] shadow-lg" style={{ maxHeight: '32rem' }}>
                   {grouped.length === 0 ? (
                     <div className="px-3 py-3 text-xs text-[var(--color-text-muted)] italic">
                       No matching models available
@@ -691,7 +691,7 @@ export function EngineSlotCard({
                       </div>
                       {tiers.map(({ label, models }) => (
                         <div key={label}>
-                          <div className="px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-[var(--color-text-muted)] bg-[var(--color-surface-secondary)] border-b border-[var(--color-border-subtle)]">
+                          <div className="px-3 py-1.5 text-xs font-semibold uppercase tracking-wider text-[var(--color-text-secondary)] bg-[var(--color-surface-primary)] border-b border-[var(--color-border-subtle)]">
                             {label}
                           </div>
                           {models.map((m) => {
@@ -709,18 +709,18 @@ export function EngineSlotCard({
                                   <div className="flex-1 min-w-0">
                                     <div className="flex items-center gap-1.5">
                                       {info && (
-                                        <span className="text-[11px] font-semibold text-[var(--color-gold-400)] shrink-0">{info.company}</span>
+                                        <span className="text-xs font-semibold text-[var(--color-gold-400)] shrink-0">{info.company}</span>
                                       )}
-                                      {info && <span className="text-[10px] text-[var(--color-border-subtle)]">|</span>}
+                                      {info && <span className="text-xs text-[var(--color-border-strong)]">|</span>}
                                       <span className="text-sm text-[var(--color-text-secondary)] font-medium truncate">{m}</span>
                                     </div>
                                     {info && (
                                       <div className="flex items-center gap-1 mt-0.5">
-                                        <span className="text-[10px] text-[var(--color-text-muted)]">{info.type}</span>
+                                        <span className="text-xs text-[var(--color-text-muted)]">{info.type}</span>
                                         {info.arch === 'MoE' && (
                                           <>
-                                            <span className="text-[10px] text-[var(--color-border-subtle)]">·</span>
-                                            <span className="text-[10px] font-semibold text-[var(--color-gold-500)]">MoE</span>
+                                            <span className="text-xs text-[var(--color-border-strong)]">·</span>
+                                            <span className="text-xs font-semibold text-[var(--color-gold-400)]">MoE</span>
                                           </>
                                         )}
                                       </div>
@@ -728,10 +728,10 @@ export function EngineSlotCard({
                                   </div>
                                   <div className="flex items-center gap-1.5 shrink-0">
                                     {downloaded.has(m) && (
-                                      <HardDriveDownload className="w-3 h-3 text-emerald-400" aria-label="Already downloaded" />
+                                      <HardDriveDownload className="w-3.5 h-3.5 text-emerald-400" aria-label="Already downloaded" />
                                     )}
                                     {ram && (
-                                      <span className="text-[10px] text-[var(--color-text-muted)]">
+                                      <span className="text-xs text-[var(--color-text-muted)]">
                                         {ram.split('·')[0].trim()}
                                       </span>
                                     )}
@@ -747,7 +747,7 @@ export function EngineSlotCard({
 
                   {/* Models assigned to other slots */}
                   {usedModels.filter((u) => ALL_SELF_HOSTED_SET.has(u)).length > 0 && (
-                    <div className="px-3 py-2 flex items-center gap-1.5 text-[10px] text-[var(--color-text-muted)] border-t border-[var(--color-border-subtle)]">
+                    <div className="px-3 py-2 flex items-center gap-1.5 text-xs text-[var(--color-text-muted)] border-t border-[var(--color-border-subtle)]">
                       <Ban className="w-3 h-3 flex-shrink-0" />
                       {usedModels.filter((u) => ALL_SELF_HOSTED_SET.has(u)).map((u) => (
                         <span key={u} className="line-through opacity-60">{u}</span>
@@ -793,11 +793,11 @@ export function EngineSlotCard({
 
             <div>
               <div className="flex items-center justify-between mb-1">
-                <label className="text-xs font-medium text-[var(--color-text-secondary)]">Endpoint URL</label>
+                <label className="text-sm font-medium text-[var(--color-text-secondary)]">Endpoint URL</label>
                 <button
                   onClick={probeEndpoint}
                   disabled={probeState === 'loading' || !endpoint}
-                  className="flex items-center gap-1 text-xs px-2 py-0.5 rounded-md border border-[var(--color-border-default)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:border-[var(--color-border-hover)] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="flex items-center gap-1 text-sm px-2 py-0.5 rounded-md border border-[var(--color-border-default)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:border-[var(--color-border-hover)] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   {probeState === 'loading' ? (
                     <><Loader2 className="w-3 h-3 animate-spin" /> Testing…</>
@@ -811,7 +811,7 @@ export function EngineSlotCard({
                 value={endpoint}
                 onChange={(e) => { setEndpoint(e.target.value); setProbeState(null); }}
                 placeholder="http://localhost:11434"
-                className="w-full px-3 py-2 rounded-lg bg-[var(--color-surface-tertiary)] border border-[var(--color-border-default)] text-sm text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-gold-500)] focus:ring-1 focus:ring-[var(--color-gold-500)]/30 transition-colors"
+                className="w-full px-3 py-2 rounded-lg bg-[var(--color-surface-secondary)] border border-[var(--color-border-default)] text-sm text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-gold-500)] focus:ring-1 focus:ring-[var(--color-gold-500)]/30 transition-colors"
               />
               {probeState !== null && probeState !== 'loading' && (
                 <div className={`mt-1.5 flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-md ${probeState.reachable ? 'bg-[var(--color-ok)]/10 text-[var(--color-ok)]' : 'bg-red-500/10 text-red-400'}`}>
@@ -830,11 +830,11 @@ export function EngineSlotCard({
         {(mode === 'commercial' || mode === 'free_tier') && (
           <>
             <div>
-              <label className="block text-xs font-medium text-[var(--color-text-secondary)] mb-1">Provider</label>
+              <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">Provider</label>
               <select
                 value={provider}
                 onChange={(e) => setProvider(e.target.value)}
-                className="w-full px-3 py-2 rounded-lg bg-[var(--color-surface-tertiary)] border border-[var(--color-border-default)] text-sm text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-gold-500)] transition-colors"
+                className="w-full px-3 py-2 rounded-lg bg-[var(--color-surface-secondary)] border border-[var(--color-border-default)] text-sm text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-gold-500)] transition-colors"
               >
                 <option value="">Select provider…</option>
                 {Object.keys(PROVIDERS).map((p) => (
@@ -844,11 +844,11 @@ export function EngineSlotCard({
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs font-medium text-[var(--color-text-secondary)] mb-1">Auth Type</label>
+                <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">Auth Type</label>
                 <select
                   value={authType}
                   onChange={(e) => setAuthType(e.target.value as AuthType)}
-                  className="w-full px-3 py-2 rounded-lg bg-[var(--color-surface-tertiary)] border border-[var(--color-border-default)] text-sm text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-gold-500)] transition-colors"
+                  className="w-full px-3 py-2 rounded-lg bg-[var(--color-surface-secondary)] border border-[var(--color-border-default)] text-sm text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-gold-500)] transition-colors"
                 >
                   <option value="bearer">Bearer</option>
                   <option value="api_key">x-api-key</option>
@@ -856,12 +856,12 @@ export function EngineSlotCard({
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-medium text-[var(--color-text-secondary)] mb-1">Model</label>
+                <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">Model</label>
                 {provider && PROVIDERS[provider] ? (
                   <select
                     value={modelName}
                     onChange={(e) => changeModel(e.target.value)}
-                    className="w-full px-3 py-2 rounded-lg bg-[var(--color-surface-tertiary)] border border-[var(--color-border-default)] text-sm text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-gold-500)] transition-colors"
+                    className="w-full px-3 py-2 rounded-lg bg-[var(--color-surface-secondary)] border border-[var(--color-border-default)] text-sm text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-gold-500)] transition-colors"
                   >
                     <option value="">Select model…</option>
                     {PROVIDERS[provider].models
@@ -880,14 +880,14 @@ export function EngineSlotCard({
                     value={modelName}
                     onChange={(e) => changeModel(e.target.value)}
                     placeholder="Model name"
-                    className="w-full px-3 py-2 rounded-lg bg-[var(--color-surface-tertiary)] border border-[var(--color-border-default)] text-sm text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-gold-500)] transition-colors"
+                    className="w-full px-3 py-2 rounded-lg bg-[var(--color-surface-secondary)] border border-[var(--color-border-default)] text-sm text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-gold-500)] transition-colors"
                   />
                 )}
               </div>
             </div>
             <ModelCard modelName={modelName} hostRam={hostRam} reservedRam={0} />
             <div>
-              <label className="block text-xs font-medium text-[var(--color-text-secondary)] mb-1">
+              <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">
                 {mode === 'commercial' ? 'API Key' : 'Account / Token'}
               </label>
               <input
@@ -895,7 +895,7 @@ export function EngineSlotCard({
                 value={credentials}
                 onChange={(e) => setCredentials(e.target.value)}
                 placeholder="••••••••••••••••"
-                className="w-full px-3 py-2 rounded-lg bg-[var(--color-surface-tertiary)] border border-[var(--color-border-default)] text-sm text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-gold-500)] focus:ring-1 focus:ring-[var(--color-gold-500)]/30 transition-colors"
+                className="w-full px-3 py-2 rounded-lg bg-[var(--color-surface-secondary)] border border-[var(--color-border-default)] text-sm text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-gold-500)] focus:ring-1 focus:ring-[var(--color-gold-500)]/30 transition-colors"
               />
             </div>
             {config?.daily_messages_limit && (
@@ -909,8 +909,8 @@ export function EngineSlotCard({
 
         {/* ── Family override (all modes) ───────────────────────────────── */}
         <div>
-          <label className="flex items-center gap-1.5 text-xs font-medium text-[var(--color-text-muted)] mb-1">
-            Family Override <span className="font-normal">(optional)</span>
+          <label className="flex items-center gap-1.5 text-sm font-medium text-[var(--color-text-secondary)] mb-1">
+            Family Override <span className="font-normal text-[var(--color-text-muted)]">(optional)</span>
             <Tooltip wide content={
               <div className="space-y-2">
                 <p className="font-semibold text-[var(--color-navy-100)]">What is Family Override?</p>
@@ -927,7 +927,7 @@ export function EngineSlotCard({
             value={familyOverride}
             onChange={(e) => setFamilyOverride(e.target.value)}
             placeholder="e.g. qwen, deepseek, llama"
-            className="w-full px-3 py-2 rounded-lg bg-[var(--color-surface-tertiary)] border border-[var(--color-border-default)] text-sm text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-gold-500)] transition-colors"
+            className="w-full px-3 py-2 rounded-lg bg-[var(--color-surface-secondary)] border border-[var(--color-border-default)] text-sm text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-gold-500)] transition-colors"
           />
         </div>
       </div>
@@ -940,10 +940,10 @@ export function EngineSlotCard({
             onClick={handleClear}
             onBlur={() => setConfirmClear(false)}
             disabled={clearSlot.isPending}
-            className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium border transition-colors ${
+            className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium border transition-colors ${
               confirmClear
                 ? 'bg-red-500/10 text-red-400 border-red-500/30 hover:bg-red-500/20'
-                : 'bg-[var(--color-surface-tertiary)] text-[var(--color-text-muted)] border-[var(--color-border-default)] hover:text-red-400 hover:border-red-500/30'
+                : 'bg-[var(--color-surface-secondary)] text-[var(--color-text-muted)] border-[var(--color-border-default)] hover:text-red-400 hover:border-red-500/30'
             }`}
           >
             {clearSlot.isPending

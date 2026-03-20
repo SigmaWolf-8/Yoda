@@ -20,7 +20,7 @@ export function DiversityValidator() {
   }
 
   return (
-    <div className="bg-[var(--color-surface-secondary)] border border-[var(--color-border-subtle)] rounded-xl overflow-hidden">
+    <div className="bg-[var(--color-surface-primary)] border border-[var(--color-border-subtle)] rounded-xl overflow-hidden">
       {/* Compact header row */}
       <div className="flex items-center gap-2 px-4 py-3">
         <ShieldCheck className="w-4 h-4 text-[var(--color-gold-400)] flex-shrink-0" />
@@ -28,7 +28,7 @@ export function DiversityValidator() {
 
         {/* Quick status pill when a result exists */}
         {result && !open && (
-          <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border ${
+          <span className={`px-2 py-0.5 rounded-full text-xs font-semibold border ${
             result.valid ? STATUS_STYLES.green : STATUS_STYLES.red
           }`}>
             {result.valid ? 'Pass' : 'Fail'}
@@ -38,7 +38,7 @@ export function DiversityValidator() {
         <button
           onClick={handleCheck}
           disabled={validate.isPending}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-[var(--color-surface-tertiary)] text-[var(--color-text-secondary)] border border-[var(--color-border-default)] hover:border-[var(--color-border-strong)] disabled:opacity-50 transition-colors"
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium bg-[var(--color-surface-secondary)] text-[var(--color-text-secondary)] border border-[var(--color-border-default)] hover:border-[var(--color-border-strong)] disabled:opacity-50 transition-colors"
         >
           {validate.isPending
             ? <Loader2 className="w-3 h-3 animate-spin" />
