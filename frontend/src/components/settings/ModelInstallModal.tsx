@@ -77,7 +77,11 @@ cargo build --release --package inter-cube
 # ── 3. Register with YODA CRS (embeds session token) ─────────────────
 echo ""
 echo "Registering with YODA CRS..."
-PUB_KEY=\$(echo -n "\${LOCAL_IP}:51820" | sha256sum | cut -d' ' -f1)
+if [[ "\$(uname -s)" == "Darwin" ]]; then
+  PUB_KEY=\$(echo -n "\${LOCAL_IP}:51820" | shasum -a 256 | cut -d' ' -f1)
+else
+  PUB_KEY=\$(echo -n "\${LOCAL_IP}:51820" | sha256sum | cut -d' ' -f1)
+fi
 
 REG_RESPONSE=\$(curl -sf -X POST "\${CRS_URL}/api/salvi/inter-cube/crs/register" \\
   -H "Content-Type: application/json" \\
@@ -357,6 +361,8 @@ export function ModelInstallModal({ modelName, onClose }: Props) {
   const [polling, setPolling] = useState<PollingState>({ phase: 'idle' });
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const pollCount = useRef(0);
+  const modalRef = useRef<HTMLDivElement>(null);
+  const previousFocusRef = useRef<HTMLElement | null>(null);
 
   const bashScript = makeBashScript(modelName, ollamaTag ?? '', sessionToken, crsUrl);
   const psScript = makePsScript(modelName, ollamaTag ?? '', sessionToken, crsUrl);
@@ -392,13 +398,54 @@ export function ModelInstallModal({ modelName, onClose }: Props) {
   }, [crsUrl, isManual, sessionToken]);
 
   useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+    previousFocusRef.current = document.activeElement as HTMLElement;
+
+    const FOCUSABLE = [
+      'a[href]',
+      'button:not([disabled])',
+      'input:not([disabled])',
+      'select:not([disabled])',
+      'textarea:not([disabled])',
+      '[tabindex]:not([tabindex="-1"])',
+    ].join(', ');
+
+    const getFocusable = () =>
+      Array.from(modalRef.current?.querySelectorAll<HTMLElement>(FOCUSABLE) ?? []);
+
+    const firstFocusable = getFocusable()[0];
+    firstFocusable?.focus();
+
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+        return;
+      }
+      if (e.key !== 'Tab') return;
+
+      const focusable = getFocusable();
+      if (!focusable.length) return;
+
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+
+      if (e.shiftKey) {
+        if (document.activeElement === first) {
+          e.preventDefault();
+          last.focus();
+        }
+      } else {
+        if (document.activeElement === last) {
+          e.preventDefault();
+          first.focus();
+        }
+      }
     };
-    document.addEventListener('keydown', handler);
+
+    document.addEventListener('keydown', handleKey);
     return () => {
-      document.removeEventListener('keydown', handler);
+      document.removeEventListener('keydown', handleKey);
       if (pollRef.current) clearInterval(pollRef.current);
+      previousFocusRef.current?.focus();
     };
   }, [onClose]);
 
@@ -432,7 +479,7 @@ export function ModelInstallModal({ modelName, onClose }: Props) {
         onClick={onClose}
       />
 
-      <div className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl bg-[var(--color-surface-primary)] border border-[var(--color-border-default)] shadow-2xl flex flex-col">
+      <div ref={modalRef} className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl bg-[var(--color-surface-primary)] border border-[var(--color-border-default)] shadow-2xl flex flex-col">
 
         {/* Header */}
         <div className="flex items-center justify-between p-5 border-b border-[var(--color-border-subtle)]">
