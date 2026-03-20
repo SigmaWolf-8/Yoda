@@ -153,17 +153,31 @@ echo ""
 echo "Installing PlenumNET (inter-cube)..."
 if [[ -d "\$PLENUMNET_DIR/.git" ]]; then
   echo "  → Repository exists, updating..."
-  git -C "\$PLENUMNET_DIR" sparse-checkout set inter-cube 2>/dev/null || true
+  # Ensure both workspace members are checked out — ternary-math is required
+  # by the root Cargo.toml even though we only build inter-cube.
+  git -C "\$PLENUMNET_DIR" sparse-checkout set inter-cube ternary-math 2>/dev/null || true
   git -C "\$PLENUMNET_DIR" pull --ff-only 2>/dev/null || true
+  # If ternary-math is still missing after pull, the sparse pull may have had no
+  # new remote objects — force a re-checkout to materialise the directory.
+  if [[ ! -d "\$PLENUMNET_DIR/ternary-math" ]]; then
+    echo "  → ternary-math not present after pull — forcing full re-checkout..."
+    git -C "\$PLENUMNET_DIR" checkout HEAD -- ternary-math 2>/dev/null || \
+      git -C "\$PLENUMNET_DIR" read-tree --reset -u HEAD 2>/dev/null || true
+  fi
 else
-  echo "  → Sparse-cloning inter-cube only (no full repo)..."
+  echo "  → Sparse-cloning PlenumNET (inter-cube + ternary-math)..."
   git clone \\
     --depth 1 \\
     --filter=blob:none \\
     --sparse \\
     https://github.com/SigmaWolf-8/Ternary \\
     "\$PLENUMNET_DIR"
-  git -C "\$PLENUMNET_DIR" sparse-checkout set inter-cube
+  # Include ternary-math: Cargo workspace member required for a valid build
+  git -C "\$PLENUMNET_DIR" sparse-checkout set inter-cube ternary-math
+fi
+if [[ ! -d "\$PLENUMNET_DIR/ternary-math" ]]; then
+  echo "  ✗ ternary-math directory still missing after checkout — cannot build."
+  exit 1
 fi
 DAEMON="\$PLENUMNET_DIR/target/release/inter-cube-daemon"
 echo "  → Building inter-cube daemon (first build takes a few minutes)..."
@@ -395,17 +409,28 @@ Write-Host "Installing PlenumNET (inter-cube)..."
 New-Item -ItemType Directory -Force -Path $LOG_DIR | Out-Null
 if (Test-Path "$PLENUMNET_DIR\\.git") {
   Write-Host "  -> Repository exists, updating..."
-  git -C $PLENUMNET_DIR sparse-checkout set inter-cube 2>$null
+  # ternary-math is a Cargo workspace member required for a valid cargo build
+  git -C $PLENUMNET_DIR sparse-checkout set inter-cube ternary-math 2>$null
   git -C $PLENUMNET_DIR pull --ff-only 2>$null
+  # If sparse-checkout + pull didn't materialise the directory (no new remote objects),
+  # force git to write the tree to disk.
+  if (-not (Test-Path "$PLENUMNET_DIR\\ternary-math")) {
+    Write-Host "  -> ternary-math missing after pull — forcing re-checkout..."
+    git -C $PLENUMNET_DIR checkout HEAD -- ternary-math 2>$null
+  }
 } else {
-  Write-Host "  -> Sparse-cloning inter-cube only (no full repo)..."
+  Write-Host "  -> Sparse-cloning PlenumNET (inter-cube + ternary-math)..."
   git clone \`
     --depth 1 \`
     --filter=blob:none \`
     --sparse \`
     https://github.com/SigmaWolf-8/Ternary \`
     $PLENUMNET_DIR
-  git -C $PLENUMNET_DIR sparse-checkout set inter-cube
+  # ternary-math required by root Cargo.toml workspace definition
+  git -C $PLENUMNET_DIR sparse-checkout set inter-cube ternary-math
+}
+if (-not (Test-Path "$PLENUMNET_DIR\\ternary-math")) {
+  throw "ternary-math directory is missing from the repo — the build cannot continue. Try deleting $PLENUMNET_DIR and re-running this installer to force a clean clone."
 }
 Write-Host "  -> Building inter-cube daemon (first build takes a few minutes)..."
 Push-Location $PLENUMNET_DIR

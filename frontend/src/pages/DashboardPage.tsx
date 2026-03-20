@@ -51,23 +51,19 @@ export function DashboardPage() {
           <source src={`${import.meta.env.BASE_URL}hero.mp4`} type="video/mp4" />
         </video>
 
-        {/* Deep recess vignette overlay — dark gradient from all four edges */}
+        {/* Deep recess vignette — four edge gradients, centre stays clear */}
         <div
           aria-hidden
           style={{
             position: 'absolute',
             inset: 0,
             pointerEvents: 'none',
-            background: `
-              radial-gradient(ellipse at 50% 50%,
-                transparent 35%,
-                rgba(0,0,0,0.45) 65%,
-                rgba(0,0,0,0.82) 100%)
-            `,
-            /* Top + bottom linear reinforcement */
-            boxShadow: `
-              inset 0 0 80px 40px rgba(0,0,0,0.55)
-            `,
+            background: [
+              'linear-gradient(to bottom, rgba(0,0,0,0.80) 0%, transparent 22%)',
+              'linear-gradient(to top,    rgba(0,0,0,0.80) 0%, transparent 22%)',
+              'linear-gradient(to right,  rgba(0,0,0,0.55) 0%, transparent 18%)',
+              'linear-gradient(to left,   rgba(0,0,0,0.55) 0%, transparent 18%)',
+            ].join(', '),
           }}
         />
       </div>

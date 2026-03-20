@@ -1,0 +1,66 @@
+=== YODA Self-Host Installer ===
+Model : DeepSeek-R1-Distill-Qwen-7B
+Port : 8080
+
+Local endpoint :
+
+Checking Rust/Cargo...
+OK Cargo already installed: cargo 1.94.0 (85eff7c80 2026-01-15)
+
+Installing PlenumNET (inter-cube)...
+-> Repository exists, updating...
+Already up to date.
+-> Building inter-cube daemon (first build takes a few minutes)...
+error: failed to load manifest for workspace member C:\Users\Sigma\PlenumNET\ternary-math
+referenced by workspace at C:\Users\Sigma\PlenumNET\Cargo.toml
+
+Caused by:
+failed to read C:\Users\Sigma\PlenumNET\ternary-math\Cargo.toml
+
+Caused by:
+The system cannot find the path specified. (os error 3)
+
+=== INSTALLER ERROR ===
+elease — check cargo output above for errors.d in C:\Users\Sigma\PlenumNET arget
+
+Press Enter to close:
+
+Build completed but no inter-cube binary found in C:\Users\Sigma\PlenumNET argetelease — check cargo output above for
+errors.
+At C:\Users\Sigma\AppData\Local\Temp\yoda_1996.ps1:92 char:3
+
+throw "Build completed but no inter-cube binary found in $PLENUMNET ...
++ CategoryInfo          : OperationStopped: (Build completed...ove for errors.:String) [], RuntimeException
++ FullyQualifiedErrorId : Build completed but no inter-cube binary found in C:\Users\Sigma\PlenumNET        argetelease
+— check cargo output above for errors.
+
+Press any key to continue . . .
+
+
+
+The build error is clear — the workspace Cargo.toml references ternary-math as a member, but that directory doesn't exist in the repo. Let me check:
+
+ternary-math exists here on the server, so the repo has it. The problem is on the user's Windows machine — the installer script is cloning or pulling the repo but ternary-math is missing there. This is likely because:
+
+ternary-math might be a git submodule that isn't being initialized, or
+The clone is shallow/incomplete
+Let me check:
+
+Not a submodule issue. The ternary-math directory exists in this repo. The problem is on the user's Windows machine — the installer pulled the repo but ternary-math is missing locally.
+
+Here's what's happening and how to fix it:
+
+The error says C:\Users\Sigma\PlenumNET\ternary-math\Cargo.toml can't be found. The repo on your machine is missing the ternary-math directory. Since the installer script does a git pull ("Repository exists, updating... Already up to date"), the directory was likely never cloned properly, or it was accidentally deleted.
+
+Quick fix — run these two commands on your Windows machine:
+
+cd C:\Users\Sigma\PlenumNET
+git checkout -- ternary-math
+If that doesn't work (meaning git doesn't have it tracked), try a fresh clone:
+
+cd C:\Users\Sigma
+rmdir /s /q PlenumNET
+git clone https://github.com/SigmaWolf-8/Ternary.git PlenumNET
+Then re-run the installer. The ternary-math directory is a core part of the repo — once it's present, the workspace build will find all its members and cargo build --release -p inter-cube will work.
+
+The repo on my machine is just missing a directory. The installer script is supposed to check for this. Fuck my life.
