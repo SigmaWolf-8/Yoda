@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Network, Radio, Globe2, Cpu } from 'lucide-react';
+import { Network, Radio, Globe2, Cpu, RefreshCw, AlertTriangle } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import type { EngineConfig } from '../../types';
 
 interface CrsStats {
@@ -41,6 +42,9 @@ export function PlenumNetPanel({ engines }: Props) {
   const selfHostedEngines = engines.filter((e) => e.hosting_mode === 'self_hosted');
   const hasActiveTunnel = !error && stats !== null && stats.registeredCount > 0;
 
+  // Any self-hosted engine that is configured but has no active tunnel needs reconnecting
+  const needsReconnect = selfHostedEngines.length > 0 && !hasActiveTunnel && !error;
+
   return (
     <div className="bg-[var(--color-surface-secondary)] border border-[var(--color-border-subtle)] rounded-xl p-5">
       {/* Header */}
@@ -68,6 +72,23 @@ export function PlenumNetPanel({ engines }: Props) {
         </div>
       </div>
 
+      {/* Reconnect notice — shown when self-hosted engines are configured but tunnel is down */}
+      {needsReconnect && (
+        <div className="flex items-start gap-2.5 px-3 py-2.5 rounded-lg bg-amber-500/5 border border-amber-500/20 mb-3">
+          <AlertTriangle className="w-3.5 h-3.5 text-amber-400 flex-shrink-0 mt-0.5" />
+          <div className="text-[11px] text-[var(--color-text-muted)] leading-relaxed">
+            <span className="font-medium text-amber-400">Tunnel disconnected.</span>{' '}
+            PlenumNET registrations reset when the server restarts. Re-run the install script on your
+            machine to reconnect.{' '}
+            <Link to="/settings/engines" className="text-blue-400 hover:underline inline-flex items-center gap-0.5">
+              <RefreshCw className="w-2.5 h-2.5" />
+              Go to Engine Settings
+            </Link>
+            {' '}and click <strong className="text-[var(--color-text-secondary)]">Install &amp; Connect</strong> to get a fresh script.
+          </div>
+        </div>
+      )}
+
       {/* Engine connection rows */}
       <div className="space-y-2 mb-4">
         {engines.length === 0 && (
@@ -75,10 +96,10 @@ export function PlenumNetPanel({ engines }: Props) {
             <span className="w-2 h-2 rounded-full bg-[var(--color-text-muted)] flex-shrink-0" />
             <p className="text-xs text-[var(--color-text-muted)]">
               No engines configured yet.{' '}
-              <a href="/settings/engines" className="text-[var(--color-plex-400)] hover:underline">
+              <Link to="/settings/engines" className="text-[var(--color-plex-400)] hover:underline">
                 Go to AI Engines settings
-              </a>{' '}
-              to set up your engine slots — selections now save automatically.
+              </Link>{' '}
+              to set up your engine slots — selections save automatically.
             </p>
           </div>
         )}
@@ -86,17 +107,13 @@ export function PlenumNetPanel({ engines }: Props) {
           const isSelfHosted = eng.hosting_mode === 'self_hosted';
           const isOnline = eng.health_status === 'online';
 
-          // Blue tunnel dot for self-hosted engines when PlenumNET is active
           const showTunnel = isSelfHosted && hasActiveTunnel;
-          // Green API dot for commercial/free-tier when online
           const showApi = !isSelfHosted && isOnline;
 
-          // Self-hosted engines always show blue (pulsing when tunnel active,
-          // solid dim when inactive). Red is only for commercial/free-tier offline.
           const dotColor = isSelfHosted
             ? showTunnel
               ? 'bg-blue-400 animate-pulse'
-              : 'bg-blue-500/50'
+              : 'bg-blue-500/30'
             : isOnline
               ? 'bg-[var(--color-ok)]'
               : 'bg-[var(--color-err)]';
@@ -132,10 +149,17 @@ export function PlenumNetPanel({ engines }: Props) {
                     API online
                   </span>
                 )}
-                {!showTunnel && !showApi && (
-                  <span className="text-[10px] text-[var(--color-text-muted)]">
-                    {isSelfHosted ? 'Tunnel inactive' : 'Offline'}
-                  </span>
+                {!showTunnel && !showApi && isSelfHosted && (
+                  <Link
+                    to="/settings/engines"
+                    className="flex items-center gap-1 text-[10px] text-amber-400/80 hover:text-amber-400 transition-colors"
+                  >
+                    <RefreshCw className="w-2.5 h-2.5" />
+                    Reconnect
+                  </Link>
+                )}
+                {!showTunnel && !showApi && !isSelfHosted && (
+                  <span className="text-[10px] text-[var(--color-text-muted)]">Offline</span>
                 )}
               </div>
             </div>
@@ -157,6 +181,9 @@ export function PlenumNetPanel({ engines }: Props) {
           <span>
             <span className="font-medium text-[var(--color-text-secondary)]">Utilization: </span>
             {(stats.utilizationPercent * 100).toFixed(6)}%
+          </span>
+          <span className="text-[var(--color-text-muted)]/60 italic">
+            Registrations reset on server restart
           </span>
         </div>
       )}
