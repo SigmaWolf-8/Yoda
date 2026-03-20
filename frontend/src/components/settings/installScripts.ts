@@ -26,43 +26,51 @@ export function triggerDownload(content: string, filename: string, mime = 'text/
 /**
  * Wrap a PowerShell script in a self-executing Windows batch file.
  *
- * The PS1 content is base64-encoded (UTF-8) and embedded in the .bat as echo
- * lines decoded by certutil at runtime.  Double-clicking the .bat runs without
- * any execution-policy prompt because we invoke powershell.exe ourselves with
- * -ExecutionPolicy Bypass.
+ * Preferred path: encode the entire PS1 as UTF-16LE base64 and pass it
+ * directly via -EncodedCommand — no temp files, no decode step, no race.
+ * Falls back to the temp-file approach (with a single %RANDOM% captured
+ * once into %RND%) only when the script exceeds the ~30 KB command-line limit.
  */
 export function makeBatWrapper(psScript: string, _modelName: string): string {
-  // Encode the full PS install script as UTF-8 base64, split into 76-char echo lines.
-  // Base64 alphabet (A-Z a-z 0-9 + / =) contains no cmd.exe metacharacters, so
-  // plain echo is safe here.
+  // Convert PS1 to UTF-16LE bytes (what -EncodedCommand expects)
+  const utf16leBytes: number[] = [];
+  for (const char of psScript) {
+    const code = char.charCodeAt(0);
+    utf16leBytes.push(code & 0xFF, (code >> 8) & 0xFF);
+  }
+  const encodedScript = btoa(String.fromCharCode(...utf16leBytes));
+
+  // Simple inline path — no temp files at all
+  if (encodedScript.length < 30000) {
+    return [
+      '@echo off',
+      'title YODA Installer',
+      'powershell.exe -NoProfile -ExecutionPolicy Bypass -EncodedCommand ' + encodedScript,
+      'pause',
+    ].join('\r\n') + '\r\n';
+  }
+
+  // Fallback: temp-file approach. Capture %RANDOM% once into %RND% so BF and
+  // PF share the same suffix — the original %RANDOM%%RANDOM% bug caused them
+  // to get different values, breaking the decode→execute hand-off.
   const bytes  = new TextEncoder().encode(psScript);
   const binary = Array.from(bytes, (b) => String.fromCharCode(b)).join('');
   const b64    = btoa(binary);
   const echos  = (b64.match(/.{1,76}/g) ?? []).map((l) => `echo ${l}`).join('\r\n');
 
-  // Decode step: read $env:BF (temp .b64 file), strip non-base64 chars, decode,
-  // prepend UTF-8 BOM, and write to $env:PF (temp .ps1).
-  // Using -EncodedCommand (UTF-16LE base64) avoids ALL cmd.exe quoting fragility —
-  // no nested quote contexts, no %var% expansion inside powershell strings.
-  // BF and PF are set as cmd env vars and are visible to PowerShell as $env:BF/$env:PF.
-  const decodePs = `$b=([IO.File]::ReadAllText($env:BF) -replace '[^A-Za-z0-9+/=]','');` +
-                   `[IO.File]::WriteAllBytes($env:PF,[Text.Encoding]::UTF8.GetPreamble()+[Convert]::FromBase64String($b))`;
-  const utf16le  = Array.from(decodePs).flatMap(c => {
-    const code = c.charCodeAt(0);
-    return [code & 0xFF, (code >> 8) & 0xFF];
-  });
-  const encodedCmd = btoa(String.fromCharCode(...utf16le));
-
   return [
     '@echo off',
-    'title YODA Installer',           // no user data in title — avoids metachar issues
+    'title YODA Installer',
     'setlocal',
-    'set "BF=%TEMP%\\yoda_%RANDOM%.b64"',
-    'set "PF=%TEMP%\\yoda_%RANDOM%.ps1"',
+    'set "RND=%RANDOM%%RANDOM%"',
+    'set "BF=%TEMP%\\yoda_%RND%.b64"',
+    'set "PF=%TEMP%\\yoda_%RND%.ps1"',
     '(',
     echos,
     ') > "%BF%"',
-    `powershell.exe -NoProfile -ExecutionPolicy Bypass -EncodedCommand ${encodedCmd}`,
+    'powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "' +
+      '$b=([IO.File]::ReadAllText($env:BF) -replace \'[^A-Za-z0-9+/=]\',\'\');' +
+      '[IO.File]::WriteAllBytes($env:PF,[Convert]::FromBase64String($b))"',
     'del "%BF%" 2>nul',
     'if not exist "%PF%" ( echo ERROR: Failed to decode installer script. & pause & exit /b 1 )',
     'powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%PF%"',
@@ -420,9 +428,13 @@ function Invoke-ClonePlenumNET {
 }
 if (Test-Path "$PLENUMNET_DIR\\.git") {
   Write-Host "  -> Repository exists, updating..."
-  git -C $PLENUMNET_DIR pull --ff-only 2>$null
-  # If key files are missing the previous clone was a broken sparse clone — re-clone fresh
-  if (-not (Test-Path "$PLENUMNET_DIR/inter-cube/Cargo.toml")) {
+  try {
+    $pullOutput = git -C $PLENUMNET_DIR pull --ff-only 2>&1
+    Write-Host "  -> $pullOutput"
+  } catch {
+    Write-Host "  -> git pull failed (network issue?) — continuing with existing checkout" -ForegroundColor Yellow
+  }
+  if (-not (Test-Path "$PLENUMNET_DIR\\services\\inter-cube\\Cargo.toml")) {
     Write-Host "  -> Existing checkout is incomplete — re-cloning..."
     Remove-Item -Recurse -Force $PLENUMNET_DIR
     Invoke-ClonePlenumNET
@@ -431,8 +443,8 @@ if (Test-Path "$PLENUMNET_DIR\\.git") {
   Invoke-ClonePlenumNET
 }
 # Hard stop if source is still missing after clone
-foreach ($member in @("inter-cube/Cargo.toml", "ternary-math/Cargo.toml")) {
-  if (-not (Test-Path "$PLENUMNET_DIR/$member")) {
+foreach ($member in @("services\\inter-cube\\Cargo.toml", "ternary-math\\Cargo.toml")) {
+  if (-not (Test-Path "$PLENUMNET_DIR\\$member")) {
     throw "$member missing after clone — check network and try again."
   }
 }
