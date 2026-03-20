@@ -66,9 +66,9 @@ interface Props {
 }
 
 const MODE_BADGE: Record<HostingMode, string> = {
-  self_hosted: 'bg-green-500/10 text-green-400 border-green-500/20',
+  self_hosted: 'bg-[var(--color-plex-600)]/15 text-[var(--color-plex-300)] border-[var(--color-plex-600)]/30',
   commercial:  'bg-[var(--color-plex-500)]/10 text-[var(--color-plex-400)] border-[var(--color-plex-500)]/20',
-  free_tier:   'bg-purple-500/10 text-purple-400 border-purple-500/20',
+  free_tier:   'bg-[var(--color-surface-tertiary)] text-[var(--color-text-muted)] border-[var(--color-border-default)]',
 };
 
 export function RecommendedConfigs({ onApply }: Props) {
