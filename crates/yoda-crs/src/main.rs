@@ -84,6 +84,13 @@ async fn crs_register(
         None
     };
 
+    if let Some(ref token) = req.session_token {
+        if !token.is_empty() {
+            let mut sessions = state.sessions.write().unwrap();
+            sessions.entry(token.clone()).or_insert(SessionEntry::Pending);
+        }
+    }
+
     let result = {
         let mut crs = state.crs.lock().unwrap();
         crs.register(endpoint, public_key, specific_addr)
