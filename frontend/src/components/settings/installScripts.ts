@@ -48,9 +48,9 @@ export function makeBatWrapper(psScript: string, modelName: string): string {
     '(',
     echos,
     ') > "%BF%"',
-    'certutil -decode "%BF%" "%PF%" >nul 2>&1',
-    'del "%BF%"',
-    'if not exist "%PF%" ( echo ERROR: Failed to decode installer. & pause & exit /b 1 )',
+    'powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "& {$b=([IO.File]::ReadAllText(\'%BF%\') -replace \'[^A-Za-z0-9+/=]\',\'\');[IO.File]::WriteAllBytes(\'%PF%\',[Text.Encoding]::UTF8.GetPreamble()+[Convert]::FromBase64String($b))}"',
+    'del "%BF%" 2>nul',
+    'if not exist "%PF%" ( echo ERROR: Failed to create installer script. & pause & exit /b 1 )',
     'powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%PF%"',
     'del "%PF%" 2>nul',
     'pause',
@@ -327,6 +327,14 @@ export function makePsInstallScript(
   return `# YODA Self-Host Installer (Windows)
 # Model: ${modelName}  |  Port: ${port}  |  Token: ${token}
 $ErrorActionPreference = "Stop"
+trap {
+  Write-Host ""
+  Write-Host "=== INSTALLER ERROR ===" -ForegroundColor Red
+  Write-Host $_.Exception.Message -ForegroundColor Red
+  Write-Host ""
+  Read-Host "Press Enter to close"
+  break
+}
 
 $SESSION_TOKEN = "${token}"
 $CRS_URL       = "${crsUrl}"
@@ -676,6 +684,14 @@ export function makePsReconnectScript(
   return `# YODA Reconnect (Windows)
 # Model: ${modelName}  |  Port: ${port}  |  Token: ${token}
 $ErrorActionPreference = "Stop"
+trap {
+  Write-Host ""
+  Write-Host "=== RECONNECT ERROR ===" -ForegroundColor Red
+  Write-Host $_.Exception.Message -ForegroundColor Red
+  Write-Host ""
+  Read-Host "Press Enter to close"
+  break
+}
 
 $SESSION_TOKEN = "${token}"
 $CRS_URL       = "${crsUrl}"
