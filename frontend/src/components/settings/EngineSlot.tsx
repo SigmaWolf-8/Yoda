@@ -173,6 +173,74 @@ export const MODEL_INFO: Record<string, ModelMeta> = {
     desc: "Moonshot AI's large MoE model. Exceptional 200K-token context — the full weight set far exceeds any consumer or prosumer machine.",
     ramGbQ4: 500.0,
   },
+
+  // ── Additional models referenced by SECTION_LAYOUT ──────────────────
+  'DeepSeek-V3.2-685B': {
+    company: 'DeepSeek', arch: 'MoE', type: 'Coding LLM',
+    specialty: 'Coding · Math · Cost-efficient frontier',
+    desc: "DeepSeek's 685B MoE updated flagship. Competitive with GPT-4o on coding benchmarks — the open-weight frontier, but requires a multi-GPU server rack.",
+    ramGbQ4: 350.0,
+  },
+  'Qwen3-235B-A22B': {
+    company: 'Alibaba', arch: 'MoE', type: 'Coding LLM',
+    specialty: 'Coding · Reasoning · 22B active params',
+    desc: "Alibaba's 235B MoE with only 22B active parameters per token. High capability at reduced inference compute — needs ~118 GB at Q4 or ~59 GB at Q3.",
+    ramGbQ4: 118.0, ramGbQ3: 59.0,
+  },
+  'Codestral-22B': {
+    company: 'Mistral AI', arch: 'Dense', type: 'Coding LLM',
+    specialty: 'Code completion · Fill-in-the-middle · 80+ languages',
+    desc: "Mistral's dedicated 22B coding model. Trained on 80+ programming languages with fill-in-the-middle support — fits on a 16 GB machine.",
+    ramGbQ4: 13.5, ramGbQ3: 10.5,
+  },
+  'DeepSeek-R1-Distill-Qwen-7B': {
+    company: 'DeepSeek', arch: 'Dense', type: 'Reasoning LLM',
+    specialty: 'Reasoning · Coding · Ultralight footprint',
+    desc: "DeepSeek-R1's reasoning distilled into a 7B Qwen backbone. Excellent on machines with under 8 GB free RAM.",
+    ramGbQ4: 4.5,
+  },
+  'DeepSeek-R1-671B': {
+    company: 'DeepSeek', arch: 'Dense', type: 'Reasoning LLM',
+    specialty: 'Chain-of-thought · Math · Complex problem-solving',
+    desc: "DeepSeek's full 671B flagship reasoning model. Outstanding on maths, logic, and long-form analysis — requires a multi-GPU server.",
+    ramGbQ4: 400.0,
+  },
+  'Qwen-QwQ-32B': {
+    company: 'Alibaba', arch: 'Dense', type: 'Reasoning LLM',
+    specialty: 'Deep thinking · Math · Multi-step logic',
+    desc: "Alibaba's QwQ 32B reasoning model. Extended chain-of-thought for hard mathematical and logical problems.",
+    ramGbQ4: 19.8, ramGbQ3: 15.4,
+  },
+  'Phi-4-14B': {
+    company: 'Microsoft', arch: 'Dense', type: 'Reasoning LLM',
+    specialty: 'Reasoning · STEM · Compact footprint',
+    desc: "Microsoft's Phi-4 14B model. Exceptionally strong on STEM reasoning — fits comfortably on a 16 GB RAM machine.",
+    ramGbQ4: 8.5,
+  },
+  'Mathstral-7B': {
+    company: 'Mistral AI', arch: 'Dense', type: 'Reasoning LLM',
+    specialty: 'Mathematics · Formal proofs · Scientific reasoning',
+    desc: "Mistral's math-specialist 7B model. Fine-tuned for mathematical reasoning and formal proof generation.",
+    ramGbQ4: 4.5,
+  },
+  'Qwen3.5-72B': {
+    company: 'Alibaba', arch: 'Dense', type: 'LLM',
+    specialty: 'General purpose · Coding · Multilingual',
+    desc: "Alibaba's 72B dense model. Excellent across coding, instruction-following, and multilingual tasks.",
+    ramGbQ4: 42.0, ramGbQ3: 32.5,
+  },
+  'Mistral-Small-3.2-24B': {
+    company: 'Mistral AI', arch: 'Dense', type: 'LLM',
+    specialty: 'Instruction-following · Multilingual · Efficient',
+    desc: "Mistral's 24B general-purpose model. Outstanding quality-to-size ratio — fits on a 16–24 GB RAM machine.",
+    ramGbQ4: 14.3, ramGbQ3: 11.1,
+  },
+  'Gemma-3-27B': {
+    company: 'Google', arch: 'Dense', type: 'LLM',
+    specialty: 'Multilingual · Vision · Broad capability',
+    desc: "Google's 27B Gemma 3 model. Strong general-purpose performance with vision capability.",
+    ramGbQ4: 16.0, ramGbQ3: 12.5,
+  },
 };
 
 // ── Resource helpers ──────────────────────────────────────────────────────────
@@ -180,8 +248,8 @@ export const MODEL_INFO: Record<string, ModelMeta> = {
 export const OS_OVERHEAD_GB = 3;
 
 /** Compute fit given total host RAM and RAM already reserved by other self-hosted slots. */
-export function computeFit(info: ModelMeta, hostRam: number, reservedRam = 0): FitLevel | undefined {
-  if (info.ramGbQ4 === undefined) return undefined;
+export function computeFit(info: ModelMeta | undefined, hostRam: number, reservedRam = 0): FitLevel | undefined {
+  if (!info || info.ramGbQ4 === undefined) return undefined;
   const available = hostRam - OS_OVERHEAD_GB - reservedRam;
   if (info.ramGbQ4 <= available) return 'ok';
   if (info.ramGbQ3 !== undefined && info.ramGbQ3 <= available) return 'tight';
