@@ -99,6 +99,7 @@ PLENUMNET_DIR="\$HOME/PlenumNET"
 MODELS_DIR="\$HOME/yoda-models"
 MODEL_PATH="\$MODELS_DIR/\$GGUF_FILE"
 LOG_DIR="\$HOME/yoda-models/logs"
+IDENTITY_DIR="\$HOME/.plenumnet/identity"
 
 echo "=== YODA Self-Host Installer ==="
 echo "Model  : ${modelName}"
@@ -147,7 +148,55 @@ if ! command -v git &>/dev/null; then
   exit 1
 fi
 
-# ── 4. Install llama.cpp (llama-server) ──────────────────────────────
+# ── 4. Sparse-clone + build PlenumNET daemon ──────────────────────────
+echo ""
+echo "Installing PlenumNET (inter-cube)..."
+if [[ -d "\$PLENUMNET_DIR/.git" ]]; then
+  echo "  → Repository exists, updating..."
+  git -C "\$PLENUMNET_DIR" sparse-checkout set inter-cube 2>/dev/null || true
+  git -C "\$PLENUMNET_DIR" pull --ff-only 2>/dev/null || true
+else
+  echo "  → Sparse-cloning inter-cube only (no full repo)..."
+  git clone \\
+    --depth 1 \\
+    --filter=blob:none \\
+    --sparse \\
+    https://github.com/SigmaWolf-8/Ternary \\
+    "\$PLENUMNET_DIR"
+  git -C "\$PLENUMNET_DIR" sparse-checkout set inter-cube
+fi
+DAEMON="\$PLENUMNET_DIR/target/release/inter-cube-daemon"
+echo "  → Building inter-cube daemon (first build takes a few minutes)..."
+mkdir -p "\$LOG_DIR"
+(cd "\$PLENUMNET_DIR" && cargo build --release --package inter-cube)
+[[ -x "\$DAEMON" ]] || { echo "  ✗ Build succeeded but binary not found at: \$DAEMON"; exit 1; }
+echo "  ✓ Daemon built: \$DAEMON"
+
+# ── 5. Identity passphrase + PT26-DSA keygen ─────────────────────────
+echo ""
+echo "Setting up PlenumNET identity..."
+mkdir -p "\$IDENTITY_DIR"
+chmod 700 "\$IDENTITY_DIR"
+PASSPHRASE_FILE="\$IDENTITY_DIR/.passphrase"
+
+if [[ -f "\$PASSPHRASE_FILE" ]]; then
+  CUBE_PASSPHRASE=\$(cat "\$PASSPHRASE_FILE")
+  echo "  → Loaded existing identity passphrase"
+else
+  # Generate a random 48-char alphanumeric passphrase (openssl preferred, /dev/urandom fallback)
+  CUBE_PASSPHRASE=\$(openssl rand -hex 24 2>/dev/null || LC_ALL=C tr -dc 'A-Za-z0-9' < /dev/urandom | head -c 48)
+  printf '%s' "\$CUBE_PASSPHRASE" > "\$PASSPHRASE_FILE"
+  chmod 600 "\$PASSPHRASE_FILE"
+  echo "  ✓ Generated and saved identity passphrase"
+fi
+export CUBE_IDENTITY_PASSPHRASE="\$CUBE_PASSPHRASE"
+
+echo "  → Generating PT26-DSA identity keypair..."
+PUB_KEY=\$(CUBE_MODE=keygen "\$DAEMON" 2>"\$LOG_DIR/keygen.log" | tail -1 | tr -d '[:space:]')
+[[ -n "\$PUB_KEY" ]] || { echo "  ✗ keygen produced no output — check \$LOG_DIR/keygen.log"; exit 1; }
+echo "  ✓ Public key: \${PUB_KEY:0:16}..."
+
+# ── 6. Install llama.cpp (llama-server) ──────────────────────────────
 echo ""
 echo "Installing llama.cpp..."
 ${BASH_FIND_LLAMA}
@@ -179,12 +228,29 @@ else
 fi
 echo "  ✓ llama-server: \$LLAMA_SERVER"
 
-# ── 5. Download GGUF model ───────────────────────────────────────────
+# ── 7. Register with YODA CRS (with retry) ────────────────────────────
+echo ""
+echo "Registering with YODA CRS..."
+REG_OK=0
+for attempt in 1 2 3; do
+  HTTP=\$(curl -s -o /dev/null -w "%{http_code}" -X POST "\${CRS_URL}/api/salvi/inter-cube/crs/register" \\
+    -H "Content-Type: application/json" \\
+    -d '{"endpoint":"'\$CUBE_ENDPOINT'","publicKey":"'\$PUB_KEY'","sessionToken":"'\$SESSION_TOKEN'"}' || echo "000")
+  if [[ "\$HTTP" == "200" || "\$HTTP" == "201" ]]; then
+    REG_OK=1; break
+  fi
+  echo "  Attempt \$attempt failed (HTTP \$HTTP) — retrying in 3s..."
+  sleep 3
+done
+[[ "\$REG_OK" == "1" ]] || { echo "  ✗ CRS registration failed after 3 attempts."; exit 1; }
+echo "  ✓ Registered with YODA CRS"
+
+# ── 8. Download GGUF model ───────────────────────────────────────────
 echo ""
 echo "Downloading model: \$GGUF_FILE"
 echo "  Source : https://huggingface.co/\$GGUF_REPO"
 echo "  Dest   : \$MODEL_PATH"
-mkdir -p "\$MODELS_DIR" "\$LOG_DIR"
+mkdir -p "\$MODELS_DIR"
 if [[ -f "\$MODEL_PATH" && -s "\$MODEL_PATH" ]]; then
   echo "  → Already downloaded (\$(du -sh "\$MODEL_PATH" | cut -f1)), skipping"
 else
@@ -201,52 +267,7 @@ fi
 [[ -s "\$MODEL_PATH" ]] || { echo "  ✗ Model file is empty after download."; exit 1; }
 echo "  ✓ Model ready (\$(du -sh "\$MODEL_PATH" | cut -f1))"
 
-# ── 6. Install PlenumNET daemon ───────────────────────────────────────
-echo ""
-echo "Installing PlenumNET (inter-cube)..."
-if [[ -d "\$PLENUMNET_DIR/.git" ]]; then
-  echo "  → Repository exists, updating..."
-  git -C "\$PLENUMNET_DIR" sparse-checkout set inter-cube 2>/dev/null || true
-  git -C "\$PLENUMNET_DIR" pull --ff-only 2>/dev/null || true
-else
-  echo "  → Sparse-cloning inter-cube only (no full repo)..."
-  git clone \\
-    --depth 1 \\
-    --filter=blob:none \\
-    --sparse \\
-    https://github.com/SigmaWolf-8/Ternary \\
-    "\$PLENUMNET_DIR"
-  git -C "\$PLENUMNET_DIR" sparse-checkout set inter-cube
-fi
-DAEMON="\$PLENUMNET_DIR/target/release/inter-cube-daemon"
-echo "  → Building inter-cube daemon (first build takes a few minutes)..."
-(cd "\$PLENUMNET_DIR" && cargo build --release --package inter-cube)
-[[ -x "\$DAEMON" ]] || { echo "  ✗ Build succeeded but binary not found at: \$DAEMON"; exit 1; }
-echo "  ✓ Daemon built: \$DAEMON"
-
-# ── 7. Register with YODA CRS (with retry) ────────────────────────────
-echo ""
-echo "Registering with YODA CRS..."
-if [[ "\$OS" == "Darwin" ]]; then
-  PUB_KEY=\$(echo -n "\${LOCAL_IP}:51820" | shasum -a 256 | cut -d' ' -f1)
-else
-  PUB_KEY=\$(echo -n "\${LOCAL_IP}:51820" | sha256sum | cut -d' ' -f1)
-fi
-REG_OK=0
-for attempt in 1 2 3; do
-  HTTP=\$(curl -s -o /dev/null -w "%{http_code}" -X POST "\${CRS_URL}/api/salvi/inter-cube/crs/register" \\
-    -H "Content-Type: application/json" \\
-    -d '{"endpoint":"'\$CUBE_ENDPOINT'","publicKey":"'\$PUB_KEY'","sessionToken":"'\$SESSION_TOKEN'"}' || echo "000")
-  if [[ "\$HTTP" == "200" || "\$HTTP" == "201" ]]; then
-    REG_OK=1; break
-  fi
-  echo "  Attempt \$attempt failed (HTTP \$HTTP) — retrying in 3s..."
-  sleep 3
-done
-[[ "\$REG_OK" == "1" ]] || { echo "  ✗ CRS registration failed after 3 attempts."; exit 1; }
-echo "  ✓ Registered with YODA CRS"
-
-# ── 8. Start llama-server ─────────────────────────────────────────────
+# ── 9. Start llama-server ─────────────────────────────────────────────
 echo ""
 echo "Starting llama-server on port \$SERVER_PORT..."
 pkill -f "llama-server.*\$SERVER_PORT" 2>/dev/null || true
@@ -264,7 +285,7 @@ SERVER_PID=\$!
 echo "  ✓ llama-server started (PID \$SERVER_PID) — log: \$LOG_DIR/llama-server-\${SERVER_PORT}.log"
 sleep 2
 
-# ── 9. Start PlenumNET tunnel daemon ──────────────────────────────────
+# ── 10. Start PlenumNET tunnel daemon ─────────────────────────────────
 echo ""
 echo "Starting PlenumNET tunnel daemon..."
 pkill -f "inter-cube-daemon" 2>/dev/null || true
@@ -315,6 +336,7 @@ $LOG_DIR       = "$MODELS_DIR\\logs"
 $LLAMA_DIR     = "$env:USERPROFILE\\llama.cpp"
 $PLENUMNET_DIR = "$env:USERPROFILE\\PlenumNET"
 $DAEMON_PATH   = "$PLENUMNET_DIR\\target\\release\\inter-cube-daemon.exe"
+$IDENTITY_DIR  = "$env:USERPROFILE\\.plenumnet\\identity"
 
 Write-Host "=== YODA Self-Host Installer ===" -ForegroundColor Cyan
 Write-Host "Model  : ${modelName}"
@@ -347,7 +369,6 @@ if (-not (Get-Command cargo -ErrorAction SilentlyContinue)) {
 } else {
   Write-Host "  OK Cargo already installed: $(cargo --version 2>$null)"
 }
-# Verify cargo is now accessible
 if (-not (Get-Command cargo -ErrorAction SilentlyContinue)) {
   Write-Host "  FAIL cargo not found after install." -ForegroundColor Red; exit 1
 }
@@ -359,7 +380,71 @@ if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
   exit 1
 }
 
-# ── 4. Install llama.cpp ──────────────────────────────────────────────
+# ── 4. Sparse-clone + build PlenumNET daemon ──────────────────────────
+Write-Host ""
+Write-Host "Installing PlenumNET (inter-cube)..."
+New-Item -ItemType Directory -Force -Path $LOG_DIR | Out-Null
+if (Test-Path "$PLENUMNET_DIR\\.git") {
+  Write-Host "  -> Repository exists, updating..."
+  git -C $PLENUMNET_DIR sparse-checkout set inter-cube 2>$null
+  git -C $PLENUMNET_DIR pull --ff-only 2>$null
+} else {
+  Write-Host "  -> Sparse-cloning inter-cube only (no full repo)..."
+  git clone \`
+    --depth 1 \`
+    --filter=blob:none \`
+    --sparse \`
+    https://github.com/SigmaWolf-8/Ternary \`
+    $PLENUMNET_DIR
+  git -C $PLENUMNET_DIR sparse-checkout set inter-cube
+}
+Write-Host "  -> Building inter-cube daemon (first build takes a few minutes)..."
+Push-Location $PLENUMNET_DIR
+cargo build --release --package inter-cube
+Pop-Location
+if (-not (Test-Path $DAEMON_PATH)) {
+  Write-Host "  FAIL Build succeeded but daemon binary not found at: $DAEMON_PATH" -ForegroundColor Red; exit 1
+}
+Write-Host "  OK Daemon built: $DAEMON_PATH"
+
+# ── 5. Identity passphrase + PT26-DSA keygen ─────────────────────────
+Write-Host ""
+Write-Host "Setting up PlenumNET identity..."
+New-Item -ItemType Directory -Force -Path $IDENTITY_DIR | Out-Null
+$PASSPHRASE_FILE = "$IDENTITY_DIR\\.passphrase"
+
+if (Test-Path $PASSPHRASE_FILE) {
+  $CUBE_PASSPHRASE = (Get-Content $PASSPHRASE_FILE -Raw).Trim()
+  Write-Host "  -> Loaded existing identity passphrase"
+} else {
+  $chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
+  $CUBE_PASSPHRASE = -join ((1..48) | ForEach-Object { $chars[(Get-Random -Minimum 0 -Maximum $chars.Length)] })
+  $CUBE_PASSPHRASE | Set-Content -Path $PASSPHRASE_FILE -NoNewline
+  # Restrict passphrase file to current user only
+  $acl = Get-Acl $PASSPHRASE_FILE
+  $acl.SetAccessRuleProtection($true, $false)
+  $userRule = New-Object System.Security.AccessControl.FileSystemAccessRule(
+    [System.Security.Principal.WindowsIdentity]::GetCurrent().Name,
+    "FullControl", "Allow"
+  )
+  $acl.SetAccessRule($userRule)
+  Set-Acl $PASSPHRASE_FILE $acl
+  Write-Host "  OK Generated and saved identity passphrase"
+}
+$env:CUBE_IDENTITY_PASSPHRASE = $CUBE_PASSPHRASE
+
+Write-Host "  -> Generating PT26-DSA identity keypair..."
+$env:CUBE_MODE = "keygen"
+$keygenLog = "$LOG_DIR\\keygen.log"
+$keygenOutput = & $DAEMON_PATH 2>$keygenLog
+$env:CUBE_MODE = $null
+$PUB_KEY = ($keygenOutput | Select-Object -Last 1).Trim()
+if (-not $PUB_KEY) {
+  Write-Host "  FAIL keygen produced no output — check $keygenLog" -ForegroundColor Red; exit 1
+}
+Write-Host "  OK Public key: $($PUB_KEY.Substring(0, [Math]::Min(16, $PUB_KEY.Length)))..."
+
+# ── 6. Install llama.cpp ──────────────────────────────────────────────
 Write-Host ""
 Write-Host "Installing llama.cpp..."
 $llamaServer = Get-ChildItem -Path $LLAMA_DIR -Recurse -Filter "llama-server.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
@@ -383,13 +468,31 @@ if ($llamaServer) {
 }
 $LLAMA_SERVER = $llamaServer.FullName
 
-# ── 5. Download GGUF model ────────────────────────────────────────────
+# ── 7. Register with YODA CRS (with retry) ────────────────────────────
+Write-Host ""
+Write-Host "Registering with YODA CRS..."
+$regBody = ConvertTo-Json @{ endpoint = $CUBE_ENDPOINT; publicKey = $PUB_KEY; sessionToken = $SESSION_TOKEN }
+$regOk = $false
+for ($attempt = 1; $attempt -le 3; $attempt++) {
+  try {
+    Invoke-RestMethod \`
+      -Uri "$CRS_URL/api/salvi/inter-cube/crs/register" \`
+      -Method Post -ContentType "application/json" -Body $regBody | Out-Null
+    $regOk = $true; break
+  } catch {
+    Write-Host "  Attempt $attempt failed: $_ — retrying in 3s..."
+    Start-Sleep -Seconds 3
+  }
+}
+if (-not $regOk) { Write-Host "  FAIL CRS registration failed after 3 attempts." -ForegroundColor Red; exit 1 }
+Write-Host "  OK Registered with YODA CRS"
+
+# ── 8. Download GGUF model ────────────────────────────────────────────
 Write-Host ""
 Write-Host "Downloading model: $GGUF_FILE"
 Write-Host "  Source : https://huggingface.co/$GGUF_REPO"
 Write-Host "  Dest   : $MODEL_PATH"
 New-Item -ItemType Directory -Force -Path $MODELS_DIR | Out-Null
-New-Item -ItemType Directory -Force -Path $LOG_DIR | Out-Null
 if ((Test-Path $MODEL_PATH) -and (Get-Item $MODEL_PATH).Length -gt 0) {
   $sz = [math]::Round((Get-Item $MODEL_PATH).Length / 1GB, 2)
   Write-Host "  OK Already downloaded ($sz GB), skipping"
@@ -416,55 +519,7 @@ if (-not (Test-Path $MODEL_PATH) -or (Get-Item $MODEL_PATH).Length -eq 0) {
 $modelSz = [math]::Round((Get-Item $MODEL_PATH).Length / 1GB, 2)
 Write-Host "  OK Model ready ($modelSz GB)"
 
-# ── 6. Install PlenumNET daemon ───────────────────────────────────────
-Write-Host ""
-Write-Host "Installing PlenumNET (inter-cube)..."
-if (Test-Path "$PLENUMNET_DIR\\.git") {
-  Write-Host "  -> Repository exists, updating..."
-  git -C $PLENUMNET_DIR sparse-checkout set inter-cube 2>$null
-  git -C $PLENUMNET_DIR pull --ff-only 2>$null
-} else {
-  Write-Host "  -> Sparse-cloning inter-cube only (no full repo)..."
-  git clone \`
-    --depth 1 \`
-    --filter=blob:none \`
-    --sparse \`
-    https://github.com/SigmaWolf-8/Ternary \`
-    $PLENUMNET_DIR
-  git -C $PLENUMNET_DIR sparse-checkout set inter-cube
-}
-Write-Host "  -> Building inter-cube daemon (first build takes a few minutes)..."
-Push-Location $PLENUMNET_DIR
-cargo build --release --package inter-cube
-Pop-Location
-if (-not (Test-Path $DAEMON_PATH)) {
-  Write-Host "  FAIL Build succeeded but daemon binary not found at: $DAEMON_PATH" -ForegroundColor Red; exit 1
-}
-Write-Host "  OK Daemon built: $DAEMON_PATH"
-
-# ── 7. Register with YODA CRS (with retry) ────────────────────────────
-Write-Host ""
-Write-Host "Registering with YODA CRS..."
-$pubKey  = ([System.Security.Cryptography.SHA256]::Create().ComputeHash(
-  [System.Text.Encoding]::UTF8.GetBytes($CUBE_ENDPOINT)) |
-  ForEach-Object { $_.ToString("x2") }) -join ""
-$regBody = ConvertTo-Json @{ endpoint = $CUBE_ENDPOINT; publicKey = $pubKey; sessionToken = $SESSION_TOKEN }
-$regOk = $false
-for ($attempt = 1; $attempt -le 3; $attempt++) {
-  try {
-    Invoke-RestMethod \`
-      -Uri "$CRS_URL/api/salvi/inter-cube/crs/register" \`
-      -Method Post -ContentType "application/json" -Body $regBody | Out-Null
-    $regOk = $true; break
-  } catch {
-    Write-Host "  Attempt $attempt failed: $_ — retrying in 3s..."
-    Start-Sleep -Seconds 3
-  }
-}
-if (-not $regOk) { Write-Host "  FAIL CRS registration failed after 3 attempts." -ForegroundColor Red; exit 1 }
-Write-Host "  OK Registered with YODA CRS"
-
-# ── 8. Start llama-server ─────────────────────────────────────────────
+# ── 9. Start llama-server ─────────────────────────────────────────────
 Write-Host ""
 Write-Host "Starting llama-server on port $SERVER_PORT..."
 Get-Process -Name "llama-server" -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
@@ -476,7 +531,7 @@ $serverProc = Start-Process -FilePath $LLAMA_SERVER \`
 Write-Host "  OK llama-server started (PID $($serverProc.Id)) — log: $serverLog"
 Start-Sleep -Seconds 2
 
-# ── 9. Start PlenumNET tunnel daemon ──────────────────────────────────
+# ── 10. Start PlenumNET tunnel daemon ─────────────────────────────────
 Write-Host ""
 Write-Host "Starting PlenumNET tunnel daemon..."
 Get-Process -Name "inter-cube-daemon" -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
@@ -528,6 +583,7 @@ MODELS_DIR="\$HOME/yoda-models"
 MODEL_PATH="\$MODELS_DIR/\$GGUF_FILE"
 DAEMON="\$PLENUMNET_DIR/target/release/inter-cube-daemon"
 LOG_DIR="\$HOME/yoda-models/logs"
+IDENTITY_DIR="\$HOME/.plenumnet/identity"
 
 echo "=== YODA Reconnect ==="
 echo "Model : ${modelName}"
@@ -535,7 +591,7 @@ echo "Port  : \$SERVER_PORT"
 echo ""
 
 # ── Preflight checks ──────────────────────────────────────────────────
-[[ -f "\$DAEMON" ]] || { echo "  ✗ PlenumNET daemon not found. Run the Install script first."; exit 1; }
+[[ -x "\$DAEMON" ]] || { echo "  ✗ PlenumNET daemon not found. Run the Install script first."; exit 1; }
 [[ -s "\$MODEL_PATH" ]] || { echo "  ✗ Model file not found or empty. Run the Install script first."; exit 1; }
 
 # ── Find llama-server ─────────────────────────────────────────────────
@@ -558,30 +614,20 @@ fi
 LOCAL_IP=\${LOCAL_IP:-"0.0.0.0"}
 CUBE_ENDPOINT="\${LOCAL_IP}:51820"
 
-# ── Register (with retry) ─────────────────────────────────────────────
-if [[ "\$OS" == "Darwin" ]]; then
-  PUB_KEY=\$(echo -n "\${LOCAL_IP}:51820" | shasum -a 256 | cut -d' ' -f1)
+# ── Load identity passphrase ──────────────────────────────────────────
+PASSPHRASE_FILE="\$IDENTITY_DIR/.passphrase"
+if [[ -f "\$PASSPHRASE_FILE" ]]; then
+  export CUBE_IDENTITY_PASSPHRASE=\$(cat "\$PASSPHRASE_FILE")
+  echo "  ✓ Identity passphrase loaded"
 else
-  PUB_KEY=\$(echo -n "\${LOCAL_IP}:51820" | sha256sum | cut -d' ' -f1)
+  echo "  ⚠ No passphrase file found at \$PASSPHRASE_FILE — daemon will use hostname-derived fallback."
+  echo "    If the daemon fails to start, run the Install script again to regenerate identity."
 fi
-REG_OK=0
-for attempt in 1 2 3; do
-  HTTP=\$(curl -s -o /dev/null -w "%{http_code}" -X POST "\${CRS_URL}/api/salvi/inter-cube/crs/register" \\
-    -H "Content-Type: application/json" \\
-    -d '{"endpoint":"'\$CUBE_ENDPOINT'","publicKey":"'\$PUB_KEY'","sessionToken":"'\$SESSION_TOKEN'"}' || echo "000")
-  if [[ "\$HTTP" == "200" || "\$HTTP" == "201" ]]; then
-    REG_OK=1; break
-  fi
-  echo "  Attempt \$attempt failed (HTTP \$HTTP) — retrying in 3s..."
-  sleep 3
-done
-[[ "\$REG_OK" == "1" ]] || { echo "  ✗ CRS registration failed after 3 attempts."; exit 1; }
-echo "  ✓ Registered with YODA CRS"
 
 # ── Restart llama-server ──────────────────────────────────────────────
+mkdir -p "\$LOG_DIR"
 pkill -f "llama-server.*\$SERVER_PORT" 2>/dev/null || true
 sleep 1
-mkdir -p "\$LOG_DIR"
 nohup "\$LLAMA_SERVER" \\
   --model "\$MODEL_PATH" \\
   --port "\$SERVER_PORT" \\
@@ -595,6 +641,8 @@ echo "  ✓ llama-server started (PID \$!)"
 sleep 2
 
 # ── Restart PlenumNET daemon ──────────────────────────────────────────
+# The daemon self-registers with the CRS on startup using CUBE_CRS_URL +
+# CUBE_SESSION_TOKEN, so no explicit registration call is needed here.
 pkill -f "inter-cube-daemon" 2>/dev/null || true
 sleep 1
 export CUBE_MODE=cube
@@ -630,6 +678,7 @@ $MODELS_DIR    = "$env:USERPROFILE\\yoda-models"
 $MODEL_PATH    = "$MODELS_DIR\\$GGUF_FILE"
 $LOG_DIR       = "$MODELS_DIR\\logs"
 $LLAMA_DIR     = "$env:USERPROFILE\\llama.cpp"
+$IDENTITY_DIR  = "$env:USERPROFILE\\.plenumnet\\identity"
 
 # Locate PlenumNET in known paths
 $PLENUMNET_DIR = "$env:USERPROFILE\\PlenumNET"
@@ -672,25 +721,15 @@ if (-not $ip) { $ip = "0.0.0.0" }
 $CUBE_ENDPOINT = "$ip:51820"
 Write-Host "  Local endpoint : $CUBE_ENDPOINT"
 
-# ── Register (with retry) ─────────────────────────────────────────────
-$pubKey  = ([System.Security.Cryptography.SHA256]::Create().ComputeHash(
-  [System.Text.Encoding]::UTF8.GetBytes($CUBE_ENDPOINT)) |
-  ForEach-Object { $_.ToString("x2") }) -join ""
-$regBody = ConvertTo-Json @{ endpoint = $CUBE_ENDPOINT; publicKey = $pubKey; sessionToken = $SESSION_TOKEN }
-$regOk = $false
-for ($attempt = 1; $attempt -le 3; $attempt++) {
-  try {
-    Invoke-RestMethod \`
-      -Uri "$CRS_URL/api/salvi/inter-cube/crs/register" \`
-      -Method Post -ContentType "application/json" -Body $regBody | Out-Null
-    $regOk = $true; break
-  } catch {
-    Write-Host "  Attempt $attempt failed: $_ — retrying in 3s..."
-    Start-Sleep -Seconds 3
-  }
+# ── Load identity passphrase ──────────────────────────────────────────
+$PASSPHRASE_FILE = "$IDENTITY_DIR\\.passphrase"
+if (Test-Path $PASSPHRASE_FILE) {
+  $env:CUBE_IDENTITY_PASSPHRASE = (Get-Content $PASSPHRASE_FILE -Raw).Trim()
+  Write-Host "  OK Identity passphrase loaded"
+} else {
+  Write-Host "  WARN No passphrase file at $PASSPHRASE_FILE — daemon will use hostname-derived fallback." -ForegroundColor Yellow
+  Write-Host "       If daemon fails, run the Install script to regenerate identity." -ForegroundColor Yellow
 }
-if (-not $regOk) { Write-Host "  FAIL CRS registration failed after 3 attempts." -ForegroundColor Red; exit 1 }
-Write-Host "  OK Registered with YODA CRS"
 
 # ── Restart llama-server ──────────────────────────────────────────────
 New-Item -ItemType Directory -Force -Path $LOG_DIR | Out-Null
@@ -704,6 +743,8 @@ Write-Host "  OK llama-server started (PID $($serverProc.Id)) — log: $serverLo
 Start-Sleep -Seconds 2
 
 # ── Restart PlenumNET daemon ──────────────────────────────────────────
+# The daemon self-registers with the CRS on startup using CUBE_CRS_URL +
+# CUBE_SESSION_TOKEN, so no explicit registration call is needed here.
 Get-Process -Name "inter-cube-daemon" -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
 Start-Sleep -Milliseconds 800
 $env:CUBE_MODE          = "cube"
