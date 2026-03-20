@@ -418,6 +418,62 @@ if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
   throw "Git is not installed. Install it from https://git-scm.com/download/win then re-run this installer."
 }
 
+# -- 3b. Check / install C compiler (required by the ring crypto crate) ----
+Write-Host ""
+Write-Host "Checking C compiler (required by the ring crypto crate)..."
+$hasCl    = Get-Command cl.exe    -ErrorAction SilentlyContinue
+$hasClang = Get-Command clang.exe -ErrorAction SilentlyContinue
+if ($hasCl) {
+  Write-Host "  OK MSVC cl.exe: $($hasCl.Source)"
+} elseif ($hasClang) {
+  Write-Host "  OK clang.exe: $($hasClang.Source)"
+} else {
+  Write-Host "  -> No C compiler on PATH -- installing Visual Studio Build Tools..." -ForegroundColor Yellow
+  Write-Host "     Required by the ring crypto crate. ~3 GB download, may take several minutes." -ForegroundColor Yellow
+  $cpuArch = [System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString()
+  Write-Host "  -> Detected architecture: $cpuArch"
+  $vsInstaller = Join-Path $env:TEMP "vs_buildtools.exe"
+  Write-Host "  -> Downloading VS Build Tools..."
+  if (Get-Command curl.exe -ErrorAction SilentlyContinue) {
+    curl.exe -fL "https://aka.ms/vs/17/release/vs_buildtools.exe" -o "$vsInstaller"
+  } else {
+    Invoke-WebRequest -Uri "https://aka.ms/vs/17/release/vs_buildtools.exe" -OutFile $vsInstaller -UseBasicParsing
+  }
+  $vsArgList = @("--quiet","--wait","--norestart","--add","Microsoft.VisualStudio.Workload.VCTools","--includeRecommended")
+  if ($cpuArch -eq "Arm64") {
+    $vsArgList += @("--add","Microsoft.VisualStudio.Component.VC.Tools.ARM64","--add","Microsoft.VisualStudio.Component.VC.Tools.ARM64EC")
+  }
+  Write-Host "  -> Running installer (do not close this window)..."
+  Start-Process -FilePath $vsInstaller -ArgumentList $vsArgList -Wait -NoNewWindow
+  Remove-Item $vsInstaller -Force -ErrorAction SilentlyContinue
+  Write-Host "  OK VS Build Tools installed"
+  $vswhereX86 = "C:\Program Files (x86)\Microsoft Visual Studio\Installer\vswhere.exe"
+  $vswhereNat = "C:\Program Files\Microsoft Visual Studio\Installer\vswhere.exe"
+  $vswhere = if (Test-Path $vswhereX86) { $vswhereX86 } elseif (Test-Path $vswhereNat) { $vswhereNat } else { "" }
+  if ($vswhere) {
+    $vsInstallPath = & $vswhere -latest -products * -property installationPath 2>$null
+    if ($vsInstallPath) {
+      $vcvarsName = if ($cpuArch -eq "Arm64") { "vcvarsarm64.bat" } else { "vcvars64.bat" }
+      $vcvars = Join-Path (Join-Path (Join-Path $vsInstallPath "VC") "Auxiliary\Build") $vcvarsName
+      if (Test-Path $vcvars) {
+        Write-Host "  -> Activating MSVC environment for this session..."
+        $envLines = cmd.exe /c ('"' + $vcvars + '" > nul 2>&1 && set')
+        foreach ($line in $envLines) {
+          if ($line -match '^([^=\r\n]+)=(.*)$') {
+            [System.Environment]::SetEnvironmentVariable($Matches[1], $Matches[2], "Process")
+          }
+        }
+        Write-Host "  OK MSVC environment activated"
+      }
+    }
+  }
+  if (Get-Command cl.exe -ErrorAction SilentlyContinue) {
+    Write-Host "  OK cl.exe confirmed on PATH"
+  } else {
+    Write-Host "  -> cl.exe not on PATH yet -- Cargo will locate MSVC via registry." -ForegroundColor Yellow
+  }
+}
+
 # -- 4. Clone/update PlenumNET and build daemon ----------------------------
 Write-Host ""
 Write-Host "Installing PlenumNET (inter-cube)..."
