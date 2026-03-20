@@ -916,17 +916,34 @@ export function EngineSlotCard({
             <div>
               <div className="flex items-center justify-between mb-1">
                 <label className="text-sm font-medium text-[var(--color-text-secondary)]">Endpoint URL</label>
-                <button
-                  onClick={probeEndpoint}
-                  disabled={probeState === 'loading' || !endpoint}
-                  className="flex items-center gap-1 text-sm px-2 py-0.5 rounded-md border border-[var(--color-border-default)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:border-[var(--color-border-hover)] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                >
-                  {probeState === 'loading' ? (
-                    <><Loader2 className="w-3 h-3 animate-spin" /> Testing…</>
-                  ) : (
-                    <><Radio className="w-3 h-3" /> Test</>
+                <div className="flex items-center gap-1">
+                  {config?.health_status !== 'online' && endpoint && (
+                    <button
+                      onClick={() => markOnline.mutate(slot)}
+                      disabled={markOnline.isPending}
+                      title="Force status to online (use when your node is running but unreachable from the probe)"
+                      className="flex items-center gap-1 text-sm px-2 py-0.5 rounded-md border border-green-500/40 text-green-400 hover:border-green-400 hover:text-green-300 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                    >
+                      {markOnline.isPending ? (
+                        <Loader2 className="w-3 h-3 animate-spin" />
+                      ) : (
+                        <Wifi className="w-3 h-3" />
+                      )}
+                      Mark Online
+                    </button>
                   )}
-                </button>
+                  <button
+                    onClick={probeEndpoint}
+                    disabled={probeState === 'loading' || !endpoint}
+                    className="flex items-center gap-1 text-sm px-2 py-0.5 rounded-md border border-[var(--color-border-default)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:border-[var(--color-border-hover)] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    {probeState === 'loading' ? (
+                      <><Loader2 className="w-3 h-3 animate-spin" /> Testing…</>
+                    ) : (
+                      <><Radio className="w-3 h-3" /> Test</>
+                    )}
+                  </button>
+                </div>
               </div>
               <input
                 type="text"

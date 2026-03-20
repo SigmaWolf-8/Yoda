@@ -589,9 +589,17 @@ fn crs_client() -> Result<reqwest::Client, AppError> {
         .map_err(|e| AppError::Internal(format!("CRS client: {e}")))
 }
 
-/// POST /api/salvi/inter-cube/crs/register → CRS register
+/// POST /api/salvi/inter-cube/crs/register → CRS registration proxy.
 /// Body is forwarded verbatim so sessionToken is preserved.
-async fn crs_register(body: Bytes) -> Result<(StatusCode, Json<serde_json::Value>), AppError> {
+/// Side-effect: if the registering node's IP matches any engine_configs endpoint_url,
+/// that engine's health_status is flipped to 'online' automatically.
+async fn crs_register(
+    State(state): State<AppState>,
+    body: Bytes,
+) -> Result<(StatusCode, Json<serde_json::Value>), AppError> {
+    // Extract the wire endpoint IP before consuming body
+    let endpoint_ip = extract_endpoint_ip(&body);
+
     let client = crs_client()?;
     let resp = client
         .post(format!("{CRS_BASE}/api/salvi/inter-cube/crs/register"))
@@ -607,11 +615,26 @@ async fn crs_register(body: Bytes) -> Result<(StatusCode, Json<serde_json::Value
         .json()
         .await
         .map_err(|e| AppError::Internal(format!("CRS response: {e}")))?;
+
+    // On successful registration, mark any matching engine slot online
+    if status.is_success() {
+        if let Some(ip) = endpoint_ip {
+            mark_engines_online_by_ip(&state.db, &ip).await;
+        }
+    }
+
     Ok((status, Json(json)))
 }
 
-/// POST /api/salvi/inter-cube/crs/heartbeat → CRS heartbeat
-async fn crs_heartbeat(body: Bytes) -> Result<(StatusCode, Json<serde_json::Value>), AppError> {
+/// POST /api/salvi/inter-cube/crs/heartbeat → CRS heartbeat proxy.
+/// Side-effect: each inbound heartbeat automatically marks the matching engine online,
+/// so health status self-heals every 30 s without any probe or manual action.
+async fn crs_heartbeat(
+    State(state): State<AppState>,
+    body: Bytes,
+) -> Result<(StatusCode, Json<serde_json::Value>), AppError> {
+    let endpoint_ip = extract_endpoint_ip(&body);
+
     let client = crs_client()?;
     let resp = client
         .post(format!("{CRS_BASE}/api/salvi/inter-cube/crs/heartbeat"))
@@ -627,7 +650,36 @@ async fn crs_heartbeat(body: Bytes) -> Result<(StatusCode, Json<serde_json::Valu
         .json()
         .await
         .map_err(|e| AppError::Internal(format!("CRS response: {e}")))?;
+
+    if status.is_success() {
+        if let Some(ip) = endpoint_ip {
+            mark_engines_online_by_ip(&state.db, &ip).await;
+        }
+    }
+
     Ok((status, Json(json)))
+}
+
+/// Extract the host IP from `{ "endpoint": "ip:port", ... }` JSON bodies.
+/// Works for both register (`endpoint` = wire address) and heartbeat.
+fn extract_endpoint_ip(body: &Bytes) -> Option<String> {
+    let val: serde_json::Value = serde_json::from_slice(body).ok()?;
+    let endpoint = val.get("endpoint")?.as_str()?;
+    // endpoint is "ip:port" — take everything before the last ':'
+    let ip = endpoint.rsplitn(2, ':').last()?;
+    if ip.is_empty() { None } else { Some(ip.to_owned()) }
+}
+
+/// UPDATE engine_configs SET health_status='online' for any slot whose
+/// endpoint_url contains `ip` (matches http://10.0.0.35:8080 etc.).
+async fn mark_engines_online_by_ip(db: &sqlx::PgPool, ip: &str) {
+    let pattern = format!("%{ip}%");
+    let _ = sqlx::query(
+        "UPDATE engine_configs SET health_status='online' WHERE endpoint_url LIKE $1",
+    )
+    .bind(&pattern)
+    .execute(db)
+    .await;
 }
 
 /// GET /api/salvi/inter-cube/crs/stats → CRS stats
