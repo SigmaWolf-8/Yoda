@@ -51,7 +51,7 @@ export const DIVISIONS: DivisionMeta[] = [
   // [12] depth
   { id: 'spatial-computing',  label: 'Spatial',      ring: 'depth' },
   // [13] satellite sub-node — tethered to parent inner node
-  { id: 'academic', label: 'Academic', ring: 'satellite', satelliteParent: 'specialized', satelliteAngleOffset: Math.PI / 6 },
+  { id: 'academic', label: 'Academic', ring: 'satellite', satelliteParent: 'engineering', satelliteAngleOffset: -Math.PI / 5 },
 ];
 
 export interface AgentConfig {
