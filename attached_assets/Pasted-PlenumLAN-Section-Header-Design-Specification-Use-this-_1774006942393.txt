@@ -1,0 +1,98 @@
+PlenumLAN Section Header Design Specification
+Use this spec to replicate the section header design from PlenumLAN Console. It consists of two parts: a stylized title and a geometric underline with asymmetric vertical intersections.
+
+1. Font Setup
+Load Google Font Orbitron (weights 700, 800, 900). Add this in your app entry point:
+
+const fontLink = document.createElement("link");
+fontLink.href = "https://fonts.googleapis.com/css2?family=Orbitron:wght@700;800;900&display=swap";
+fontLink.rel = "stylesheet";
+document.head.appendChild(fontLink);
+2. Section Header Component (React + Tailwind)
+interface SectionHeaderProps {
+  title: string;
+  accentColor?: string; // default: "#38BDF8"
+}
+function SectionHeader({ title, accentColor = "#38BDF8" }: SectionHeaderProps) {
+  return (
+    <div>
+      {/* Title */}
+      <h1
+        className="truncate uppercase"
+        style={{
+          fontFamily: "'Orbitron', sans-serif",
+          fontSize: "34px",
+          fontWeight: 800,
+          letterSpacing: "0.12em",
+          textShadow:
+            "0 1px 0 rgba(0,0,0,0.1), 0 2px 0 rgba(0,0,0,0.07), 0 3px 8px rgba(0,0,0,0.08)",
+        }}
+      >
+        {title}
+      </h1>
+      {/* Geometric Underline */}
+      <svg
+        className="w-full mt-2"
+        height="16"
+        viewBox="0 0 1000 16"
+        preserveAspectRatio="none"
+        fill="none"
+        style={{ color: accentColor }}
+      >
+        {/* Full-width horizontal line */}
+        <line x1="0" y1="8" x2="1000" y2="8"
+          stroke="currentColor" strokeWidth="1" opacity="0.3" />
+        {/* Paired vertical ticks near left */}
+        <line x1="80" y1="1" x2="80" y2="15"
+          stroke="currentColor" strokeWidth="1.5" opacity="0.6" />
+        <line x1="92" y1="1" x2="92" y2="15"
+          stroke="currentColor" strokeWidth="1.5" opacity="0.6" />
+        {/* Single vertical tick — middle area */}
+        <line x1="420" y1="3" x2="420" y2="13"
+          stroke="currentColor" strokeWidth="1" opacity="0.35" />
+        {/* Single vertical tick — right area */}
+        <line x1="780" y1="1" x2="780" y2="15"
+          stroke="currentColor" strokeWidth="1.5" opacity="0.5" />
+      </svg>
+    </div>
+  );
+}
+3. Design Rules
+Title Text
+Font: Orbitron, weight 900, sans-serif fallback
+Size: 34px
+Transform: uppercase
+Letter spacing: 0.12em
+Text shadow (raised/embossed effect):
+Layer 1: 0 1px 0 rgba(0,0,0,0.1) — hard edge
+Layer 2: 0 2px 0 rgba(0,0,0,0.07) — mid depth
+Layer 3: 0 3px 8px rgba(0,0,0,0.08) — soft ambient
+Color: Inherit from page foreground (works in both light and dark modes)
+Geometric Underline
+Horizontal line: Spans full width of container. 1px stroke, 0.3 opacity. Sits at vertical center (y=8 in a 16px tall SVG).
+Vertical ticks: Perpendicular lines crossing the horizontal at 90 degrees. Placed asymmetrically — not evenly spaced.
+Tick placement (in a 0–1000 coordinate space, stretched to full width via preserveAspectRatio="none"):
+Paired ticks at x=80 and x=92: Same height (y 1–15), same weight (1.5px), same opacity (0.6). Close together forming a visual cluster.
+Mid tick at x=420: Shorter (y 3–13), thinner (1px), lower opacity (0.35). Subtle.
+Right tick at x=780: Full height (y 1–15), 1.5px weight, 0.5 opacity.
+Color: All elements use a single accent color via currentColor. Default is #38BDF8 (baby blue).
+Key principle: The ticks are deliberately asymmetric — they should NOT be evenly distributed. The paired cluster on the left, a light mark in the middle, and one mark on the right creates a technical, blueprint-like feel.
+SVG Setup
+viewBox="0 0 1000 16" — 1000-unit wide coordinate space
+preserveAspectRatio="none" — stretches horizontally to fill container width
+height="16" — fixed pixel height
+className="w-full" — fills parent width (Tailwind)
+Uses currentColor for all strokes/fills, with the accent color set via style={{ color: accentColor }}
+4. Usage Example
+<div className="px-10 pt-4">
+  <SectionHeader title="System Overview" />
+</div>
+<div className="px-10 pt-4">
+  <SectionHeader title="Network Devices" accentColor="#22D3EE" />
+</div>
+5. Adapting to Other Frameworks
+The design is framework-agnostic. The core elements are:
+
+An <h1> with Orbitron font, uppercase, letter-spaced, with layered text-shadow
+An inline <svg> below it with one horizontal line and 4 vertical ticks at specific positions
+For plain HTML/CSS, apply the same font-family, font-size, font-weight, letter-spacing, text-transform, and text-shadow as CSS properties. The SVG can be dropped in directly

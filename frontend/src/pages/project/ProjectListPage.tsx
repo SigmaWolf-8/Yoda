@@ -13,6 +13,7 @@ import {
 import { useOrganizations, useProjects, useCreateProject, useDeleteProject } from '../../api/hooks';
 import { extractErrorMessage } from '../../types';
 import { usePageHeader } from '../../context/PageHeader';
+import { SectionHeader } from '../../components/common/SectionHeader';
 
 export function ProjectListPage() {
   const navigate = useNavigate();
@@ -54,6 +55,7 @@ export function ProjectListPage() {
 
   return (
     <div className="p-6 lg:p-8 max-w-5xl mx-auto animate-fade-in">
+      <SectionHeader title="Projects" accentColor="#38BDF8" />
       {/* Action bar */}
       <div className="flex items-center justify-end mb-6">
         <button

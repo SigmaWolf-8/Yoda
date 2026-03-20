@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { FolderOpen, Settings, BookOpen, Zap, LayoutDashboard } from 'lucide-react';
 import { usePageHeader } from '../context/PageHeader';
+import { SectionHeader } from '../components/common/SectionHeader';
 
 export function DashboardPage() {
   usePageHeader({
@@ -11,6 +12,7 @@ export function DashboardPage() {
 
   return (
     <div className="p-6 lg:p-8 max-w-4xl mx-auto animate-fade-in">
+      <SectionHeader title="Dashboard" accentColor="#38BDF8" />
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {[
           { to: '/projects', icon: FolderOpen, label: 'Projects', desc: 'View and manage your projects' },
