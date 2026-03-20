@@ -418,59 +418,81 @@ if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
   throw "Git is not installed. Install it from https://git-scm.com/download/win then re-run this installer."
 }
 
-# -- 3b. Check / install C compiler (required by the ring crypto crate) ----
+# -- 3b. Activate MSVC environment + ensure clang is available -----------
+# The ring crate on aarch64-pc-windows-msvc needs BOTH:
+#   1. VCINSTALLDIR set (from vcvarsarm64.bat) for the MSVC linker
+#   2. clang.exe on PATH for ARM64 assembly compilation
 Write-Host ""
-Write-Host "Checking C compiler (required by the ring crypto crate)..."
-$hasCl    = Get-Command cl.exe    -ErrorAction SilentlyContinue
-$hasClang = Get-Command clang.exe -ErrorAction SilentlyContinue
-if ($hasCl) {
-  Write-Host "  OK MSVC cl.exe: $($hasCl.Source)"
-} elseif ($hasClang) {
-  Write-Host "  OK clang.exe: $($hasClang.Source)"
-} else {
-  Write-Host "  -> No C compiler on PATH -- installing Visual Studio Build Tools..." -ForegroundColor Yellow
-  Write-Host "     Required by the ring crypto crate. ~3 GB download, may take several minutes." -ForegroundColor Yellow
-  $cpuArch = [System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString()
-  Write-Host "  -> Detected architecture: $cpuArch"
-  $vsInstaller = Join-Path $env:TEMP "vs_buildtools.exe"
-  Write-Host "  -> Downloading VS Build Tools..."
-  if (Get-Command curl.exe -ErrorAction SilentlyContinue) {
-    curl.exe -fL "https://aka.ms/vs/17/release/vs_buildtools.exe" -o "$vsInstaller"
-  } else {
-    Invoke-WebRequest -Uri "https://aka.ms/vs/17/release/vs_buildtools.exe" -OutFile $vsInstaller -UseBasicParsing
-  }
-  $vsArgList = @("--quiet","--wait","--norestart","--add","Microsoft.VisualStudio.Workload.VCTools","--includeRecommended")
-  if ($cpuArch -eq "Arm64") {
-    $vsArgList += @("--add","Microsoft.VisualStudio.Component.VC.Tools.ARM64","--add","Microsoft.VisualStudio.Component.VC.Tools.ARM64EC")
-  }
-  Write-Host "  -> Running installer (do not close this window)..."
-  Start-Process -FilePath $vsInstaller -ArgumentList $vsArgList -Wait -NoNewWindow
-  Remove-Item $vsInstaller -Force -ErrorAction SilentlyContinue
-  Write-Host "  OK VS Build Tools installed"
-  $vswhereX86 = "C:\Program Files (x86)\Microsoft Visual Studio\Installer\vswhere.exe"
-  $vswhereNat = "C:\Program Files\Microsoft Visual Studio\Installer\vswhere.exe"
-  $vswhere = if (Test-Path $vswhereX86) { $vswhereX86 } elseif (Test-Path $vswhereNat) { $vswhereNat } else { "" }
-  if ($vswhere) {
-    $vsInstallPath = & $vswhere -latest -products * -property installationPath 2>$null
-    if ($vsInstallPath) {
-      $vcvarsName = if ($cpuArch -eq "Arm64") { "vcvarsarm64.bat" } else { "vcvars64.bat" }
-      $vcvars = Join-Path (Join-Path (Join-Path $vsInstallPath "VC") "Auxiliary\Build") $vcvarsName
-      if (Test-Path $vcvars) {
-        Write-Host "  -> Activating MSVC environment for this session..."
-        $envLines = cmd.exe /c ('"' + $vcvars + '" > nul 2>&1 && set')
-        foreach ($line in $envLines) {
-          if ($line -match '^([^=\r\n]+)=(.*)$') {
-            [System.Environment]::SetEnvironmentVariable($Matches[1], $Matches[2], "Process")
-          }
+Write-Host "Setting up build environment for the ring crypto crate..."
+$cpuArch = [System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString()
+Write-Host "  -> Architecture: $cpuArch"
+
+# Step A -- find and activate MSVC via vswhere (sets VCINSTALLDIR etc.)
+$vswhereX86 = "C:\Program Files (x86)\Microsoft Visual Studio\Installer\vswhere.exe"
+$vswhereNat = "C:\Program Files\Microsoft Visual Studio\Installer\vswhere.exe"
+$vswhere = if (Test-Path $vswhereX86) { $vswhereX86 } elseif (Test-Path $vswhereNat) { $vswhereNat } else { "" }
+if ($vswhere) {
+  $vsInstallPath = & $vswhere -latest -products * -property installationPath 2>$null
+  if ($vsInstallPath) {
+    $vcvarsName = if ($cpuArch -eq "Arm64") { "vcvarsarm64.bat" } else { "vcvars64.bat" }
+    $vcvars = Join-Path (Join-Path (Join-Path $vsInstallPath "VC") "Auxiliary\Build") $vcvarsName
+    if (Test-Path $vcvars) {
+      Write-Host "  -> Activating MSVC environment ($vcvarsName)..."
+      $envLines = cmd.exe /c ('"' + $vcvars + '" > nul 2>&1 && set')
+      foreach ($line in $envLines) {
+        if ($line -match '^([^=\r\n]+)=(.*)$') {
+          [System.Environment]::SetEnvironmentVariable($Matches[1], $Matches[2], "Process")
         }
-        Write-Host "  OK MSVC environment activated"
       }
+      Write-Host "  OK MSVC environment activated (VCINSTALLDIR = $env:VCINSTALLDIR)"
+    } else {
+      Write-Host "  WARN $vcvarsName not found in $vsInstallPath -- MSVC ARM64 tools may not be installed." -ForegroundColor Yellow
     }
-  }
-  if (Get-Command cl.exe -ErrorAction SilentlyContinue) {
-    Write-Host "  OK cl.exe confirmed on PATH"
   } else {
-    Write-Host "  -> cl.exe not on PATH yet -- Cargo will locate MSVC via registry." -ForegroundColor Yellow
+    Write-Host "  WARN No VS installation found via vswhere." -ForegroundColor Yellow
+  }
+} else {
+  Write-Host "  WARN vswhere.exe not found -- cannot activate MSVC environment." -ForegroundColor Yellow
+}
+
+# Step B -- ensure clang is on PATH (ring needs it for ARM64 assembly)
+$hasClang = Get-Command clang -ErrorAction SilentlyContinue
+if (-not $hasClang) {
+  $llvmBin = "C:\Program Files\LLVM\bin"
+  if (Test-Path (Join-Path $llvmBin "clang.exe")) {
+    $env:PATH += ";$llvmBin"
+    $hasClang = Get-Command clang -ErrorAction SilentlyContinue
+  }
+}
+if ($hasClang) {
+  Write-Host "  OK clang: $($hasClang.Source)"
+} else {
+  Write-Host "  -> clang not found -- installing LLVM via winget (~300 MB)..." -ForegroundColor Yellow
+  $hasWinget = Get-Command winget -ErrorAction SilentlyContinue
+  if ($hasWinget) {
+    winget install --id LLVM.LLVM --silent --accept-package-agreements --accept-source-agreements
+  } else {
+    Write-Host "  -> winget not available -- downloading LLVM installer directly..."
+    $llvmRelease = (Invoke-RestMethod "https://api.github.com/repos/llvm/llvm-project/releases/latest").tag_name
+    $llvmVer = $llvmRelease -replace "llvmorg-",""
+    $llvmUrl = "https://github.com/llvm/llvm-project/releases/download/$llvmRelease/LLVM-$llvmVer-win64.exe"
+    $llvmInstaller = Join-Path $env:TEMP "llvm-installer.exe"
+    Write-Host "  -> Downloading LLVM $llvmVer..."
+    if (Get-Command curl.exe -ErrorAction SilentlyContinue) {
+      curl.exe -fL "$llvmUrl" -o "$llvmInstaller"
+    } else {
+      Invoke-WebRequest -Uri $llvmUrl -OutFile $llvmInstaller -UseBasicParsing
+    }
+    Start-Process -FilePath $llvmInstaller -ArgumentList "/S" -Wait -NoNewWindow
+    Remove-Item $llvmInstaller -Force -ErrorAction SilentlyContinue
+  }
+  $env:PATH = [System.Environment]::GetEnvironmentVariable("PATH","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("PATH","User")
+  $llvmBin = "C:\Program Files\LLVM\bin"
+  if (Test-Path (Join-Path $llvmBin "clang.exe")) { $env:PATH += ";$llvmBin" }
+  if (Get-Command clang -ErrorAction SilentlyContinue) {
+    Write-Host "  OK clang installed"
+  } else {
+    throw "clang not found after LLVM install -- please restart this script in a new terminal."
   }
 }
 
