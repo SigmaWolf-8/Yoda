@@ -86,7 +86,7 @@ export function AppShell() {
       collapsed && 'justify-center',
       isActive
         ? 'bg-[hsl(210,80%,55%)]/15 text-[hsl(210,80%,68%)] border border-[hsl(210,80%,55%)]/28'
-        : 'text-[hsl(220,15%,58%)] hover:text-[hsl(220,15%,85%)] hover:bg-[hsl(220,15%,13%)]',
+        : 'text-[var(--color-warm-300)] hover:text-[var(--color-warm-100)] hover:bg-[var(--color-warm-800)]',
     ].filter(Boolean).join(' ');
 
   const asideWidth = collapsed ? '4rem' : `${sidebarWidth}px`;
@@ -107,7 +107,7 @@ export function AppShell() {
       <aside
         style={{
           width: asideWidth,
-          background: 'linear-gradient(160deg, hsl(220,18%,9%) 0%, hsl(220,16%,7%) 100%)',
+          background: 'linear-gradient(160deg, var(--color-warm-900) 0%, var(--color-warm-1000) 100%)',
           boxShadow: [
             'inset 1px 0 0 rgba(255,255,255,0.045)',
             'inset 0 1px 0 rgba(255,255,255,0.05)',
@@ -120,7 +120,7 @@ export function AppShell() {
         }}
         className={[
           'fixed lg:sticky top-0 left-0 z-40 h-screen flex-shrink-0 relative',
-          'border-r border-[hsl(220,15%,16%)]',
+          'border-r border-[var(--color-warm-750)]',
           'flex flex-col overflow-hidden',
           isResizing ? '' : 'transition-all duration-200',
           sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0',
@@ -134,7 +134,7 @@ export function AppShell() {
           ].join(' ')}
           style={{
             height: HEADER_H,
-            borderBottomColor: 'hsl(220,15%,16%)',
+            borderBottomColor: 'var(--color-warm-750)',
             boxShadow: '0 2px 16px rgba(0,0,0,0.45)',
           }}
         >
@@ -154,11 +154,11 @@ export function AppShell() {
           </div>
           {!collapsed && (
             <>
-              <span className="text-lg font-bold tracking-wide text-[hsl(220,15%,88%)]">
+              <span className="text-lg font-bold tracking-wide text-[var(--color-warm-100)]">
                 YODA
               </span>
               <button
-                className="ml-auto lg:hidden text-[hsl(220,12%,55%)] hover:text-[hsl(220,15%,82%)]"
+                className="ml-auto lg:hidden text-[var(--color-warm-300)] hover:text-[var(--color-warm-100)]"
                 onClick={() => setSidebarOpen(false)}
               >
                 <X className="w-5 h-5" />
@@ -188,7 +188,7 @@ export function AppShell() {
         <div
           className="border-t px-3 py-3 space-y-2"
           style={{
-            borderTopColor: 'hsl(220,15%,16%)',
+            borderTopColor: 'var(--color-warm-750)',
             boxShadow: '0 -2px 20px rgba(0,0,0,0.50)',
           }}
         >
@@ -208,7 +208,7 @@ export function AppShell() {
               onClick={() => setCollapsed(c => !c)}
               title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
               aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-              className="ml-auto p-2.5 rounded-lg text-[hsl(220,12%,52%)] hover:text-[hsl(220,15%,82%)] hover:bg-[hsl(220,15%,13%)] transition-colors flex-shrink-0"
+              className="ml-auto p-2.5 rounded-lg text-[var(--color-warm-400)] hover:text-[var(--color-warm-100)] hover:bg-[var(--color-warm-800)] transition-colors flex-shrink-0"
             >
               {collapsed
                 ? <ChevronRight className="w-4 h-4" />
@@ -217,7 +217,7 @@ export function AppShell() {
           </div>
 
           {!collapsed && (
-            <p className="text-xs text-[hsl(220,12%,40%)] leading-tight px-3 pb-1">
+            <p className="text-xs text-[var(--color-warm-400)] leading-tight px-3 pb-1">
               Capomastro Holdings Ltd.
               <br />Applied Physics Division
             </p>
