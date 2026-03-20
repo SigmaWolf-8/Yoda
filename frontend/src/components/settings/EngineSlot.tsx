@@ -67,10 +67,11 @@ export const MODEL_INFO: Record<string, ModelMeta> = {
   'DeepSeek-V3.2': { company: 'DeepSeek', arch: 'MoE',   type: 'LLM',          specialty: 'Coding · Math · Cost-efficient frontier', desc: "DeepSeek's latest MoE model. 671B total weights, ~37B active per token — competitive with frontier LLMs at significantly lower cost." },
   'DeepSeek-R1':   { company: 'DeepSeek', arch: 'Dense', type: 'Reasoning LLM', specialty: 'Chain-of-thought · Math · Complex problem-solving', desc: "DeepSeek's flagship reasoning model. Publishes its thinking step-by-step; outstanding on logic, proofs, and algorithmic problems." },
 
-  // ── Self-hosted ─────────────────────────────────────────────────────────
-  // Ordered by doc tier: Coding → Reasoning → Well-Rounded, then High → Mid → Low memory
+  // ── Self-hosted ──────────────────────────────────────────────────────────
+  // 27-slot layout: Coding / Reasoning / Well-Rounded × High / Mid / Low × Rank 1-3
+  // Several models appear in more than one section (e.g. GLM-5, Kimi-K2.5).
 
-  // ── Coding ──────────────────────────────────────────────────────────────
+  // ── Shared across multiple sections ─────────────────────────────────────
   'GLM-5': {
     company: 'Zhipu AI', arch: 'MoE', type: 'Coding LLM',
     specialty: 'Agentic coding · Tool use · 1M context',
@@ -79,15 +80,29 @@ export const MODEL_INFO: Record<string, ModelMeta> = {
   },
   'Kimi-K2.5': {
     company: 'Moonshot AI', arch: 'MoE', type: 'Coding LLM',
-    specialty: 'Coding · Agentic · 128K context',
-    desc: "Moonshot AI's 1-trillion-parameter MoE model. World-class coder and tool-use agent — rivalling frontier commercial APIs at 1.58-bit quantization (~240 GB). Designed for multi-step agentic coding tasks.",
+    specialty: 'Coding · Agentic · Long-context reasoning',
+    desc: "Moonshot AI's 1-trillion-parameter MoE model. World-class at coding and tool-use; its Thinking variant delivers top-tier reasoning — rivalling frontier commercial APIs at 1.58-bit quantization (~240 GB).",
     ramGbQ4: 480.0, ramGbQ3: 240.0,
   },
+  'DeepSeek-V3.2-685B': {
+    company: 'DeepSeek', arch: 'MoE', type: 'Coding LLM',
+    specialty: 'Coding · Math · Cost-efficient frontier',
+    desc: "DeepSeek's 685B MoE updated flagship. Competitive with GPT-4o on coding benchmarks and highly cost-efficient — the open-weight frontier at extreme quantization (~162 GB at 1.58-bit, ~350 GB at Q4). Requires a multi-GPU server rack.",
+    ramGbQ4: 350.0, ramGbQ3: 162.0,
+  },
   'Qwen3.5-122B': {
-    company: 'Alibaba', arch: 'Dense', type: 'Coding LLM',
+    company: 'Alibaba', arch: 'Dense', type: 'LLM',
     specialty: 'Coding · Reasoning · Near-frontier quality',
-    desc: "Alibaba's largest dense Qwen. Matches frontier commercial quality for code and reasoning — the best mid-range self-hosted choice for a high-RAM workstation.",
+    desc: "Alibaba's largest dense Qwen. Matches frontier commercial quality for code and reasoning — the best high-RAM workstation choice across all three categories.",
     ramGbQ4: 73.0, ramGbQ3: 57.0,
+  },
+
+  // ── Coding-specific ──────────────────────────────────────────────────────
+  'Qwen3-235B-A22B': {
+    company: 'Alibaba', arch: 'MoE', type: 'Coding LLM',
+    specialty: 'Coding · Reasoning · 22B active params',
+    desc: "Alibaba's 235B MoE with 22B active parameters per token. Delivers high capability at reduced inference compute — a strong self-hosted coder for workstations that can hold the full model at lower quantization (~59 GB Q3).",
+    ramGbQ4: 118.0, ramGbQ3: 59.0,
   },
   'Qwen3-Coder-30B': {
     company: 'Alibaba', arch: 'Dense', type: 'Coding LLM',
@@ -104,17 +119,17 @@ export const MODEL_INFO: Record<string, ModelMeta> = {
   'Llama-3.1-8B': {
     company: 'Meta', arch: 'Dense', type: 'Coding LLM',
     specialty: 'Compact · Fast · Coding fine-tunes',
-    desc: "Meta's 8B instruction model. The base for many coding fine-tunes — lightweight, widely supported by every inference server, and excellent on Apple Silicon and ARM hardware.",
+    desc: "Meta's 8B instruction model. The base for many coding fine-tunes — lightweight, widely supported by every inference server, and excellent on Apple Silicon and low-RAM machines.",
     ramGbQ4: 4.7,
   },
   'DeepSeek-R1-Distill-Qwen-7B': {
     company: 'DeepSeek', arch: 'Dense', type: 'Coding LLM',
     specialty: 'Reasoning · Coding · Ultralight footprint',
-    desc: "DeepSeek-R1's reasoning distilled into a 7B Qwen backbone. Punches well above its size for code and logic tasks — the best choice for laptops and machines with under 8 GB free RAM.",
+    desc: "DeepSeek-R1's reasoning distilled into a 7B Qwen backbone. Punches well above its size for code and logic — the best choice for laptops and machines with under 8 GB free RAM.",
     ramGbQ4: 4.5,
   },
 
-  // ── Reasoning ───────────────────────────────────────────────────────────
+  // ── Reasoning-specific ───────────────────────────────────────────────────
   'DeepSeek-R1-671B': {
     company: 'DeepSeek', arch: 'Dense', type: 'Reasoning LLM',
     specialty: 'Chain-of-thought · Math · Complex problem-solving',
@@ -124,14 +139,8 @@ export const MODEL_INFO: Record<string, ModelMeta> = {
   'DeepSeek-R1-Distill-Llama-70B': {
     company: 'DeepSeek', arch: 'Dense', type: 'Reasoning LLM',
     specialty: 'Complex reasoning · Math · Large self-hosted',
-    desc: "DeepSeek-R1's reasoning distilled into a Llama-70B backbone. Powerful open-weight reasoning for high-RAM workstations — the best balance of capability and size in the reasoning tier.",
+    desc: "DeepSeek-R1's reasoning distilled into a Llama-70B backbone. Powerful open-weight reasoning for high-RAM workstations — the best balance of capability and size in the reasoning mid tier.",
     ramGbQ4: 41.0, ramGbQ3: 31.9,
-  },
-  'DeepSeek-R1-Distill-Qwen-32B': {
-    company: 'DeepSeek', arch: 'Dense', type: 'Reasoning LLM',
-    specialty: 'Math · Code · Chain-of-thought reasoning',
-    desc: "DeepSeek-R1's reasoning capability distilled into a 32B Qwen backbone. Excellent step-by-step reasoning at self-hosted scale — a top pick for workstations with 24–32 GB RAM.",
-    ramGbQ4: 19.8, ramGbQ3: 15.4,
   },
   'Qwen-QwQ-32B': {
     company: 'Alibaba', arch: 'Dense', type: 'Reasoning LLM',
@@ -142,7 +151,7 @@ export const MODEL_INFO: Record<string, ModelMeta> = {
   'Phi-4-14B': {
     company: 'Microsoft', arch: 'Dense', type: 'Reasoning LLM',
     specialty: 'Reasoning · STEM · Compact footprint',
-    desc: "Microsoft's Phi-4 14B model. Exceptionally strong on STEM reasoning and structured problem-solving for its size — fits comfortably on a machine with 16 GB RAM and outperforms many larger models on benchmarks.",
+    desc: "Microsoft's Phi-4 14B model. Exceptionally strong on STEM reasoning and structured problem-solving for its size — fits comfortably on a 16 GB RAM machine and outperforms many larger models on benchmarks.",
     ramGbQ4: 8.5,
   },
   'Mathstral-7B': {
@@ -152,24 +161,18 @@ export const MODEL_INFO: Record<string, ModelMeta> = {
     ramGbQ4: 4.5,
   },
 
-  // ── Well-Rounded ─────────────────────────────────────────────────────────
+  // ── Well-Rounded-specific ────────────────────────────────────────────────
   'Llama-4-Maverick': {
     company: 'Meta', arch: 'MoE', type: 'Multimodal LLM',
     specialty: 'Multimodal · General purpose · Instruction-following',
-    desc: "Meta's Llama 4 Maverick MoE model. Strong general-purpose performance across text, code, and image understanding — a well-rounded option for multi-task YODA pipelines on server hardware.",
+    desc: "Meta's Llama 4 Maverick MoE model. Strong general-purpose performance across text, code, and image understanding — a well-rounded option for multi-task YODA pipelines.",
     ramGbQ4: 229.0,
   },
   'Qwen3.5-72B': {
     company: 'Alibaba', arch: 'Dense', type: 'LLM',
     specialty: 'General purpose · Coding · Multilingual',
-    desc: "Alibaba's 72B dense model. Excellent across coding, instruction-following, and multilingual tasks — a versatile engine for high-RAM workstations that need broad capability rather than specialisation.",
+    desc: "Alibaba's 72B dense model. Excellent across coding, instruction-following, and multilingual tasks — a versatile well-rounded engine for high-RAM workstations.",
     ramGbQ4: 42.0, ramGbQ3: 32.5,
-  },
-  'Qwen3.5-27B': {
-    company: 'Alibaba', arch: 'Dense', type: 'LLM',
-    specialty: 'Coding · Multilingual · Balanced quality',
-    desc: "Alibaba's 27B dense model. Solid quality across reasoning and code — a well-rounded mid-range option that fits on machines with 24–32 GB RAM.",
-    ramGbQ4: 16.0, ramGbQ3: 12.5,
   },
   'Mistral-Small-3.2-24B': {
     company: 'Mistral AI', arch: 'Dense', type: 'LLM',
@@ -204,53 +207,44 @@ export function ramDisplay(info: ModelMeta): string | undefined {
   return info.ramGbQ3 !== undefined ? `${q4} · ~${info.ramGbQ3} GB (Q3)` : q4;
 }
 
-const ALL_SELF_HOSTED = [
-  // Coding — High → Mid → Low
-  'GLM-5',
-  'Kimi-K2.5',
-  'Qwen3.5-122B',
-  'Qwen3-Coder-30B',
-  'Codestral-22B',
-  'Llama-3.1-8B',
-  'DeepSeek-R1-Distill-Qwen-7B',
-  // Reasoning — High → Mid → Low
-  'DeepSeek-R1-671B',
-  'DeepSeek-R1-Distill-Llama-70B',
-  'DeepSeek-R1-Distill-Qwen-32B',
-  'Qwen-QwQ-32B',
-  'Phi-4-14B',
-  'Mathstral-7B',
-  // Well-Rounded — High → Mid → Low
-  'Llama-4-Maverick',
-  'Qwen3.5-72B',
-  'Qwen3.5-27B',
-  'Mistral-Small-3.2-24B',
-  'Gemma-3-27B',
-];
-
 const CATEGORY_ORDER = ['Coding', 'Reasoning', 'Well-Rounded'] as const;
 type ModelCategory = typeof CATEGORY_ORDER[number];
 
-const MODEL_CATEGORY: Record<string, ModelCategory> = {
-  'GLM-5':                          'Coding',
-  'Kimi-K2.5':                      'Coding',
-  'Qwen3.5-122B':                   'Coding',
-  'Qwen3-Coder-30B':                'Coding',
-  'Codestral-22B':                  'Coding',
-  'Llama-3.1-8B':                   'Coding',
-  'DeepSeek-R1-Distill-Qwen-7B':    'Coding',
-  'DeepSeek-R1-671B':               'Reasoning',
-  'DeepSeek-R1-Distill-Llama-70B':  'Reasoning',
-  'DeepSeek-R1-Distill-Qwen-32B':   'Reasoning',
-  'Qwen-QwQ-32B':                   'Reasoning',
-  'Phi-4-14B':                      'Reasoning',
-  'Mathstral-7B':                   'Reasoning',
-  'Llama-4-Maverick':               'Well-Rounded',
-  'Qwen3.5-72B':                    'Well-Rounded',
-  'Qwen3.5-27B':                    'Well-Rounded',
-  'Mistral-Small-3.2-24B':          'Well-Rounded',
-  'Gemma-3-27B':                    'Well-Rounded',
+// 27-slot layout: 3 sections × 3 memory tiers × 3 ranked models per tier.
+// Models may appear in multiple sections. Order within each tier is Rank 1 → 3.
+const TIER_LABELS = ['High Memory (>70 GB)', 'Mid Memory (16–70 GB)', 'Low Memory (<16 GB)'] as const;
+
+const SECTION_LAYOUT: Record<ModelCategory, [string[], string[], string[]]> = {
+  Coding: [
+    // High — Rank 1: GLM-5, Rank 2: Kimi-K2.5, Rank 3: DeepSeek-V3.2-685B
+    ['GLM-5',           'Kimi-K2.5',                  'DeepSeek-V3.2-685B'],
+    // Mid  — Rank 4: Qwen3-235B-A22B, Rank 5: Qwen3.5-122B, Rank 6: Qwen3-Coder-30B
+    ['Qwen3-235B-A22B', 'Qwen3.5-122B',               'Qwen3-Coder-30B'],
+    // Low  — Rank 7: Codestral-22B, Rank 8: Llama-3.1-8B, Rank 9: DeepSeek-R1-Distill-Qwen-7B
+    ['Codestral-22B',   'Llama-3.1-8B',               'DeepSeek-R1-Distill-Qwen-7B'],
+  ],
+  Reasoning: [
+    // High — Rank 1: DeepSeek-R1-671B, Rank 2: Kimi-K2.5 (Thinking), Rank 3: GLM-5
+    ['DeepSeek-R1-671B', 'Kimi-K2.5',                 'GLM-5'],
+    // Mid  — Rank 4: Qwen3.5-122B (Thinking), Rank 5: DeepSeek-R1-Distill-Llama-70B, Rank 6: Qwen-QwQ-32B
+    ['Qwen3.5-122B',    'DeepSeek-R1-Distill-Llama-70B', 'Qwen-QwQ-32B'],
+    // Low  — Rank 7: Phi-4-14B, Rank 8: Mathstral-7B, Rank 9: DeepSeek-R1-Distill-Qwen-7B
+    ['Phi-4-14B',       'Mathstral-7B',               'DeepSeek-R1-Distill-Qwen-7B'],
+  ],
+  'Well-Rounded': [
+    // High — Rank 1: Kimi-K2.5, Rank 2: GLM-5, Rank 3: DeepSeek-V3.2-685B
+    ['Kimi-K2.5',       'GLM-5',                      'DeepSeek-V3.2-685B'],
+    // Mid  — Rank 4: Qwen3.5-122B, Rank 5: Llama-4-Maverick, Rank 6: Qwen3.5-72B
+    ['Qwen3.5-122B',    'Llama-4-Maverick',            'Qwen3.5-72B'],
+    // Low  — Rank 7: Mistral-Small-3.2-24B, Rank 8: Gemma-3-27B, Rank 9: Phi-4-14B
+    ['Mistral-Small-3.2-24B', 'Gemma-3-27B',          'Phi-4-14B'],
+  ],
 };
+
+// Flat de-duped set of every self-hosted model name (for "already assigned" checks).
+const ALL_SELF_HOSTED_SET = new Set(
+  (Object.values(SECTION_LAYOUT) as string[][][]).flatMap((tiers) => tiers.flat()),
+);
 
 // ── llama.cpp (llama-server) config ──────────────────────────────────────────
 // Each engine slot gets its own port so instances can run truly in parallel.
@@ -259,10 +253,13 @@ export const SLOT_PORT: Record<Slot, number> = { a: 8080, b: 8081, c: 8082 };
 // HuggingFace GGUF source for every self-hosted model.
 // llama-server downloads the file on first run, then serves on SLOT_PORT.
 export const GGUF_INFO: Record<string, { repo: string; file: string }> = {
-  // ── Coding ─────────────────────────────────────────────────────────────
+  // ── Shared (multi-section) ───────────────────────────────────────────────
   'GLM-5':                          { repo: 'THUDM/GLM-5-GGUF',                                        file: 'GLM-5-Q4_K_M.gguf'                                 },
   'Kimi-K2.5':                      { repo: 'moonshotai/Kimi-K2-Instruct-GGUF',                        file: 'Kimi-K2-Instruct-Q4_K_M.gguf'                      },
-  'Qwen3.5-122B':                   { repo: 'Qwen/Qwen3.5-122B-Instruct-GGUF',                        file: 'Qwen3.5-122B-Instruct-Q4_K_M.gguf'                 },
+  'DeepSeek-V3.2-685B':             { repo: 'bartowski/DeepSeek-V3-0324-GGUF',                         file: 'DeepSeek-V3-0324-Q4_K_M.gguf'                      },
+  'Qwen3.5-122B':                   { repo: 'Qwen/Qwen3.5-122B-Instruct-GGUF',                         file: 'Qwen3.5-122B-Instruct-Q4_K_M.gguf'                 },
+  // ── Coding ──────────────────────────────────────────────────────────────
+  'Qwen3-235B-A22B':                { repo: 'Qwen/Qwen3-235B-A22B-Instruct-GGUF',                      file: 'Qwen3-235B-A22B-Instruct-Q4_K_M.gguf'              },
   'Qwen3-Coder-30B':                { repo: 'Qwen/Qwen3-Coder-30B-GGUF',                               file: 'Qwen3-Coder-30B-Q4_K_M.gguf'                       },
   'Codestral-22B':                  { repo: 'bartowski/Codestral-22B-v0.1-GGUF',                       file: 'Codestral-22B-v0.1-Q4_K_M.gguf'                    },
   'Llama-3.1-8B':                   { repo: 'bartowski/Meta-Llama-3.1-8B-Instruct-GGUF',               file: 'Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf'            },
@@ -270,14 +267,12 @@ export const GGUF_INFO: Record<string, { repo: string; file: string }> = {
   // ── Reasoning ───────────────────────────────────────────────────────────
   'DeepSeek-R1-671B':               { repo: 'unsloth/DeepSeek-R1-GGUF',                                file: 'DeepSeek-R1-Q4_K_M.gguf'                           },
   'DeepSeek-R1-Distill-Llama-70B':  { repo: 'bartowski/DeepSeek-R1-Distill-Llama-70B-GGUF',           file: 'DeepSeek-R1-Distill-Llama-70B-Q4_K_M.gguf'         },
-  'DeepSeek-R1-Distill-Qwen-32B':   { repo: 'bartowski/DeepSeek-R1-Distill-Qwen-32B-GGUF',            file: 'DeepSeek-R1-Distill-Qwen-32B-Q4_K_M.gguf'          },
   'Qwen-QwQ-32B':                   { repo: 'Qwen/QwQ-32B-GGUF',                                      file: 'QwQ-32B-Q4_K_M.gguf'                               },
   'Phi-4-14B':                      { repo: 'microsoft/Phi-4-GGUF',                                    file: 'Phi-4-Q4_K_M.gguf'                                 },
   'Mathstral-7B':                   { repo: 'bartowski/mathstral-7B-v0.1-GGUF',                        file: 'mathstral-7B-v0.1-Q4_K_M.gguf'                     },
   // ── Well-Rounded ─────────────────────────────────────────────────────────
   'Llama-4-Maverick':               { repo: 'meta-llama/Llama-4-Maverick-17B-128E-Instruct-GGUF',      file: 'Llama-4-Maverick-17B-128E-Instruct-Q4_K_M.gguf'    },
   'Qwen3.5-72B':                    { repo: 'Qwen/Qwen3.5-72B-Instruct-GGUF',                          file: 'Qwen3.5-72B-Instruct-Q4_K_M.gguf'                  },
-  'Qwen3.5-27B':                    { repo: 'Qwen/Qwen3.5-27B-Instruct-GGUF',                          file: 'Qwen3.5-27B-Instruct-Q4_K_M.gguf'                  },
   'Mistral-Small-3.2-24B':          { repo: 'bartowski/Mistral-Small-3.2-24B-Instruct-2506-GGUF',      file: 'Mistral-Small-3.2-24B-Instruct-2506-Q4_K_M.gguf'   },
   'Gemma-3-27B':                    { repo: 'google/gemma-3-27b-it-GGUF',                              file: 'gemma-3-27b-it-Q4_K_M.gguf'                        },
 };
@@ -304,17 +299,22 @@ function normalizeQuery(s: string): string {
 function groupedModels(
   filter: string,
   usedModels: string[],
-): { category: ModelCategory; models: string[] }[] {
+): { category: ModelCategory; tiers: { label: string; models: string[] }[] }[] {
   const q = normalizeQuery(filter);
-  const eligible = ALL_SELF_HOSTED.filter(
-    (m) => (q === '' || normalizeQuery(m).includes(q)) && m !== filter && !usedModels.includes(m),
-  );
+  const isVisible = (m: string) =>
+    (q === '' || normalizeQuery(m).includes(q)) && m !== filter && !usedModels.includes(m);
+
   return CATEGORY_ORDER
     .map((cat) => ({
       category: cat,
-      models: eligible.filter((m) => MODEL_CATEGORY[m] === cat).sort((a, b) => a.localeCompare(b)),
+      tiers: SECTION_LAYOUT[cat]
+        .map((tier, i) => ({
+          label: TIER_LABELS[i],
+          models: tier.filter(isVisible),
+        }))
+        .filter((t) => t.models.length > 0),
     }))
-    .filter((g) => g.models.length > 0);
+    .filter((g) => g.tiers.length > 0);
 }
 
 const PROVIDERS: Record<string, { authType: AuthType; models: string[] }> = {
@@ -684,57 +684,64 @@ export function EngineSlotCard({
                     <div className="px-3 py-3 text-xs text-[var(--color-text-muted)] italic">
                       No matching models available
                     </div>
-                  ) : grouped.map(({ category, models }) => (
+                  ) : grouped.map(({ category, tiers }) => (
                     <div key={category}>
                       <div className="px-3 py-2 text-xs font-bold uppercase tracking-widest text-white bg-black border-b border-[var(--color-border-subtle)] sticky top-0">
                         {category}
                       </div>
-                      {models.map((m) => {
-                        const info = MODEL_INFO[m];
-                        const fit  = computeFit(info, hostRam, reservedRam);
-                        const ram  = ramDisplay(info);
-                        return (
-                          <button
-                            key={m}
-                            onMouseDown={() => { changeModel(m); setShowSuggest(false); }}
-                            className="w-full text-left px-3 py-2 hover:bg-[var(--color-surface-hover)] transition-colors border-b border-[var(--color-border-subtle)] last:border-0"
-                          >
-                            <div className="flex items-center gap-2">
-                              <FitDot fit={fit} />
-                              <span className="text-sm text-[var(--color-text-secondary)] font-medium flex-1">{m}</span>
-                              {downloaded.has(m) && (
-                                <HardDriveDownload className="w-3 h-3 flex-shrink-0 text-emerald-400" aria-label="Already downloaded" />
-                              )}
-                              {ram && (
-                                <span className="text-[10px] text-[var(--color-text-muted)] flex-shrink-0">
-                                  {ram.split('·')[0].trim()}
-                                </span>
-                              )}
-                            </div>
-                            {info && (
-                              <div className="flex items-center gap-1.5 mt-0.5 pl-5 flex-wrap">
-                                <span className="text-[10px] text-[var(--color-text-muted)]">{info.company}</span>
-                                <span className="text-[10px] text-[var(--color-border-subtle)]">|</span>
-                                <span className="text-[10px] text-[var(--color-text-muted)]">{info.type}</span>
-                                {info.arch === 'MoE' && (
-                                  <>
+                      {tiers.map(({ label, models }) => (
+                        <div key={label}>
+                          <div className="px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-[var(--color-text-muted)] bg-[var(--color-surface-secondary)] border-b border-[var(--color-border-subtle)]">
+                            {label}
+                          </div>
+                          {models.map((m) => {
+                            const info = MODEL_INFO[m];
+                            const fit  = computeFit(info, hostRam, reservedRam);
+                            const ram  = ramDisplay(info);
+                            return (
+                              <button
+                                key={m}
+                                onMouseDown={() => { changeModel(m); setShowSuggest(false); }}
+                                className="w-full text-left px-3 py-2 hover:bg-[var(--color-surface-hover)] transition-colors border-b border-[var(--color-border-subtle)] last:border-0"
+                              >
+                                <div className="flex items-center gap-2">
+                                  <FitDot fit={fit} />
+                                  <span className="text-sm text-[var(--color-text-secondary)] font-medium flex-1">{m}</span>
+                                  {downloaded.has(m) && (
+                                    <HardDriveDownload className="w-3 h-3 flex-shrink-0 text-emerald-400" aria-label="Already downloaded" />
+                                  )}
+                                  {ram && (
+                                    <span className="text-[10px] text-[var(--color-text-muted)] flex-shrink-0">
+                                      {ram.split('·')[0].trim()}
+                                    </span>
+                                  )}
+                                </div>
+                                {info && (
+                                  <div className="flex items-center gap-1.5 mt-0.5 pl-5 flex-wrap">
+                                    <span className="text-[10px] text-[var(--color-text-muted)]">{info.company}</span>
                                     <span className="text-[10px] text-[var(--color-border-subtle)]">|</span>
-                                    <span className="text-[10px] font-semibold text-[var(--color-gold-500)]">MoE</span>
-                                  </>
+                                    <span className="text-[10px] text-[var(--color-text-muted)]">{info.type}</span>
+                                    {info.arch === 'MoE' && (
+                                      <>
+                                        <span className="text-[10px] text-[var(--color-border-subtle)]">|</span>
+                                        <span className="text-[10px] font-semibold text-[var(--color-gold-500)]">MoE</span>
+                                      </>
+                                    )}
+                                  </div>
                                 )}
-                              </div>
-                            )}
-                          </button>
-                        );
-                      })}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      ))}
                     </div>
                   ))}
 
                   {/* Models assigned to other slots */}
-                  {usedModels.filter((u) => ALL_SELF_HOSTED.includes(u)).length > 0 && (
+                  {usedModels.filter((u) => ALL_SELF_HOSTED_SET.has(u)).length > 0 && (
                     <div className="px-3 py-2 flex items-center gap-1.5 text-[10px] text-[var(--color-text-muted)] border-t border-[var(--color-border-subtle)]">
                       <Ban className="w-3 h-3 flex-shrink-0" />
-                      {usedModels.filter((u) => ALL_SELF_HOSTED.includes(u)).map((u) => (
+                      {usedModels.filter((u) => ALL_SELF_HOSTED_SET.has(u)).map((u) => (
                         <span key={u} className="line-through opacity-60">{u}</span>
                       )).reduce((acc: React.ReactNode[], el, i) => i === 0 ? [el] : [...acc, ', ', el], [])}
                       {' '}already assigned
