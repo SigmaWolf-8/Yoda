@@ -1,5 +1,4 @@
 import { BarChart3, Loader2 } from 'lucide-react';
-import { SectionHeader } from '../components/common/SectionHeader';
 import { useEngineConfigs } from '../api/hooks';
 import { PlenumNetPanel } from '../components/monitoring/PlenumNetPanel';
 import { EngineHealthDashboard } from '../components/monitoring/EngineHealthDashboard';
@@ -32,7 +31,6 @@ export function MonitoringPage() {
 
   return (
     <div className="p-6 lg:p-8 max-w-5xl mx-auto animate-fade-in space-y-6">
-      <SectionHeader title="Monitoring" accentColor="#22D3EE" />
       <PlenumNetPanel engines={engines ?? []} />
       <EngineHealthDashboard engines={engines ?? []} />
       <InferenceMetricsChart data={metricsData} />

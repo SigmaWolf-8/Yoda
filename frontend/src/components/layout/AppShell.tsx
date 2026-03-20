@@ -85,8 +85,8 @@ export function AppShell() {
       'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors duration-150',
       collapsed && 'justify-center',
       isActive
-        ? 'bg-[var(--color-gold-500)]/10 text-[var(--color-gold-400)] border border-[var(--color-gold-500)]/20'
-        : 'text-[var(--color-text-tertiary)] hover:text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-tertiary)]',
+        ? 'bg-[hsl(210,80%,50%)]/10 text-[hsl(210,80%,42%)] border border-[hsl(210,80%,50%)]/22'
+        : 'text-[hsl(220,12%,42%)] hover:text-[hsl(220,15%,15%)] hover:bg-[hsl(220,15%,90%)]',
     ].filter(Boolean).join(' ');
 
   const asideWidth = collapsed ? '4rem' : `${sidebarWidth}px`;
@@ -107,19 +107,12 @@ export function AppShell() {
       <aside
         style={{
           width: asideWidth,
-          boxShadow: [
-            'inset 1px 0 0 rgba(255,255,255,0.045)',
-            'inset 0 1px 0 rgba(255,255,255,0.03)',
-            'inset -6px 0 28px rgba(0,0,0,0.55)',
-            'inset 0 -12px 40px rgba(0,0,0,0.45)',
-            'inset 0 12px 40px rgba(0,0,0,0.30)',
-            '4px 0 24px rgba(0,0,0,0.40)',
-          ].join(', '),
-          background: 'linear-gradient(160deg, hsl(20,14%,9%) 0%, hsl(20,12%,7%) 100%)',
+          background: 'linear-gradient(160deg, hsl(220,20%,98%) 0%, hsl(220,15%,95%) 100%)',
+          boxShadow: '2px 0 16px rgba(0,0,0,0.10)',
         }}
         className={[
           'fixed lg:sticky top-0 left-0 z-40 h-screen flex-shrink-0 relative',
-          'border-r border-white/[0.04]',
+          'border-r border-[hsl(220,15%,86%)]',
           'flex flex-col overflow-hidden',
           isResizing ? '' : 'transition-all duration-200',
           sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0',
@@ -133,14 +126,8 @@ export function AppShell() {
           ].join(' ')}
           style={{
             height: HEADER_H,
-            borderBottomColor: 'rgba(255,255,255,0.07)',
-            boxShadow: [
-              'inset 0 1px 0 rgba(255,255,255,0.07)',
-              'inset 0 -1px 0 rgba(255,255,255,0.04)',
-              'inset 0 10px 36px rgba(0,0,0,0.65)',
-              'inset 0 -6px 24px rgba(0,0,0,0.40)',
-              '0 4px 20px rgba(0,0,0,0.55)',
-            ].join(', '),
+            borderBottomColor: 'hsl(220,15%,86%)',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
           }}
         >
           <div
@@ -159,11 +146,11 @@ export function AppShell() {
           </div>
           {!collapsed && (
             <>
-              <span className="text-lg font-bold tracking-wide text-[var(--color-text-primary)]">
+              <span className="text-lg font-bold tracking-wide text-[hsl(220,15%,12%)]">
                 YODA
               </span>
               <button
-                className="ml-auto lg:hidden text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]"
+                className="ml-auto lg:hidden text-[hsl(220,12%,50%)] hover:text-[hsl(220,15%,20%)]"
                 onClick={() => setSidebarOpen(false)}
               >
                 <X className="w-5 h-5" />
@@ -193,13 +180,8 @@ export function AppShell() {
         <div
           className="border-t px-3 py-3 space-y-2"
           style={{
-            borderTopColor: 'rgba(255,255,255,0.07)',
-            boxShadow: [
-              'inset 0 1px 0 rgba(255,255,255,0.06)',
-              'inset 0 6px 32px rgba(0,0,0,0.65)',
-              'inset 0 -10px 36px rgba(0,0,0,0.50)',
-              'inset 0 -1px 0 rgba(255,255,255,0.03)',
-            ].join(', '),
+            borderTopColor: 'hsl(220,15%,86%)',
+            boxShadow: '0 -2px 8px rgba(0,0,0,0.04)',
           }}
         >
           <div className="flex items-center gap-1">
@@ -218,7 +200,7 @@ export function AppShell() {
               onClick={() => setCollapsed(c => !c)}
               title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
               aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-              className="ml-auto p-2.5 rounded-lg text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)] hover:bg-white/[0.06] transition-colors flex-shrink-0"
+              className="ml-auto p-2.5 rounded-lg text-[hsl(220,12%,50%)] hover:text-[hsl(220,15%,20%)] hover:bg-[hsl(220,15%,90%)] transition-colors flex-shrink-0"
             >
               {collapsed
                 ? <ChevronRight className="w-4 h-4" />
@@ -227,7 +209,7 @@ export function AppShell() {
           </div>
 
           {!collapsed && (
-            <p className="text-[10px] text-[var(--color-text-muted)] leading-tight px-3 pb-1">
+            <p className="text-[10px] text-[hsl(220,12%,55%)] leading-tight px-3 pb-1">
               Capomastro Holdings Ltd.
               <br />Applied Physics Division
             </p>
@@ -246,7 +228,7 @@ export function AppShell() {
                 'absolute right-0 top-0 h-full transition-opacity duration-150',
                 isResizing ? 'opacity-100' : 'opacity-0 group-hover:opacity-100',
               ].join(' ')}
-              style={{ width: 2, background: 'rgba(255,255,255,0.18)' }}
+              style={{ width: 2, background: 'rgba(0,0,0,0.14)' }}
             />
           </div>
         )}
@@ -275,11 +257,33 @@ export function AppShell() {
                 <header.icon className="w-5 h-5 text-[hsl(210,70%,65%)] flex-shrink-0" />
               )}
               <div className="min-w-0">
-                <p className="text-sm font-semibold text-[var(--color-text-primary)] leading-tight truncate">
+                <p
+                  className="truncate"
+                  style={{
+                    fontFamily: "'Orbitron', sans-serif",
+                    fontSize: '15px',
+                    fontWeight: 700,
+                    letterSpacing: '0.1em',
+                    textTransform: 'uppercase',
+                    lineHeight: 1.2,
+                    color: 'var(--color-text-primary)',
+                    margin: 0,
+                  }}
+                >
                   {header.title}
                 </p>
+                <div
+                  aria-hidden="true"
+                  style={{
+                    marginTop: '3px',
+                    height: '1.5px',
+                    borderRadius: '1px',
+                    background:
+                      'linear-gradient(90deg, hsl(210,70%,65%) 0%, hsl(210,70%,65%,0.5) 55%, transparent 100%)',
+                  }}
+                />
                 {header.subtitle && (
-                  <p className="text-[10px] text-[var(--color-text-muted)] font-mono leading-tight truncate mt-1">
+                  <p className="text-[10px] text-[var(--color-text-muted)] font-mono leading-tight truncate mt-0.5">
                     {header.subtitle}
                   </p>
                 )}

@@ -1,7 +1,6 @@
 import { NavLink, Outlet } from 'react-router-dom';
 import { Cpu, Building2, Key, Settings as SettingsIcon } from 'lucide-react';
 import { usePageHeader } from '../../context/PageHeader';
-import { SectionHeader } from '../../components/common/SectionHeader';
 
 const SETTINGS_NAV = [
   { to: '/settings/engines',  icon: Cpu,       label: 'AI Engines' },
@@ -18,7 +17,6 @@ export function SettingsPage() {
 
   return (
     <div className="p-6 lg:p-8 max-w-4xl mx-auto animate-fade-in">
-      <SectionHeader title="Settings" accentColor="#94A3B8" />
       <div className="grid gap-4 sm:grid-cols-3">
         {SETTINGS_NAV.map(({ to, icon: Icon, label }) => (
           <NavLink

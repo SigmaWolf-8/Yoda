@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { Cpu, ArrowLeft, MemoryStick } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { usePageHeader } from '../../context/PageHeader';
-import { SectionHeader } from '../../components/common/SectionHeader';
 import { useEngineConfigs } from '../../api/hooks';
 import { EngineSlotCard, MODEL_INFO, OS_OVERHEAD_GB } from '../../components/settings/EngineSlot';
 import { DiversityValidator } from '../../components/settings/DiversityValidator';
@@ -103,8 +102,6 @@ export function EngineSettingsPage() {
         </Link>
         <span className="text-sm text-[var(--color-text-muted)]">Back to Settings</span>
       </div>
-
-      <SectionHeader title="AI Engines" accentColor="#38BDF8" />
 
       {/* Host RAM selector */}
       <div className="bg-[var(--color-surface-primary)] border border-[var(--color-border-subtle)] rounded-xl p-4 mb-6">
