@@ -212,10 +212,16 @@ $CRS_URL       = "${crsUrl}"
 $GGUF_REPO     = "${ggufRepo}"
 $GGUF_FILE     = "${ggufFile}"
 $SERVER_PORT   = ${port}
-$PLENUMNET_DIR = "$env:USERPROFILE\\PlenumNET"
 $MODELS_DIR    = "$env:USERPROFILE\\yoda-models"
 $MODEL_PATH    = "$MODELS_DIR\\$GGUF_FILE"
 $LLAMA_DIR     = "$env:USERPROFILE\\llama.cpp"
+
+# ── Locate PlenumNET (user-profile install or system-wide C:\PlenumNET) ─
+$PLENUMNET_DIR = "$env:USERPROFILE\\PlenumNET"
+if ((-not (Test-Path $PLENUMNET_DIR)) -and (Test-Path "C:\\PlenumNET")) {
+  $PLENUMNET_DIR = "C:\\PlenumNET"
+}
+$DAEMON_PATH = "$PLENUMNET_DIR\\target\\release\\inter-cube-daemon.exe"
 
 Write-Host "=== YODA Self-Host Installer ===" -ForegroundColor Cyan
 Write-Host "Model  : ${modelName}"
@@ -301,8 +307,7 @@ Write-Host "  -> Building inter-cube daemon (a few minutes)..."
 Push-Location $PLENUMNET_DIR
 cargo build --release --package inter-cube
 Pop-Location
-$DAEMON_PATH = "$PLENUMNET_DIR\\target\\release\\inter-cube-daemon.exe"
-Write-Host "  OK Daemon built"
+Write-Host "  OK Daemon built at: $DAEMON_PATH"
 
 # ── 7. Register with YODA CRS ─────────────────────────────────────────
 Write-Host ""
@@ -477,11 +482,17 @@ $SESSION_TOKEN = "${sessionToken}"
 $CRS_URL       = "${crsUrl}"
 $GGUF_FILE     = "${ggufFile}"
 $SERVER_PORT   = ${port}
-$PLENUMNET_DIR = "$env:USERPROFILE\\PlenumNET"
 $MODELS_DIR    = "$env:USERPROFILE\\yoda-models"
 $MODEL_PATH    = "$MODELS_DIR\\$GGUF_FILE"
 $LLAMA_DIR     = "$env:USERPROFILE\\llama.cpp"
-$DAEMON_PATH   = "$PLENUMNET_DIR\\target\\release\\inter-cube-daemon.exe"
+
+# ── Locate PlenumNET (user-profile install or system-wide C:\PlenumNET) ─
+$PLENUMNET_DIR = "$env:USERPROFILE\\PlenumNET"
+if ((-not (Test-Path "$PLENUMNET_DIR\\target\\release\\inter-cube-daemon.exe")) -and
+    (Test-Path "C:\\PlenumNET\\target\\release\\inter-cube-daemon.exe")) {
+  $PLENUMNET_DIR = "C:\\PlenumNET"
+}
+$DAEMON_PATH = "$PLENUMNET_DIR\\target\\release\\inter-cube-daemon.exe"
 
 Write-Host "=== YODA Reconnect ===" -ForegroundColor Cyan
 Write-Host "Model : ${modelName}"
@@ -490,7 +501,17 @@ Write-Host ""
 
 # ── 0. Pre-flight checks ──────────────────────────────────────────────
 if (-not (Test-Path $DAEMON_PATH)) {
-  Write-Host "  FAIL PlenumNET daemon not found. Run the Install script first." -ForegroundColor Red
+  Write-Host "" -ForegroundColor Red
+  Write-Host "  FAIL  PlenumNET daemon not found." -ForegroundColor Red
+  Write-Host "" 
+  Write-Host "  You need to run the Install script first (not the Reconnect script)." -ForegroundColor Yellow
+  Write-Host "  In YODA: Settings -> AI Engines -> Engine A -> 'Install & Connect'" -ForegroundColor Yellow
+  Write-Host "  The Install script downloads the model, builds the daemon, and" -ForegroundColor Yellow
+  Write-Host "  starts everything. Only use Reconnect after Install has completed." -ForegroundColor Yellow
+  Write-Host ""
+  Write-Host "  Checked:" -ForegroundColor DarkGray
+  Write-Host "    $env:USERPROFILE\\PlenumNET\\target\\release\\inter-cube-daemon.exe" -ForegroundColor DarkGray
+  Write-Host "    C:\\PlenumNET\\target\\release\\inter-cube-daemon.exe" -ForegroundColor DarkGray
   exit 1
 }
 if (-not (Test-Path $MODEL_PATH)) {
