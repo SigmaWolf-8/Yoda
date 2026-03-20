@@ -9,6 +9,7 @@ import {
   X,
   Zap,
   Users,
+  Cpu,
   ChevronLeft,
   ChevronRight,
 } from 'lucide-react';
@@ -19,8 +20,9 @@ import { usePageHeaderCtx } from '../../context/PageHeader';
 const MAIN_NAV = [
   { to: '/',           icon: LayoutDashboard, label: 'Dashboard' },
   { to: '/projects',   icon: FolderKanban,    label: 'Projects' },
-  { to: '/agents',     icon: Users,           label: 'Agents' },
-  { to: '/monitoring', icon: BarChart3,       label: 'Monitoring' },
+  { to: '/agents',           icon: Users,           label: 'Agents'     },
+  { to: '/settings/engines', icon: Cpu,             label: 'AI Engines' },
+  { to: '/monitoring',       icon: BarChart3,       label: 'Monitoring' },
 ] as const;
 
 /* Sidebar logo-area height in px — top bar must match this */
