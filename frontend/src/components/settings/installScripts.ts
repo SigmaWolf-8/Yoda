@@ -443,10 +443,10 @@ if (Test-Path "$PLENUMNET_DIR\\.git") {
 # In a partial clone (--filter=blob:none) a path that was never in the sparse
 # checkout has no local blobs — sparse-checkout add + fetch + checkout HEAD
 # forces git to download and write exactly those files.
-foreach ($member in @("inter-cube\Cargo.toml", "ternary-math\Cargo.toml")) {
-  $memberPath = "$PLENUMNET_DIR\$member"
+foreach ($member in @("inter-cube/Cargo.toml", "ternary-math/Cargo.toml")) {
+  $memberPath = "$PLENUMNET_DIR/$member"
   if (-not (Test-Path $memberPath)) {
-    $dir = ($member -split "\\")[0]
+    $dir = ($member -split '/')[0]
     Write-Host "  -> $member missing — fetching from remote..."
     git -C $PLENUMNET_DIR sparse-checkout add $dir 2>$null
     git -C $PLENUMNET_DIR fetch --filter=blob:none origin 2>$null
