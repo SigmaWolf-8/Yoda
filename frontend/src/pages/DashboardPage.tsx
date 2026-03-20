@@ -9,13 +9,13 @@ export function DashboardPage() {
   });
 
   return (
-    <div className="p-6 lg:p-8 flex flex-col gap-6 animate-fade-in">
+    <div className="flex flex-col gap-6 animate-fade-in">
 
       {/* ── Top metrics row (future: Open Tunnels, Active Sessions, etc.) ── */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 min-h-[80px]" />
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 min-h-[80px] px-6 lg:px-8 pt-6 lg:pt-8" />
 
-      {/* ── Hero video ── */}
-      <div className="rounded-2xl overflow-hidden" style={{ height: '48vh', minHeight: 320 }}>
+      {/* ── Hero video — full width, no rounded corners ── */}
+      <div style={{ height: '48vh', minHeight: 320 }}>
         <video
           autoPlay
           muted
@@ -29,7 +29,7 @@ export function DashboardPage() {
       </div>
 
       {/* ── Bottom metrics row (future: Projects Under Construction, etc.) ── */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 min-h-[80px]" />
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 min-h-[80px] px-6 lg:px-8 pb-6 lg:pb-8" />
 
     </div>
   );
