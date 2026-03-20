@@ -31,26 +31,40 @@ export function triggerDownload(content: string, filename: string, mime = 'text/
  * any execution-policy prompt because we invoke powershell.exe ourselves with
  * -ExecutionPolicy Bypass.
  */
-export function makeBatWrapper(psScript: string, modelName: string): string {
-  // UTF-8 → base64
+export function makeBatWrapper(psScript: string, _modelName: string): string {
+  // Encode the full PS install script as UTF-8 base64, split into 76-char echo lines.
+  // Base64 alphabet (A-Z a-z 0-9 + / =) contains no cmd.exe metacharacters, so
+  // plain echo is safe here.
   const bytes  = new TextEncoder().encode(psScript);
   const binary = Array.from(bytes, (b) => String.fromCharCode(b)).join('');
   const b64    = btoa(binary);
-  // certutil wants base64 split into ≤76-char lines
   const echos  = (b64.match(/.{1,76}/g) ?? []).map((l) => `echo ${l}`).join('\r\n');
+
+  // Decode step: read $env:BF (temp .b64 file), strip non-base64 chars, decode,
+  // prepend UTF-8 BOM, and write to $env:PF (temp .ps1).
+  // Using -EncodedCommand (UTF-16LE base64) avoids ALL cmd.exe quoting fragility —
+  // no nested quote contexts, no %var% expansion inside powershell strings.
+  // BF and PF are set as cmd env vars and are visible to PowerShell as $env:BF/$env:PF.
+  const decodePs = `$b=([IO.File]::ReadAllText($env:BF) -replace '[^A-Za-z0-9+/=]','');` +
+                   `[IO.File]::WriteAllBytes($env:PF,[Text.Encoding]::UTF8.GetPreamble()+[Convert]::FromBase64String($b))`;
+  const utf16le  = Array.from(decodePs).flatMap(c => {
+    const code = c.charCodeAt(0);
+    return [code & 0xFF, (code >> 8) & 0xFF];
+  });
+  const encodedCmd = btoa(String.fromCharCode(...utf16le));
 
   return [
     '@echo off',
-    `title YODA Installer -- ${modelName}`,
+    'title YODA Installer',           // no user data in title — avoids metachar issues
     'setlocal',
     'set "BF=%TEMP%\\yoda_%RANDOM%.b64"',
     'set "PF=%TEMP%\\yoda_%RANDOM%.ps1"',
     '(',
     echos,
     ') > "%BF%"',
-    'powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "& {$b=([IO.File]::ReadAllText(\'%BF%\') -replace \'[^A-Za-z0-9+/=]\',\'\');[IO.File]::WriteAllBytes(\'%PF%\',[Text.Encoding]::UTF8.GetPreamble()+[Convert]::FromBase64String($b))}"',
+    `powershell.exe -NoProfile -ExecutionPolicy Bypass -EncodedCommand ${encodedCmd}`,
     'del "%BF%" 2>nul',
-    'if not exist "%PF%" ( echo ERROR: Failed to create installer script. & pause & exit /b 1 )',
+    'if not exist "%PF%" ( echo ERROR: Failed to decode installer script. & pause & exit /b 1 )',
     'powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%PF%"',
     'del "%PF%" 2>nul',
     'pause',
@@ -174,7 +188,7 @@ for member in "inter-cube/Cargo.toml" "ternary-math/Cargo.toml"; do
     echo "  → \$member missing — fetching from remote..."
     git -C "\$PLENUMNET_DIR" sparse-checkout add "\$dir" 2>/dev/null || true
     git -C "\$PLENUMNET_DIR" fetch --filter=blob:none origin 2>/dev/null || true
-    git -C "\$PLENUMNET_DIR" checkout HEAD -- "\$dir" 2>/dev/null || true
+    git -C "\$PLENUMNET_DIR" checkout origin/HEAD -- "\$dir" 2>/dev/null || true
     if [[ ! -f "\$PLENUMNET_DIR/\$member" ]]; then
       echo "  ✗ \$member still missing after fetch — delete \$PLENUMNET_DIR and re-run."
       exit 1
@@ -436,7 +450,7 @@ foreach ($member in @("inter-cube\Cargo.toml", "ternary-math\Cargo.toml")) {
     Write-Host "  -> $member missing — fetching from remote..."
     git -C $PLENUMNET_DIR sparse-checkout add $dir 2>$null
     git -C $PLENUMNET_DIR fetch --filter=blob:none origin 2>$null
-    git -C $PLENUMNET_DIR checkout HEAD -- $dir 2>$null
+    git -C $PLENUMNET_DIR checkout origin/HEAD -- $dir 2>$null
     if (-not (Test-Path $memberPath)) {
       throw "$member still missing after fetch — delete $PLENUMNET_DIR and re-run."
     }
@@ -577,11 +591,12 @@ Write-Host ""
 Write-Host "Starting llama-server on port $SERVER_PORT..."
 Get-Process -Name "llama-server" -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
 Start-Sleep -Milliseconds 800
-$serverLog = "$LOG_DIR\\llama-server-$SERVER_PORT.log"
+$serverOutLog = "$LOG_DIR\\llama-server-$SERVER_PORT-out.log"
+$serverErrLog = "$LOG_DIR\\llama-server-$SERVER_PORT-err.log"
 $serverProc = Start-Process -FilePath $LLAMA_SERVER \`
   -ArgumentList "--model \`"$MODEL_PATH\`" --port $SERVER_PORT --host 0.0.0.0 -c 4096 --parallel 4 -ngl 99 --log-disable" \`
-  -NoNewWindow -PassThru -RedirectStandardOutput $serverLog -RedirectStandardError $serverLog
-Write-Host "  OK llama-server started (PID $($serverProc.Id)) — log: $serverLog"
+  -NoNewWindow -PassThru -RedirectStandardOutput $serverOutLog -RedirectStandardError $serverErrLog
+Write-Host "  OK llama-server started (PID $($serverProc.Id)) — log: $serverOutLog"
 Start-Sleep -Seconds 2
 
 # ── 10. Start PlenumNET tunnel daemon ─────────────────────────────────
@@ -594,10 +609,11 @@ $env:CUBE_CRS_URL       = $CRS_URL
 $env:CUBE_ENDPOINT      = $CUBE_ENDPOINT
 $env:CUBE_SESSION_TOKEN = $SESSION_TOKEN
 $env:CUBE_ROLE          = "inference"
-$daemonLog  = "$LOG_DIR\\intercube.log"
+$daemonOutLog = "$LOG_DIR\\intercube-out.log"
+$daemonErrLog = "$LOG_DIR\\intercube-err.log"
 $daemonProc = Start-Process -FilePath $DAEMON_PATH \`
-  -NoNewWindow -PassThru -RedirectStandardOutput $daemonLog -RedirectStandardError $daemonLog
-Write-Host "  OK Daemon started (PID $($daemonProc.Id)) — log: $daemonLog"
+  -NoNewWindow -PassThru -RedirectStandardOutput $daemonOutLog -RedirectStandardError $daemonErrLog
+Write-Host "  OK Daemon started (PID $($daemonProc.Id)) — log: $daemonOutLog"
 
 Write-Host ""
 Write-Host "==============================" -ForegroundColor Green
@@ -809,10 +825,11 @@ $env:CUBE_CRS_URL       = $CRS_URL
 $env:CUBE_ENDPOINT      = $CUBE_ENDPOINT
 $env:CUBE_SESSION_TOKEN = $SESSION_TOKEN
 $env:CUBE_ROLE          = "inference"
-$daemonLog  = "$LOG_DIR\\intercube.log"
+$daemonOutLog = "$LOG_DIR\\intercube-out.log"
+$daemonErrLog = "$LOG_DIR\\intercube-err.log"
 $daemonProc = Start-Process -FilePath $DAEMON_PATH \`
-  -NoNewWindow -PassThru -RedirectStandardOutput $daemonLog -RedirectStandardError $daemonLog
-Write-Host "  OK Daemon started (PID $($daemonProc.Id)) — log: $daemonLog"
+  -NoNewWindow -PassThru -RedirectStandardOutput $daemonOutLog -RedirectStandardError $daemonErrLog
+Write-Host "  OK Daemon started (PID $($daemonProc.Id)) — log: $daemonOutLog"
 
 Write-Host ""
 Write-Host "  Both processes running in background. YODA will update within 10s." -ForegroundColor Green
