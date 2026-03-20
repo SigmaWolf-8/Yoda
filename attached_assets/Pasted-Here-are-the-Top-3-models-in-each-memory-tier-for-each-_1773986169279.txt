@@ -1,0 +1,101 @@
+Here are the **Top 3 models in each memory tier for each category** (27 total models), with the **Parent Company** listed before each model name.
+
+---
+
+## 🖥️ Coding Models
+
+### High Memory (>70GB)
+| Rank | Model (Parent Company) | Memory Requirement |
+| :--- | :--- | :--- |
+| 1 | **Zhipu AI - GLM-5 (744B MoE)** | ~176-241GB (1-2 bit) |
+| 2 | **Moonshot AI - Kimi K2.5 (1T MoE)** | ~240GB (1.58-bit) |
+| 3 | **DeepSeek (深度求索) - DeepSeek V3.2 (685B MoE)** | ~350-400GB (4-bit) |
+
+### Mid Memory (~16-70GB)
+| Rank | Model (Parent Company) | Memory Requirement |
+| :--- | :--- | :--- |
+| 4 | **Alibaba - Qwen3-Coder Next / large MoE** | ~30-45GB (2-4 bit) |
+| 7 | **Alibaba - Qwen3.5 large MoE (122B variant)** | ~70GB (4-bit) |
+| 11 | **Alibaba - Qwen3-Coder 30B A3B** | ~18-24GB (4-bit) |
+
+### Low Memory (<16GB)
+| Rank | Model (Parent Company) | Memory Requirement |
+| :--- | :--- | :--- |
+| 15 | **Mistral AI - Codestral / Mistral coding specialists** | ~12-24GB (4-bit, 22B variant) |
+| 20 | **Meta - Llama 3.3 / 4 smaller coding fine‑tunes** | ~6GB (8B 4-bit) |
+| (N/A) | **DeepSeek (深度求索) - DeepSeek-R1 distilled 7B** | ~4-5GB (4-bit) |
+
+---
+
+## 🧠 Reasoning Models
+
+### High Memory (>70GB)
+| Rank | Model (Parent Company) | Memory Requirement |
+| :--- | :--- | :--- |
+| 1 | **DeepSeek (深度求索) - DeepSeek-R1 (671B)** | ~162-400GB (1.66-4 bit) |
+| 2 | **Moonshot AI - Kimi K2.5 Thinking** | ~240GB (1.58-bit) |
+| 3 | **Zhipu AI - GLM-5** | ~176-241GB (1-2 bit) |
+
+### Mid Memory (~16-70GB)
+| Rank | Model (Parent Company) | Memory Requirement |
+| :--- | :--- | :--- |
+| 4 | **Alibaba - Qwen3.5 Thinking (122B variant)** | ~70GB (4-bit) |
+| 11 | **DeepSeek (深度求索) - DeepSeek-R1 distilled (32B/70B)** | ~20-40GB (4-bit) |
+| 12 | **Alibaba - Qwen QwQ / Qwen3 Next Thinking** | ~18-24GB (32B 4-bit) |
+
+### Low Memory (<16GB)
+| Rank | Model (Parent Company) | Memory Requirement |
+| :--- | :--- | :--- |
+| 13 | **Microsoft - Phi-4 / Phi updates (reasoning‑tuned)** | ~8-12GB (14B 4-bit) |
+| 16 | **Mistral AI - Mathstral / math‑focused updates** | ~12GB (7B 4-bit) |
+| 20 | **DeepSeek (深度求索) - DeepSeek-R1 small distilled (7B-14B)** | ~4-8GB (4-bit) |
+
+---
+
+## 🌐 Well-Rounded Models
+
+### High Memory (>70GB)
+| Rank | Model (Parent Company) | Memory Requirement |
+| :--- | :--- | :--- |
+| 1 | **Moonshot AI - Kimi K2.5 (1T MoE)** | ~240GB (1.58-bit) |
+| 2 | **Zhipu AI - GLM-5 (744B MoE)** | ~176-241GB (1-2 bit) |
+| 5 | **DeepSeek (深度求索) - DeepSeek V3.2 (685B MoE)** | ~350-400GB (4-bit) |
+
+### Mid Memory (~16-70GB)
+| Rank | Model (Parent Company) | Memory Requirement |
+| :--- | :--- | :--- |
+| 3 | **Alibaba - Qwen3.5 large MoE (122B variant)** | ~70GB (4-bit) |
+| 7 | **Meta - Llama 4 Maverick (128x17B MoE)** | ~245GB (Q4_K_M) |
+| 13 | **Alibaba - Qwen3.5 mid (27B-72B)** | ~18-40GB (4-bit) |
+
+### Low Memory (<16GB)
+| Rank | Model (Parent Company) | Memory Requirement |
+| :--- | :--- | :--- |
+| 15 | **Mistral AI - Mistral Small 3.2 / 24B** | ~14GB (24B 4-bit) |
+| 16 | **Google - Gemma 3 large (27B)** | ~16GB (27B 4-bit) |
+| 17 | **Microsoft - Phi-4 / updates** | ~8-12GB (14B 4-bit) |
+
+---
+
+## 📊 Summary: 27 Models by Memory Tier with Parent Companies
+
+| Category | High Memory (>70GB) | Mid Memory (~16-70GB) | Low Memory (<16GB) |
+| :--- | :--- | :--- | :--- |
+| **🖥️ Coding** | **Zhipu AI** - GLM-5 (744B)<br>**Moonshot AI** - Kimi K2.5 (1T)<br>**DeepSeek** - DeepSeek V3.2 (685B) | **Alibaba** - Qwen3-Coder Next<br>**Alibaba** - Qwen3.5 122B<br>**Alibaba** - Qwen3-Coder 30B | **Mistral AI** - Codestral 22B<br>**Meta** - Llama 3.3 8B<br>**DeepSeek** - DeepSeek-R1 7B |
+| **🧠 Reasoning** | **DeepSeek** - DeepSeek-R1 (671B)<br>**Moonshot AI** - Kimi K2.5 Thinking<br>**Zhipu AI** - GLM-5 | **Alibaba** - Qwen3.5 Thinking 122B<br>**DeepSeek** - DeepSeek-R1 32B/70B<br>**Alibaba** - Qwen QwQ 32B | **Microsoft** - Phi-4 14B<br>**Mistral AI** - Mathstral 7B<br>**DeepSeek** - DeepSeek-R1 7B |
+| **🌐 Well-Rounded** | **Moonshot AI** - Kimi K2.5 (1T)<br>**Zhipu AI** - GLM-5 (744B)<br>**DeepSeek** - DeepSeek V3.2 (685B) | **Alibaba** - Qwen3.5 122B<br>**Meta** - Llama 4 Maverick<br>**Alibaba** - Qwen3.5 mid 27-72B | **Mistral AI** - Mistral Small 3.2 24B<br>**Google** - Gemma 3 27B<br>**Microsoft** - Phi-4 14B |
+
+---
+
+## 🎯 Quick Recommendations by Hardware with Parent Companies
+
+| **If you have...** | **Best Coding Model** | **Best Reasoning Model** | **Best Well-Rounded Model** |
+| :--- | :--- | :--- | :--- |
+| **Server rack (256GB+ RAM, multiple GPUs)** | **Zhipu AI** - GLM-5 (744B) | **DeepSeek** - DeepSeek-R1 (671B) | **Moonshot AI** - Kimi K2.5 (1T) |
+| **High-end workstation (64-128GB RAM, 24GB+ GPU)** | **Alibaba** - Qwen3-Coder 30B | **DeepSeek** - DeepSeek-R1 32B | **Alibaba** - Qwen3.5 72B |
+| **Consumer PC (16-32GB RAM, 8-12GB GPU)** | **Mistral AI** - Codestral 22B | **Microsoft** - Phi-4 14B | **Mistral AI** - Mistral Small 3.2 24B |
+| **Laptop / Apple Silicon** | **DeepSeek** - DeepSeek-R1 7B | **Mistral AI** - Mathstral 7B | **Microsoft** - Phi-4 14B |
+
+---
+
+This format now clearly shows the **Parent Company** for each model, making it easier to track which organizations are leading in each category and memory tier!

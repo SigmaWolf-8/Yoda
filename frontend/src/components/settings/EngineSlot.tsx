@@ -68,101 +68,120 @@ export const MODEL_INFO: Record<string, ModelMeta> = {
   'DeepSeek-R1':   { company: 'DeepSeek', arch: 'Dense', type: 'Reasoning LLM', specialty: 'Chain-of-thought · Math · Complex problem-solving', desc: "DeepSeek's flagship reasoning model. Publishes its thinking step-by-step; outstanding on logic, proofs, and algorithmic problems." },
 
   // ── Self-hosted ─────────────────────────────────────────────────────────
-  'Qwen3-4B': {
-    company: 'Alibaba', arch: 'Dense', type: 'LLM',
-    specialty: 'Ultra-compact · Coding · Multilingual',
-    desc: "Alibaba's smallest Qwen3 model. Extremely low memory footprint — ideal as a fast secondary engine alongside a larger primary model.",
-    ramGbQ4: 2.6,
-  },
-  'Gemma-3-4B': {
-    company: 'Google', arch: 'Dense', type: 'LLM',
-    specialty: 'Ultra-compact · Multilingual · Low memory',
-    desc: "Google's compact 4B open model. Lightweight and fast — fits easily on machines with 8 GB RAM or more.",
-    ramGbQ4: 3.1,
-  },
-  'Llama-3.1-8B': {
-    company: 'Meta', arch: 'Dense', type: 'LLM',
-    specialty: 'Compact · Fast · Widely supported',
-    desc: "Meta's compact open model. Supported by every inference server — excellent on ARM and NPU hardware.",
-    ramGbQ4: 4.7,
-  },
-  'Qwen3.5-9B': {
-    company: 'Alibaba', arch: 'Dense', type: 'LLM',
-    specialty: 'Compact · Fast · Coding · Multilingual',
-    desc: "Alibaba's compact 9B model. Efficient on CPU/NPU, strong multilingual and coding performance. A popular first self-hosted choice.",
-    ramGbQ4: 5.3,
-  },
-  'Mistral-Nemo-12B': {
-    company: 'Mistral AI', arch: 'Dense', type: 'LLM',
-    specialty: 'Efficient · Multilingual · Instruction-following',
-    desc: "Mistral's efficient 12B model. Great quality-to-size ratio — strong multilingual and instruction-following with a small footprint.",
-    ramGbQ4: 7.2,
-  },
+  // Ordered by doc tier: Coding → Reasoning → Well-Rounded, then High → Mid → Low memory
+
+  // ── Coding ──────────────────────────────────────────────────────────────
   'GLM-5': {
-    company: 'Zhipu AI', arch: 'Dense', type: 'LLM',
-    specialty: 'Chinese language · General reasoning',
-    desc: "Zhipu AI's ~9B general model. Excellent Chinese language support alongside solid general reasoning and coding ability.",
-    ramGbQ4: 5.3,
+    company: 'Zhipu AI', arch: 'MoE', type: 'Coding LLM',
+    specialty: 'Agentic coding · Tool use · 1M context',
+    desc: "Zhipu AI's 744B MoE flagship. Top-ranked open-weight coder — exceptional at agentic workflows, multi-file edits, and long-context understanding. Requires a server rack at Q4; feasible at 1.58-bit (~176 GB).",
+    ramGbQ4: 350.0, ramGbQ3: 176.0,
+  },
+  'Kimi-K2.5': {
+    company: 'Moonshot AI', arch: 'MoE', type: 'Coding LLM',
+    specialty: 'Coding · Agentic · 128K context',
+    desc: "Moonshot AI's 1-trillion-parameter MoE model. World-class coder and tool-use agent — rivalling frontier commercial APIs at 1.58-bit quantization (~240 GB). Designed for multi-step agentic coding tasks.",
+    ramGbQ4: 480.0, ramGbQ3: 240.0,
+  },
+  'Qwen3.5-122B': {
+    company: 'Alibaba', arch: 'Dense', type: 'Coding LLM',
+    specialty: 'Coding · Reasoning · Near-frontier quality',
+    desc: "Alibaba's largest dense Qwen. Matches frontier commercial quality for code and reasoning — the best mid-range self-hosted choice for a high-RAM workstation.",
+    ramGbQ4: 73.0, ramGbQ3: 57.0,
   },
   'Qwen3-Coder-30B': {
     company: 'Alibaba', arch: 'Dense', type: 'Coding LLM',
     specialty: 'Code generation · Agentic coding · Function calling',
-    desc: "Alibaba's dedicated 30B code model. State-of-the-art open-weight coder — strong at multi-file edits, tool use, and agentic coding tasks.",
+    desc: "Alibaba's dedicated 30B code model. State-of-the-art open-weight coder — strong at multi-file edits, tool use, and agentic coding tasks. The recommended primary engine for most YODA setups.",
     ramGbQ4: 18.5, ramGbQ3: 14.4,
   },
-  'Qwen3.5-27B': {
-    company: 'Alibaba', arch: 'Dense', type: 'LLM',
-    specialty: 'Coding · Multilingual · Balanced quality',
-    desc: "Alibaba's mid-size 27B dense model. Strong quality across reasoning and code — may need Q3 quantization on machines with limited RAM.",
-    ramGbQ4: 16.0, ramGbQ3: 12.5,
+  'Codestral-22B': {
+    company: 'Mistral AI', arch: 'Dense', type: 'Coding LLM',
+    specialty: 'Code completion · Fill-in-the-middle · 80+ languages',
+    desc: "Mistral's dedicated coding model. Trained on 80+ programming languages with fill-in-the-middle support — excellent for code completion, generation, and testing tasks on consumer hardware.",
+    ramGbQ4: 13.5, ramGbQ3: 10.5,
   },
-  'Qwen3.5-35B-A3B': {
-    company: 'Alibaba', arch: 'MoE', type: 'LLM',
-    specialty: 'High capability · Efficient active compute · Coding',
-    desc: "Alibaba's 35B MoE model — only 3B parameters active per token, but all 35B weights must load into RAM for fast routing.",
-    ramGbQ4: 21.6, ramGbQ3: 16.8,
+  'Llama-3.1-8B': {
+    company: 'Meta', arch: 'Dense', type: 'Coding LLM',
+    specialty: 'Compact · Fast · Coding fine-tunes',
+    desc: "Meta's 8B instruction model. The base for many coding fine-tunes — lightweight, widely supported by every inference server, and excellent on Apple Silicon and ARM hardware.",
+    ramGbQ4: 4.7,
+  },
+  'DeepSeek-R1-Distill-Qwen-7B': {
+    company: 'DeepSeek', arch: 'Dense', type: 'Coding LLM',
+    specialty: 'Reasoning · Coding · Ultralight footprint',
+    desc: "DeepSeek-R1's reasoning distilled into a 7B Qwen backbone. Punches well above its size for code and logic tasks — the best choice for laptops and machines with under 8 GB free RAM.",
+    ramGbQ4: 4.5,
+  },
+
+  // ── Reasoning ───────────────────────────────────────────────────────────
+  'DeepSeek-R1-671B': {
+    company: 'DeepSeek', arch: 'Dense', type: 'Reasoning LLM',
+    specialty: 'Chain-of-thought · Math · Complex problem-solving',
+    desc: "DeepSeek's full 671B flagship reasoning model. The open-weight equivalent of o1 — transparent step-by-step thinking, outstanding on maths, logic, and long-form analysis. Requires a multi-GPU server at Q4; ~162 GB at Q1.58.",
+    ramGbQ4: 400.0, ramGbQ3: 162.0,
+  },
+  'DeepSeek-R1-Distill-Llama-70B': {
+    company: 'DeepSeek', arch: 'Dense', type: 'Reasoning LLM',
+    specialty: 'Complex reasoning · Math · Large self-hosted',
+    desc: "DeepSeek-R1's reasoning distilled into a Llama-70B backbone. Powerful open-weight reasoning for high-RAM workstations — the best balance of capability and size in the reasoning tier.",
+    ramGbQ4: 41.0, ramGbQ3: 31.9,
   },
   'DeepSeek-R1-Distill-Qwen-32B': {
     company: 'DeepSeek', arch: 'Dense', type: 'Reasoning LLM',
     specialty: 'Math · Code · Chain-of-thought reasoning',
-    desc: "DeepSeek-R1's reasoning capability distilled into a 32B Qwen backbone. Excellent step-by-step reasoning at self-hosted scale.",
+    desc: "DeepSeek-R1's reasoning capability distilled into a 32B Qwen backbone. Excellent step-by-step reasoning at self-hosted scale — a top pick for workstations with 24–32 GB RAM.",
     ramGbQ4: 19.8, ramGbQ3: 15.4,
   },
-  'DeepSeek-R1-Distill-Llama-70B': {
-    company: 'DeepSeek', arch: 'Dense', type: 'Reasoning LLM',
-    specialty: 'Complex reasoning · Large self-hosted option',
-    desc: "DeepSeek-R1's reasoning capability distilled into Llama-70B. Powerful open-weight reasoning model for high-RAM workstations.",
-    ramGbQ4: 41.0, ramGbQ3: 31.9,
+  'Qwen-QwQ-32B': {
+    company: 'Alibaba', arch: 'Dense', type: 'Reasoning LLM',
+    specialty: 'Deep thinking · Math · Multi-step logic',
+    desc: "Alibaba's QwQ reasoning model. Uses extended chain-of-thought to tackle hard mathematical and logical problems — comparable to o1-mini at self-hosted scale on a high-end consumer machine.",
+    ramGbQ4: 19.8, ramGbQ3: 15.4,
   },
-  'Llama-3.1-70B': {
-    company: 'Meta', arch: 'Dense', type: 'LLM',
-    specialty: 'Strong open-weight · Coding · General tasks',
-    desc: "Meta's strong 70B open model. Competitive with many commercial models for coding and instruction-following tasks.",
-    ramGbQ4: 41.0, ramGbQ3: 31.9,
+  'Phi-4-14B': {
+    company: 'Microsoft', arch: 'Dense', type: 'Reasoning LLM',
+    specialty: 'Reasoning · STEM · Compact footprint',
+    desc: "Microsoft's Phi-4 14B model. Exceptionally strong on STEM reasoning and structured problem-solving for its size — fits comfortably on a machine with 16 GB RAM and outperforms many larger models on benchmarks.",
+    ramGbQ4: 8.5,
   },
-  'Mistral-Large-3': {
-    company: 'Mistral AI', arch: 'Dense', type: 'LLM',
-    specialty: 'Top-tier reasoning · Coding · Multilingual',
-    desc: "Mistral's 123B flagship open model. Top-tier open-weight performance across coding, reasoning, and multilingual tasks.",
-    ramGbQ4: 72.0, ramGbQ3: 56.0,
+  'Mathstral-7B': {
+    company: 'Mistral AI', arch: 'Dense', type: 'Reasoning LLM',
+    specialty: 'Mathematics · Formal proofs · Scientific reasoning',
+    desc: "Mistral's math-specialist 7B model. Fine-tuned specifically for mathematical reasoning and formal proof generation — the lightest option for structured quantitative tasks.",
+    ramGbQ4: 4.5,
   },
-  'Qwen3.5-122B': {
-    company: 'Alibaba', arch: 'Dense', type: 'LLM',
-    specialty: 'Near-frontier quality · Complex reasoning · Coding',
-    desc: "Alibaba's largest dense Qwen. Matches frontier commercial quality for reasoning and code — requires a high-RAM workstation.",
-    ramGbQ4: 73.0, ramGbQ3: 57.0,
-  },
+
+  // ── Well-Rounded ─────────────────────────────────────────────────────────
   'Llama-4-Maverick': {
     company: 'Meta', arch: 'MoE', type: 'Multimodal LLM',
-    specialty: 'Native multimodal · Extended context · Next-gen',
-    desc: "Meta's next-gen MoE flagship. ~400B total weights with native multimodal capability — requires enterprise-grade multi-GPU infrastructure.",
+    specialty: 'Multimodal · General purpose · Instruction-following',
+    desc: "Meta's Llama 4 Maverick MoE model. Strong general-purpose performance across text, code, and image understanding — a well-rounded option for multi-task YODA pipelines on server hardware.",
     ramGbQ4: 229.0,
   },
-  'Kimi-K2.5': {
-    company: 'Moonshot AI', arch: 'MoE', type: 'LLM',
-    specialty: 'Long context · Document understanding · 200K tokens',
-    desc: "Moonshot AI's large MoE model. Exceptional 200K-token context — the full weight set far exceeds any consumer or prosumer machine.",
-    ramGbQ4: 500.0,
+  'Qwen3.5-72B': {
+    company: 'Alibaba', arch: 'Dense', type: 'LLM',
+    specialty: 'General purpose · Coding · Multilingual',
+    desc: "Alibaba's 72B dense model. Excellent across coding, instruction-following, and multilingual tasks — a versatile engine for high-RAM workstations that need broad capability rather than specialisation.",
+    ramGbQ4: 42.0, ramGbQ3: 32.5,
+  },
+  'Qwen3.5-27B': {
+    company: 'Alibaba', arch: 'Dense', type: 'LLM',
+    specialty: 'Coding · Multilingual · Balanced quality',
+    desc: "Alibaba's 27B dense model. Solid quality across reasoning and code — a well-rounded mid-range option that fits on machines with 24–32 GB RAM.",
+    ramGbQ4: 16.0, ramGbQ3: 12.5,
+  },
+  'Mistral-Small-3.2-24B': {
+    company: 'Mistral AI', arch: 'Dense', type: 'LLM',
+    specialty: 'Instruction-following · Multilingual · Efficient',
+    desc: "Mistral's 24B general-purpose model. Outstanding quality-to-size ratio — excellent multilingual support, strong instruction-following, and fits on a 16–24 GB RAM machine.",
+    ramGbQ4: 14.3, ramGbQ3: 11.1,
+  },
+  'Gemma-3-27B': {
+    company: 'Google', arch: 'Dense', type: 'LLM',
+    specialty: 'Multilingual · Vision · Broad capability',
+    desc: "Google's 27B Gemma 3 model. Strong general-purpose performance with vision capability — well-rounded across text, code, and image tasks on a mid-range workstation.",
+    ramGbQ4: 16.0, ramGbQ3: 12.5,
   },
 };
 
@@ -186,44 +205,51 @@ export function ramDisplay(info: ModelMeta): string | undefined {
 }
 
 const ALL_SELF_HOSTED = [
-  'DeepSeek-R1-Distill-Llama-70B',
-  'DeepSeek-R1-Distill-Qwen-32B',
-  'Gemma-3-4B',
+  // Coding — High → Mid → Low
   'GLM-5',
   'Kimi-K2.5',
-  'Llama-3.1-70B',
-  'Llama-3.1-8B',
-  'Llama-4-Maverick',
-  'Mistral-Large-3',
-  'Mistral-Nemo-12B',
-  'Qwen3-4B',
-  'Qwen3-Coder-30B',
   'Qwen3.5-122B',
+  'Qwen3-Coder-30B',
+  'Codestral-22B',
+  'Llama-3.1-8B',
+  'DeepSeek-R1-Distill-Qwen-7B',
+  // Reasoning — High → Mid → Low
+  'DeepSeek-R1-671B',
+  'DeepSeek-R1-Distill-Llama-70B',
+  'DeepSeek-R1-Distill-Qwen-32B',
+  'Qwen-QwQ-32B',
+  'Phi-4-14B',
+  'Mathstral-7B',
+  // Well-Rounded — High → Mid → Low
+  'Llama-4-Maverick',
+  'Qwen3.5-72B',
   'Qwen3.5-27B',
-  'Qwen3.5-35B-A3B',
-  'Qwen3.5-9B',
+  'Mistral-Small-3.2-24B',
+  'Gemma-3-27B',
 ];
 
-const CATEGORY_ORDER = ['Coding', 'Reasoning', 'General'] as const;
+const CATEGORY_ORDER = ['Coding', 'Reasoning', 'Well-Rounded'] as const;
 type ModelCategory = typeof CATEGORY_ORDER[number];
 
 const MODEL_CATEGORY: Record<string, ModelCategory> = {
+  'GLM-5':                          'Coding',
   'Kimi-K2.5':                      'Coding',
-  'Mistral-Large-3':                'Coding',
-  'Mistral-Nemo-12B':               'Coding',
-  'Qwen3-4B':                       'Coding',
+  'Qwen3.5-122B':                   'Coding',
   'Qwen3-Coder-30B':                'Coding',
-  'Qwen3.5-9B':                     'Coding',
+  'Codestral-22B':                  'Coding',
+  'Llama-3.1-8B':                   'Coding',
+  'DeepSeek-R1-Distill-Qwen-7B':    'Coding',
+  'DeepSeek-R1-671B':               'Reasoning',
   'DeepSeek-R1-Distill-Llama-70B':  'Reasoning',
   'DeepSeek-R1-Distill-Qwen-32B':   'Reasoning',
-  'Llama-4-Maverick':               'Reasoning',
-  'Qwen3.5-27B':                    'Reasoning',
-  'Qwen3.5-35B-A3B':                'Reasoning',
-  'Qwen3.5-122B':                   'Reasoning',
-  'Gemma-3-4B':                     'General',
-  'GLM-5':                          'General',
-  'Llama-3.1-8B':                   'General',
-  'Llama-3.1-70B':                  'General',
+  'Qwen-QwQ-32B':                   'Reasoning',
+  'Phi-4-14B':                      'Reasoning',
+  'Mathstral-7B':                   'Reasoning',
+  'Llama-4-Maverick':               'Well-Rounded',
+  'Qwen3.5-72B':                    'Well-Rounded',
+  'Qwen3.5-27B':                    'Well-Rounded',
+  'Mistral-Small-3.2-24B':          'Well-Rounded',
+  'Gemma-3-27B':                    'Well-Rounded',
 };
 
 // ── llama.cpp (llama-server) config ──────────────────────────────────────────
@@ -233,39 +259,37 @@ export const SLOT_PORT: Record<Slot, number> = { a: 8080, b: 8081, c: 8082 };
 // HuggingFace GGUF source for every self-hosted model.
 // llama-server downloads the file on first run, then serves on SLOT_PORT.
 export const GGUF_INFO: Record<string, { repo: string; file: string }> = {
-  'Qwen3-4B':                      { repo: 'Qwen/Qwen3-4B-GGUF',                                      file: 'Qwen3-4B-Q4_K_M.gguf'                              },
-  'Qwen3-Coder-30B':               { repo: 'Qwen/Qwen3-Coder-30B-GGUF',                               file: 'Qwen3-Coder-30B-Q4_K_M.gguf'                       },
-  'Gemma-3-4B':                    { repo: 'google/gemma-3-4b-it-GGUF',                                file: 'gemma-3-4b-it-Q4_K_M.gguf'                         },
-  'Llama-3.1-8B':                  { repo: 'bartowski/Meta-Llama-3.1-8B-Instruct-GGUF',               file: 'Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf'            },
-  'Qwen3.5-9B':                    { repo: 'Qwen/Qwen3.5-9B-Instruct-GGUF',                           file: 'Qwen3.5-9B-Instruct-Q4_K_M.gguf'                   },
-  'Mistral-Nemo-12B':              { repo: 'bartowski/Mistral-Nemo-Instruct-2407-GGUF',               file: 'Mistral-Nemo-Instruct-2407-Q4_K_M.gguf'            },
-  'GLM-5':                         { repo: 'THUDM/GLM-4-9B-Chat-GGUF',                                file: 'glm-4-9b-chat-Q4_K_M.gguf'                         },
-  'Qwen3.5-27B':                   { repo: 'Qwen/Qwen3.5-27B-Instruct-GGUF',                          file: 'Qwen3.5-27B-Instruct-Q4_K_M.gguf'                  },
-  'Qwen3.5-35B-A3B':               { repo: 'Qwen/Qwen3.5-35B-A3B-Instruct-GGUF',                     file: 'Qwen3.5-35B-A3B-Instruct-Q4_K_M.gguf'              },
-  'DeepSeek-R1-Distill-Qwen-32B':  { repo: 'bartowski/DeepSeek-R1-Distill-Qwen-32B-GGUF',            file: 'DeepSeek-R1-Distill-Qwen-32B-Q4_K_M.gguf'          },
-  'DeepSeek-R1-Distill-Llama-70B': { repo: 'bartowski/DeepSeek-R1-Distill-Llama-70B-GGUF',           file: 'DeepSeek-R1-Distill-Llama-70B-Q4_K_M.gguf'         },
-  'Llama-3.1-70B':                 { repo: 'bartowski/Meta-Llama-3.1-70B-Instruct-GGUF',              file: 'Meta-Llama-3.1-70B-Instruct-Q4_K_M.gguf'           },
-  'Mistral-Large-3':               { repo: 'bartowski/Mistral-Large-Instruct-2411-GGUF',              file: 'Mistral-Large-Instruct-2411-Q4_K_M.gguf'           },
-  'Qwen3.5-122B':                  { repo: 'Qwen/Qwen3.5-122B-Instruct-GGUF',                        file: 'Qwen3.5-122B-Instruct-Q4_K_M.gguf'                 },
-  'Llama-4-Maverick':              { repo: 'meta-llama/Llama-4-Maverick-17B-128E-Instruct-GGUF',      file: 'Llama-4-Maverick-17B-128E-Instruct-Q4_K_M.gguf'    },
-  'Kimi-K2.5':                     { repo: 'moonshotai/Kimi-K2-Instruct-GGUF',                        file: 'Kimi-K2-Instruct-Q4_K_M.gguf'                      },
+  // ── Coding ─────────────────────────────────────────────────────────────
+  'GLM-5':                          { repo: 'THUDM/GLM-5-GGUF',                                        file: 'GLM-5-Q4_K_M.gguf'                                 },
+  'Kimi-K2.5':                      { repo: 'moonshotai/Kimi-K2-Instruct-GGUF',                        file: 'Kimi-K2-Instruct-Q4_K_M.gguf'                      },
+  'Qwen3.5-122B':                   { repo: 'Qwen/Qwen3.5-122B-Instruct-GGUF',                        file: 'Qwen3.5-122B-Instruct-Q4_K_M.gguf'                 },
+  'Qwen3-Coder-30B':                { repo: 'Qwen/Qwen3-Coder-30B-GGUF',                               file: 'Qwen3-Coder-30B-Q4_K_M.gguf'                       },
+  'Codestral-22B':                  { repo: 'bartowski/Codestral-22B-v0.1-GGUF',                       file: 'Codestral-22B-v0.1-Q4_K_M.gguf'                    },
+  'Llama-3.1-8B':                   { repo: 'bartowski/Meta-Llama-3.1-8B-Instruct-GGUF',               file: 'Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf'            },
+  'DeepSeek-R1-Distill-Qwen-7B':    { repo: 'bartowski/DeepSeek-R1-Distill-Qwen-7B-GGUF',             file: 'DeepSeek-R1-Distill-Qwen-7B-Q4_K_M.gguf'           },
+  // ── Reasoning ───────────────────────────────────────────────────────────
+  'DeepSeek-R1-671B':               { repo: 'unsloth/DeepSeek-R1-GGUF',                                file: 'DeepSeek-R1-Q4_K_M.gguf'                           },
+  'DeepSeek-R1-Distill-Llama-70B':  { repo: 'bartowski/DeepSeek-R1-Distill-Llama-70B-GGUF',           file: 'DeepSeek-R1-Distill-Llama-70B-Q4_K_M.gguf'         },
+  'DeepSeek-R1-Distill-Qwen-32B':   { repo: 'bartowski/DeepSeek-R1-Distill-Qwen-32B-GGUF',            file: 'DeepSeek-R1-Distill-Qwen-32B-Q4_K_M.gguf'          },
+  'Qwen-QwQ-32B':                   { repo: 'Qwen/QwQ-32B-GGUF',                                      file: 'QwQ-32B-Q4_K_M.gguf'                               },
+  'Phi-4-14B':                      { repo: 'microsoft/Phi-4-GGUF',                                    file: 'Phi-4-Q4_K_M.gguf'                                 },
+  'Mathstral-7B':                   { repo: 'bartowski/mathstral-7B-v0.1-GGUF',                        file: 'mathstral-7B-v0.1-Q4_K_M.gguf'                     },
+  // ── Well-Rounded ─────────────────────────────────────────────────────────
+  'Llama-4-Maverick':               { repo: 'meta-llama/Llama-4-Maverick-17B-128E-Instruct-GGUF',      file: 'Llama-4-Maverick-17B-128E-Instruct-Q4_K_M.gguf'    },
+  'Qwen3.5-72B':                    { repo: 'Qwen/Qwen3.5-72B-Instruct-GGUF',                          file: 'Qwen3.5-72B-Instruct-Q4_K_M.gguf'                  },
+  'Qwen3.5-27B':                    { repo: 'Qwen/Qwen3.5-27B-Instruct-GGUF',                          file: 'Qwen3.5-27B-Instruct-Q4_K_M.gguf'                  },
+  'Mistral-Small-3.2-24B':          { repo: 'bartowski/Mistral-Small-3.2-24B-Instruct-2506-GGUF',      file: 'Mistral-Small-3.2-24B-Instruct-2506-Q4_K_M.gguf'   },
+  'Gemma-3-27B':                    { repo: 'google/gemma-3-27b-it-GGUF',                              file: 'gemma-3-27b-it-Q4_K_M.gguf'                        },
 };
 
-// Kept for resolving legacy DB records that stored Ollama tags (e.g. 'gemma3:4b').
+// Kept for resolving legacy DB records that stored Ollama tags (e.g. 'deepseek-r1:32b').
 export const OLLAMA_TAG: Record<string, string> = {
-  'Qwen3-4B':                      'qwen3:4b',
-  'Gemma-3-4B':                    'gemma3:4b',
-  'Llama-3.1-8B':                  'llama3.1:8b',
-  'Qwen3.5-9B':                    'qwen3:9b',
-  'Mistral-Nemo-12B':              'mistral-nemo',
-  'Qwen3.5-27B':                   'qwen3:27b',
-  'Qwen3.5-35B-A3B':               'qwen3:35b-a3b',
-  'DeepSeek-R1-Distill-Qwen-32B':  'deepseek-r1:32b',
-  'DeepSeek-R1-Distill-Llama-70B': 'deepseek-r1:70b',
-  'Llama-3.1-70B':                 'llama3.1:70b',
-  'Mistral-Large-3':               'mistral-large:123b',
-  'Qwen3.5-122B':                  'qwen3:122b',
-  'Llama-4-Maverick':              'llama4:maverick',
+  'Llama-3.1-8B':                   'llama3.1:8b',
+  'Qwen3.5-27B':                    'qwen3:27b',
+  'DeepSeek-R1-Distill-Qwen-32B':   'deepseek-r1:32b',
+  'DeepSeek-R1-Distill-Llama-70B':  'deepseek-r1:70b',
+  'Qwen3.5-122B':                   'qwen3:122b',
+  'Llama-4-Maverick':               'llama4:maverick',
 };
 
 // Reverse map: legacy Ollama tag → display name (e.g. 'gemma3:4b' → 'Gemma-3-4B').
