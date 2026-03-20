@@ -24,9 +24,9 @@ const MODE_LABEL: Record<string, string> = {
 };
 
 const HEALTH_STYLES: Record<string, { dot: string; bg: string; text: string }> = {
-  online:  { dot: 'bg-[var(--color-ok)]',   bg: 'bg-[var(--color-ok)]/5',   text: 'text-[var(--color-ok)]' },
-  suspect: { dot: 'bg-[var(--color-warn)]',  bg: 'bg-[var(--color-warn)]/5', text: 'text-[var(--color-warn)]' },
-  offline: { dot: 'bg-[var(--color-err)]',   bg: 'bg-[var(--color-err)]/5',  text: 'text-[var(--color-err)]' },
+  online:  { dot: 'bg-[var(--color-plex-400)]',  bg: 'bg-[var(--color-plex-500)]/8',  text: 'text-[var(--color-plex-400)]' },
+  suspect: { dot: 'bg-blue-300',                  bg: 'bg-blue-500/8',                  text: 'text-blue-300' },
+  offline: { dot: 'bg-[var(--color-text-muted)]', bg: 'bg-[var(--color-surface-tertiary)]', text: 'text-[var(--color-text-muted)]' },
 };
 
 export function EngineHealthDashboard({ engines }: Props) {
@@ -106,7 +106,7 @@ export function EngineHealthDashboard({ engines }: Props) {
                 </div>
                 <p className={`text-sm font-semibold ${
                   (eng.error_rate ?? 0) > 0.05
-                    ? 'text-[var(--color-err)]'
+                    ? 'text-[var(--color-text-secondary)]'
                     : 'text-[var(--color-text-primary)]'
                 }`}>
                   {eng.error_rate != null
@@ -135,7 +135,7 @@ export function EngineHealthDashboard({ engines }: Props) {
                   <div
                     className={`h-full rounded-full transition-all ${
                       ((eng.daily_messages_used ?? 0) / eng.daily_messages_limit) > 0.9
-                        ? 'bg-[var(--color-err)]'
+                        ? 'bg-[var(--color-plex-300)]'
                         : 'bg-[var(--color-plex-500)]'
                     }`}
                     style={{ width: `${Math.min(100, ((eng.daily_messages_used ?? 0) / eng.daily_messages_limit) * 100)}%` }}
@@ -156,7 +156,7 @@ export function EngineHealthDashboard({ engines }: Props) {
               <button
                 onClick={() => markOnline.mutate(eng.slot as EngineSlot)}
                 disabled={markOnline.isPending}
-                className="mt-3 w-full flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium border border-[var(--color-ok)]/30 bg-[var(--color-ok)]/5 text-[var(--color-ok)] hover:bg-[var(--color-ok)]/10 hover:border-[var(--color-ok)]/50 transition-colors disabled:opacity-50"
+                className="mt-3 w-full flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium border border-[var(--color-plex-500)]/30 bg-[var(--color-plex-500)]/5 text-[var(--color-plex-400)] hover:bg-[var(--color-plex-500)]/10 hover:border-[var(--color-plex-500)]/50 transition-colors disabled:opacity-50"
               >
                 <CheckCircle2 className="w-3 h-3" />
                 Mark Online

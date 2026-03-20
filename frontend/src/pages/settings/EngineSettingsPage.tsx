@@ -161,7 +161,7 @@ export function EngineSettingsPage() {
 
           // Bar segment widths as percentages of hostRam
           const osPct  = Math.min((OS_OVERHEAD_GB / hostRam) * 100, 100);
-          const slotColors = ['bg-blue-500/70', 'bg-violet-500/70', 'bg-cyan-500/70'];
+          const slotColors = ['bg-[var(--color-plex-600)]/80', 'bg-[var(--color-plex-500)]/70', 'bg-[var(--color-plex-400)]/60'];
 
           return (
             <div className="mt-3 pt-3 border-t border-[var(--color-border-subtle)]">
@@ -200,7 +200,7 @@ export function EngineSettingsPage() {
                     <strong className="ml-0.5 text-[var(--color-text-secondary)]">{r.gb} GB</strong>
                   </span>
                 ))}
-                <span className={`flex items-center gap-1 font-medium ${overBudget ? 'text-red-400' : 'text-[var(--color-ok)]'}`}>
+                <span className={`flex items-center gap-1 font-medium ${overBudget ? 'text-[var(--color-text-secondary)]' : 'text-[var(--color-plex-400)]'}`}>
                   {overBudget
                     ? `⚠ ${Math.abs(free).toFixed(1)} GB over budget`
                     : `✓ ${free.toFixed(1)} GB free`}

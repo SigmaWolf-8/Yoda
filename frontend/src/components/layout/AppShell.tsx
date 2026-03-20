@@ -85,8 +85,8 @@ export function AppShell() {
       'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors duration-150',
       collapsed && 'justify-center',
       isActive
-        ? 'bg-[hsl(210,80%,55%)]/15 text-[hsl(210,80%,68%)] border border-[hsl(210,80%,55%)]/28'
-        : 'text-[hsl(220,12%,42%)] hover:text-[hsl(220,15%,15%)] hover:bg-[hsl(220,15%,90%)]',
+        ? 'bg-[hsl(210,80%,55%)]/15 text-[hsl(210,80%,30%)] border border-[hsl(210,80%,55%)]/28 font-semibold'
+        : 'text-[hsl(220,12%,38%)] hover:text-[hsl(220,15%,10%)] hover:bg-[hsl(220,15%,90%)]',
     ].filter(Boolean).join(' ');
 
   const asideWidth = collapsed ? '4rem' : `${sidebarWidth}px`;
