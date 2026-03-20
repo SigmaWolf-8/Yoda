@@ -15,8 +15,17 @@ import {
   HardDriveDownload,
   Radio,
   Trash2,
+  Wifi,
+  WifiOff,
 } from 'lucide-react';
 import { ModelInstallModal } from './ModelInstallModal';
+import {
+  detectOS,
+  makeBashInstallScript,
+  makePsInstallScript,
+  makeBatWrapper,
+  triggerDownload,
+} from './installScripts';
 import { useUpdateEngine, useDeleteEngine } from '../../api/hooks';
 import { useToast } from '../common/Toast';
 import type {
@@ -451,10 +460,16 @@ export function EngineSlotCard({
   const [provider, setProvider] = useState('');
   const [familyOverride, setFamilyOverride] = useState(config?.family_override ?? '');
   const [showSuggest, setShowSuggest] = useState(false);
-  const [installModalMode, setInstallModalMode] = useState<'install' | 'connect' | null>(null);
+  const [installModalMode, setInstallModalMode] = useState<'connect' | null>(null);
   const [downloaded, markDownloaded] = useDownloadedModels();
   type ProbeResult = { reachable: boolean; latency_ms?: number; http_status?: number; error?: string };
   const [probeState, setProbeState] = useState<null | 'loading' | ProbeResult>(null);
+
+  type InstallPhase = 'idle' | 'polling' | 'connected' | 'timeout';
+  const [installPhase,   setInstallPhase]   = useState<InstallPhase>('idle');
+  const [installAddress, setInstallAddress] = useState('');
+  const installPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const crsUrl = (import.meta.env.VITE_CRS_URL as string | undefined) ?? '';
 
   const hasMountedRef    = useRef(false);
   const autoSaveTimer    = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -526,6 +541,53 @@ export function EngineSlotCard({
       setProbeState({ reachable: false, error: 'Network error — could not reach server' });
     }
   }
+
+  function handleDirectInstall() {
+    const info = GGUF_INFO[modelName];
+    if (!info) return;
+
+    const token = crypto.randomUUID();
+    const os    = detectOS();
+
+    if (os === 'windows') {
+      const ps  = makePsInstallScript(modelName, info.repo, info.file, SLOT_PORT[slot], token, crsUrl);
+      const bat = makeBatWrapper(ps, modelName);
+      triggerDownload(bat, 'yoda-setup.bat', 'text/plain');
+    } else if (os === 'mac') {
+      const sh = makeBashInstallScript(modelName, info.repo, info.file, SLOT_PORT[slot], token, crsUrl);
+      triggerDownload(sh, 'yoda-setup.command', 'text/x-shellscript');
+    } else {
+      const sh = makeBashInstallScript(modelName, info.repo, info.file, SLOT_PORT[slot], token, crsUrl);
+      triggerDownload(sh, 'yoda-setup.sh', 'text/x-shellscript');
+    }
+
+    if (!crsUrl) return;
+    if (installPollRef.current) clearInterval(installPollRef.current);
+    setInstallPhase('polling');
+    setInstallAddress('');
+    let count = 0;
+    installPollRef.current = setInterval(async () => {
+      count++;
+      if (count > 200) {
+        clearInterval(installPollRef.current!);
+        setInstallPhase('timeout');
+        return;
+      }
+      try {
+        const res = await fetch(`${crsUrl}/api/yoda/crs/session/${token}`);
+        if (!res.ok) return;
+        const data: { status: string; address?: string } = await res.json();
+        if (data.status === 'registered' && data.address) {
+          clearInterval(installPollRef.current!);
+          setInstallPhase('connected');
+          setInstallAddress(data.address);
+          markDownloaded(modelName);
+        }
+      } catch { /* keep polling */ }
+    }, 3000);
+  }
+
+  useEffect(() => () => { if (installPollRef.current) clearInterval(installPollRef.current); }, []);
 
   // Notify parent on first render so parent state is in sync
   useEffect(() => { onModelChange(modelName); }, []);
@@ -744,31 +806,55 @@ export function EngineSlotCard({
 
             {/* Install / Connect buttons — visible for all self-hosted models */}
             {modelName && GGUF_INFO[modelName] && (
-              <div className="flex gap-2">
-                {downloaded.has(modelName) ? (
+              <div className="space-y-2">
+                <div className="flex gap-2">
+                  {downloaded.has(modelName) ? (
+                    <button
+                      onClick={handleDirectInstall}
+                      className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border border-emerald-500/40 bg-emerald-500/8 text-emerald-400 text-xs font-medium hover:bg-emerald-500/15 hover:border-emerald-500/70 transition-colors"
+                    >
+                      <HardDriveDownload className="w-3.5 h-3.5" />
+                      Re-Install
+                    </button>
+                  ) : (
+                    <button
+                      onClick={handleDirectInstall}
+                      className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border border-[var(--color-gold-500)]/40 bg-[var(--color-gold-500)]/8 text-[var(--color-gold-400)] text-xs font-medium hover:bg-[var(--color-gold-500)]/15 hover:border-[var(--color-gold-500)]/70 transition-colors"
+                    >
+                      <Download className="w-3.5 h-3.5" />
+                      Install
+                    </button>
+                  )}
                   <button
-                    onClick={() => setInstallModalMode('install')}
-                    className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border border-emerald-500/40 bg-emerald-500/8 text-emerald-400 text-xs font-medium hover:bg-emerald-500/15 hover:border-emerald-500/70 transition-colors"
+                    onClick={() => setInstallModalMode('connect')}
+                    className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border border-blue-500/40 bg-blue-500/8 text-blue-400 text-xs font-medium hover:bg-blue-500/15 hover:border-blue-500/70 transition-colors"
                   >
-                    <HardDriveDownload className="w-3.5 h-3.5" />
-                    Downloaded
+                    <Radio className="w-3.5 h-3.5" />
+                    Connect
                   </button>
-                ) : (
-                  <button
-                    onClick={() => setInstallModalMode('install')}
-                    className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border border-[var(--color-gold-500)]/40 bg-[var(--color-gold-500)]/8 text-[var(--color-gold-400)] text-xs font-medium hover:bg-[var(--color-gold-500)]/15 hover:border-[var(--color-gold-500)]/70 transition-colors"
-                  >
-                    <Download className="w-3.5 h-3.5" />
-                    Install
-                  </button>
+                </div>
+
+                {/* Inline install status — replaces the modal for install flow */}
+                {installPhase === 'polling' && (
+                  <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-[var(--color-gold-500)]/8 border border-[var(--color-gold-500)]/25 text-xs text-[var(--color-gold-300)]">
+                    <Loader2 className="w-3 h-3 animate-spin flex-shrink-0" />
+                    <span>
+                      Script downloaded — double-click it to run, then wait here for connection…
+                    </span>
+                  </div>
                 )}
-                <button
-                  onClick={() => setInstallModalMode('connect')}
-                  className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border border-blue-500/40 bg-blue-500/8 text-blue-400 text-xs font-medium hover:bg-blue-500/15 hover:border-blue-500/70 transition-colors"
-                >
-                  <Radio className="w-3.5 h-3.5" />
-                  Connect
-                </button>
+                {installPhase === 'connected' && (
+                  <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-xs text-emerald-300">
+                    <Wifi className="w-3 h-3 flex-shrink-0" />
+                    <span>Connected — {installAddress}</span>
+                  </div>
+                )}
+                {installPhase === 'timeout' && (
+                  <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-amber-500/10 border border-amber-500/30 text-xs text-amber-300">
+                    <WifiOff className="w-3 h-3 flex-shrink-0" />
+                    <span>Timed out. Click Install again and run the downloaded file.</span>
+                  </div>
+                )}
               </div>
             )}
 
@@ -944,12 +1030,12 @@ export function EngineSlotCard({
         </button>
       </div>
 
-      {/* Install / Connect modal */}
-      {installModalMode !== null && (
+      {/* Connect (reconnect) modal — Install flow no longer uses a modal */}
+      {installModalMode === 'connect' && (
         <ModelInstallModal
           modelName={modelName}
           port={SLOT_PORT[slot]}
-          mode={installModalMode}
+          mode="connect"
           onClose={() => setInstallModalMode(null)}
           isDownloaded={downloaded.has(modelName)}
           onMarkDownloaded={() => markDownloaded(modelName)}
