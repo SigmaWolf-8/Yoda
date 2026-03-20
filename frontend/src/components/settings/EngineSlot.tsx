@@ -588,14 +588,14 @@ export function EngineSlotCard({
                 className="w-full px-3 py-2 rounded-lg bg-[var(--color-surface-tertiary)] border border-[var(--color-border-default)] text-sm text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-gold-500)] focus:ring-1 focus:ring-[var(--color-gold-500)]/30 transition-colors"
               />
               {showSuggest && (
-                <div className="absolute z-20 w-full mt-1 max-h-72 overflow-y-auto rounded-lg bg-[var(--color-surface-tertiary)] border border-[var(--color-border-default)] shadow-lg">
+                <div className="absolute z-20 w-full mt-1 max-h-[32rem] overflow-y-auto rounded-lg bg-[var(--color-surface-tertiary)] border border-[var(--color-border-default)] shadow-lg">
                   {grouped.length === 0 ? (
                     <div className="px-3 py-3 text-xs text-[var(--color-text-muted)] italic">
                       No matching models available
                     </div>
                   ) : grouped.map(({ category, models }) => (
                     <div key={category}>
-                      <div className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-widest text-[var(--color-text-muted)] bg-[var(--color-surface-secondary)] border-b border-[var(--color-border-subtle)] sticky top-0">
+                      <div className="px-3 py-2 text-xs font-bold uppercase tracking-widest text-white bg-black border-b border-[var(--color-border-subtle)] sticky top-0">
                         {category}
                       </div>
                       {models.map((m) => {
