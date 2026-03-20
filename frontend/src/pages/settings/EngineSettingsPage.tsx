@@ -31,10 +31,9 @@ export function EngineSettingsPage() {
   const [hostRam, setHostRam] = useState<number>(loadHostRam);
   const [ramInput, setRamInput] = useState<string>(String(loadHostRam()));
 
-  // Live model, mode, and endpoint state per slot — updated by each card in real time
-  const [liveModels,    setLiveModels]    = useState<SlotRecord<string>>({ a: '', b: '', c: '' });
-  const [liveModes,     setLiveModes]     = useState<SlotRecord<HostingMode>>({ a: 'self_hosted', b: 'self_hosted', c: 'self_hosted' });
-  const [liveEndpoints, setLiveEndpoints] = useState<SlotRecord<string>>({ a: '', b: '', c: '' });
+  // Live model and mode state per slot — updated by each card in real time
+  const [liveModels, setLiveModels] = useState<SlotRecord<string>>({ a: '', b: '', c: '' });
+  const [liveModes,  setLiveModes]  = useState<SlotRecord<HostingMode>>({ a: 'self_hosted', b: 'self_hosted', c: 'self_hosted' });
 
   // Sync initial values once backend data loads
   useEffect(() => {
@@ -49,11 +48,6 @@ export function EngineSettingsPage() {
       a: map.get('a')?.hosting_mode ?? 'self_hosted',
       b: map.get('b')?.hosting_mode ?? 'self_hosted',
       c: map.get('c')?.hosting_mode ?? 'self_hosted',
-    });
-    setLiveEndpoints({
-      a: map.get('a')?.endpoint_url ?? '',
-      b: map.get('b')?.endpoint_url ?? '',
-      c: map.get('c')?.endpoint_url ?? '',
     });
   }, [engines]);
 
@@ -72,12 +66,11 @@ export function EngineSettingsPage() {
 
   /**
    * RAM already committed by the other two self-hosted slots.
-   * Only counts Q4 RAM for self-hosted slots that have BOTH a known model AND an endpoint configured.
-   * Unconfigured slots (no endpoint) are ignored so they don't pollute the RAM budget.
+   * Counts Q4 RAM for any self-hosted slot that has a model selected — endpoint is irrelevant.
    */
   function reservedRamFor(slot: EngineSlot): number {
     return SLOTS
-      .filter((s) => s !== slot && liveModes[s] === 'self_hosted' && liveEndpoints[s].trim() !== '')
+      .filter((s) => s !== slot && liveModes[s] === 'self_hosted' && liveModels[s].trim() !== '')
       .reduce((sum, s) => sum + (MODEL_INFO[liveModels[s]]?.ramGbQ4 ?? 0), 0);
   }
 
@@ -150,7 +143,7 @@ export function EngineSettingsPage() {
           const slotRam = SLOTS.map((s) => ({
             slot: s,
             label: liveModels[s] || '—',
-            gb: liveModes[s] === 'self_hosted' && liveEndpoints[s].trim() !== ''
+            gb: liveModes[s] === 'self_hosted' && liveModels[s].trim() !== ''
               ? (MODEL_INFO[liveModels[s]]?.ramGbQ4 ?? 0)
               : 0,
           }));
