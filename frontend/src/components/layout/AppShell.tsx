@@ -110,12 +110,12 @@ export function AppShell() {
           background: 'linear-gradient(160deg, hsl(220,20%,98%) 0%, hsl(220,15%,95%) 100%)',
           boxShadow: [
             'inset 0 1px 0 rgba(255,255,255,1.0)',
-            'inset 1px 0 0 rgba(255,255,255,0.8)',
-            'inset -4px 0 24px rgba(0,0,0,0.06)',
-            'inset 0 -14px 40px rgba(0,0,0,0.07)',
-            'inset 0 14px 40px rgba(0,0,0,0.04)',
-            '4px 0 28px rgba(0,0,0,0.22)',
-            '8px 0 56px rgba(0,0,0,0.12)',
+            'inset 1px 0 0 rgba(255,255,255,0.9)',
+            'inset -6px 0 28px rgba(0,0,0,0.18)',
+            'inset 0 -20px 48px rgba(0,0,0,0.14)',
+            'inset 0 20px 48px rgba(0,0,0,0.10)',
+            '4px 0 28px rgba(0,0,0,0.28)',
+            '8px 0 56px rgba(0,0,0,0.16)',
           ].join(', '),
         }}
         className={[
@@ -219,7 +219,6 @@ export function AppShell() {
           {!collapsed && (
             <p className="text-xs text-[hsl(220,12%,55%)] leading-tight px-3 pb-1">
               Capomastro Holdings Ltd.
-              <br />Applied Physics Division
             </p>
           )}
         </div>
