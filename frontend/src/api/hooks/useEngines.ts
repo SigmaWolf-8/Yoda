@@ -8,13 +8,18 @@ import type {
   ModelLineageMap,
 } from '../../types';
 
-export function useEngineConfigs() {
+interface UseEngineConfigsOptions {
+  refetchInterval?: number | false;
+}
+
+export function useEngineConfigs(options: UseEngineConfigsOptions = {}) {
   return useQuery({
     queryKey: ['engines'],
     queryFn: async () => {
       const res = await apiClient.get<{ engines: EngineConfig[] }>('/settings/engines');
       return res.data.engines;
     },
+    refetchInterval: options.refetchInterval,
   });
 }
 
@@ -80,6 +85,6 @@ export function useModelLineages() {
       const res = await apiClient.get<ModelLineageMap>('/lineages');
       return res.data;
     },
-    staleTime: 300_000, // lineages change rarely — 5 min cache
+    staleTime: 300_000,
   });
 }

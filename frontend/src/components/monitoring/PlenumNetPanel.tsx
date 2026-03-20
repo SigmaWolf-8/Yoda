@@ -41,7 +41,8 @@ export function PlenumNetPanel({ engines }: Props) {
     return () => { cancelled = true; clearInterval(id); };
   }, []);
 
-  const selfHostedEngines = engines.filter((e) => e.hosting_mode === 'self_hosted');
+  const configuredEngines = engines.filter((e) => e.model_name?.trim());
+  const selfHostedEngines = configuredEngines.filter((e) => e.hosting_mode === 'self_hosted');
   const hasActiveTunnel = !error && stats !== null && stats.registeredCount > 0;
   const needsReconnect = selfHostedEngines.length > 0 && !hasActiveTunnel && !error;
 
@@ -89,7 +90,7 @@ export function PlenumNetPanel({ engines }: Props) {
 
       {/* Engine connection rows */}
       <div className="space-y-2 mb-4">
-        {engines.length === 0 && (
+        {configuredEngines.length === 0 && (
           <div className="flex items-center gap-3 px-3 py-3 rounded-lg bg-[var(--color-surface-tertiary)] border border-[var(--color-border-subtle)]">
             <span className="w-2 h-2 rounded-full bg-[var(--color-text-muted)] flex-shrink-0" />
             <p className="text-sm text-[var(--color-text-muted)]">
@@ -101,7 +102,7 @@ export function PlenumNetPanel({ engines }: Props) {
             </p>
           </div>
         )}
-        {engines.map((eng) => {
+        {configuredEngines.map((eng) => {
           const isSelfHosted = eng.hosting_mode === 'self_hosted';
           const isOnline = eng.health_status === 'online';
           const showTunnel = isSelfHosted && hasActiveTunnel;

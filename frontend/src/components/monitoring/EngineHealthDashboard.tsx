@@ -7,8 +7,11 @@ import {
   Layers,
   Gauge,
   TrendingUp,
+  CheckCircle2,
 } from 'lucide-react';
-import type { EngineConfig } from '../../types';
+import type { EngineConfig, EngineSlot } from '../../types';
+import { useMarkEngineOnline } from '../../api/hooks';
+import { Link } from 'react-router-dom';
 
 interface Props {
   engines: EngineConfig[];
@@ -27,11 +30,31 @@ const HEALTH_STYLES: Record<string, { dot: string; bg: string; text: string }> =
 };
 
 export function EngineHealthDashboard({ engines }: Props) {
+  const markOnline = useMarkEngineOnline();
+
+  const configured = engines.filter((e) => e.model_name?.trim());
+
+  if (configured.length === 0) {
+    return (
+      <div className="flex items-center gap-3 px-4 py-4 rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-surface-secondary)] text-sm text-[var(--color-text-muted)]">
+        <WifiOff className="w-4 h-4 flex-shrink-0" />
+        <span>
+          No engines configured yet.{' '}
+          <Link to="/settings/engines" className="text-[var(--color-plex-400)] hover:underline">
+            Go to AI Engines settings
+          </Link>{' '}
+          to set up your slots.
+        </span>
+      </div>
+    );
+  }
+
   return (
     <div className="grid gap-4 sm:grid-cols-3">
-      {engines.map((eng) => {
+      {configured.map((eng) => {
         const style = HEALTH_STYLES[eng.health_status] ?? HEALTH_STYLES.offline;
         const HealthIcon = eng.health_status === 'online' ? Wifi : eng.health_status === 'suspect' ? AlertCircle : WifiOff;
+        const isOffline = eng.health_status !== 'online';
 
         return (
           <div
@@ -126,6 +149,18 @@ export function EngineHealthDashboard({ engines }: Props) {
               <p className="text-[8px] text-[var(--color-text-muted)] mt-2">
                 Last check: {new Date(eng.last_health_check).toLocaleTimeString()}
               </p>
+            )}
+
+            {/* Manual mark-online for offline engines */}
+            {isOffline && (
+              <button
+                onClick={() => markOnline.mutate(eng.slot as EngineSlot)}
+                disabled={markOnline.isPending}
+                className="mt-3 w-full flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium border border-[var(--color-ok)]/30 bg-[var(--color-ok)]/5 text-[var(--color-ok)] hover:bg-[var(--color-ok)]/10 hover:border-[var(--color-ok)]/50 transition-colors disabled:opacity-50"
+              >
+                <CheckCircle2 className="w-3 h-3" />
+                Mark Online
+              </button>
             )}
           </div>
         );
