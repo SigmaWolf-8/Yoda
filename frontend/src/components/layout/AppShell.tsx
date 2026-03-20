@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { Outlet, NavLink } from 'react-router-dom';
 import {
   LayoutDashboard,
@@ -26,10 +26,57 @@ const MAIN_NAV = [
 /* Sidebar logo-area height in px — top bar must match this */
 export const HEADER_H = 72;
 
+const SIDEBAR_MIN = 160;
+const SIDEBAR_MAX = 480;
+const SIDEBAR_DEFAULT = 256;
+
+function loadSidebarWidth(): number {
+  try {
+    const s = localStorage.getItem('yoda-sidebar-width');
+    if (s) return Math.min(SIDEBAR_MAX, Math.max(SIDEBAR_MIN, parseInt(s, 10)));
+  } catch { /* ignore */ }
+  return SIDEBAR_DEFAULT;
+}
+
 export function AppShell() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [collapsed, setCollapsed]     = useState(false);
+  const [sidebarWidth, setSidebarWidth] = useState(loadSidebarWidth);
+  const [isResizing, setIsResizing]   = useState(false);
   const { header }                    = usePageHeaderCtx();
+
+  const startResizeX   = useRef(0);
+  const startResizeW   = useRef(0);
+
+  const startResize = useCallback((e: React.MouseEvent) => {
+    if (collapsed) return;
+    e.preventDefault();
+    startResizeX.current = e.clientX;
+    startResizeW.current = sidebarWidth;
+    setIsResizing(true);
+    document.body.style.cursor      = 'col-resize';
+    document.body.style.userSelect  = 'none';
+
+    const clamp = (w: number) => Math.min(SIDEBAR_MAX, Math.max(SIDEBAR_MIN, w));
+
+    const onMove = (ev: MouseEvent) => {
+      setSidebarWidth(clamp(startResizeW.current + ev.clientX - startResizeX.current));
+    };
+
+    const onUp = (ev: MouseEvent) => {
+      const final = clamp(startResizeW.current + ev.clientX - startResizeX.current);
+      setSidebarWidth(final);
+      try { localStorage.setItem('yoda-sidebar-width', String(final)); } catch { /* ignore */ }
+      setIsResizing(false);
+      document.body.style.cursor     = '';
+      document.body.style.userSelect = '';
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup',   onUp);
+    };
+
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup',   onUp);
+  }, [collapsed, sidebarWidth]);
 
   const navCls = ({ isActive }: { isActive: boolean }) =>
     [
@@ -39,6 +86,8 @@ export function AppShell() {
         ? 'bg-[var(--color-gold-500)]/10 text-[var(--color-gold-400)] border border-[var(--color-gold-500)]/20'
         : 'text-[var(--color-text-tertiary)] hover:text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-tertiary)]',
     ].filter(Boolean).join(' ');
+
+  const asideWidth = collapsed ? '4rem' : `${sidebarWidth}px`;
 
   return (
     <div className="flex min-h-screen w-full bg-[var(--color-surface-primary)]">
@@ -55,7 +104,7 @@ export function AppShell() {
       {/* ── Sidebar ── */}
       <aside
         style={{
-          width: collapsed ? '4rem' : '16rem',
+          width: asideWidth,
           boxShadow: [
             'inset 1px 0 0 rgba(255,255,255,0.045)',
             'inset 0 1px 0 rgba(255,255,255,0.03)',
@@ -67,11 +116,12 @@ export function AppShell() {
           background: 'linear-gradient(160deg, hsl(20,14%,9%) 0%, hsl(20,12%,7%) 100%)',
         }}
         className={[
-          'fixed lg:sticky top-0 left-0 z-40 h-screen flex-shrink-0',
+          'fixed lg:sticky top-0 left-0 z-40 h-screen flex-shrink-0 relative',
           'border-r border-white/[0.04]',
-          'flex flex-col transition-all duration-200 overflow-hidden',
+          'flex flex-col overflow-hidden',
+          isResizing ? '' : 'transition-all duration-200',
           sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0',
-        ].join(' ')}
+        ].filter(Boolean).join(' ')}
       >
         {/* Logo — height must match top bar (HEADER_H) */}
         <div
@@ -181,6 +231,23 @@ export function AppShell() {
             </p>
           )}
         </div>
+
+        {/* ── Resize handle ── */}
+        {!collapsed && (
+          <div
+            onMouseDown={startResize}
+            className="absolute right-0 top-0 h-full z-50 group"
+            style={{ width: 6, cursor: 'col-resize' }}
+          >
+            <div
+              className={[
+                'absolute right-0 top-0 h-full transition-opacity duration-150',
+                isResizing ? 'opacity-100' : 'opacity-0 group-hover:opacity-100',
+              ].join(' ')}
+              style={{ width: 2, background: 'rgba(255,255,255,0.18)' }}
+            />
+          </div>
+        )}
       </aside>
 
       {/* ── Main column ── */}
