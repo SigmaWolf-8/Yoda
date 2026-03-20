@@ -125,10 +125,7 @@ export function AppShell() {
       >
         {/* Logo — height must match top bar (HEADER_H) */}
         <div
-          className={[
-            'flex items-center border-b flex-shrink-0 overflow-hidden',
-            collapsed ? 'justify-center gap-0 p-0' : 'gap-3 p-0',
-          ].join(' ')}
+          className="relative border-b flex-shrink-0 overflow-hidden"
           style={{
             height: HEADER_H,
             borderBottomColor: 'hsl(220,15%,86%)',
@@ -143,25 +140,18 @@ export function AppShell() {
         >
           <video
             src="/yoda-logo.mp4"
-            className="flex-shrink-0 object-cover"
-            style={{ height: HEADER_H, width: HEADER_H }}
+            className="w-full h-full object-cover"
             autoPlay
             muted
             playsInline
           />
-          {!collapsed && (
-            <>
-              <span className="text-lg font-bold tracking-wide text-[hsl(220,15%,12%)]">
-                YODA
-              </span>
-              <button
-                className="ml-auto lg:hidden text-[hsl(220,12%,50%)] hover:text-[hsl(220,15%,20%)]"
-                onClick={() => setSidebarOpen(false)}
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </>
-          )}
+          {/* Mobile close button floats over the video */}
+          <button
+            className="absolute top-2 right-2 lg:hidden text-white/70 hover:text-white bg-black/30 rounded p-0.5"
+            onClick={() => setSidebarOpen(false)}
+          >
+            <X className="w-4 h-4" />
+          </button>
         </div>
 
         {/* Main nav */}
