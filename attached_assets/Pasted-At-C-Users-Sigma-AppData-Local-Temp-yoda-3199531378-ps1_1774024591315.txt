@@ -1,0 +1,46 @@
+At C:\Users\Sigma\AppData\Local\Temp\yoda_3199531378.ps1:52 char:34
++   $env:PATH += ";$env:USERPROFILE\.cargo\bin"
++                                  ~~~~~~~~~~~~
+Unexpected token '\.cargo\bin"
+  Write-Host "' in expression or statement.
+At C:\Users\Sigma\AppData\Local\Temp\yoda_3199531378.ps1:93 char:44
++     throw "$member missing after clone â€” check network and try agai ...
++                                            ~~~~~
+Unexpected token 'check' in expression or statement.
+At C:\Users\Sigma\AppData\Local\Temp\yoda_3199531378.ps1:105 char:12
++ elease â€” check cargo output above for errors."
++            ~~~~~
+Unexpected token 'check' in expression or statement.
+At C:\Users\Sigma\AppData\Local\Temp\yoda_3199531378.ps1:147 char:47
++   throw "Daemon keygen produced no output â€” check $keygenLog for de ...
++                                               ~~~~~
+Unexpected token 'check' in expression or statement.
+At C:\Users\Sigma\AppData\Local\Temp\yoda_3199531378.ps1:203 char:8
++ } else {
++        ~
+Missing closing '}' in statement block or type definition.
+At C:\Users\Sigma\AppData\Local\Temp\yoda_3199531378.ps1:180 char:48
++ for ($attempt = 1; $attempt -le 3; $attempt++) {
++                                                ~
+Missing closing '}' in statement block or type definition.
+At C:\Users\Sigma\AppData\Local\Temp\yoda_3199531378.ps1:92 char:50
++   if (-not (Test-Path "$PLENUMNET_DIR\$member")) {
++                                                  ~
+Missing closing '}' in statement block or type definition.
+At C:\Users\Sigma\AppData\Local\Temp\yoda_3199531378.ps1:91 char:85
++ ...  in @("services\inter-cube\Cargo.toml", "ternary-math\Cargo.toml")) {
++                                                                         ~
+Missing closing '}' in statement block or type definition.
+At C:\Users\Sigma\AppData\Local\Temp\yoda_3199531378.ps1:39 char:24
++ if ($ip -eq "0.0.0.0") {
++                        ~
+Missing closing '}' in statement block or type definition.
+At C:\Users\Sigma\AppData\Local\Temp\yoda_3199531378.ps1:204 char:76
++ ... Host "  (This may be several GB â€” download resumes if interrupted)"
++                                                                        ~
+Unexpected token ')' in expression or statement.
+Not all parse errors were reported.  Correct the reported errors and try again.
+    + CategoryInfo          : ParserError: (:) [], ParentContainsErrorRecordException
+    + FullyQualifiedErrorId : UnexpectedToken
+
+Press any key to continue . . .

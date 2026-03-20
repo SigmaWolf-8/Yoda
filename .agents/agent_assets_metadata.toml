@@ -1,0 +1,26 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "DUCm6_nOEhFplh9WAQoWy"
+uri = "file://yoda-install.txt"
+type = "text"
+title = "yoda-install.ps1"
+
+[[outputs]]
+id = "AFdg17M667fEqlAcMoaDP"
+uri = "file://yoda-install-bat.txt"
+type = "text"
+title = "yoda-install.bat"
+
+[[outputs]]
+id = "SFVeWVU_-gOUCc0LA7mJZ"
+uri = "file://yoda-reconnect.txt"
+type = "text"
+title = "yoda-reconnect.ps1"
+
+[[outputs]]
+id = "TBCVPA_UB-613OIBJGxsp"
+uri = "file://yoda-reconnect-bat.txt"
+type = "text"
+title = "yoda-reconnect.bat"
