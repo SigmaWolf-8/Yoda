@@ -430,13 +430,13 @@ Write-Host "  -> Architecture: $cpuArch"
 # Step A -- find and activate MSVC via vswhere (sets VCINSTALLDIR etc.)
 $vswhereX86 = "C:\Program Files (x86)\Microsoft Visual Studio\Installer\vswhere.exe"
 $vswhereNat = "C:\Program Files\Microsoft Visual Studio\Installer\vswhere.exe"
-$vswhere = if (Test-Path $vswhereX86) { $vswhereX86 } elseif (Test-Path $vswhereNat) { $vswhereNat } else { "" }
+$vswhere = if (Test-Path -LiteralPath $vswhereX86) { $vswhereX86 } elseif (Test-Path -LiteralPath $vswhereNat) { $vswhereNat } else { "" }
 if ($vswhere) {
   $vsInstallPath = & $vswhere -latest -products * -property installationPath 2>$null
   if ($vsInstallPath) {
     $vcvarsName = if ($cpuArch -eq "Arm64") { "vcvarsarm64.bat" } else { "vcvars64.bat" }
     $vcvars = Join-Path (Join-Path (Join-Path $vsInstallPath "VC") "Auxiliary\Build") $vcvarsName
-    if (Test-Path $vcvars) {
+    if (Test-Path -LiteralPath $vcvars) {
       Write-Host "  -> Activating MSVC environment ($vcvarsName)..."
       $envLines = cmd.exe /c ('"' + $vcvars + '" > nul 2>&1 && set')
       foreach ($line in $envLines) {
@@ -459,7 +459,7 @@ if ($vswhere) {
 $hasClang = Get-Command clang -ErrorAction SilentlyContinue
 if (-not $hasClang) {
   $llvmBin = "C:\Program Files\LLVM\bin"
-  if (Test-Path (Join-Path $llvmBin "clang.exe")) {
+  if (Test-Path -LiteralPath (Join-Path $llvmBin "clang.exe")) {
     $env:PATH += ";$llvmBin"
     $hasClang = Get-Command clang -ErrorAction SilentlyContinue
   }
@@ -488,7 +488,7 @@ if ($hasClang) {
   }
   $env:PATH = [System.Environment]::GetEnvironmentVariable("PATH","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("PATH","User")
   $llvmBin = "C:\Program Files\LLVM\bin"
-  if (Test-Path (Join-Path $llvmBin "clang.exe")) { $env:PATH += ";$llvmBin" }
+  if (Test-Path -LiteralPath (Join-Path $llvmBin "clang.exe")) { $env:PATH += ";$llvmBin" }
   if (Get-Command clang -ErrorAction SilentlyContinue) {
     Write-Host "  OK clang installed"
   } else {
