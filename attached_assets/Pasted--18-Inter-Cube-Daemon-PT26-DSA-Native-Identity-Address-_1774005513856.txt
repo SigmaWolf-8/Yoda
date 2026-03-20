@@ -1,0 +1,49 @@
+#18 - Inter-Cube Daemon — PT26-DSA Native Identity, Address-Bound Keys & Key Rotation
+What & Why
+The inter-cube-daemon has three gaps in its identity and key management:
+
+No real keypair — run_cube_mode() derives its "public key" by hashing the endpoint IP:port string with TLSponge-385. This is deterministic from the IP and provides zero cryptographic identity. run_crs_mode() uses a hardcoded placeholder vec![0xABu8; 32].
+
+Address-bound keys not wired — The full AddressKeyManager and derive_identity_keypair() exist in address_keys.rs, but the daemon never calls them after receiving its 13D address from the CRS. The proper flow (per the rotation spec T-15, T-19) is: register with initial key → receive address → derive address-bound keypair from (address + master_secret) → re-register with the bound key.
+
+Key rotation not wired — The RotationOrchestrator in key_rotation.rs is fully implemented (radian-epoch boundaries every 14 days, 3FA capability gating, jitter, dual-accept windows, re-derivation, re-registration) but the daemon never calls check_and_rotate(). Without this, keys never rotate and the entire rotation infrastructure sits unused.
+
+All three pieces are already built as library code — they just need to be wired into the daemon's runtime.
+
+PT26-DSA is the correct signature scheme for inter-cube identity: it's geometrically native to the 13D hypercube, produces 71-byte signatures (smallest PQ sig at Level 5), has a 28-signature budget per keypair, and already has a parallel verification engine (pt26_parallel.rs) integrated into the inter-cube service layer.
+
+After this task, the YODA project's install script works end-to-end with no manual crypto steps — the daemon handles identity, address binding, and key rotation automatically.
+
+Done looks like
+On first run, the daemon generates a MasterSecret (48 bytes, CSPRNG), encrypts it at rest to ~/.plenumnet/identity/master.key (or CUBE_IDENTITY_DIR env var), and derives a PT26-DSA keypair for initial CRS registration
+On subsequent runs, it loads the existing master secret from the encrypted file
+After CRS assigns a 13D address, the daemon derives an address-bound identity keypair via derive_identity_keypair(address, master_secret) and re-registers with the CRS using the bound public key
+A keygen subcommand (CUBE_MODE=keygen) generates and prints the keypair without starting the daemon, for scripting use
+The daemon's heartbeat loop (every 30s) calls RotationOrchestrator::check_and_rotate() — when a radian epoch boundary is crossed (every 14 days), the master secret rotates, all dependent keys are re-derived, and the daemon re-registers with the CRS using the new public key
+run_crs_mode() also uses a real PT26-DSA keypair instead of the placeholder
+All existing cargo test --package inter-cube tests pass
+The MasterSecret is zeroized on drop (already implemented in identity.rs)
+Out of scope
+Changes to the CRS registration API schema (already accepts publicKey: String)
+Changes to tunnel_auth.rs handshake protocol (T-14 uses KEM shared secrets with address binding — secure as-is; PT26-DSA identity on top is defense-in-depth for a future version)
+launchd/systemd service installation (ops tooling, script already prints re-run instructions)
+Any changes to the deployments/ folder
+Tasks
+Persistent master secret with PT26-DSA keygen — On first run, generate a MasterSecret, encrypt it at rest using the existing encrypt_master_secret() from identity.rs, store to ~/.plenumnet/identity/master.key. On subsequent runs, load and decrypt. Derive a PT26-DSA keypair for initial registration. Add CUBE_MODE=keygen subcommand that generates, stores, prints hex public key, and exits.
+
+Replace hashed-endpoint key in both daemon modes — In run_cube_mode(), remove the derive_key(b"PlenumNET-endpoint-key-v1", ...) call and replace with the real PT26-DSA public key. In run_crs_mode(), replace vec![0xABu8; 32] with a real keypair.
+
+Address-bound key derivation after CRS registration — After the CRS assigns a 13D address (the reg_data["address"] response), call derive_identity_keypair(assigned_address, master_secret) to produce the address-bound TL-DSA-87 keypair. Re-register with the CRS using the address-bound public key. This closes the chicken-and-egg: initial registration uses the standalone key, then the bound key replaces it.
+
+Wire key rotation into heartbeat loop — Instantiate a RotationOrchestrator with the node's address and master secret. On each 30-second heartbeat cycle, call check_and_rotate(). When rotation fires (every 14-day radian epoch): generate new master secret, rotate via SecretRotation, re-derive address-bound keypair, re-register with CRS, encrypt new secret at rest. Log rotation events.
+
+Verify all existing tests pass — Run cargo test --package inter-cube to ensure no regressions from the wiring changes.
+
+Relevant files
+services/inter-cube/src/main.rs:58-67,164-180,388-416
+services/inter-cube/Cargo.toml
+ternary-math/src/pt26_dsa.rs:255-280
+services/inter-cube/src/identity.rs:160-298
+services/inter-cube/src/address_keys.rs:113-199,305-350
+services/inter-cube/src/key_rotation.rs:100-298
+services/inter-cube/src/tunnel_auth.rs

@@ -1,0 +1,46 @@
+Good questions. Let me verify the env var name the daemon actually reads before I comment:
+
+Good — that confirms the actual code. Now I have the full picture.
+
+On your first question — do you need to publish for the tunnel to work?
+
+No. Publishing the web app is completely separate from the Inter-Cube daemon. The daemon is a standalone Rust binary (cargo run --package inter-cube) that runs its own network listener. Publishing updates the marketing website and Express API — it has nothing to do with the tunnel daemon. The two are independent processes.
+
+That said, the CRS node does need to be network-reachable for a remote cube node to register with it. On Replit, the published app exposes port 5000 (Express). The Inter-Cube daemon would need its own port exposure or be proxied through Express. That's a YODA-side networking concern, not a publish concern on the Ternary repo.
+
+On the YODA team's feedback — my comments:
+
+1. CUBE_IDENTITY_PASSPHRASE management — Correct and well thought out.
+
+Their plan is sound: generate a random passphrase once at install, persist it to ~/.plenumnet/identity/.passphrase (mode 600), and load it before every daemon invocation. This is exactly the right approach. The key point is consistency — the same passphrase that encrypts master.key during keygen must be available at every subsequent startup and reconnect. Their plan handles that.
+
+One small note: they should make sure the .passphrase file is created before the first CUBE_MODE=keygen call, not after. The sequence must be:
+
+Generate random passphrase → write to .passphrase
+Export CUBE_IDENTITY_PASSPHRASE from that file
+Then run CUBE_MODE=keygen
+If they reverse steps 2 and 3, the daemon would fall back to the hostname-derived passphrase for initial encryption, and then the real passphrase would fail to decrypt on the next startup.
+
+2. CRS_URL vs CUBE_CRS_URL — There is NO mismatch. The handoff was imprecise, the code is correct.
+
+I just verified the actual daemon source. The code reads CUBE_CRS_URL (line 191 of main.rs), not CRS_URL. The handoff document I wrote used the shorter name for readability, which caused the confusion. Their current scripts already export CUBE_CRS_URL — that's the correct name. They should NOT change it. I'll fix the handoff document right now so this doesn't trip anyone else up:
+
+Also update the "Step-by-Step" section text that mentioned CRS_URL:
+
+Good — all instances now correctly say CUBE_CRS_URL. Let me also fix the prose reference:
+
+All clean. Let me push the corrected handoff:
+
+Summary of my review on the YODA team's feedback:
+
+3. Reconnect simplification — Agreed, solid reasoning.
+
+Their approach of just loading the passphrase and restarting the daemon for reconnect is correct. The daemon self-registers on startup, so there's no need for an explicit registration block in the reconnect path. Clean and simple.
+
+To recap the three items:
+
+YODA Finding	Verdict	Action Needed?
+CUBE_IDENTITY_PASSPHRASE in installer	Correct — generate once, persist to .passphrase, load before every daemon call	Yes — their plan is right, just make sure passphrase is written before the first keygen call
+CRS_URL vs CUBE_CRS_URL mismatch	No mismatch — my handoff doc was imprecise, the daemon code already reads CUBE_CRS_URL, which matches their scripts	No — I've corrected the handoff doc and pushed the fix. Their scripts are already correct.
+Reconnect simplification	Correct — daemon self-registers on startup, no explicit registration block needed	No change needed
+The corrected handoff document is already pushed to GitHub (commit 6edf10c). Their task #2 plan is sound — just drop the CRS_URL rename work since there's no actual mismatch to fix.
