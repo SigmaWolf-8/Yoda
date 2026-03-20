@@ -53,7 +53,7 @@ export function CostTracker({ engines }: Props) {
                 </div>
               )}
               <span className={`font-medium ${
-                eng.hosting_mode === 'commercial' ? 'text-[var(--color-gold-400)]' : 'text-[var(--color-ok)]'
+                eng.hosting_mode === 'commercial' ? 'text-[var(--color-gold-400)]' : 'text-[var(--color-plex-400)]'
               }`}>
                 {eng.hosting_mode === 'commercial' ? 'Per-token billing' : '$0 (rate-limited)'}
               </span>

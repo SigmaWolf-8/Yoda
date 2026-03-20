@@ -61,13 +61,11 @@ export function PlenumNetPanel({ engines }: Props) {
         </div>
         <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-sm font-medium border ${
           hasActiveTunnel
-            ? 'bg-blue-500/10 border-blue-500/30 text-blue-400'
-            : error
-              ? 'bg-[var(--color-err)]/10 border-[var(--color-err)]/30 text-[var(--color-err)]'
-              : 'bg-[var(--color-surface-tertiary)] border-[var(--color-border-default)] text-[var(--color-text-muted)]'
+            ? 'bg-[var(--color-plex-500)]/10 border-[var(--color-plex-500)]/30 text-[var(--color-plex-400)]'
+            : 'bg-[var(--color-surface-tertiary)] border-[var(--color-border-default)] text-[var(--color-text-muted)]'
         }`}>
           <span className={`w-1.5 h-1.5 rounded-full ${
-            hasActiveTunnel ? 'bg-blue-400 animate-pulse' : error ? 'bg-[var(--color-err)]' : 'bg-[var(--color-text-muted)]'
+            hasActiveTunnel ? 'bg-[var(--color-plex-400)] animate-pulse' : 'bg-[var(--color-text-muted)]'
           }`} />
           {hasActiveTunnel
             ? `PlenumNET Active · ${stats!.registeredCount} node${stats!.registeredCount !== 1 ? 's' : ''}`
@@ -79,10 +77,10 @@ export function PlenumNetPanel({ engines }: Props) {
 
       {/* Reconnect notice */}
       {needsReconnect && (
-        <div className="flex items-start gap-2.5 px-3 py-2.5 rounded-lg bg-amber-500/5 border border-amber-500/20 mb-3">
-          <AlertTriangle className="w-3.5 h-3.5 text-amber-400 flex-shrink-0 mt-0.5" />
+        <div className="flex items-start gap-2.5 px-3 py-2.5 rounded-lg bg-[var(--color-plex-500)]/5 border border-[var(--color-plex-500)]/20 mb-3">
+          <AlertTriangle className="w-3.5 h-3.5 text-[var(--color-plex-400)] flex-shrink-0 mt-0.5" />
           <div className="text-xs text-[var(--color-text-muted)] leading-relaxed">
-            <span className="font-medium text-amber-400">No tunnel active.</span>{' '}
+            <span className="font-medium text-[var(--color-plex-400)]">No tunnel active.</span>{' '}
             Click <span className="font-medium text-[var(--color-text-secondary)]">Connect</span> on an engine below to get a script that starts the PlenumNET daemon on your machine.
           </div>
         </div>
@@ -110,11 +108,11 @@ export function PlenumNetPanel({ engines }: Props) {
 
           const dotColor = isSelfHosted
             ? showTunnel
-              ? 'bg-blue-400 animate-pulse'
-              : 'bg-blue-500/30'
+              ? 'bg-[var(--color-plex-400)] animate-pulse'
+              : 'bg-[var(--color-plex-500)]/30'
             : isOnline
-              ? 'bg-[var(--color-ok)]'
-              : 'bg-[var(--color-err)]';
+              ? 'bg-[var(--color-plex-400)]'
+              : 'bg-[var(--color-text-muted)]';
 
           const displayName = resolveModelName(eng);
 
@@ -138,13 +136,13 @@ export function PlenumNetPanel({ engines }: Props) {
 
               <div className="flex items-center gap-1.5 flex-shrink-0 ml-2">
                 {showTunnel && (
-                  <span className="flex items-center gap-1 text-xs text-blue-400 font-medium">
+                  <span className="flex items-center gap-1 text-xs text-[var(--color-plex-400)] font-medium">
                     <Radio className="w-3 h-3" />
                     PlenumNET
                   </span>
                 )}
                 {showApi && (
-                  <span className="flex items-center gap-1 text-xs text-[var(--color-ok)] font-medium">
+                  <span className="flex items-center gap-1 text-xs text-[var(--color-plex-400)] font-medium">
                     <Globe2 className="w-3 h-3" />
                     API online
                   </span>
@@ -153,14 +151,14 @@ export function PlenumNetPanel({ engines }: Props) {
                 {isSelfHosted && !showTunnel && displayName && (
                   <button
                     onClick={() => setConnectingEngine(eng)}
-                    className="flex items-center gap-1 text-xs px-2 py-0.5 rounded-md border border-blue-500/40 bg-blue-500/8 text-blue-400 hover:bg-blue-500/15 hover:border-blue-500/70 transition-colors"
+                    className="flex items-center gap-1 text-xs px-2 py-0.5 rounded-md border border-[var(--color-plex-500)]/40 bg-[var(--color-plex-500)]/8 text-[var(--color-plex-400)] hover:bg-[var(--color-plex-500)]/15 hover:border-[var(--color-plex-500)]/70 transition-colors"
                   >
                     <Terminal className="w-2.5 h-2.5" />
                     Connect
                   </button>
                 )}
                 {isSelfHosted && !showTunnel && !displayName && (
-                  <span className="flex items-center gap-1 text-xs text-amber-400/80">
+                  <span className="flex items-center gap-1 text-xs text-[var(--color-text-muted)]">
                     <RefreshCw className="w-2.5 h-2.5" />
                     Not configured
                   </span>

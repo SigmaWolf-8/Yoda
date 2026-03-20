@@ -22,10 +22,10 @@ export function CensorshipLog({ reviews }: Props) {
     <div className="rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-surface-secondary)] p-5">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
-          <ShieldAlert className="w-4 h-4 text-[var(--color-warn)]" />
+          <ShieldAlert className="w-4 h-4 text-[var(--color-text-secondary)]" />
           <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">Censorship Events</h3>
           {flagged.length > 0 && (
-            <span className="text-xs font-semibold text-[var(--color-warn)] bg-[var(--color-warn)]/10 px-1.5 py-0.5 rounded">
+            <span className="text-xs font-semibold text-[var(--color-plex-400)] bg-[var(--color-plex-500)]/10 px-1.5 py-0.5 rounded">
               {flagged.length}
             </span>
           )}
@@ -47,11 +47,11 @@ export function CensorshipLog({ reviews }: Props) {
           {[...engineCounts.entries()].map(([eng, count]) => (
             <div
               key={eng}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-[var(--color-warn)]/5 border border-[var(--color-warn)]/15 text-xs"
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-[var(--color-plex-500)]/5 border border-[var(--color-plex-500)]/15 text-xs"
             >
-              <Filter className="w-3 h-3 text-[var(--color-warn)]" />
+              <Filter className="w-3 h-3 text-[var(--color-plex-400)]" />
               <span className="font-semibold text-[var(--color-text-secondary)]">Engine {eng.toUpperCase()}</span>
-              <span className="text-[var(--color-warn)]">{count} flagged</span>
+              <span className="text-[var(--color-plex-400)]">{count} flagged</span>
             </div>
           ))}
         </div>
@@ -77,7 +77,7 @@ export function CensorshipLog({ reviews }: Props) {
               {displayed.map((r, i) => (
                 <tr
                   key={r.id ?? i}
-                  className="border-t border-[var(--color-border-subtle)] hover:bg-[var(--color-warn)]/5 transition-colors"
+                  className="border-t border-[var(--color-border-subtle)] hover:bg-[var(--color-surface-hover)] transition-colors"
                 >
                   <td className="px-3 py-2 font-semibold text-[var(--color-text-primary)]">
                     Engine {r.engine_id.toUpperCase()}
@@ -88,7 +88,7 @@ export function CensorshipLog({ reviews }: Props) {
                   <td className="px-3 py-2 text-[var(--color-text-muted)] truncate max-w-[200px]">
                     {r.agent_role}
                   </td>
-                  <td className="px-3 py-2 text-[var(--color-warn)]">
+                  <td className="px-3 py-2 text-[var(--color-text-secondary)]">
                     {Math.round(r.verdict.confidence * 100)}%
                   </td>
                   <td className="px-3 py-2 text-[var(--color-text-muted)]">

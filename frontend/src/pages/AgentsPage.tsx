@@ -175,7 +175,7 @@ export function AgentsPage() {
       {agentsQuery.isError && (
         <div className="flex-1 flex items-center justify-center text-center px-8">
           <div>
-            <p className="text-sm font-medium text-red-400 mb-1">Failed to load agents</p>
+            <p className="text-sm font-medium text-[var(--color-text-muted)] mb-1">Failed to load agents</p>
             <p className="text-sm text-[var(--color-text-muted)]">{String(agentsQuery.error)}</p>
             <button onClick={() => agentsQuery.refetch()} className="mt-4 px-4 py-2 rounded-lg text-sm bg-[hsl(210,80%,55%)]/10 text-[hsl(210,70%,65%)] border border-[hsl(210,80%,55%)]/20">
               Retry
