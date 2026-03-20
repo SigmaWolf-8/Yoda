@@ -138,32 +138,76 @@ export function EngineSettingsPage() {
           </div>
         </div>
 
-        {/* Live RAM budget summary */}
-        {SLOTS.some((s) => liveModes[s] === 'self_hosted' && liveModels[s]) && (
-          <div className="mt-3 pt-3 border-t border-[var(--color-border-subtle)] flex flex-wrap gap-x-4 gap-y-1 text-[10px] text-[var(--color-text-muted)]">
-            <span className="font-medium text-[var(--color-text-secondary)]">RAM budget:</span>
-            {SLOTS.map((s) => {
-              const ram = liveModes[s] === 'self_hosted' ? (MODEL_INFO[liveModels[s]]?.ramGbQ4 ?? 0) : 0;
-              if (!ram) return null;
-              return (
-                <span key={s}>
-                  Engine {s.toUpperCase()} · {liveModels[s]}: <strong>{ram} GB</strong>
+        {/* Live RAM budget bar — always visible */}
+        {(() => {
+          const slotRam = SLOTS.map((s) => ({
+            slot: s,
+            label: liveModels[s] || '—',
+            gb: liveModes[s] === 'self_hosted' ? (MODEL_INFO[liveModels[s]]?.ramGbQ4 ?? 0) : 0,
+          }));
+          const usedByModels = slotRam.reduce((sum, r) => sum + r.gb, 0);
+          const totalUsed = OS_OVERHEAD_GB + usedByModels;
+          const free = hostRam - totalUsed;
+          const overBudget = free < 0;
+
+          // Bar segment widths as percentages of hostRam
+          const osPct  = Math.min((OS_OVERHEAD_GB / hostRam) * 100, 100);
+          const slotColors = ['bg-blue-500/70', 'bg-violet-500/70', 'bg-cyan-500/70'];
+
+          return (
+            <div className="mt-3 pt-3 border-t border-[var(--color-border-subtle)]">
+              {/* Stacked bar */}
+              <div className="flex h-3 rounded-full overflow-hidden bg-[var(--color-surface-tertiary)] mb-2">
+                <div className="bg-[var(--color-gold-500)]/40 flex-shrink-0 transition-all duration-300" style={{ width: `${osPct}%` }} />
+                {slotRam.map((r, i) => {
+                  if (!r.gb) return null;
+                  const pct = Math.min((r.gb / hostRam) * 100, 100 - osPct);
+                  return (
+                    <div
+                      key={r.slot}
+                      className={`${slotColors[i]} flex-shrink-0 transition-all duration-300`}
+                      style={{ width: `${pct}%` }}
+                    />
+                  );
+                })}
+                {/* free space — implicit via flex */}
+              </div>
+
+              {/* Legend row */}
+              <div className="flex flex-wrap gap-x-4 gap-y-1 text-[10px] text-[var(--color-text-muted)]">
+                <span className="flex items-center gap-1">
+                  <span className="w-2 h-2 rounded-sm bg-[var(--color-gold-500)]/40 inline-block" />
+                  OS overhead: <strong className="ml-0.5 text-[var(--color-text-secondary)]">{OS_OVERHEAD_GB} GB</strong>
                 </span>
-              );
-            })}
-            {(() => {
-              const total = SLOTS.reduce((sum, s) =>
-                sum + (liveModes[s] === 'self_hosted' ? (MODEL_INFO[liveModels[s]]?.ramGbQ4 ?? 0) : 0), 0);
-              const remaining = hostRam - OS_OVERHEAD_GB - total;
-              if (total === 0) return null;
-              return (
-                <span className={remaining < 0 ? 'text-red-400 font-medium' : 'text-[var(--color-text-secondary)]'}>
-                  → {remaining >= 0 ? `${remaining.toFixed(1)} GB remaining` : `${Math.abs(remaining).toFixed(1)} GB over budget`}
+                {slotRam.map((r, i) => r.gb > 0 && (
+                  <span key={r.slot} className="flex items-center gap-1">
+                    <span className={`w-2 h-2 rounded-sm ${slotColors[i]} inline-block`} />
+                    Engine {r.slot.toUpperCase()} ({r.label}):
+                    <strong className="ml-0.5 text-[var(--color-text-secondary)]">{r.gb} GB</strong>
+                  </span>
+                ))}
+                <span className={`flex items-center gap-1 font-medium ${overBudget ? 'text-red-400' : 'text-[var(--color-ok)]'}`}>
+                  {overBudget
+                    ? `⚠ ${Math.abs(free).toFixed(1)} GB over budget`
+                    : `✓ ${free.toFixed(1)} GB free`}
                 </span>
-              );
-            })()}
-          </div>
-        )}
+              </div>
+
+              {/* "What fits?" hint when there is free space */}
+              {!overBudget && free > 0 && (
+                <p className="mt-1.5 text-[10px] text-[var(--color-text-muted)]">
+                  Models that fit in remaining space:{' '}
+                  {Object.entries(MODEL_INFO)
+                    .filter(([, m]) => m.ramGbQ4 !== undefined && m.ramGbQ4 <= free)
+                    .sort(([, a], [, b]) => (b.ramGbQ4 ?? 0) - (a.ramGbQ4 ?? 0))
+                    .slice(0, 4)
+                    .map(([name, m]) => `${name} (~${m.ramGbQ4} GB)`)
+                    .join(' · ') || 'none — not enough free RAM for any known model'}
+                </p>
+              )}
+            </div>
+          );
+        })()}
       </div>
 
       {/* Engine Slots */}

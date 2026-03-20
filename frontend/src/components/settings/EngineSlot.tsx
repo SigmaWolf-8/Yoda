@@ -62,6 +62,11 @@ export const MODEL_INFO: Record<string, ModelMeta> = {
   'DeepSeek-R1':   { type: 'Reasoning LLM', specialty: 'Chain-of-thought · Math · Complex problem-solving', desc: "DeepSeek's reasoning model. Publishes its thinking process step-by-step; outstanding on logic, proofs, and algorithmic problems." },
 
   // ── Self-hosted ─────────────────────────────────────────────────────────
+  'Gemma-3.4B': {
+    type: 'LLM', specialty: 'Ultra-compact · Multilingual · Low memory',
+    desc: "Google's compact 4B open model. Lightweight and fast — fits easily on machines with 8 GB RAM or more. Runs in Ollama with zero configuration.",
+    ramGbQ4: 3.1,
+  },
   'Llama-3.1-8B': {
     type: 'LLM', specialty: 'Compact · Fast · Widely supported',
     desc: "Meta's compact open model. Supported by every inference server (Ollama, llama.cpp, LM Studio). Excellent on ARM/NPU hardware.",
@@ -149,7 +154,7 @@ export function ramDisplay(info: ModelMeta): string | undefined {
 }
 
 const ALL_SELF_HOSTED = [
-  'Llama-3.1-8B', 'Qwen3.5-9B', 'Mistral-Nemo-12B', 'GLM-5',
+  'Gemma-3.4B', 'Llama-3.1-8B', 'Qwen3.5-9B', 'Mistral-Nemo-12B', 'GLM-5',
   'Qwen3.5-27B', 'Qwen3.5-35B-A3B',
   'DeepSeek-R1-Distill-Qwen-32B', 'DeepSeek-R1-Distill-Llama-70B',
   'Llama-3.1-70B', 'Mistral-Large-3', 'Qwen3.5-122B',
@@ -157,6 +162,7 @@ const ALL_SELF_HOSTED = [
 ];
 
 export const OLLAMA_TAG: Record<string, string> = {
+  'Gemma-3.4B':                     'gemma3:4b',
   'Llama-3.1-8B':                   'llama3.1:8b',
   'Qwen3.5-9B':                     'qwen3:9b',
   'Mistral-Nemo-12B':               'mistral-nemo',
