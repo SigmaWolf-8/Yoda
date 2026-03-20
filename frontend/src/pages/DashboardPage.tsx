@@ -18,7 +18,7 @@ export function DashboardPage() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 min-h-[80px] px-6 lg:px-8 pt-6 lg:pt-8" />
 
       {/* ── Hero video — full width, no rounded corners ── */}
-      <div style={{ height: '48vh', minHeight: 320 }}>
+      <div style={{ height: '48vh', minHeight: 320, marginTop: '24px' }}>
         <video
           ref={videoRef}
           autoPlay
