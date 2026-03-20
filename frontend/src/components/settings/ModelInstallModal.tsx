@@ -186,7 +186,8 @@ Write-Host ""
 
 # ── 1. Detect local IP ────────────────────────────────────────────────
 $ip = (Get-NetIPAddress -AddressFamily IPv4 |
-  Where-Object { $_.InterfaceAlias -match 'Wi-Fi|Ethernet|Local Area Connection' -and $_.IPAddress -notmatch '^169' } |
+  Where-Object { $_.IPAddress -notmatch '^127\.' -and $_.IPAddress -notmatch '^169\.254' -and $_.PrefixOrigin -ne 'WellKnown' } |
+  Sort-Object @{ Expression = { switch -Wildcard ($_.InterfaceAlias) { 'Wi-Fi*' { 0 } 'Ethernet*' { 1 } default { 2 } } } } |
   Select-Object -First 1).IPAddress
 if (-not $ip) { $ip = "0.0.0.0" }
 $CUBE_ENDPOINT = "$ip:51820"
@@ -357,17 +358,30 @@ set -euo pipefail
 SESSION_TOKEN="${sessionToken}"
 CRS_URL="${crsUrl}"
 PLENUMNET_DIR="\$HOME/PlenumNET"
+DAEMON="\$PLENUMNET_DIR/target/release/inter-cube-daemon"
 
 echo "=== YODA PlenumNET Reconnect ==="
 
+# ── 0. Check daemon exists ────────────────────────────────────────────
+if [[ ! -f "\$DAEMON" ]]; then
+  echo ""
+  echo "  ✗ Daemon not found at: \$DAEMON"
+  echo "    Run the full Install script first to build PlenumNET, then use Connect."
+  exit 1
+fi
+
 # ── 1. Detect local IP ────────────────────────────────────────────────
 if [[ "\$(uname -s)" == "Darwin" ]]; then
-  LOCAL_IP=\$(ipconfig getifaddr en0 2>/dev/null || ipconfig getifaddr en1 2>/dev/null || echo "0.0.0.0")
+  LOCAL_IP=\$(ipconfig getifaddr en0 2>/dev/null || ipconfig getifaddr en1 2>/dev/null || \
+    route get default 2>/dev/null | awk '/interface:/{print \$2}' | xargs ipconfig getifaddr 2>/dev/null || echo "")
 else
-  LOCAL_IP=\$(hostname -I 2>/dev/null | awk '{print \$1}' || echo "0.0.0.0")
+  LOCAL_IP=\$(ip route get 1.1.1.1 2>/dev/null | awk '{for(i=1;i<=NF;i++) if(\$i=="src") print \$(i+1)}' | head -1)
+  [[ -z "\$LOCAL_IP" ]] && LOCAL_IP=\$(hostname -I 2>/dev/null | awk '{print \$1}')
 fi
+LOCAL_IP=\${LOCAL_IP:-"0.0.0.0"}
 CUBE_ENDPOINT="\${LOCAL_IP}:51820"
 echo "Local endpoint : \$CUBE_ENDPOINT"
+[[ "\$LOCAL_IP" == "0.0.0.0" ]] && echo "  ⚠ Could not detect local IP — routing may not work correctly."
 
 # ── 2. Register with YODA CRS ─────────────────────────────────────────
 echo ""
@@ -384,20 +398,23 @@ curl -sf -X POST "\${CRS_URL}/api/salvi/inter-cube/crs/register" \\
   > /dev/null || { echo "  ✗ Registration failed. Is your internet connected?"; exit 1; }
 echo "  ✓ Registered with YODA CRS"
 
-# ── 3. Start PlenumNET tunnel daemon ──────────────────────────────────
+# ── 3. Kill any old daemon, start fresh ──────────────────────────────
 echo ""
 echo "Starting PlenumNET tunnel daemon..."
+pkill -f "inter-cube-daemon" 2>/dev/null || true
+sleep 0.5
+
 CUBE_MODE=cube \\
 CUBE_CRS_URL="\$CRS_URL" \\
 CUBE_ENDPOINT="\$CUBE_ENDPOINT" \\
 CUBE_SESSION_TOKEN="\$SESSION_TOKEN" \\
 CUBE_ROLE=inference \\
-"\$PLENUMNET_DIR/target/release/inter-cube-daemon" &
+"\$DAEMON" &
 echo "  ✓ Daemon started (PID \$!)"
 
 echo ""
 echo "  Tunnel active — YODA Monitoring will update within 10s."
-echo "  This terminal must stay open to keep the tunnel alive."
+echo "  Keep this terminal open to maintain the tunnel."
 `;
 }
 
@@ -414,11 +431,15 @@ Write-Host "=== YODA PlenumNET Reconnect ===" -ForegroundColor Cyan
 
 # ── 1. Detect local IP ────────────────────────────────────────────────
 $ip = (Get-NetIPAddress -AddressFamily IPv4 |
-  Where-Object { $_.InterfaceAlias -match 'Wi-Fi|Ethernet|Local Area Connection' -and $_.IPAddress -notmatch '^169' } |
+  Where-Object { $_.IPAddress -notmatch '^127\.' -and $_.IPAddress -notmatch '^169\.254' -and $_.PrefixOrigin -ne 'WellKnown' } |
+  Sort-Object @{ Expression = { switch -Wildcard ($_.InterfaceAlias) { 'Wi-Fi*' { 0 } 'Ethernet*' { 1 } default { 2 } } } } |
   Select-Object -First 1).IPAddress
 if (-not $ip) { $ip = "0.0.0.0" }
 $CUBE_ENDPOINT = "$ip:51820"
 Write-Host "Local endpoint : $CUBE_ENDPOINT"
+if ($ip -eq "0.0.0.0") {
+  Write-Host "  WARN Could not detect local IP - registration will proceed but routing may fail." -ForegroundColor Yellow
+}
 
 # ── 2. Register with YODA CRS ─────────────────────────────────────────
 Write-Host ""
@@ -449,6 +470,17 @@ try {
 Write-Host ""
 Write-Host "Starting PlenumNET tunnel daemon..."
 $daemonPath = "$PLENUMNET_DIR\\target\\release\\inter-cube-daemon.exe"
+
+if (-not (Test-Path $daemonPath)) {
+  Write-Host ""
+  Write-Host "  FAIL Daemon not found at: $daemonPath" -ForegroundColor Red
+  Write-Host "    Run the full Install script first to build PlenumNET, then use Connect." -ForegroundColor Yellow
+  exit 1
+}
+
+Get-Process -Name "inter-cube-daemon" -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+Start-Sleep -Milliseconds 500
+
 $env:CUBE_MODE = "cube"
 $env:CUBE_CRS_URL = $CRS_URL
 $env:CUBE_ENDPOINT = $CUBE_ENDPOINT

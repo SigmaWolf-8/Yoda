@@ -1,0 +1,84 @@
+Windows PowerShell
+Copyright (C) Microsoft Corporation. All rights reserved.
+
+Install the latest PowerShell for new features and improvements! https://aka.ms/PSWindows
+
+PS C:\Users\Sigma> # YODA — PlenumNET reconnect (tunnel only, no reinstall)
+PS C:\Users\Sigma> # Token: d3957e08-2e6b-435a-b394-78c75eaf46f3
+PS C:\Users\Sigma> $ErrorActionPreference = "Stop"
+PS C:\Users\Sigma>
+PS C:\Users\Sigma> $SESSION_TOKEN = "d3957e08-2e6b-435a-b394-78c75eaf46f3"
+PS C:\Users\Sigma> $CRS_URL = "https://0b8189a6-fe12-47da-9ef6-8bfebaf376ec-00-pjc4vxuvmpgt.picard.replit.dev"
+PS C:\Users\Sigma> $PLENUMNET_DIR = "$env:USERPROFILE\PlenumNET"
+PS C:\Users\Sigma>
+PS C:\Users\Sigma> Write-Host "=== YODA PlenumNET Reconnect ===" -ForegroundColor Cyan
+=== YODA PlenumNET Reconnect ===
+PS C:\Users\Sigma>
+PS C:\Users\Sigma> # ── 1. Detect local IP ────────────────────────────────────────────────
+
+PS C:\Users\Sigma> $ip = (Get-NetIPAddress -AddressFamily IPv4 |
+>>   Where-Object { $_.InterfaceAlias -match 'Wi-Fi|Ethernet|Local Area Connection' -and $_.IPAddress -notmatch '^169' } |
+>>   Select-Object -First 1).IPAddress
+PS C:\Users\Sigma> if (-not $ip) { $ip = "0.0.0.0" }
+PS C:\Users\Sigma> $CUBE_ENDPOINT = "$ip:51820"
+PS C:\Users\Sigma> Write-Host "Local endpoint : $CUBE_ENDPOINT"
+Local endpoint :
+PS C:\Users\Sigma>
+PS C:\Users\Sigma> # ── 2. Register with YODA CRS ─────────────────────────────────────────
+
+PS C:\Users\Sigma> Write-Host ""
+
+PS C:\Users\Sigma> Write-Host "Registering with YODA CRS..."
+Registering with YODA CRS...
+PS C:\Users\Sigma> $pubKey = ([System.Security.Cryptography.SHA256]::Create().ComputeHash(
+>>   [System.Text.Encoding]::UTF8.GetBytes($CUBE_ENDPOINT)) |
+>>   ForEach-Object { $_.ToString("x2") }) -join ""
+PS C:\Users\Sigma>
+PS C:\Users\Sigma> $regBody = ConvertTo-Json @{
+>>   endpoint     = $CUBE_ENDPOINT
+>>   publicKey    = $pubKey
+>>   sessionToken = $SESSION_TOKEN
+>> }
+PS C:\Users\Sigma>
+PS C:\Users\Sigma> try {
+>>   $regResp = Invoke-RestMethod `
+>>     -Uri "$CRS_URL/api/salvi/inter-cube/crs/register" `
+>>     -Method Post `
+>>     -ContentType "application/json" `
+>>     -Body $regBody
+>>   Write-Host "  OK Registered as $($regResp.address)"
+>> } catch {
+>>   Write-Host "  FAIL Registration failed: $_" -ForegroundColor Red
+>>   exit 1
+>> }
+  OK Registered as
+PS C:\Users\Sigma>
+PS C:\Users\Sigma> # ── 3. Start PlenumNET tunnel daemon ──────────────────────────────────
+PS C:\Users\Sigma> Write-Host ""
+
+PS C:\Users\Sigma> Write-Host "Starting PlenumNET tunnel daemon..."
+Starting PlenumNET tunnel daemon...
+PS C:\Users\Sigma> $daemonPath = "$PLENUMNET_DIR\target\release\inter-cube-daemon.exe"
+PS C:\Users\Sigma> $env:CUBE_MODE = "cube"
+PS C:\Users\Sigma> $env:CUBE_CRS_URL = $CRS_URL
+PS C:\Users\Sigma> $env:CUBE_ENDPOINT = $CUBE_ENDPOINT
+PS C:\Users\Sigma> $env:CUBE_SESSION_TOKEN = $SESSION_TOKEN
+PS C:\Users\Sigma> $env:CUBE_ROLE = "inference"
+PS C:\Users\Sigma> $daemonProc = Start-Process -FilePath $daemonPath -NoNewWindow -PassThru
+Start-Process : This command cannot be run due to the error: The system cannot find the file specified.
+At line:1 char:15
++ ... aemonProc = Start-Process -FilePath $daemonPath -NoNewWindow -PassThr ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : InvalidOperation: (:) [Start-Process], InvalidOperationException
+    + FullyQualifiedErrorId : InvalidOperationException,Microsoft.PowerShell.Commands.StartProcessCommand
+
+PS C:\Users\Sigma> Write-Host "  OK Daemon started (PID $($daemonProc.Id))"
+  OK Daemon started (PID )
+PS C:\Users\Sigma>
+PS C:\Users\Sigma> Write-Host ""
+
+PS C:\Users\Sigma> Write-Host "  Tunnel active - YODA Monitoring will update within 10s." -ForegroundColor Green
+  Tunnel active - YODA Monitoring will update within 10s.
+PS C:\Users\Sigma> Write-Host "  Keep this window open to maintain the tunnel." -ForegroundColor Yellow
+  Keep this window open to maintain the tunnel.
+PS C:\Users\Sigma>
