@@ -8,7 +8,15 @@
 //!
 //! Copyright (c) 2026 Capomastro Holdings Ltd. — Applied Physics Division
 
-use axum::{routing::get, Json, Router};
+use axum::{
+    http::header::{CACHE_CONTROL, CONTENT_TYPE},
+    http::HeaderValue,
+    middleware,
+    response::Response,
+    routing::get,
+    Json,
+    Router,
+};
 use serde_json::json;
 use sqlx::postgres::PgPoolOptions;
 use std::net::SocketAddr;
@@ -35,6 +43,26 @@ pub mod websocket;
 
 #[cfg(test)]
 mod security_tests;
+
+async fn no_cache_static(resp: Response) -> Response {
+    let ct = resp
+        .headers()
+        .get(CONTENT_TYPE)
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or("");
+    let is_revalidatable = ct.starts_with("text/html")
+        || ct.starts_with("application/javascript")
+        || ct.starts_with("text/javascript");
+    if !is_revalidatable {
+        return resp;
+    }
+    let mut resp = resp;
+    resp.headers_mut().insert(
+        CACHE_CONTROL,
+        HeaderValue::from_static("no-cache, must-revalidate"),
+    );
+    resp
+}
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -98,6 +126,7 @@ async fn main() -> anyhow::Result<()> {
         .route("/api/health", get(health))
         .merge(routes::build_router(state))
         .fallback_service(serve_dir)
+        .layer(middleware::map_response(no_cache_static))
         .layer(cors)
         .layer(TraceLayer::new_for_http());
 
