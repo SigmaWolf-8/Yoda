@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import {
   Server,
   Cloud,
@@ -12,6 +12,7 @@ import {
   AlertTriangle,
   Ban,
   Download,
+  HardDriveDownload,
   Radio,
 } from 'lucide-react';
 import { ModelInstallModal } from './ModelInstallModal';
@@ -301,6 +302,30 @@ const PROVIDERS: Record<string, { authType: AuthType; models: string[] }> = {
 
 const SLOT_LABELS: Record<Slot, string> = { a: 'Engine A', b: 'Engine B', c: 'Engine C' };
 
+// ── Downloaded-model registry (persisted to localStorage) ────────────────────
+
+const DOWNLOADED_KEY = 'yoda_downloaded_models';
+
+function useDownloadedModels(): [Set<string>, (name: string) => void] {
+  const [downloaded, setDownloaded] = useState<Set<string>>(() => {
+    try {
+      const raw = localStorage.getItem(DOWNLOADED_KEY);
+      return new Set(raw ? (JSON.parse(raw) as string[]) : []);
+    } catch { return new Set(); }
+  });
+
+  const mark = useCallback((name: string) => {
+    setDownloaded(prev => {
+      const next = new Set(prev);
+      next.add(name);
+      try { localStorage.setItem(DOWNLOADED_KEY, JSON.stringify([...next])); } catch { /* ignore */ }
+      return next;
+    });
+  }, []);
+
+  return [downloaded, mark];
+}
+
 // ── Tooltip ───────────────────────────────────────────────────────────────────
 
 function Tooltip({ content, children, wide }: { content: React.ReactNode; children: React.ReactNode; wide?: boolean }) {
@@ -400,6 +425,7 @@ export function EngineSlotCard({
   const [familyOverride, setFamilyOverride] = useState(config?.family_override ?? '');
   const [showSuggest, setShowSuggest] = useState(false);
   const [installModalMode, setInstallModalMode] = useState<'install' | 'connect' | null>(null);
+  const [downloaded, markDownloaded] = useDownloadedModels();
   type ProbeResult = { reachable: boolean; latency_ms?: number; http_status?: number; error?: string };
   const [probeState, setProbeState] = useState<null | 'loading' | ProbeResult>(null);
 
@@ -630,6 +656,9 @@ export function EngineSlotCard({
                             <div className="flex items-center gap-2">
                               <FitDot fit={fit} />
                               <span className="text-sm text-[var(--color-text-secondary)] font-medium flex-1">{m}</span>
+                              {downloaded.has(m) && (
+                                <HardDriveDownload className="w-3 h-3 flex-shrink-0 text-emerald-400" aria-label="Already downloaded" />
+                              )}
                               {ram && (
                                 <span className="text-[10px] text-[var(--color-text-muted)] flex-shrink-0">
                                   {ram.split('·')[0].trim()}
@@ -674,13 +703,23 @@ export function EngineSlotCard({
             {/* Install / Connect buttons — visible for all self-hosted models */}
             {modelName && GGUF_INFO[modelName] && (
               <div className="flex gap-2">
-                <button
-                  onClick={() => setInstallModalMode('install')}
-                  className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border border-[var(--color-gold-500)]/40 bg-[var(--color-gold-500)]/8 text-[var(--color-gold-400)] text-xs font-medium hover:bg-[var(--color-gold-500)]/15 hover:border-[var(--color-gold-500)]/70 transition-colors"
-                >
-                  <Download className="w-3.5 h-3.5" />
-                  Install
-                </button>
+                {downloaded.has(modelName) ? (
+                  <button
+                    onClick={() => setInstallModalMode('install')}
+                    className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border border-emerald-500/40 bg-emerald-500/8 text-emerald-400 text-xs font-medium hover:bg-emerald-500/15 hover:border-emerald-500/70 transition-colors"
+                  >
+                    <HardDriveDownload className="w-3.5 h-3.5" />
+                    Downloaded
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => setInstallModalMode('install')}
+                    className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border border-[var(--color-gold-500)]/40 bg-[var(--color-gold-500)]/8 text-[var(--color-gold-400)] text-xs font-medium hover:bg-[var(--color-gold-500)]/15 hover:border-[var(--color-gold-500)]/70 transition-colors"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    Install
+                  </button>
+                )}
                 <button
                   onClick={() => setInstallModalMode('connect')}
                   className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border border-blue-500/40 bg-blue-500/8 text-blue-400 text-xs font-medium hover:bg-blue-500/15 hover:border-blue-500/70 transition-colors"
@@ -851,6 +890,8 @@ export function EngineSlotCard({
           port={SLOT_PORT[slot]}
           mode={installModalMode}
           onClose={() => setInstallModalMode(null)}
+          isDownloaded={downloaded.has(modelName)}
+          onMarkDownloaded={() => markDownloaded(modelName)}
         />
       )}
     </div>

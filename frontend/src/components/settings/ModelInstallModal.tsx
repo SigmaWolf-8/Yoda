@@ -9,6 +9,7 @@ import {
   Terminal,
   Wifi,
   WifiOff,
+  HardDriveDownload,
 } from 'lucide-react';
 import { GGUF_INFO } from './EngineSlot';
 
@@ -28,6 +29,8 @@ interface Props {
   port?: number;
   onClose: () => void;
   mode?: 'install' | 'connect';
+  isDownloaded?: boolean;
+  onMarkDownloaded?: () => void;
 }
 
 // ── Script generators ─────────────────────────────────────────────────────────
@@ -562,7 +565,7 @@ Write-Host "  Keep this window open to maintain the tunnel." -ForegroundColor Ye
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
-export function ModelInstallModal({ modelName, port = 8080, onClose, mode = 'install' }: Props) {
+export function ModelInstallModal({ modelName, port = 8080, onClose, mode = 'install', isDownloaded = false, onMarkDownloaded }: Props) {
   const crsUrl   = (import.meta.env.VITE_CRS_URL as string | undefined) ?? '';
   const ggufInfo = GGUF_INFO[modelName];
   const ggufRepo = ggufInfo?.repo ?? '';
@@ -860,6 +863,29 @@ export function ModelInstallModal({ modelName, port = 8080, onClose, mode = 'ins
                   </ol>
                 )}
               </div>
+
+              {/* Mark as installed — only shown in install mode */}
+              {!isConnect && onMarkDownloaded && (
+                <div className="flex items-center gap-3 pt-1 border-t border-[var(--color-border-subtle)]">
+                  {isDownloaded ? (
+                    <>
+                      <HardDriveDownload className="w-4 h-4 flex-shrink-0 text-emerald-400" />
+                      <span className="text-xs text-emerald-400 flex-1">Marked as installed on this machine</span>
+                    </>
+                  ) : (
+                    <>
+                      <HardDriveDownload className="w-4 h-4 flex-shrink-0 text-[var(--color-text-muted)]" />
+                      <span className="text-xs text-[var(--color-text-muted)] flex-1">Already ran the script and the model is on disk?</span>
+                      <button
+                        onClick={onMarkDownloaded}
+                        className="px-3 py-1.5 rounded-lg border border-emerald-500/40 bg-emerald-500/8 text-emerald-400 text-xs font-medium hover:bg-emerald-500/15 hover:border-emerald-500/70 transition-colors flex-shrink-0"
+                      >
+                        Mark as installed
+                      </button>
+                    </>
+                  )}
+                </div>
+              )}
             </>
           ))()}
         </div>

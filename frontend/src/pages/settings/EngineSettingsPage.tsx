@@ -159,17 +159,22 @@ export function EngineSettingsPage() {
               {/* Stacked bar */}
               <div className="flex h-3 rounded-full overflow-hidden bg-[var(--color-surface-tertiary)] mb-2">
                 <div className="bg-[var(--color-gold-500)]/40 flex-shrink-0 transition-all duration-300" style={{ width: `${osPct}%` }} />
-                {slotRam.map((r, i) => {
-                  if (!r.gb) return null;
-                  const pct = Math.min((r.gb / hostRam) * 100, 100 - osPct);
-                  return (
-                    <div
-                      key={r.slot}
-                      className={`${slotColors[i]} flex-shrink-0 transition-all duration-300`}
-                      style={{ width: `${pct}%` }}
-                    />
-                  );
-                })}
+                {(() => {
+                  let cumPct = osPct;
+                  return slotRam.map((r, i) => {
+                    if (!r.gb) return null;
+                    const rawPct = (r.gb / hostRam) * 100;
+                    const pct = Math.max(0, Math.min(rawPct, 100 - cumPct));
+                    cumPct += pct;
+                    return (
+                      <div
+                        key={r.slot}
+                        className={`${slotColors[i]} flex-shrink-0 transition-all duration-300`}
+                        style={{ width: `${pct}%` }}
+                      />
+                    );
+                  });
+                })()}
                 {/* free space — implicit via flex */}
               </div>
 
