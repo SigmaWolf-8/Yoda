@@ -256,7 +256,11 @@ export function AppShell() {
           className="sticky top-0 z-20 flex items-center gap-4 px-5 border-b border-[var(--color-border-subtle)] flex-shrink-0 relative overflow-hidden"
           style={{
             height: HEADER_H,
-            background: 'linear-gradient(180deg, hsl(20,14%,8%) 0%, hsl(20,12%,6%) 100%)',
+            background: [
+              'repeating-linear-gradient(45deg,  transparent, transparent 1px, rgba(255,255,255,0.022) 1px, rgba(255,255,255,0.022) 3px)',
+              'repeating-linear-gradient(-45deg, transparent, transparent 1px, rgba(255,255,255,0.022) 1px, rgba(255,255,255,0.022) 3px)',
+              'linear-gradient(180deg, hsl(20,14%,8%) 0%, hsl(20,12%,6%) 100%)',
+            ].join(', '),
             boxShadow: [
               'inset 0 1px 0 rgba(255,255,255,0.07)',
               'inset 0 -1px 0 rgba(255,255,255,0.03)',

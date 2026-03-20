@@ -1,0 +1,36 @@
+Windows PowerShell
+Copyright (C) Microsoft Corporation. All rights reserved.
+
+Install the latest PowerShell for new features and improvements! https://aka.ms/PSWindows
+
+PS C:\Users\Sigma> # LLM model files (GGUF files — these are the big ones, several GB each)
+PS C:\Users\Sigma> Remove-Item -Recurse -Force "$env:USERPROFILE\yoda-models"
+Remove-Item : Cannot find path 'C:\Users\Sigma\yoda-models' because it does not exist.
+At line:1 char:1
++ Remove-Item -Recurse -Force "$env:USERPROFILE\yoda-models"
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ObjectNotFound: (C:\Users\Sigma\yoda-models:String) [Remove-Item], ItemNotFoundException
+    + FullyQualifiedErrorId : PathNotFound,Microsoft.PowerShell.Commands.RemoveItemCommand
+
+PS C:\Users\Sigma>
+PS C:\Users\Sigma> # llama-server (the inference engine binary)
+PS C:\Users\Sigma> Remove-Item -Recurse -Force "$env:USERPROFILE\llama.cpp"
+Remove-Item : Cannot find path 'C:\Users\Sigma\llama.cpp' because it does not exist.
+At line:1 char:1
++ Remove-Item -Recurse -Force "$env:USERPROFILE\llama.cpp"
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ObjectNotFound: (C:\Users\Sigma\llama.cpp:String) [Remove-Item], ItemNotFoundException
+    + FullyQualifiedErrorId : PathNotFound,Microsoft.PowerShell.Commands.RemoveItemCommand
+
+PS C:\Users\Sigma>
+PS C:\Users\Sigma> # PlenumNET tunnel daemon + built binaries
+PS C:\Users\Sigma> Remove-Item -Recurse -Force "$env:USERPROFILE\PlenumNET"
+PS C:\Users\Sigma>
+PS C:\Users\Sigma> # PlenumNET identity keys
+PS C:\Users\Sigma> Remove-Item -Recurse -Force "$env:USERPROFILE\.plenumnet"
+Remove-Item : Cannot find path 'C:\Users\Sigma\.plenumnet' because it does not exist.
+At line:1 char:1
++ Remove-Item -Recurse -Force "$env:USERPROFILE\.plenumnet"
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ObjectNotFound: (C:\Users\Sigma\.plenumnet:String) [Remove-Item], ItemNotFoundException
+    + FullyQualifiedErrorId : PathNotFound,Microsoft.PowerShell.Commands.RemoveItemCommand
