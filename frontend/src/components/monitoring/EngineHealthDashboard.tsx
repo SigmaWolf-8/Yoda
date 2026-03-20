@@ -7,10 +7,8 @@ import {
   Layers,
   Gauge,
   TrendingUp,
-  CheckCircle2,
 } from 'lucide-react';
-import type { EngineConfig, EngineSlot } from '../../types';
-import { useMarkEngineOnline } from '../../api/hooks';
+import type { EngineConfig } from '../../types';
 import { Link } from 'react-router-dom';
 
 interface Props {
@@ -30,8 +28,6 @@ const HEALTH_STYLES: Record<string, { dot: string; bg: string; text: string }> =
 };
 
 export function EngineHealthDashboard({ engines }: Props) {
-  const markOnline = useMarkEngineOnline();
-
   const configured = engines.filter((e) => e.model_name?.trim());
 
   if (configured.length === 0) {
@@ -151,17 +147,6 @@ export function EngineHealthDashboard({ engines }: Props) {
               </p>
             )}
 
-            {/* Manual mark-online for offline engines */}
-            {isOffline && (
-              <button
-                onClick={() => markOnline.mutate(eng.slot as EngineSlot)}
-                disabled={markOnline.isPending}
-                className="mt-3 w-full flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium border border-[var(--color-plex-500)]/30 bg-[var(--color-plex-500)]/5 text-[var(--color-plex-400)] hover:bg-[var(--color-plex-500)]/10 hover:border-[var(--color-plex-500)]/50 transition-colors disabled:opacity-50"
-              >
-                <CheckCircle2 className="w-3 h-3" />
-                Mark Online
-              </button>
-            )}
           </div>
         );
       })}
