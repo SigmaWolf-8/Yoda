@@ -375,7 +375,7 @@ $MODEL_PATH    = Join-Path $MODELS_DIR $GGUF_FILE
 $LOG_DIR       = Join-Path $MODELS_DIR "logs"
 $LLAMA_DIR     = Join-Path $env:USERPROFILE "llama.cpp"
 $PLENUMNET_DIR = Join-Path $env:USERPROFILE "PlenumNET"
-$IDENTITY_DIR  = Join-Path $env:USERPROFILE ".plenumnet" "identity"
+$IDENTITY_DIR  = Join-Path (Join-Path $env:USERPROFILE ".plenumnet") "identity"
 
 Write-Host "=== YODA Self-Host Installer ===" -ForegroundColor Cyan
 Write-Host "Model  : ${modelName}"
@@ -403,7 +403,7 @@ if (-not (Get-Command cargo -ErrorAction SilentlyContinue)) {
   Invoke-WebRequest -Uri "https://win.rustup.rs/x86_64" -OutFile $rustupExe -UseBasicParsing
   Start-Process -FilePath $rustupExe -ArgumentList "-y" -Wait -NoNewWindow
   Remove-Item $rustupExe -Force -ErrorAction SilentlyContinue
-  $cargoBin = Join-Path $env:USERPROFILE ".cargo" "bin"
+  $cargoBin = Join-Path (Join-Path $env:USERPROFILE ".cargo") "bin"
   $env:PATH += ";$cargoBin"
   Write-Host "  OK Rust installed"
 } else {
@@ -434,7 +434,7 @@ if (Test-Path (Join-Path $PLENUMNET_DIR ".git")) {
   } catch {
     Write-Host "  -> git pull failed (network issue?) -- continuing with existing checkout" -ForegroundColor Yellow
   }
-  $icToml = Join-Path $PLENUMNET_DIR "services" "inter-cube" "Cargo.toml"
+  $icToml = Join-Path (Join-Path (Join-Path $PLENUMNET_DIR "services") "inter-cube") "Cargo.toml"
   if (-not (Test-Path $icToml)) {
     Write-Host "  -> Existing checkout is incomplete -- re-cloning..."
     Remove-Item -Recurse -Force $PLENUMNET_DIR
@@ -443,7 +443,7 @@ if (Test-Path (Join-Path $PLENUMNET_DIR ".git")) {
 } else {
   Invoke-ClonePlenumNET
 }
-foreach ($member in @((Join-Path "services" "inter-cube" "Cargo.toml"), (Join-Path "ternary-math" "Cargo.toml"))) {
+foreach ($member in @((Join-Path (Join-Path "services" "inter-cube") "Cargo.toml"), (Join-Path "ternary-math" "Cargo.toml"))) {
   $full = Join-Path $PLENUMNET_DIR $member
   if (-not (Test-Path $full)) {
     throw "$member missing after clone -- check network and try again."
@@ -453,7 +453,7 @@ Write-Host "  -> Building inter-cube daemon (first build takes a few minutes)...
 Push-Location $PLENUMNET_DIR
 cargo build --release --package inter-cube
 Pop-Location
-$relDir = Join-Path $PLENUMNET_DIR "target" "release"
+$relDir = Join-Path (Join-Path $PLENUMNET_DIR "target") "release"
 $daemonBin = Get-ChildItem -Path $relDir -Filter "inter-cube*.exe" -ErrorAction SilentlyContinue |
   Where-Object { $_.Name -notlike "*.d" } | Select-Object -First 1
 if (-not $daemonBin) {
@@ -738,13 +738,13 @@ $MODELS_DIR    = Join-Path $env:USERPROFILE "yoda-models"
 $MODEL_PATH    = Join-Path $MODELS_DIR $GGUF_FILE
 $LOG_DIR       = Join-Path $MODELS_DIR "logs"
 $LLAMA_DIR     = Join-Path $env:USERPROFILE "llama.cpp"
-$IDENTITY_DIR  = Join-Path $env:USERPROFILE ".plenumnet" "identity"
+$IDENTITY_DIR  = Join-Path (Join-Path $env:USERPROFILE ".plenumnet") "identity"
 
 # Locate PlenumNET daemon (binary may be inter-cube.exe or inter-cube-daemon.exe)
 $PLENUMNET_DIR = Join-Path $env:USERPROFILE "PlenumNET"
-$relDir = Join-Path $PLENUMNET_DIR "target" "release"
+$relDir = Join-Path (Join-Path $PLENUMNET_DIR "target") "release"
 if (-not (Test-Path $relDir)) {
-  $altDir = Join-Path "C:" "PlenumNET" "target" "release"
+  $altDir = Join-Path (Join-Path (Join-Path "C:" "PlenumNET") "target") "release"
   if (Test-Path $altDir) { $PLENUMNET_DIR = Join-Path "C:" "PlenumNET"; $relDir = $altDir }
 }
 $daemonBin = Get-ChildItem -Path $relDir -Filter "inter-cube*.exe" -ErrorAction SilentlyContinue |
