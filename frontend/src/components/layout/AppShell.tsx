@@ -140,7 +140,7 @@ export function AppShell() {
         >
           <video
             src="/yoda-logo.mp4"
-            className="w-full h-full object-cover"
+            className="w-full h-full object-cover scale-125"
             autoPlay
             muted
             playsInline
