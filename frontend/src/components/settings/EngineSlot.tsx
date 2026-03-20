@@ -93,6 +93,11 @@ export const MODEL_INFO: Record<string, ModelMeta> = {
     desc: "Zhipu AI's ~9B model. Excellent Chinese language support alongside solid general reasoning and coding ability.",
     ramGbQ4: 5.3,
   },
+  'Qwen3-Coder-30B': {
+    type: 'Coding LLM', specialty: 'Code generation · Agentic coding · Function calling',
+    desc: "Alibaba's dedicated 30B code model. State-of-the-art open-weight coder — strong at multi-file edits, tool use, and agentic coding tasks.",
+    ramGbQ4: 18.5, ramGbQ3: 14.4,
+  },
   'Qwen3.5-27B': {
     type: 'LLM', specialty: 'Coding · Multilingual · Balanced quality',
     desc: "Alibaba's mid-size 27B model. Strong quality — may need Q3 quantization on machines with less RAM.",
