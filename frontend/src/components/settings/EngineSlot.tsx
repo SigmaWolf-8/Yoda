@@ -706,36 +706,17 @@ export function EngineSlotCard({
                               >
                                 <div className="flex items-center gap-2">
                                   <FitDot fit={fit} />
-                                  <div className="flex-1 min-w-0">
-                                    <div className="flex items-center gap-1.5">
-                                      {info && (
-                                        <span className="text-xs font-semibold text-[var(--color-gold-400)] shrink-0">{info.company}</span>
-                                      )}
-                                      {info && <span className="text-xs text-[var(--color-border-strong)]">|</span>}
-                                      <span className="text-sm text-[var(--color-text-secondary)] font-medium truncate">{m}</span>
-                                    </div>
-                                    {info && (
-                                      <div className="flex items-center gap-1 mt-0.5">
-                                        <span className="text-xs text-[var(--color-text-muted)]">{info.type}</span>
-                                        {info.arch === 'MoE' && (
-                                          <>
-                                            <span className="text-xs text-[var(--color-border-strong)]">·</span>
-                                            <span className="text-xs font-semibold text-[var(--color-gold-400)]">MoE</span>
-                                          </>
-                                        )}
-                                      </div>
-                                    )}
-                                  </div>
-                                  <div className="flex items-center gap-1.5 shrink-0">
-                                    {downloaded.has(m) && (
-                                      <HardDriveDownload className="w-3.5 h-3.5 text-emerald-400" aria-label="Already downloaded" />
-                                    )}
-                                    {ram && (
-                                      <span className="text-xs text-[var(--color-text-muted)]">
-                                        {ram.split('·')[0].trim()}
-                                      </span>
-                                    )}
-                                  </div>
+                                  <span className="text-sm text-[var(--color-text-primary)] font-medium flex-1 truncate">
+                                    {info ? `${info.company} | ${m}` : m}
+                                  </span>
+                                  {downloaded.has(m) && (
+                                    <HardDriveDownload className="w-3.5 h-3.5 shrink-0 text-emerald-400" aria-label="Already downloaded" />
+                                  )}
+                                  {ram && (
+                                    <span className="text-xs text-[var(--color-text-muted)] shrink-0">
+                                      {ram.split('·')[0].trim()}
+                                    </span>
+                                  )}
                                 </div>
                               </button>
                             );
