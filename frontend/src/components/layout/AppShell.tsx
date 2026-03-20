@@ -108,11 +108,12 @@ export function AppShell() {
           width: asideWidth,
           background: 'linear-gradient(160deg, hsl(220,20%,98%) 0%, hsl(220,15%,95%) 100%)',
           boxShadow: [
-            'inset 0 60px 90px rgba(0,0,0,0.28)',
-            'inset 0 -60px 90px rgba(0,0,0,0.28)',
-            'inset -8px 0 32px rgba(0,0,0,0.14)',
-            '4px 0 28px rgba(0,0,0,0.28)',
-            '8px 0 56px rgba(0,0,0,0.16)',
+            'inset 0 80px 120px rgba(0,0,0,0.45)',
+            'inset 0 -80px 120px rgba(0,0,0,0.45)',
+            'inset -12px 0 48px rgba(0,0,0,0.28)',
+            '6px 0 40px rgba(0,0,0,0.55)',
+            '12px 0 80px rgba(0,0,0,0.35)',
+            '20px 0 60px rgba(0,0,0,0.18)',
           ].join(', '),
         }}
         className={[
