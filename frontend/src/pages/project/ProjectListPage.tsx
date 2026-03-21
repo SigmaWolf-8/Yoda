@@ -92,21 +92,25 @@ export function ProjectListPage() {
               onClick={() => navigate(`/projects/${p.id}`)}
             >
               {/* ── Bevel border layer ────────────────────────────────────
-                  Absolutely fills the outer div. clip-path creates the
-                  45° chamfered corners. group-hover changes the border
-                  from subtle to gold to match the original hover style.   */}
+                  Outermost — provides the 1px border color ring.         */}
               <div
                 className="absolute inset-0 bg-[var(--color-border-subtle)] group-hover:bg-[var(--color-gold-500)]/40 transition-colors pointer-events-none"
                 style={{ clipPath: BEVEL }}
               />
 
-              {/* ── Card content ──────────────────────────────────────────
-                  1px margin exposes the border layer on all edges including
-                  the diagonal bevel cuts. Same clip-path keeps content
-                  flush with the bevel shape.                              */}
+              {/* ── Chamfer highlight ─────────────────────────────────────
+                  1px inside the border — a thin white line that traces
+                  the bevel diagonal, giving the cut a polished edge.     */}
               <div
-                className="relative bg-[var(--color-surface-secondary)] p-5 group-hover:bg-[var(--color-surface-secondary)] transition-colors"
-                style={{ clipPath: BEVEL, margin: '1px' }}
+                className="absolute inset-[1px] bg-white/[0.12] pointer-events-none"
+                style={{ clipPath: BEVEL }}
+              />
+
+              {/* ── Card content ──────────────────────────────────────────
+                  2px margin: 1px border + 1px highlight both visible.    */}
+              <div
+                className="relative bg-[var(--color-surface-secondary)] p-5 transition-colors"
+                style={{ clipPath: BEVEL, margin: '2px' }}
               >
                 {/* Mode badge */}
                 <div className="flex items-center justify-between mb-3">
