@@ -13,6 +13,7 @@
 //! Falls back to browser relay when disconnected or on 30 s timeout.
 
 use futures_util::{SinkExt, StreamExt};
+use rand::RngCore;
 use serde::Deserialize;
 use std::{collections::HashMap, sync::Arc, time::Duration};
 use tokio::sync::{mpsc, oneshot, RwLock};
@@ -83,31 +84,11 @@ const CRS_WS: &str   = "wss://plenumnet.replit.app/ws/relay";
 pub fn spawn_relay_task(state: AppState) {
     tokio::spawn(async move {
         // Load or generate YODA's relay public key.
-        // Throwaway random 32-byte hex when env var is absent.
+        // Uses OsRng for a cryptographically-random 32-byte throwaway key
+        // when PLENUMLAN_PUBLIC_KEY is not set in the environment.
         let public_key = std::env::var("PLENUMLAN_PUBLIC_KEY").unwrap_or_else(|_| {
-            use std::time::{SystemTime, UNIX_EPOCH};
-            // Combine process start time nanos + two separate instants for entropy.
-            let t0 = SystemTime::now()
-                .duration_since(UNIX_EPOCH)
-                .map(|d| d.subsec_nanos())
-                .unwrap_or(0xdeadbeef_u32);
-            let bytes: [u8; 32] = {
-                let mut b = [0u8; 32];
-                // Fill with cheap entropy: nanos, counter, pid, thread id hash
-                let pid = std::process::id();
-                let nanos2 = SystemTime::now()
-                    .duration_since(UNIX_EPOCH)
-                    .map(|d| d.subsec_nanos())
-                    .unwrap_or(0xcafebabe_u32);
-                b[0..4].copy_from_slice(&t0.to_le_bytes());
-                b[4..8].copy_from_slice(&pid.to_le_bytes());
-                b[8..12].copy_from_slice(&nanos2.to_le_bytes());
-                // Fill remaining with XOR-spread
-                for i in 12..32 {
-                    b[i] = b[i % 12].wrapping_add(i as u8).wrapping_mul(0x6d);
-                }
-                b
-            };
+            let mut bytes = [0u8; 32];
+            rand::rngs::OsRng.fill_bytes(&mut bytes);
             hex::encode(bytes)
         });
 
@@ -224,8 +205,9 @@ async fn run_relay_session(
     // ── Main loop ──────────────────────────────────────────────────────────
     let mut ping_interval = tokio::time::interval(Duration::from_secs(25));
     ping_interval.tick().await; // discard the immediate first tick
+    let mut last_pong_at = std::time::Instant::now();
 
-    loop {
+    let result = loop {
         tokio::select! {
             // Outbound: relay an inference request to the Cube node
             Some(req) = req_rx.recv() => {
@@ -242,7 +224,9 @@ async fn run_relay_session(
                     "msgType": "inference_request",
                     "payload": payload.to_string(),
                 });
-                sink.send(Message::Text(envelope.to_string().into())).await?;
+                if let Err(e) = sink.send(Message::Text(envelope.to_string().into())).await {
+                    break Err(e.into());
+                }
                 tracing::debug!(
                     request_id = %req.request_id,
                     to = %req.cube_address,
@@ -260,31 +244,60 @@ async fn run_relay_session(
                             .unwrap_or(serde_json::Value::Null);
                         if v["type"].as_str() == Some("auth_fail") {
                             let reason = v["error"].as_str().unwrap_or("unknown");
-                            tracing::warn!(reason = %reason, "auth_fail received in session main loop — terminating session");
-                            return Err(anyhow::anyhow!("auth_fail: {reason}"));
+                            tracing::warn!(reason = %reason, "auth_fail in session main loop — terminating");
+                            break Err(anyhow::anyhow!("auth_fail: {reason}"));
                         }
-                        handle_inbound(state, &text).await;
+                        if v["type"].as_str() == Some("pong") {
+                            last_pong_at = std::time::Instant::now();
+                            tracing::trace!("pong received");
+                        } else {
+                            handle_inbound(state, &text).await;
+                        }
+                    }
+                    Some(Ok(Message::Pong(_))) => {
+                        last_pong_at = std::time::Instant::now();
                     }
                     Some(Ok(Message::Ping(data))) => {
-                        sink.send(Message::Pong(data)).await?;
+                        if let Err(e) = sink.send(Message::Pong(data)).await {
+                            break Err(e.into());
+                        }
                     }
                     Some(Ok(Message::Close(_))) | None => {
                         tracing::info!("PlenumLAN relay WebSocket closed by server");
-                        break;
+                        break Ok(());
                     }
-                    Some(Err(e)) => return Err(e.into()),
+                    Some(Err(e)) => break Err(e.into()),
                     _ => {}
                 }
             }
 
             // Keepalive
             _ = ping_interval.tick() => {
-                sink.send(Message::Text(r#"{"type":"ping"}"#.into())).await?;
+                // If we haven't seen a pong in 75 s (3 missed ping cycles), reconnect.
+                if last_pong_at.elapsed() > Duration::from_secs(75) {
+                    tracing::warn!("PlenumLAN relay stale — no pong for 75 s, reconnecting");
+                    break Err(anyhow::anyhow!("stale connection: no pong for 75 s"));
+                }
+                if let Err(e) = sink.send(Message::Text(r#"{"type":"ping"}"#.into())).await {
+                    break Err(e.into());
+                }
             }
+        }
+    };
+
+    // Prune pending_relays that are now stranded (Cube node unreachable).
+    // Their oneshot receivers will resolve as Err, which query.rs treats as
+    // a send failure and surfaces to the browser relay fallback.
+    {
+        let mut pending = state.pending_relays.write().await;
+        let n = pending.len();
+        pending.clear();
+        if n > 0 {
+            tracing::warn!(pruned = n, "Cleared stranded pending relay requests on session teardown");
         }
     }
 
-    Ok(())
+    result
 }
 
 // ── Inbound message dispatcher ─────────────────────────────────────────────

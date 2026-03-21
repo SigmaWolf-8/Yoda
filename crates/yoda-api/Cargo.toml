@@ -41,6 +41,7 @@ hex = "0.4"
 reqwest.workspace = true
 tokio-tungstenite = { version = "0.24", features = ["rustls-tls-native-roots"] }
 futures-util = "0.3"
+rand = "0.8"
 
 [dev-dependencies]
 wiremock.workspace = true
