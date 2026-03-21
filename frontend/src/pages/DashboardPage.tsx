@@ -1,9 +1,9 @@
-import { useRef } from 'react';
 import { LayoutDashboard } from 'lucide-react';
 import { usePageHeader } from '../context/PageHeader';
+import { useVideoPlay } from '../context/VideoPlay';
 
 export function DashboardPage() {
-  const videoRef = useRef<HTMLVideoElement>(null);
+  const { heroRef, playBoth } = useVideoPlay();
 
   usePageHeader({
     icon: LayoutDashboard,
@@ -27,6 +27,7 @@ export function DashboardPage() {
         shadow and highlight strips vanish into the same shade.
       */}
       <div
+        onClick={playBoth}
         style={{
           height: '48vh',
           minHeight: 320,
@@ -51,18 +52,19 @@ export function DashboardPage() {
           ].join(', '),
           position: 'relative',
           boxSizing: 'border-box',
+          cursor: 'pointer',
         }}
       >
         <video
-          ref={videoRef}
+          ref={heroRef}
           autoPlay
           muted
           playsInline
           style={{ display: 'block', width: '100%', height: '100%', objectFit: 'cover' }}
           onEnded={() => {
-            if (videoRef.current) {
-              videoRef.current.currentTime = 0;
-              videoRef.current.pause();
+            if (heroRef.current) {
+              heroRef.current.currentTime = 0;
+              heroRef.current.pause();
             }
           }}
         >

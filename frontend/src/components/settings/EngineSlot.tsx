@@ -304,7 +304,8 @@ const ALL_SELF_HOSTED_SET = new Set(
 
 // ── llama.cpp (llama-server) config ──────────────────────────────────────────
 // Each engine slot gets its own port so instances can run truly in parallel.
-export const SLOT_PORT: Record<Slot, number> = { a: 8080, b: 8081, c: 8082 };
+export const SLOT_PORT: Record<Slot, number>      = { a: 8080,  b: 8081,  c: 8082  };
+export const CUBE_PORT: Record<Slot, number>      = { a: 9080,  b: 9081,  c: 9082  };
 
 // HuggingFace GGUF source for every self-hosted model.
 // llama-server downloads the file on first run, then serves on SLOT_PORT.
@@ -507,6 +508,9 @@ export function EngineSlotCard({
   const [authType, setAuthType] = useState<AuthType>(config?.auth_type ?? 'none');
   const [credentials, setCredentials] = useState('');
   const [modelName, setModelName] = useState(config?.model_name ?? '');
+  const [cubeEndpoint, setCubeEndpoint] = useState(
+    config?.cube_endpoint_url ?? `http://localhost:${CUBE_PORT[slot]}`
+  );
   const [provider, setProvider] = useState('');
   const [familyOverride, setFamilyOverride] = useState(config?.family_override ?? '');
   const [showSuggest, setShowSuggest] = useState(false);
@@ -539,6 +543,7 @@ export function EngineSlotCard({
     hasMountedRef.current = false;
     setMode((config.hosting_mode as HostingMode) ?? 'self_hosted');
     setEndpoint(config.endpoint_url ?? '');
+    setCubeEndpoint(config.cube_endpoint_url ?? `http://localhost:${CUBE_PORT[slot]}`);
     setAuthType((config.auth_type as AuthType) ?? 'none');
     setFamilyOverride(config.family_override ?? '');
     setModelName(config.model_name ?? '');
@@ -732,6 +737,7 @@ export function EngineSlotCard({
       slot,
       hosting_mode: mode,
       endpoint_url: endpoint || `http://localhost:${SLOT_PORT[slot]}`,
+      cube_endpoint_url: cubeEndpoint || `http://localhost:${CUBE_PORT[slot]}`,
       auth_type: authType,
       credentials: credentials || undefined,
       model_name: modelName,
@@ -754,6 +760,7 @@ export function EngineSlotCard({
         setModelName('');
         setFamilyOverride('');
         setEndpoint(`http://localhost:${SLOT_PORT[slot]}`);
+        setCubeEndpoint(`http://localhost:${CUBE_PORT[slot]}`);
         setCredentials('');
         setConfirmClear(false);
         onModelChange('');
@@ -1043,6 +1050,29 @@ export function EngineSlotCard({
                   )}
                 </div>
               )}
+            </div>
+
+            {/* ── Cube (PlenumNET) endpoint ── */}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wide">
+                  Cube Node Endpoint
+                </label>
+                <span className="text-[10px] text-[var(--color-text-muted)]/70 font-mono">
+                  default :{CUBE_PORT[slot]}
+                </span>
+              </div>
+              <input
+                type="text"
+                value={cubeEndpoint}
+                onChange={(e) => setCubeEndpoint(e.target.value)}
+                placeholder={`http://localhost:${CUBE_PORT[slot]}`}
+                className="w-full px-3 py-2 rounded-lg bg-[var(--color-surface-secondary)] border border-[var(--color-border-default)] text-sm text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-gold-500)] focus:ring-1 focus:ring-[var(--color-gold-500)]/30 transition-colors"
+              />
+              <p className="text-[11px] text-[var(--color-text-muted)]/80 leading-snug">
+                PlenumNET Cube daemon port paired with this engine slot.
+                Runs alongside the LLM inference server for network mesh participation.
+              </p>
             </div>
 
             {/* ── Node actions — Open New Node + Sync Node ── */}

@@ -8,6 +8,7 @@ export interface EngineConfig {
   slot: EngineSlot;
   hosting_mode: HostingMode;
   endpoint_url: string;
+  cube_endpoint_url: string | null;
   auth_type: AuthType;
   model_name: string;
   model_family: string;
@@ -25,6 +26,7 @@ export interface EngineConfig {
 export interface EngineUpdatePayload {
   hosting_mode: HostingMode;
   endpoint_url: string;
+  cube_endpoint_url?: string | null;
   auth_type: AuthType;
   credentials?: string;
   model_name: string;

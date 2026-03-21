@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { UserProfile } from '../auth/UserProfile';
 import { usePageHeaderCtx } from '../../context/PageHeader';
+import { VideoPlayProvider, useVideoPlay } from '../../context/VideoPlay';
 
 /* ── Nav config ── */
 const MAIN_NAV = [
@@ -28,6 +29,23 @@ const MAIN_NAV = [
 
 /* Sidebar logo-area height in px — top bar must match this */
 export const HEADER_H = 144;
+
+function SidebarLogoVideo() {
+  const { sidebarRef, playBoth } = useVideoPlay();
+  return (
+    <video
+      ref={sidebarRef}
+      src="/yoda-logo.mp4"
+      className="w-full h-full object-cover scale-125"
+      autoPlay
+      muted
+      playsInline
+      onClick={playBoth}
+      onEnded={(e) => { e.currentTarget.currentTime = 0; e.currentTarget.pause(); }}
+      style={{ cursor: 'pointer' }}
+    />
+  );
+}
 
 const SIDEBAR_MIN = 160;
 const SIDEBAR_MAX = 480;
@@ -93,6 +111,7 @@ export function AppShell() {
   const asideWidth = collapsed ? '4rem' : `${sidebarWidth}px`;
 
   return (
+    <VideoPlayProvider>
     <div className="flex min-h-screen w-full bg-[var(--color-surface-primary)]">
       <a href="#main-content" className="skip-nav">Skip to main content</a>
 
@@ -141,13 +160,7 @@ export function AppShell() {
             ].join(', '),
           }}
         >
-          <video
-            src="/yoda-logo.mp4"
-            className="w-full h-full object-cover scale-125"
-            autoPlay
-            muted
-            playsInline
-          />
+          <SidebarLogoVideo />
           {/* Mobile close button floats over the video */}
           <button
             className="absolute top-2 right-2 lg:hidden text-white/70 hover:text-white bg-black/30 rounded p-0.5"
@@ -349,5 +362,6 @@ export function AppShell() {
         </main>
       </div>
     </div>
+    </VideoPlayProvider>
   );
 }

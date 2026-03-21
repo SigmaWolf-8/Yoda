@@ -345,12 +345,13 @@ async fn get_engines(
     State(state): State<AppState>,
     user: axum::Extension<auth::AuthenticatedUser>,
 ) -> Result<Json<serde_json::Value>, AppError> {
-    let rows = sqlx::query_as::<_, (Uuid,String,String,String,String,String,String,Option<String>,String,Option<i32>)>(
-        "SELECT id,slot,hosting_mode,endpoint_url,auth_type,model_name,model_family,family_override,health_status,avg_latency_ms FROM engine_configs WHERE org_id=$1 ORDER BY slot"
+    let rows = sqlx::query_as::<_, (Uuid,String,String,String,String,String,String,Option<String>,String,Option<i32>,Option<String>)>(
+        "SELECT id,slot,hosting_mode,endpoint_url,auth_type,model_name,model_family,family_override,health_status,avg_latency_ms,cube_endpoint_url FROM engine_configs WHERE org_id=$1 ORDER BY slot"
     ).bind(user.org_id).fetch_all(&state.db).await.map_err(AppError::Database)?;
-    let engines: Vec<serde_json::Value> = rows.into_iter().map(|(id,slot,hm,eu,at,mn,mf,fo,hs,al)| serde_json::json!({
+    let engines: Vec<serde_json::Value> = rows.into_iter().map(|(id,slot,hm,eu,at,mn,mf,fo,hs,al,ce)| serde_json::json!({
         "id":id,"slot":slot,"hosting_mode":hm,"endpoint_url":eu,"auth_type":at,
-        "model_name":mn,"model_family":mf,"family_override":fo,"health_status":hs,"avg_latency_ms":al
+        "model_name":mn,"model_family":mf,"family_override":fo,"health_status":hs,"avg_latency_ms":al,
+        "cube_endpoint_url":ce
     })).collect();
     Ok(Json(serde_json::json!({ "engines": engines })))
 }
@@ -359,7 +360,7 @@ async fn get_engines(
 struct UpdateEngineRequest {
     hosting_mode: String, endpoint_url: String, auth_type: String,
     credentials: Option<String>, model_name: String, model_family: String,
-    family_override: Option<String>,
+    family_override: Option<String>, cube_endpoint_url: Option<String>,
 }
 
 async fn update_engine(
@@ -376,15 +377,15 @@ async fn update_engine(
 
     sqlx::query(
         "INSERT INTO engine_configs (id, org_id, slot, hosting_mode, endpoint_url, auth_type, \
-         credentials_encrypted, model_name, model_family, family_override, health_status) \
-         VALUES (uuid_generate_v4(), $1, $2, $3, $4, $5, $6, $7, $8, $9, 'offline') \
+         credentials_encrypted, model_name, model_family, family_override, health_status, cube_endpoint_url) \
+         VALUES (uuid_generate_v4(), $1, $2, $3, $4, $5, $6, $7, $8, $9, 'offline', $10) \
          ON CONFLICT (org_id, slot) DO UPDATE SET \
          hosting_mode=$3, endpoint_url=$4, auth_type=$5, credentials_encrypted=$6, \
-         model_name=$7, model_family=$8, family_override=$9"
+         model_name=$7, model_family=$8, family_override=$9, cube_endpoint_url=$10"
     )
     .bind(user.org_id).bind(&slot).bind(&req.hosting_mode).bind(&req.endpoint_url)
     .bind(&req.auth_type).bind(&credentials_encrypted).bind(&req.model_name)
-    .bind(&req.model_family).bind(&req.family_override)
+    .bind(&req.model_family).bind(&req.family_override).bind(&req.cube_endpoint_url)
     .execute(&state.db).await.map_err(AppError::Database)?;
 
     Ok(Json(serde_json::json!({"status":"updated","slot":slot})))
