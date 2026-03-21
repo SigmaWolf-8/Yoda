@@ -1,0 +1,91 @@
+Engine A
+offline
+Self-Hosted
+Run a model on your own hardware via a local endpoint (Ollama, llama.cpp, LM Studio, vLLM). No data leaves your machine.
+Commercial
+Connect to a paid API from Anthropic, OpenAI, xAI, Google, or DeepSeek. Requires an API key and charges per token.
+Free Tier
+Use a provider's free or trial tier — same setup as Commercial but typically rate-limited with daily message caps.
+💡
+RAM estimates are for Q4 quant. 16 GB host − 3 GB OS − 4.5 GB other engines = 8.5 GB free for this slot. ✓ Fits · ⚠ Q3 only · ✗ Too large.
+Model
+DeepSeek-R1-Distill-Qwen-7B
+Reasoning LLM
+Reasoning · Coding · Ultralight footprint
+~4.5 GB (Q4) · Fits
+DeepSeek-R1's reasoning distilled into a 7B Qwen backbone. Excellent on machines with under 8 GB free RAM.
+
+Install
+Endpoint URL
+Mark Online
+Test
+http://localhost:8080
+Local/LAN address — the cloud server cannot reach it. Your browser will relay inference calls directly. This is expected.
+Cube Node Endpoint
+default :9080
+http://localhost:9080
+PlenumNET Cube daemon port paired with this engine slot. Runs alongside the LLM inference server for network mesh participation.
+
+Open New Node
+Sync Node
+Node synced — connection confirmed
+Family Override
+(optional)
+What is Family Override?
+
+YODA's diversity system checks that your three engines come from different model families — so you're not getting three near-identical opinions from the same underlying architecture.
+
+It detects families automatically from the model name. If it doesn't recognise your model, set this field manually.
+
+Examples: qwen · deepseek · llama · mistral · claude · gpt
+
+e.g. qwen, deepseek, llama
+Clear slot
+
+Local/LAN address — the cloud server cannot reach it. Your browser will relay inference calls directly. This is expected.
+
+What does this mean. This is supposed to be locally hosted, trying to understand the meaning
+
+Good question — let me look at how this is set up in your codebase so I can give you an accurate explanation.
+
+Here's what that message means in plain terms:
+
+The short version: When you type http://localhost:8080 as your endpoint, that address only exists on your machine. The web app you're using is hosted on a cloud server (Replit), and that cloud server has no way to reach your local machine's localhost — they're on completely different networks.
+
+So how does it actually work? Your browser acts as the middleman. Since your browser is running on the same machine (or same local network) as your LLM server, it can reach localhost:8080. So instead of the cloud server making the inference calls, your browser makes them directly to your local LLM and then passes the results back to the app.
+
+The flow looks like this:
+
+You send a prompt in the app
+The app tells your browser: "send this to localhost:8080"
+Your browser (which is on your local machine) calls your LLM directly
+Your LLM responds to your browser
+Your browser feeds the response back into the app
+Why it says "this is expected": It's reassuring you that this isn't a bug or misconfiguration. It's the intended design — your data stays on your machine, and the browser relay is the mechanism that makes self-hosted models work without exposing your local ports to the internet.
+
+No data leaves your machine for inference — which is exactly the point of the "Self-Hosted" option. The cloud server never sees your prompts or model outputs; it only orchestrates the UI.
+
+yes but isn't Websocket better and don't we have that>
+
+Good point — yes, you do have WebSocket relay infrastructure built into the system. Let me check how it's currently wired up relative to the engine slots.
+
+Now let me check how the frontend currently handles inference calls to those engine endpoints:
+
+You're absolutely right. You do have a full WebSocket relay system already built and running — the /ws/relay endpoint in your server handles authenticated node-to-node messaging through WebSocket connections.
+
+Here's the situation:
+
+What you already have:
+
+A WebSocket relay server at /ws/relay in server/index.ts — handles node authentication, message routing between connected peers, delivery queuing for offline nodes, and peer discovery
+A Rust WsRelayClient in services/inter-cube/src/ws_relay.rs — the client-side counterpart that connects to the relay, authenticates with its node address and public key, and sends/receives relay envelopes
+What's not wired up yet:
+The Engine A/B/C configuration UI (the screen you showed me) doesn't appear to exist in the frontend code yet — it looks like it's a design spec or mockup, not live code. So the question of "browser fetch vs. WebSocket relay" is about how to build the inference path when that UI gets implemented.
+
+Why WebSocket is better here:
+
+Persistent connection — no repeated HTTP handshake overhead for every inference call
+Streaming tokens — WebSocket naturally supports streaming partial responses as the LLM generates them, which is critical for a good chat experience
+You already have the relay infrastructure — the Cube node on localhost:9080 can connect to the cloud relay via WebSocket, authenticate, and then the cloud server can reach it through the relay tunnel. That eliminates the "cloud can't reach localhost" problem entirely
+It keeps inference routing server-side instead of putting the burden on the browser
+So yes — the right approach would be to route inference calls through your existing WebSocket relay rather than having the browser do direct fetch calls to localhost. The Cube daemon at :9080 is already designed to sit alongside the LLM server and participate in the mesh — it should proxy inference requests to the local LLM on :8080.
