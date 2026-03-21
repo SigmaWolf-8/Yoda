@@ -78,7 +78,10 @@ export function QueryInput({ projectId, mode, onResult }: Props) {
       setRelayState('done');
       setText('');
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Unknown error';
+      const raw = err instanceof Error ? err.message : 'Unknown error';
+      const msg = raw === 'Failed to fetch'
+        ? `Cannot reach engine at ${endpoint}. Start llama-server with --cors (e.g. llama-server --cors --host 0.0.0.0 --port 8080 -m model.gguf). "Failed to fetch" almost always means the CORS header is missing.`
+        : raw;
       setRelayError(msg);
       setRelayState('error');
     }

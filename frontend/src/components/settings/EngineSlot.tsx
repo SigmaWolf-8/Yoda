@@ -820,7 +820,7 @@ export function EngineSlotCard({
       </div>
 
       {/* Mode selector */}
-      <div className="flex gap-2 mb-2.5">
+      <div className="flex gap-1.5 mb-2.5">
         {([
           { m: 'self_hosted' as const, icon: Server, label: 'Self-Hosted' },
           { m: 'commercial' as const, icon: Cloud,  label: 'Commercial' },
@@ -829,13 +829,13 @@ export function EngineSlotCard({
           <Tooltip key={m} content={MODE_TIPS[m]}>
             <button
               onClick={() => changeMode(m)}
-              className={`flex-1 flex items-center justify-center gap-2 py-1.5 rounded-lg text-sm font-medium border transition-colors ${
+              className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium border transition-colors ${
                 mode === m
                   ? 'bg-[var(--color-gold-500)]/10 text-[var(--color-gold-400)] border-[var(--color-gold-500)]/30'
-                  : 'bg-[var(--color-surface-secondary)] text-[var(--color-text-secondary)] border-[var(--color-border-default)] hover:border-[var(--color-border-strong)]'
+                  : 'bg-[var(--color-surface-secondary)] text-[var(--color-text-muted)] border-[var(--color-border-default)] hover:text-[var(--color-text-secondary)] hover:border-[var(--color-border-strong)]'
               }`}
             >
-              <Icon className="w-3.5 h-3.5" />
+              <Icon className="w-3 h-3" />
               {label}
             </button>
           </Tooltip>
