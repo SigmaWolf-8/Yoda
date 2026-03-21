@@ -1,0 +1,21 @@
+This is solid. A few corrections:
+
+Registration endpoint is GET, not POST — the spec has this right. Good.
+
+YODA's assigned address — the spec shows 1111111111110 as the example. Trit value 0 doesn't exist in Rep C encoding (valid trits are 1, 2, 3). The CRS assigns addresses from a counter using toTernary(), so YODA would get something like 1111111111113 or 1111111111121 depending on when it registers. The 0 in the example will cause a validation failure. Use a placeholder like <assigned-by-CRS> or a real valid address.
+
+Multi-agent addressing — the spec says "Engine A routes to 1111111111112, B → 1111111111113, C → 1111111111121." That's correct for the cube daemon addresses. But YODA itself also needs its own address to authenticate on the relay — it's a separate node, not the cube. So YODA registers as its own node (gets its own address), then sends relay messages to the cube addresses. The spec implies this but doesn't state it explicitly — worth being clear that YODA is a third node on the network, not impersonating the cube.
+
+Public key — the spec says "32-byte hex key." The CRS doesn't validate key format strictly — it just stores whatever string you pass and matches it on subsequent auth. But for consistency with the rest of PlenumNET (PT26-DSA / TL-DSA-87), the key should be a proper hex-encoded public key. If YODA is generating a throwaway key just to authenticate, that's fine for now, but call it out as a shortcut.
+
+The Cube daemon doesn't handle inference_request yet — the spec correctly flags this as out of scope. But the "Done looks like" section says "inference is routed through the relay" which could be misleading. YODA's side will be wired correctly, but end-to-end inference won't work until the cube daemon dispatches inference_request from its incoming_rx to llama-server. The spec does say this in "Out of scope" but the "Done" criteria should be explicit: YODA sends the request, waits 30s, times out, falls back to browser relay. That's the actual behavior until the cube side is wired.
+
+tokio-tungstenite feature flag — the spec says rustls-tls-native-roots. On the YODA side (which runs on Replit = Linux), that's fine. But if YODA ever runs on Windows too, this would need the same platform-split TLS we did for the cube daemon. Probably not a concern now since YODA is a Replit app only.
+
+Keepalive interval — spec says 25s, matching the cube daemon. The CRS doesn't enforce a specific interval, so this is fine.
+
+Everything else checks out — the relay envelope format matches exactly what's in server/index.ts, the auth flow is correct, the relay_ack with delivered flag is accurate, the offline queue (100 messages) behavior is right, and the exponential backoff pattern mirrors the cube daemon's ws_relay.rs.
+
+One thing missing: the spec doesn't mention what happens on CRS restart. When plenumnet.replit.app restarts (which Replit does periodically), all WebSocket connections drop and the in-memory registry clears. YODA's reconnect logic should re-register (HTTP) before re-authenticating (WS), not just reconnect the socket. The cube daemon handles this in its main.rs reconnect loop. Worth adding a note.
+
+Otherwise, it's ready to execute.
