@@ -527,6 +527,25 @@ export function EngineSlotCard({
   const hasMountedRef    = useRef(false);
   const autoSaveTimer    = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastAutoFill     = useRef<string>('');
+  const seededRef        = useRef(false);
+
+  // One-shot: populate state from DB as soon as config arrives.
+  // useState initializers only run on mount — if config is undefined then
+  // (query still loading), the fields stay blank forever without this effect.
+  useEffect(() => {
+    if (seededRef.current || !config) return;
+    seededRef.current = true;
+    // Suppress the auto-save that would otherwise fire for the modelName change.
+    hasMountedRef.current = false;
+    setMode((config.hosting_mode as HostingMode) ?? 'self_hosted');
+    setEndpoint(config.endpoint_url ?? '');
+    setAuthType((config.auth_type as AuthType) ?? 'none');
+    setFamilyOverride(config.family_override ?? '');
+    setModelName(config.model_name ?? '');
+    onModelChange(config.model_name ?? '');
+    onModeChange((config.hosting_mode as HostingMode) ?? 'self_hosted');
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [config]);
 
   function defaultEndpointFor(name: string): string {
     if (GGUF_INFO[name]) return `http://localhost:${SLOT_PORT[slot]}`;
