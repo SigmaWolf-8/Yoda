@@ -1,15 +1,20 @@
 {
   "qwen": {
     "models": [
-      "Qwen3.5-397B", "Qwen3.5-122B", "Qwen3.5-27B", "Qwen3.5-9B",
-      "Qwen3.5-35B-A3B", "Qwen2.5-Coder-32B"
+      "Qwen3-4B", "Qwen3.5-9B", "Qwen3.5-27B", "Qwen3.5-35B-A3B",
+      "Qwen3.5-72B", "Qwen3.5-122B", "Qwen3.5-397B",
+      "Qwen3-Coder-30B", "Qwen3-235B-A22B",
+      "Qwen-QwQ-32B",
+      "Qwen2.5-Coder-32B"
     ]
   },
   "deepseek": {
     "models": [
-      "DeepSeek-V3.2", "DeepSeek-R1",
-      "DeepSeek-R1-Distill-Qwen-32B", "DeepSeek-R1-Distill-Qwen-14B",
-      "DeepSeek-R1-Distill-Llama-70B", "DeepSeek-R1-Distill-Llama-8B"
+      "DeepSeek-V3.2", "DeepSeek-V3.2-685B",
+      "DeepSeek-R1", "DeepSeek-R1-671B",
+      "DeepSeek-R1-Distill-Qwen-7B", "DeepSeek-R1-Distill-Qwen-14B",
+      "DeepSeek-R1-Distill-Qwen-32B",
+      "DeepSeek-R1-Distill-Llama-8B", "DeepSeek-R1-Distill-Llama-70B"
     ]
   },
   "llama": {
@@ -18,9 +23,22 @@
       "Llama-4-Maverick", "Llama-4-Scout"
     ]
   },
+  "mistral": {
+    "models": [
+      "Mistral-Nemo-12B", "Mistral-Large-3",
+      "Mistral-Small-3.2-24B",
+      "Codestral-22B",
+      "Mathstral-7B"
+    ]
+  },
   "claude": {
     "models": [
       "claude-opus-4-6", "claude-sonnet-4-6", "claude-haiku-4-5"
+    ]
+  },
+  "gpt": {
+    "models": [
+      "gpt-4.5", "gpt-4o", "o3-mini", "o3", "o4-mini"
     ]
   },
   "gemini": {
@@ -28,9 +46,14 @@
       "gemini-2.5-pro", "gemini-2.5-flash", "gemini-3-pro"
     ]
   },
+  "gemma": {
+    "models": [
+      "Gemma-3-4B", "Gemma-3-12B", "Gemma-3-27B"
+    ]
+  },
   "grok": {
     "models": [
-      "grok-3", "grok-3-mini"
+      "grok-3", "grok-3-fast", "grok-3-mini", "grok-3-mini-fast"
     ]
   },
   "glm": {
@@ -43,9 +66,9 @@
       "Kimi-K2.5", "Kimi-K2"
     ]
   },
-  "mistral": {
+  "phi": {
     "models": [
-      "Mistral-Nemo-12B", "Mistral-Large-3"
+      "Phi-4-14B", "Phi-4", "Phi-3.5-mini"
     ]
   }
 }

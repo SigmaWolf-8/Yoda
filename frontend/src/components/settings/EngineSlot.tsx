@@ -830,20 +830,6 @@ export function EngineSlotCard({
                   Mark online
                 </button>
               )}
-              {mode === 'self_hosted' && config.health_status === 'online' && (
-                <button
-                  onClick={() => markOffline.mutate(slot)}
-                  disabled={markOffline.isPending}
-                  title="Mark offline"
-                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium border border-[var(--color-border-default)] text-[var(--color-text-muted)] hover:border-[var(--color-border-strong)] hover:text-[var(--color-text-secondary)] disabled:opacity-50 transition-colors"
-                >
-                  {markOffline.isPending
-                    ? <Loader2 className="w-3 h-3 animate-spin" />
-                    : <WifiOff className="w-3 h-3" />
-                  }
-                  Mark offline
-                </button>
-              )}
             </>
           )}
         </div>
