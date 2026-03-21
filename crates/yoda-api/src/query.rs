@@ -155,12 +155,15 @@ pub async fn submit_query(
     .await
     .map_err(AppError::Database)?;
 
-    // Fetch the online engine's endpoint so the browser can relay inference
-    // directly to the local llama-server (Replit cannot reach 10.x.x.x / localhost
-    // on the user's machine, but the browser can).
+    // Fetch the engine endpoint so the browser can relay inference directly to
+    // the local llama-server.  We MUST NOT filter by health_status: Replit's
+    // server can't reach local/LAN addresses, so health checks always mark them
+    // offline — but the browser running on the user's machine CAN reach them.
+    // Pick the lowest-lettered slot (A first) with a configured endpoint.
     let relay_endpoint: Option<String> = sqlx::query_scalar(
         "SELECT endpoint_url FROM engine_configs \
-         WHERE org_id = $1 AND health_status = 'online' ORDER BY slot LIMIT 1"
+         WHERE org_id = $1 AND endpoint_url IS NOT NULL AND endpoint_url <> '' \
+         ORDER BY slot ASC LIMIT 1"
     )
     .bind(user.org_id)
     .fetch_optional(&state.db)

@@ -1046,7 +1046,13 @@ export function EngineSlotCard({
                   {probeState.reachable ? (
                     <><CheckCircle2 className="w-3 h-3 flex-shrink-0" /> Reachable — {probeState.latency_ms} ms</>
                   ) : (
-                    <><XCircle className="w-3 h-3 flex-shrink-0" /> Unreachable{probeState.error ? ` — ${probeState.error.split('error sending')[0].trim()}` : ''}{!probeState.error && '. Start PlenumNET then try again.'}</>
+                    <>
+                      <XCircle className="w-3 h-3 flex-shrink-0" />
+                      {' '}
+                      {/localhost|127\.0\.0\.1|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\./.test(endpoint)
+                        ? 'Local/LAN address — the cloud server cannot reach it. Your browser will relay inference calls directly. This is expected.'
+                        : `Unreachable${probeState.error ? ` — ${probeState.error.split('error sending')[0].trim()}` : '. Check the URL and ensure the engine is running.'}`}
+                    </>
                   )}
                 </div>
               )}
