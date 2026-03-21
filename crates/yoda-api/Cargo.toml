@@ -39,6 +39,8 @@ thiserror.workspace = true
 anyhow.workspace = true
 hex = "0.4"
 reqwest.workspace = true
+tokio-tungstenite = { version = "0.24", features = ["rustls-tls-native-roots"] }
+futures-util = "0.3"
 
 [dev-dependencies]
 wiremock.workspace = true

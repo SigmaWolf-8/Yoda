@@ -31,6 +31,7 @@ pub mod audit;
 pub mod auth;
 pub mod bible;
 pub mod capability;
+pub mod cube_relay;
 pub mod error;
 pub mod kb;
 pub mod modes;
@@ -107,6 +108,9 @@ async fn main() -> anyhow::Result<()> {
 
     // ── Build app state ──────────────────────────────────────────────
     let state = state::AppState::new(db, agents);
+
+    // ── Spawn PlenumLAN relay background task ────────────────────────
+    cube_relay::spawn_relay_task(state.clone());
 
     // ── Build router ─────────────────────────────────────────────────
     let cors = CorsLayer::new()

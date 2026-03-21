@@ -5,9 +5,12 @@
 
 use axum::{extract::{Path, State}, http::StatusCode, Json};
 use serde::{Deserialize, Serialize};
+use std::time::Duration;
+use tokio::sync::oneshot;
 use uuid::Uuid;
 
 use crate::auth::AuthenticatedUser;
+use crate::cube_relay::{RelayInferRequest, slot_to_cube_address};
 use crate::error::AppError;
 use crate::state::AppState;
 use yoda_orchestrator::decomposer::{
@@ -155,11 +158,112 @@ pub async fn submit_query(
     .await
     .map_err(AppError::Database)?;
 
-    // Fetch the engine endpoint so the browser can relay inference directly to
-    // the local llama-server.  We MUST NOT filter by health_status: Replit's
-    // server can't reach local/LAN addresses, so health checks always mark them
-    // offline — but the browser running on the user's machine CAN reach them.
-    // Pick the lowest-lettered slot (A first) with a configured endpoint.
+    // ── Try PlenumLAN relay first ────────────────────────────────────────────
+    // Pick the engine slot the user has configured and send the request through
+    // the CRS relay.  30 s timeout — on miss, fall back to browser relay.
+    let engine_slot: Option<String> = sqlx::query_scalar(
+        "SELECT slot FROM engine_configs \
+         WHERE org_id = $1 AND endpoint_url IS NOT NULL AND endpoint_url <> '' \
+         ORDER BY slot ASC LIMIT 1"
+    )
+    .bind(user.org_id)
+    .fetch_optional(&state.db)
+    .await
+    .unwrap_or(None);
+
+    if let Some(slot) = &engine_slot {
+        // Check if the relay is alive
+        if let Some(relay_tx) = state.relay_tx.read().await.clone() {
+            let request_id = Uuid::new_v4();
+            let cube_address = slot_to_cube_address(slot).to_string();
+
+            let messages = serde_json::json!([
+                {"role": "user", "content": req.text}
+            ]);
+
+            let relay_req = RelayInferRequest {
+                request_id,
+                task_id,
+                cube_address,
+                messages,
+                model: "local".to_string(),
+                max_tokens: 1024,
+                temperature: 0.7,
+            };
+
+            // Register a pending oneshot before sending (avoid a race)
+            let (tx, rx) = oneshot::channel();
+            state.pending_relays.write().await.insert(request_id, tx);
+
+            match relay_tx.send(relay_req).await {
+                Ok(()) => {
+                    tracing::info!(
+                        task_id = %task_id,
+                        request_id = %request_id,
+                        "Inference request dispatched via PlenumLAN relay — awaiting response"
+                    );
+
+                    match tokio::time::timeout(Duration::from_secs(30), rx).await {
+                        Ok(Ok(result)) => {
+                            // Write result to DB and mark task FINAL
+                            sqlx::query(
+                                "UPDATE tasks SET status = 'FINAL', updated_at = NOW() \
+                                 WHERE id = $1"
+                            )
+                            .bind(task_id)
+                            .execute(&state.db)
+                            .await
+                            .map_err(AppError::Database)?;
+
+                            sqlx::query(
+                                "INSERT INTO task_results \
+                                 (id, task_id, step_number, engine_slot, result_content, created_at) \
+                                 VALUES (uuid_generate_v4(), $1, 1, $2, $3, NOW())"
+                            )
+                            .bind(task_id)
+                            .bind(&result.model)
+                            .bind(&result.content)
+                            .execute(&state.db)
+                            .await
+                            .map_err(AppError::Database)?;
+
+                            tracing::info!(
+                                task_id = %task_id,
+                                tokens = result.tokens,
+                                "Relay inference result stored — task FINAL"
+                            );
+
+                            return Ok((StatusCode::CREATED, Json(QueryResponse {
+                                decomposition: None,
+                                task_id: Some(task_id),
+                                needs_approval: false,
+                                relay_endpoint: None,
+                            })));
+                        }
+                        Ok(Err(_)) => {
+                            tracing::warn!(task_id = %task_id, "Relay oneshot sender dropped");
+                        }
+                        Err(_) => {
+                            tracing::warn!(
+                                task_id = %task_id,
+                                request_id = %request_id,
+                                "Relay inference timed out after 30 s — falling back to browser relay"
+                            );
+                            state.pending_relays.write().await.remove(&request_id);
+                        }
+                    }
+                }
+                Err(e) => {
+                    tracing::warn!(error = %e, "relay_tx send failed — relay may be disconnecting");
+                    state.pending_relays.write().await.remove(&request_id);
+                }
+            }
+        }
+    }
+
+    // ── Browser relay fallback ────────────────────────────────────────────────
+    // Replit's server can't reach local/LAN addresses so health checks mark them
+    // offline — but the browser running on the user's machine CAN.
     let relay_endpoint: Option<String> = sqlx::query_scalar(
         "SELECT endpoint_url FROM engine_configs \
          WHERE org_id = $1 AND endpoint_url IS NOT NULL AND endpoint_url <> '' \

@@ -5,7 +5,7 @@ use yoda_inference_router::health::SharedHealthState;
 use yoda_orchestrator::agent::AgentRegistry;
 
 use crate::websocket::PipelineChannels;
-use crate::cube_relay::{RelaySenders, PendingRelays};
+use crate::cube_relay::{PendingRelays, RelayTx};
 
 /// Shared application state, cloneable (all fields are Arc-like or Clone).
 #[derive(Clone)]
@@ -30,6 +30,12 @@ pub struct AppState {
     pub lineages_path: String,
     /// WebSocket broadcast channels per project.
     pub pipeline_channels: PipelineChannels,
+    /// PlenumLAN relay sender — Some when relay is connected, None otherwise.
+    /// query.rs checks this to decide whether to route through the relay or
+    /// fall back to the browser relay.
+    pub relay_tx: RelayTx,
+    /// Pending inference requests awaiting a relay response (keyed by request_id).
+    pub pending_relays: PendingRelays,
 }
 
 impl AppState {
@@ -64,6 +70,8 @@ impl AppState {
                 .expect("Failed to build HTTP client"),
             lineages_path,
             pipeline_channels: crate::websocket::new_pipeline_channels(),
+            relay_tx: crate::cube_relay::new_relay_tx(),
+            pending_relays: crate::cube_relay::new_pending_relays(),
         }
     }
 }
