@@ -98,13 +98,14 @@ export function ProjectListPage() {
                 style={{ clipPath: BEVEL }}
               />
 
-              {/* ── Chamfer highlight ─────────────────────────────────────
-                  1px inside the border — a thin white line that traces
-                  the bevel diagonal, giving the cut a polished edge.     */}
-              <div
-                className="absolute inset-[1px] bg-white/[0.12] pointer-events-none"
-                style={{ clipPath: BEVEL }}
-              />
+              {/* ── Chamfer corner highlights ─────────────────────────────
+                  Four small divs, one at each corner, each clipped to
+                  just the diagonal strip — white line on the bevel cut
+                  only, not along the straight edges.                     */}
+              <div className="absolute top-[1px] left-[1px] w-[10px] h-[10px] bg-white/30 pointer-events-none" style={{ clipPath: 'polygon(75% 0%, 85% 0%, 0% 85%, 0% 75%)' }} />
+              <div className="absolute top-[1px] right-[1px] w-[10px] h-[10px] bg-white/30 pointer-events-none" style={{ clipPath: 'polygon(15% 0%, 25% 0%, 100% 75%, 100% 85%)' }} />
+              <div className="absolute bottom-[1px] right-[1px] w-[10px] h-[10px] bg-white/30 pointer-events-none" style={{ clipPath: 'polygon(100% 15%, 100% 25%, 25% 100%, 15% 100%)' }} />
+              <div className="absolute bottom-[1px] left-[1px] w-[10px] h-[10px] bg-white/30 pointer-events-none" style={{ clipPath: 'polygon(0% 15%, 0% 25%, 75% 100%, 85% 100%)' }} />
 
               {/* ── Card content ──────────────────────────────────────────
                   2px margin: 1px border + 1px highlight both visible.    */}
