@@ -49,6 +49,7 @@ pub fn build_router(state: AppState) -> Router {
         .route("/api/salvi/inter-cube/crs/stats", get(crs_stats))
         .route("/api/salvi/inter-cube/topology", get(crs_topology))
         .route("/api/salvi/inter-cube/fts/status", get(crs_fts_status))
+        .route("/api/salvi/inter-cube/node/info", get(node_info))
         .route("/api/monitoring/registered-nodes", get(monitoring_registered_nodes))
         .route("/api/yoda/crs/session/{token}", get(crs_session));
 
@@ -735,6 +736,56 @@ async fn crs_fts_status() -> Result<(StatusCode, Json<serde_json::Value>), AppEr
         .await
         .map_err(|e| AppError::Internal(format!("CRS response: {e}")))?;
     Ok((status, Json(json)))
+}
+
+/// GET /api/salvi/inter-cube/node/info
+/// Returns identity + port config for the most recently heartbeated cube node.
+async fn node_info(
+    State(state): State<AppState>,
+) -> Result<Json<serde_json::Value>, AppError> {
+    let row = sqlx::query_as::<_, (String, String)>(
+        "SELECT address_str, endpoint FROM crs_registrations \
+         WHERE last_heartbeat > NOW() - INTERVAL '5 minutes' \
+         ORDER BY last_heartbeat DESC LIMIT 1",
+    )
+    .fetch_optional(&state.db)
+    .await
+    .map_err(AppError::Database)?;
+
+    match row {
+        None => Ok(Json(serde_json::json!({ "error": "No active node", "address": null }))),
+        Some((addr, endpoint)) => {
+            // Format as dotted groups of 3: 1111111111112 → 111.111.111.111.2
+            let dotted = addr
+                .as_bytes()
+                .chunks(3)
+                .map(|c| std::str::from_utf8(c).unwrap_or(""))
+                .collect::<Vec<_>>()
+                .join(".");
+
+            // Parse engine port from stored endpoint (e.g., "10.0.0.35:8080" → "8080")
+            let engine_port = endpoint
+                .rsplit(':')
+                .next()
+                .unwrap_or("8080")
+                .to_string();
+
+            let crs_url = std::env::var("REPLIT_URL")
+                .or_else(|_| std::env::var("CRS_URL"))
+                .unwrap_or_else(|_| "https://plenumnet.replit.app".to_string());
+
+            Ok(Json(serde_json::json!({
+                "address":       addr,
+                "addressDotted": dotted,
+                "mode":          "cube",
+                "crsUrl":        crs_url,
+                "ports": {
+                    "engine": engine_port,
+                    "node":   "8081"
+                }
+            })))
+        }
+    }
 }
 
 /// GET /api/monitoring/registered-nodes

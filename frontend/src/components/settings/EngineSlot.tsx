@@ -17,6 +17,8 @@ import {
   Trash2,
   Wifi,
   WifiOff,
+  ExternalLink,
+  RefreshCcw,
 } from 'lucide-react';
 import { ModelInstallModal } from './ModelInstallModal';
 import {
@@ -513,6 +515,8 @@ export function EngineSlotCard({
   const [downloaded, markDownloaded] = useDownloadedModels();
   type ProbeResult = { reachable: boolean; latency_ms?: number; http_status?: number; error?: string };
   const [probeState, setProbeState] = useState<null | 'loading' | ProbeResult>(null);
+  const [syncing,    setSyncing]    = useState(false);
+  const [syncResult, setSyncResult] = useState<'ok' | 'fail' | null>(null);
 
   type InstallPhase = 'idle' | 'downloaded' | 'polling' | 'connected' | 'timeout';
   const [installPhase,   setInstallPhase]   = useState<InstallPhase>('idle');
@@ -594,6 +598,49 @@ export function EngineSlotCard({
       qc.invalidateQueries({ queryKey: ['engines'] });
     } catch {
       setProbeState({ reachable: false, error: 'Network error — could not reach server' });
+    }
+  }
+
+  async function openNewNode() {
+    try {
+      const res = await fetch('/api/salvi/inter-cube/node/info');
+      if (res.ok) {
+        const info = await res.json();
+        const port = info?.ports?.engine ?? '8080';
+        window.open(`http://localhost:${port}`, '_blank', 'noopener,noreferrer');
+      } else {
+        window.open('http://localhost:8080', '_blank', 'noopener,noreferrer');
+      }
+    } catch {
+      window.open('http://localhost:8080', '_blank', 'noopener,noreferrer');
+    }
+  }
+
+  async function syncNode() {
+    setSyncing(true);
+    setSyncResult(null);
+    try {
+      const token = getStoredToken() ?? '';
+      const res = await fetch(`/api/settings/engines/${slot}/probe`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.reachable) {
+          qc.invalidateQueries({ queryKey: ['engines'] });
+          setSyncResult('ok');
+          return;
+        }
+      }
+      // Probe could not confirm — force mark online so UI reflects running state
+      markOnline.mutate(slot, {
+        onSuccess: () => { setSyncResult('ok'); qc.invalidateQueries({ queryKey: ['engines'] }); },
+        onError:   () => setSyncResult('fail'),
+      });
+    } catch {
+      setSyncResult('fail');
+    } finally {
+      setSyncing(false);
     }
   }
 
@@ -978,6 +1025,44 @@ export function EngineSlotCard({
                 </div>
               )}
             </div>
+
+            {/* ── Node actions — Open New Node + Sync Node ── */}
+            {modelName && (
+              <div className="flex gap-2 pt-1">
+                <button
+                  onClick={openNewNode}
+                  className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border border-[var(--color-border-default)] bg-[var(--color-surface-secondary)] text-[var(--color-text-muted)] text-sm font-medium hover:text-[var(--color-text-secondary)] hover:border-[var(--color-border-strong)] transition-colors"
+                >
+                  <ExternalLink className="w-3.5 h-3.5" />
+                  Open New Node
+                </button>
+                <button
+                  onClick={syncNode}
+                  disabled={syncing || markOnline.isPending}
+                  className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border border-[var(--color-plex-500)]/40 bg-[var(--color-plex-500)]/6 text-[var(--color-plex-400)] text-sm font-medium hover:bg-[var(--color-plex-500)]/12 hover:border-[var(--color-plex-500)]/70 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {syncing || markOnline.isPending ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <RefreshCcw className="w-3.5 h-3.5" />
+                  )}
+                  Sync Node
+                </button>
+              </div>
+            )}
+            {/* Sync result feedback */}
+            {syncResult && (
+              <div className={`flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-md ${
+                syncResult === 'ok'
+                  ? 'bg-sky-400/8 border border-sky-400/20 text-sky-300'
+                  : 'bg-[var(--color-surface-tertiary)] border border-[var(--color-border-subtle)] text-[var(--color-text-muted)]'
+              }`}>
+                {syncResult === 'ok'
+                  ? <><CheckCircle2 className="w-3 h-3 flex-shrink-0" /> Node synced — connection confirmed</>
+                  : <><XCircle className="w-3 h-3 flex-shrink-0" /> Sync failed — is the daemon running?</>
+                }
+              </div>
+            )}
           </>
         )}
 
