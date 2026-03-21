@@ -54,7 +54,7 @@ export function ProjectListPage() {
 
   // 45° chamfered corners — clip-path polygon cuts each corner at a 45-degree diagonal.
   // 16px bevel size matches the visual weight of the previous rounded-xl.
-  const BEVEL = 'polygon(16px 0%, calc(100% - 16px) 0%, 100% 16px, 100% calc(100% - 16px), calc(100% - 16px) 100%, 16px 100%, 0% calc(100% - 16px), 0% 16px)';
+  const BEVEL = 'polygon(8px 0%, calc(100% - 8px) 0%, 100% 8px, 100% calc(100% - 8px), calc(100% - 8px) 100%, 8px 100%, 0% calc(100% - 8px), 0% 8px)';
 
   return (
     <div className="p-6 lg:p-8 max-w-5xl mx-auto animate-fade-in">
