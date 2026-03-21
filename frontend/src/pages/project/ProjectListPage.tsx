@@ -52,6 +52,10 @@ export function ProjectListPage() {
     subtitle: 'Manage your Yoda & Ronin projects',
   });
 
+  // 45° chamfered corners — clip-path polygon cuts each corner at a 45-degree diagonal.
+  // 16px bevel size matches the visual weight of the previous rounded-xl.
+  const BEVEL = 'polygon(16px 0%, calc(100% - 16px) 0%, 100% 16px, 100% calc(100% - 16px), calc(100% - 16px) 100%, 16px 100%, 0% calc(100% - 16px), 0% 16px)';
+
   return (
     <div className="p-6 lg:p-8 max-w-5xl mx-auto animate-fade-in">
       {/* Action bar */}
@@ -81,58 +85,77 @@ export function ProjectListPage() {
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {projects.map((p) => (
+            /* Outer wrapper: positions the border layer + content layer */
             <div
               key={p.id}
-              className="group relative bg-[var(--color-surface-secondary)] border border-[var(--color-border-subtle)] rounded-xl p-5 hover:border-[var(--color-gold-500)]/30 transition-colors cursor-pointer"
+              className="group relative cursor-pointer"
               onClick={() => navigate(`/projects/${p.id}`)}
             >
-              {/* Mode badge */}
-              <div className="flex items-center justify-between mb-3">
-                <span
-                  className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-semibold uppercase tracking-wider border ${
-                    p.mode === 'ronin'
-                      ? 'bg-[var(--color-ronin-500)]/10 text-[var(--color-ronin-400)] border-[var(--color-ronin-500)]/20'
-                      : 'bg-[var(--color-yoda-500)]/10 text-[var(--color-yoda-400)] border-[var(--color-yoda-500)]/20'
-                  }`}
-                >
-                  {p.mode === 'ronin' ? <Swords className="w-3 h-3" /> : <GraduationCap className="w-3 h-3" />}
-                  {p.mode}
-                </span>
+              {/* ── Bevel border layer ────────────────────────────────────
+                  Absolutely fills the outer div. clip-path creates the
+                  45° chamfered corners. group-hover changes the border
+                  from subtle to gold to match the original hover style.   */}
+              <div
+                className="absolute inset-0 bg-[var(--color-border-subtle)] group-hover:bg-[var(--color-gold-500)]/40 transition-colors pointer-events-none"
+                style={{ clipPath: BEVEL }}
+              />
 
-                {/* Context menu */}
-                <div className="relative" onClick={(e) => e.stopPropagation()}>
-                  <button
-                    onClick={() => setMenuOpen(menuOpen === p.id ? null : p.id)}
-                    className="p-1 rounded-lg text-[var(--color-text-muted)] opacity-0 group-hover:opacity-100 hover:bg-[var(--color-surface-tertiary)] transition-all"
+              {/* ── Card content ──────────────────────────────────────────
+                  1px margin exposes the border layer on all edges including
+                  the diagonal bevel cuts. Same clip-path keeps content
+                  flush with the bevel shape.                              */}
+              <div
+                className="relative bg-[var(--color-surface-secondary)] p-5 group-hover:bg-[var(--color-surface-secondary)] transition-colors"
+                style={{ clipPath: BEVEL, margin: '1px' }}
+              >
+                {/* Mode badge */}
+                <div className="flex items-center justify-between mb-3">
+                  <span
+                    className={`inline-flex items-center gap-1.5 px-2 py-0.5 text-xs font-semibold uppercase tracking-wider border ${
+                      p.mode === 'ronin'
+                        ? 'bg-[var(--color-ronin-500)]/10 text-[var(--color-ronin-400)] border-[var(--color-ronin-500)]/20'
+                        : 'bg-[var(--color-yoda-500)]/10 text-[var(--color-yoda-400)] border-[var(--color-yoda-500)]/20'
+                    }`}
                   >
-                    <MoreVertical className="w-4 h-4" />
-                  </button>
-                  {menuOpen === p.id && (
-                    <>
-                      <div className="fixed inset-0 z-30" onClick={() => setMenuOpen(null)} />
-                      <div className="absolute right-0 top-full mt-1 z-40 w-36 rounded-lg bg-[var(--color-surface-tertiary)] border border-[var(--color-border-default)] shadow-xl py-1">
-                        <button
-                          onClick={() => handleDelete(p.id)}
-                          className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-400 hover:bg-red-500/10 transition-colors"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                          Delete
-                        </button>
-                      </div>
-                    </>
-                  )}
+                    {p.mode === 'ronin' ? <Swords className="w-3 h-3" /> : <GraduationCap className="w-3 h-3" />}
+                    {p.mode}
+                  </span>
+
+                  {/* Context menu */}
+                  <div className="relative" onClick={(e) => e.stopPropagation()}>
+                    <button
+                      onClick={() => setMenuOpen(menuOpen === p.id ? null : p.id)}
+                      className="p-1 rounded-sm text-[var(--color-text-muted)] opacity-0 group-hover:opacity-100 hover:bg-[var(--color-surface-tertiary)] transition-all"
+                    >
+                      <MoreVertical className="w-4 h-4" />
+                    </button>
+                    {menuOpen === p.id && (
+                      <>
+                        <div className="fixed inset-0 z-30" onClick={() => setMenuOpen(null)} />
+                        <div className="absolute right-0 top-full mt-1 z-40 w-36 rounded-lg bg-[var(--color-surface-tertiary)] border border-[var(--color-border-default)] shadow-xl py-1">
+                          <button
+                            onClick={() => handleDelete(p.id)}
+                            className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-400 hover:bg-red-500/10 transition-colors"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                            Delete
+                          </button>
+                        </div>
+                      </>
+                    )}
+                  </div>
                 </div>
-              </div>
 
-              {/* Name */}
-              <h3 className="text-sm font-semibold text-[var(--color-text-primary)] mb-1 group-hover:text-[var(--color-gold-400)] transition-colors">
-                {p.name}
-              </h3>
+                {/* Name */}
+                <h3 className="text-sm font-semibold text-[var(--color-text-primary)] mb-1 group-hover:text-[var(--color-gold-400)] transition-colors">
+                  {p.name}
+                </h3>
 
-              {/* Meta */}
-              <div className="flex items-center gap-1.5 text-sm text-[var(--color-text-muted)]">
-                <Clock className="w-3 h-3" />
-                {new Date(p.updated_at).toLocaleDateString()}
+                {/* Meta */}
+                <div className="flex items-center gap-1.5 text-sm text-[var(--color-text-muted)]">
+                  <Clock className="w-3 h-3" />
+                  {new Date(p.updated_at).toLocaleDateString()}
+                </div>
               </div>
             </div>
           ))}
