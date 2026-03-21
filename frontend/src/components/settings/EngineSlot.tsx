@@ -814,13 +814,13 @@ export function EngineSlotCard({
                 {config.health_status ?? 'unknown'}
                 {config.latency_ms ? ` · ${config.latency_ms}ms` : ''}
               </span>
-              {/* Manual override for self-hosted engines: server-side probe can't
-                  reach localhost — let the user confirm the engine is running. */}
-              {mode === 'self_hosted' && config.health_status !== 'online' && modelName && (
+              {/* Manual override: server-side probe can't reach local engines
+                  or validate cloud API keys — let the user confirm. */}
+              {config.health_status !== 'online' && modelName && (
                 <button
                   onClick={() => markOnline.mutate(slot)}
                   disabled={markOnline.isPending}
-                  title="Mark this engine online (your browser can reach it even if the server probe cannot)"
+                  title="Mark this engine online — use when the engine is running but the server probe cannot verify it"
                   className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium border border-[var(--color-plex-500)]/40 text-[var(--color-plex-400)] hover:bg-[var(--color-plex-500)]/10 disabled:opacity-50 transition-colors"
                 >
                   {markOnline.isPending
