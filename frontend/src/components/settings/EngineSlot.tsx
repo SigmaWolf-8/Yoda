@@ -25,6 +25,7 @@ import {
   triggerDownload,
 } from './installScripts';
 import { useUpdateEngine, useDeleteEngine, useMarkEngineOnline, useMarkEngineOffline } from '../../api/hooks';
+import { getStoredToken } from '../../api/client';
 import { useToast } from '../common/Toast';
 import type {
   EngineConfig,
@@ -580,9 +581,14 @@ export function EngineSlotCard({
   async function probeEndpoint() {
     setProbeState('loading');
     try {
+      const token = getStoredToken() ?? '';
       const res = await fetch(`/api/settings/engines/${slot}/probe`, {
-        headers: { Authorization: `Bearer ${localStorage.getItem('token') ?? ''}` },
+        headers: { Authorization: `Bearer ${token}` },
       });
+      if (res.status === 401) {
+        setProbeState({ reachable: false, error: 'Session expired — refresh the page to log in again' });
+        return;
+      }
       const data: ProbeResult = await res.json();
       setProbeState(data);
       qc.invalidateQueries({ queryKey: ['engines'] });
@@ -889,13 +895,6 @@ export function EngineSlotCard({
                       Install
                     </button>
                   )}
-                  <button
-                    onClick={() => setInstallModalMode('connect')}
-                    className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border border-[var(--color-plex-500)]/40 bg-[var(--color-plex-500)]/8 text-[var(--color-plex-400)] text-sm font-medium hover:bg-[var(--color-plex-500)]/15 hover:border-[var(--color-plex-500)]/70 transition-colors"
-                  >
-                    <Radio className="w-3.5 h-3.5" />
-                    Connect
-                  </button>
                 </div>
 
                 {/* Inline install status — replaces the modal for install flow */}
