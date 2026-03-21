@@ -455,7 +455,7 @@ function ModelCard({ modelName, hostRam, reservedRam }: { modelName: string; hos
   const fit = computeFit(info, hostRam, reservedRam);
   const ram = ramDisplay(info);
   return (
-    <div className="mt-2 px-3 py-2.5 rounded-lg bg-[var(--color-surface-secondary)] border border-[var(--color-border-subtle)] text-sm space-y-1.5">
+    <div className="mt-1.5 px-3 py-2 rounded-lg bg-[var(--color-surface-secondary)] border border-[var(--color-border-subtle)] text-sm space-y-1">
       <div className="flex items-center gap-2 flex-wrap">
         <span className="px-1.5 py-0.5 rounded bg-[var(--color-gold-500)]/10 text-[var(--color-gold-400)] font-medium text-sm">
           {info.type}
@@ -801,10 +801,10 @@ export function EngineSlotCard({
   };
 
   return (
-    <div className="bg-[var(--color-surface-primary)] border border-[var(--color-border-subtle)] rounded-xl p-5">
+    <div className="bg-[var(--color-surface-primary)] border border-[var(--color-border-subtle)] rounded-b-xl rounded-tr-xl p-4">
       {/* Header */}
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-base font-semibold text-[var(--color-text-primary)]">{SLOT_LABELS[slot]}</h3>
+      <div className="flex items-center justify-between mb-2.5">
+        <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">{SLOT_LABELS[slot]}</h3>
         <div className="flex items-center gap-2">
           {config && (
             <>
@@ -819,7 +819,7 @@ export function EngineSlotCard({
       </div>
 
       {/* Mode selector */}
-      <div className="flex gap-2 mb-4">
+      <div className="flex gap-2 mb-2.5">
         {([
           { m: 'self_hosted' as const, icon: Server, label: 'Self-Hosted' },
           { m: 'commercial' as const, icon: Cloud,  label: 'Commercial' },
@@ -828,7 +828,7 @@ export function EngineSlotCard({
           <Tooltip key={m} content={MODE_TIPS[m]}>
             <button
               onClick={() => changeMode(m)}
-              className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-medium border transition-colors ${
+              className={`flex-1 flex items-center justify-center gap-2 py-1.5 rounded-lg text-sm font-medium border transition-colors ${
                 mode === m
                   ? 'bg-[var(--color-gold-500)]/10 text-[var(--color-gold-400)] border-[var(--color-gold-500)]/30'
                   : 'bg-[var(--color-surface-secondary)] text-[var(--color-text-secondary)] border-[var(--color-border-default)] hover:border-[var(--color-border-strong)]'
@@ -841,12 +841,12 @@ export function EngineSlotCard({
         ))}
       </div>
 
-      <div className="space-y-3">
+      <div className="space-y-2">
         {/* ── Self-Hosted fields ────────────────────────────────────────── */}
         {mode === 'self_hosted' && (
           <>
             {/* RAM context banner — shows available RAM accounting for other slots */}
-            <div className="flex items-start gap-2 px-3 py-2 rounded-lg bg-[var(--color-surface-secondary)] border border-[var(--color-border-subtle)] text-sm text-[var(--color-text-muted)] leading-relaxed">
+            <div className="flex items-start gap-2 px-2.5 py-1.5 rounded-lg bg-[var(--color-surface-secondary)] border border-[var(--color-border-subtle)] text-xs text-[var(--color-text-muted)] leading-relaxed">
               <span className="mt-0.5 flex-shrink-0">💡</span>
               <span>
                 {reservedRam > 0
@@ -879,7 +879,7 @@ export function EngineSlotCard({
                 onFocus={() => { setSearchQuery(''); setShowSuggest(true); }}
                 onBlur={() => setTimeout(() => { setShowSuggest(false); setSearchQuery(''); }, 150)}
                 placeholder="e.g. Llama-3.1-8B"
-                className="w-full px-3 py-2 rounded-lg bg-[var(--color-surface-secondary)] border border-[var(--color-border-default)] text-sm text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-gold-500)] focus:ring-1 focus:ring-[var(--color-gold-500)]/30 transition-colors"
+                className="w-full px-3 py-1.5 rounded-lg bg-[var(--color-surface-secondary)] border border-[var(--color-border-default)] text-sm text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-gold-500)] focus:ring-1 focus:ring-[var(--color-gold-500)]/30 transition-colors"
               />
               {showSuggest && (
                 <div className="absolute z-20 w-full mt-1 overflow-y-auto rounded-lg bg-[var(--color-surface-secondary)] border border-[var(--color-border-default)] shadow-lg" style={{ maxHeight: '32rem' }}>
@@ -949,12 +949,12 @@ export function EngineSlotCard({
 
             {/* Install / Connect buttons — visible for all self-hosted models */}
             {modelName && GGUF_INFO[modelName] && (
-              <div className="space-y-2">
+              <div className="space-y-1.5">
                 <div className="flex gap-2">
                   {downloaded.has(modelName) ? (
                     <button
                       onClick={handleDirectInstall}
-                      className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border border-[var(--color-plex-500)]/40 bg-[var(--color-plex-500)]/8 text-[var(--color-plex-400)] text-sm font-medium hover:bg-[var(--color-plex-500)]/15 hover:border-[var(--color-plex-500)]/70 transition-colors"
+                      className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg border border-[var(--color-plex-500)]/40 bg-[var(--color-plex-500)]/8 text-[var(--color-plex-400)] text-sm font-medium hover:bg-[var(--color-plex-500)]/15 hover:border-[var(--color-plex-500)]/70 transition-colors"
                     >
                       <HardDriveDownload className="w-3.5 h-3.5" />
                       Re-Install
@@ -962,7 +962,7 @@ export function EngineSlotCard({
                   ) : (
                     <button
                       onClick={handleDirectInstall}
-                      className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border border-[var(--color-gold-500)]/40 bg-[var(--color-gold-500)]/8 text-[var(--color-gold-400)] text-sm font-medium hover:bg-[var(--color-gold-500)]/15 hover:border-[var(--color-gold-500)]/70 transition-colors"
+                      className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg border border-[var(--color-gold-500)]/40 bg-[var(--color-gold-500)]/8 text-[var(--color-gold-400)] text-sm font-medium hover:bg-[var(--color-gold-500)]/15 hover:border-[var(--color-gold-500)]/70 transition-colors"
                     >
                       <Download className="w-3.5 h-3.5" />
                       Install
@@ -972,7 +972,7 @@ export function EngineSlotCard({
 
                 {/* Inline install status — replaces the modal for install flow */}
                 {installPhase === 'downloaded' && (
-                  <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-[var(--color-gold-500)]/8 border border-[var(--color-gold-500)]/25 text-sm text-[var(--color-gold-300)]">
+                  <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-[var(--color-gold-500)]/8 border border-[var(--color-gold-500)]/25 text-xs text-[var(--color-gold-300)]">
                     <HardDriveDownload className="w-3 h-3 flex-shrink-0" />
                     <span>
                       Installer downloaded — double-click <strong>yoda-installer.bat</strong> to run it, then click <strong>Mark Online</strong> when your engine is ready.
@@ -1039,7 +1039,7 @@ export function EngineSlotCard({
                 value={endpoint}
                 onChange={(e) => { setEndpoint(e.target.value); setProbeState(null); }}
                 placeholder="http://localhost:11434"
-                className="w-full px-3 py-2 rounded-lg bg-[var(--color-surface-secondary)] border border-[var(--color-border-default)] text-sm text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-gold-500)] focus:ring-1 focus:ring-[var(--color-gold-500)]/30 transition-colors"
+                className="w-full px-3 py-1.5 rounded-lg bg-[var(--color-surface-secondary)] border border-[var(--color-border-default)] text-sm text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-gold-500)] focus:ring-1 focus:ring-[var(--color-gold-500)]/30 transition-colors"
               />
               {probeState !== null && probeState !== 'loading' && (
                 <div className={`mt-1.5 flex items-center gap-1.5 text-sm px-2.5 py-1.5 rounded-md ${probeState.reachable ? 'bg-[var(--color-plex-500)]/10 text-[var(--color-plex-400)]' : 'bg-[var(--color-surface-tertiary)] text-[var(--color-text-muted)]'}`}>
@@ -1073,7 +1073,7 @@ export function EngineSlotCard({
                 value={cubeEndpoint}
                 onChange={(e) => setCubeEndpoint(e.target.value)}
                 placeholder={`http://localhost:${CUBE_PORT[slot]}`}
-                className="w-full px-3 py-2 rounded-lg bg-[var(--color-surface-secondary)] border border-[var(--color-border-default)] text-sm text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-gold-500)] focus:ring-1 focus:ring-[var(--color-gold-500)]/30 transition-colors"
+                className="w-full px-3 py-1.5 rounded-lg bg-[var(--color-surface-secondary)] border border-[var(--color-border-default)] text-sm text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-gold-500)] focus:ring-1 focus:ring-[var(--color-gold-500)]/30 transition-colors"
               />
               <p className="text-[11px] text-[var(--color-text-muted)]/80 leading-snug">
                 PlenumNET Cube daemon port paired with this engine slot.
@@ -1083,10 +1083,10 @@ export function EngineSlotCard({
 
             {/* ── Node actions — Open New Node + Sync Node ── */}
             {modelName && (
-              <div className="flex gap-2 pt-1">
+              <div className="flex gap-2">
                 <button
                   onClick={openNewNode}
-                  className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border border-[var(--color-border-default)] bg-[var(--color-surface-secondary)] text-[var(--color-text-muted)] text-sm font-medium hover:text-[var(--color-text-secondary)] hover:border-[var(--color-border-strong)] transition-colors"
+                  className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg border border-[var(--color-border-default)] bg-[var(--color-surface-secondary)] text-[var(--color-text-muted)] text-sm font-medium hover:text-[var(--color-text-secondary)] hover:border-[var(--color-border-strong)] transition-colors"
                 >
                   <ExternalLink className="w-3.5 h-3.5" />
                   Open New Node
@@ -1094,7 +1094,7 @@ export function EngineSlotCard({
                 <button
                   onClick={syncNode}
                   disabled={syncing || markOnline.isPending}
-                  className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border border-[var(--color-plex-500)]/40 bg-[var(--color-plex-500)]/6 text-[var(--color-plex-400)] text-sm font-medium hover:bg-[var(--color-plex-500)]/12 hover:border-[var(--color-plex-500)]/70 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg border border-[var(--color-plex-500)]/40 bg-[var(--color-plex-500)]/6 text-[var(--color-plex-400)] text-sm font-medium hover:bg-[var(--color-plex-500)]/12 hover:border-[var(--color-plex-500)]/70 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {syncing || markOnline.isPending ? (
                     <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -1129,7 +1129,7 @@ export function EngineSlotCard({
               <select
                 value={provider}
                 onChange={(e) => setProvider(e.target.value)}
-                className="w-full px-3 py-2 rounded-lg bg-[var(--color-surface-secondary)] border border-[var(--color-border-default)] text-sm text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-gold-500)] transition-colors"
+                className="w-full px-3 py-1.5 rounded-lg bg-[var(--color-surface-secondary)] border border-[var(--color-border-default)] text-sm text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-gold-500)] transition-colors"
               >
                 <option value="">Select provider…</option>
                 {Object.keys(PROVIDERS).map((p) => (
@@ -1143,7 +1143,7 @@ export function EngineSlotCard({
                 <select
                   value={authType}
                   onChange={(e) => setAuthType(e.target.value as AuthType)}
-                  className="w-full px-3 py-2 rounded-lg bg-[var(--color-surface-secondary)] border border-[var(--color-border-default)] text-sm text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-gold-500)] transition-colors"
+                  className="w-full px-3 py-1.5 rounded-lg bg-[var(--color-surface-secondary)] border border-[var(--color-border-default)] text-sm text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-gold-500)] transition-colors"
                 >
                   <option value="bearer">Bearer</option>
                   <option value="api_key">x-api-key</option>
@@ -1156,7 +1156,7 @@ export function EngineSlotCard({
                   <select
                     value={modelName}
                     onChange={(e) => changeModel(e.target.value)}
-                    className="w-full px-3 py-2 rounded-lg bg-[var(--color-surface-secondary)] border border-[var(--color-border-default)] text-sm text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-gold-500)] transition-colors"
+                    className="w-full px-3 py-1.5 rounded-lg bg-[var(--color-surface-secondary)] border border-[var(--color-border-default)] text-sm text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-gold-500)] transition-colors"
                   >
                     <option value="">Select model…</option>
                     {PROVIDERS[provider].models
@@ -1175,7 +1175,7 @@ export function EngineSlotCard({
                     value={modelName}
                     onChange={(e) => changeModel(e.target.value)}
                     placeholder="Model name"
-                    className="w-full px-3 py-2 rounded-lg bg-[var(--color-surface-secondary)] border border-[var(--color-border-default)] text-sm text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-gold-500)] transition-colors"
+                    className="w-full px-3 py-1.5 rounded-lg bg-[var(--color-surface-secondary)] border border-[var(--color-border-default)] text-sm text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-gold-500)] transition-colors"
                   />
                 )}
               </div>
@@ -1190,7 +1190,7 @@ export function EngineSlotCard({
                 value={credentials}
                 onChange={(e) => setCredentials(e.target.value)}
                 placeholder="••••••••••••••••"
-                className="w-full px-3 py-2 rounded-lg bg-[var(--color-surface-secondary)] border border-[var(--color-border-default)] text-sm text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-gold-500)] focus:ring-1 focus:ring-[var(--color-gold-500)]/30 transition-colors"
+                className="w-full px-3 py-1.5 rounded-lg bg-[var(--color-surface-secondary)] border border-[var(--color-border-default)] text-sm text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-gold-500)] focus:ring-1 focus:ring-[var(--color-gold-500)]/30 transition-colors"
               />
             </div>
             {config?.daily_messages_limit && (
@@ -1222,20 +1222,20 @@ export function EngineSlotCard({
             value={familyOverride}
             onChange={(e) => setFamilyOverride(e.target.value)}
             placeholder="e.g. qwen, deepseek, llama"
-            className="w-full px-3 py-2 rounded-lg bg-[var(--color-surface-secondary)] border border-[var(--color-border-default)] text-sm text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-gold-500)] transition-colors"
+            className="w-full px-3 py-1.5 rounded-lg bg-[var(--color-surface-secondary)] border border-[var(--color-border-default)] text-sm text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-gold-500)] transition-colors"
           />
         </div>
       </div>
 
       {/* Actions */}
-      <div className="mt-4 flex items-center justify-between gap-2">
+      <div className="mt-3 flex items-center justify-between gap-2">
         {/* Clear slot — two-click confirm pattern */}
         {config && (
           <button
             onClick={handleClear}
             onBlur={() => setConfirmClear(false)}
             disabled={clearSlot.isPending}
-            className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium border transition-colors ${
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors ${
               confirmClear
                 ? 'bg-[var(--color-plex-600)]/20 text-[var(--color-plex-300)] border-[var(--color-plex-500)]/40 hover:bg-[var(--color-plex-600)]/30'
                 : 'bg-[var(--color-surface-secondary)] text-[var(--color-text-muted)] border-[var(--color-border-default)] hover:text-[var(--color-plex-400)] hover:border-[var(--color-plex-500)]/40'
@@ -1251,7 +1251,7 @@ export function EngineSlotCard({
         <button
           onClick={handleSave}
           disabled={update.isPending || !modelName}
-          className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[var(--color-gold-500)] text-[var(--color-navy-950)] text-sm font-semibold hover:bg-[var(--color-gold-400)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          className="flex items-center gap-2 px-4 py-1.5 rounded-lg bg-[var(--color-gold-500)] text-[var(--color-navy-950)] text-sm font-semibold hover:bg-[var(--color-gold-400)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
         >
           {update.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
           Save

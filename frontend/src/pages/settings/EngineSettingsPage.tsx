@@ -26,6 +26,7 @@ type SlotRecord<T> = Record<EngineSlot, T>;
 export function EngineSettingsPage() {
   const { data: engines } = useEngineConfigs();
 
+  const [activeTab, setActiveTab] = useState<EngineSlot>('a');
   const [intensity, setIntensity] = useState<'full' | 'medium' | 'light'>('full');
   const [budget, setBudget] = useState<number | null>(30);
   const [hostRam, setHostRam] = useState<number>(loadHostRam);
@@ -217,20 +218,50 @@ export function EngineSettingsPage() {
         })()}
       </div>
 
-      {/* Engine Slots */}
-      <div className="space-y-4 mb-8">
-        {SLOTS.map((slot) => (
-          <EngineSlotCard
-            key={slot}
-            slot={slot}
-            config={engineMap.get(slot)}
-            hostRam={hostRam}
-            reservedRam={reservedRamFor(slot)}
-            usedModels={usedModelsFor(slot)}
-            onModelChange={(m) => setLiveModels((prev) => ({ ...prev, [slot]: m }))}
-            onModeChange={(m) => setLiveModes((prev) => ({ ...prev, [slot]: m }))}
-          />
-        ))}
+      {/* Engine Slots — tabbed one at a time */}
+      <div className="mb-6">
+        {/* Tab bar */}
+        <div className="flex border-b border-[var(--color-border-subtle)] mb-0">
+          {SLOTS.map((slot) => {
+            const model = liveModels[slot];
+            const dot   = engineMap.get(slot)?.health_status === 'online'
+              ? 'bg-[var(--color-plex-400)]'
+              : engineMap.get(slot)?.health_status === 'suspect'
+                ? 'bg-blue-300'
+                : 'bg-[var(--color-text-muted)]/40';
+            return (
+              <button
+                key={slot}
+                onClick={() => setActiveTab(slot)}
+                className={`relative flex items-center gap-2 px-5 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors ${
+                  activeTab === slot
+                    ? 'border-[var(--color-gold-500)] text-[var(--color-gold-400)]'
+                    : 'border-transparent text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]'
+                }`}
+              >
+                <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${dot}`} />
+                Engine {slot.toUpperCase()}
+                {model && (
+                  <span className="hidden sm:inline text-[11px] text-[var(--color-text-muted)] font-normal truncate max-w-[100px]">
+                    · {model.split('-')[0]}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Active engine card — no extra wrapper border, card provides it */}
+        <EngineSlotCard
+          key={activeTab}
+          slot={activeTab}
+          config={engineMap.get(activeTab)}
+          hostRam={hostRam}
+          reservedRam={reservedRamFor(activeTab)}
+          usedModels={usedModelsFor(activeTab)}
+          onModelChange={(m) => setLiveModels((prev) => ({ ...prev, [activeTab]: m }))}
+          onModeChange={(m) => setLiveModes((prev) => ({ ...prev, [activeTab]: m }))}
+        />
       </div>
 
       {/* Diversity Validator */}
