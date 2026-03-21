@@ -1,5 +1,6 @@
 import { Server, Hash, Network, Layers, Users, Activity } from 'lucide-react';
 import { formatTernaryAddress } from '../../utils/ternary';
+import { BevelBox } from '../ui/BevelBox';
 
 interface CrsStats {
   registeredCount: number;
@@ -58,7 +59,7 @@ export function NodeCard({ stats, fts, error, nodeAddress }: Props) {
   const addr = nodeAddress ? formatTernaryAddress(nodeAddress) : '—';
 
   return (
-    <div className="bg-[var(--color-surface-secondary)] border border-[var(--color-border-subtle)] rounded-xl p-5 h-full flex flex-col">
+    <BevelBox className="bg-[var(--color-surface-secondary)] p-5 h-full flex flex-col">
       <div className="flex items-center gap-2 mb-4">
         <Server className="w-4 h-4 text-[var(--color-gold-400)]" />
         <h2 className="text-sm font-semibold text-[var(--color-text-primary)]">My Node</h2>
@@ -97,6 +98,6 @@ export function NodeCard({ stats, fts, error, nodeAddress }: Props) {
           </p>
         )}
       </div>
-    </div>
+    </BevelBox>
   );
 }

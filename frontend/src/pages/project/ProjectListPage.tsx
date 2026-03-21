@@ -13,6 +13,7 @@ import {
 import { useOrganizations, useProjects, useCreateProject, useDeleteProject } from '../../api/hooks';
 import { extractErrorMessage } from '../../types';
 import { usePageHeader } from '../../context/PageHeader';
+import { BevelBox } from '../../components/ui/BevelBox';
 
 export function ProjectListPage() {
   const navigate = useNavigate();
@@ -52,10 +53,6 @@ export function ProjectListPage() {
     subtitle: 'Manage your Yoda & Ronin projects',
   });
 
-  // 45° chamfered corners — clip-path polygon cuts each corner at a 45-degree diagonal.
-  // 16px bevel size matches the visual weight of the previous rounded-xl.
-  const BEVEL = 'polygon(8px 0%, calc(100% - 8px) 0%, 100% 8px, 100% calc(100% - 8px), calc(100% - 8px) 100%, 8px 100%, 0% calc(100% - 8px), 0% 8px)';
-
   return (
     <div className="p-6 lg:p-8 max-w-5xl mx-auto animate-fade-in">
       {/* Action bar */}
@@ -85,34 +82,12 @@ export function ProjectListPage() {
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {projects.map((p) => (
-            /* Outer wrapper: positions the border layer + content layer */
-            <div
+            <BevelBox
               key={p.id}
-              className="group relative cursor-pointer"
+              hoverBorder
+              className="bg-[var(--color-surface-secondary)] p-5 transition-colors"
               onClick={() => navigate(`/projects/${p.id}`)}
             >
-              {/* ── Bevel border layer ────────────────────────────────────
-                  Outermost — provides the 1px border color ring.         */}
-              <div
-                className="absolute inset-0 bg-[var(--color-border-subtle)] group-hover:bg-[var(--color-gold-500)]/40 transition-colors pointer-events-none"
-                style={{ clipPath: BEVEL }}
-              />
-
-              {/* ── Chamfer corner highlights ─────────────────────────────
-                  Four small divs, one at each corner, each clipped to
-                  just the diagonal strip — white line on the bevel cut
-                  only, not along the straight edges.                     */}
-              <div className="absolute top-[1px] left-[1px] w-[10px] h-[10px] bg-white/30 pointer-events-none" style={{ clipPath: 'polygon(75% 0%, 85% 0%, 0% 85%, 0% 75%)' }} />
-              <div className="absolute top-[1px] right-[1px] w-[10px] h-[10px] bg-white/30 pointer-events-none" style={{ clipPath: 'polygon(15% 0%, 25% 0%, 100% 75%, 100% 85%)' }} />
-              <div className="absolute bottom-[1px] right-[1px] w-[10px] h-[10px] bg-white/30 pointer-events-none" style={{ clipPath: 'polygon(100% 15%, 100% 25%, 25% 100%, 15% 100%)' }} />
-              <div className="absolute bottom-[1px] left-[1px] w-[10px] h-[10px] bg-white/30 pointer-events-none" style={{ clipPath: 'polygon(0% 15%, 0% 25%, 75% 100%, 85% 100%)' }} />
-
-              {/* ── Card content ──────────────────────────────────────────
-                  2px margin: 1px border + 1px highlight both visible.    */}
-              <div
-                className="relative bg-[var(--color-surface-secondary)] p-5 transition-colors"
-                style={{ clipPath: BEVEL, margin: '2px' }}
-              >
                 {/* Mode badge */}
                 <div className="flex items-center justify-between mb-3">
                   <span
@@ -161,8 +136,7 @@ export function ProjectListPage() {
                   <Clock className="w-3 h-3" />
                   {new Date(p.updated_at).toLocaleDateString()}
                 </div>
-              </div>
-            </div>
+            </BevelBox>
           ))}
         </div>
       )}
@@ -170,7 +144,7 @@ export function ProjectListPage() {
       {/* Create Project Modal */}
       {showCreate && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
-          <div className="w-full max-w-sm bg-[var(--color-surface-secondary)] border border-[var(--color-border-default)] rounded-xl p-6 animate-fade-in">
+          <BevelBox className="bg-[var(--color-surface-secondary)] p-6 animate-fade-in w-full max-w-sm">
             <h3 className="text-lg font-semibold text-[var(--color-text-primary)] mb-4">
               New Project
             </h3>
@@ -248,7 +222,7 @@ export function ProjectListPage() {
                 </button>
               </div>
             </form>
-          </div>
+          </BevelBox>
         </div>
       )}
     </div>

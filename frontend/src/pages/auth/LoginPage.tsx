@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Eye, EyeOff, Zap } from 'lucide-react';
 import { useLogin } from '../../api/hooks';
 import { extractErrorMessage } from '../../types';
+import { BevelBox } from '../../components/ui/BevelBox';
 
 export function LoginPage() {
   const navigate = useNavigate();
@@ -39,7 +40,7 @@ export function LoginPage() {
         </div>
 
         {/* Form */}
-        <div className="bg-[var(--color-surface-secondary)] border border-[var(--color-border-default)] rounded-xl p-8">
+        <BevelBox className="bg-[var(--color-surface-secondary)] p-8">
           <h2 className="text-lg font-semibold text-[var(--color-text-primary)] mb-6">
             Sign in to your account
           </h2>
@@ -119,7 +120,7 @@ export function LoginPage() {
               Create one
             </Link>
           </p>
-        </div>
+        </BevelBox>
 
         <p className="mt-8 text-center text-sm text-[var(--color-text-muted)]">
           Capomastro Holdings Ltd. — Applied Physics Division

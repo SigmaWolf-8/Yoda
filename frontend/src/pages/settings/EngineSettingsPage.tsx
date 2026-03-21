@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Cpu, ArrowLeft, MemoryStick } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { BevelBox } from '../../components/ui/BevelBox';
 import { usePageHeader } from '../../context/PageHeader';
 import { useEngineConfigs } from '../../api/hooks';
 import { EngineSlotCard, MODEL_INFO, OS_OVERHEAD_GB } from '../../components/settings/EngineSlot';
@@ -105,7 +106,7 @@ export function EngineSettingsPage() {
       </div>
 
       {/* Host RAM selector */}
-      <div className="bg-[var(--color-surface-primary)] border border-[var(--color-border-subtle)] rounded-xl p-4 mb-6">
+      <BevelBox className="bg-[var(--color-surface-primary)] p-4 mb-6">
         <div className="flex items-center gap-2 mb-3">
           <MemoryStick className="w-4 h-4 text-[var(--color-gold-400)]" />
           <span className="text-sm font-semibold text-[var(--color-text-primary)]">Self-Host Machine RAM</span>
@@ -216,7 +217,7 @@ export function EngineSettingsPage() {
             </div>
           );
         })()}
-      </div>
+      </BevelBox>
 
       {/* Engine Slots — tabbed one at a time */}
       <div className="mb-6">
@@ -270,16 +271,16 @@ export function EngineSettingsPage() {
       </div>
 
       {/* Project Defaults */}
-      <div className="bg-[var(--color-surface-primary)] border border-[var(--color-border-subtle)] rounded-xl p-5 mb-8 space-y-6">
+      <BevelBox className="bg-[var(--color-surface-primary)] p-5 mb-8 space-y-6">
         <h2 className="text-base font-semibold text-[var(--color-text-primary)]">Project Defaults</h2>
         <ReviewIntensityControl value={intensity} onChange={setIntensity} />
         <DecompositionBudgetControl value={budget} onChange={setBudget} />
-      </div>
+      </BevelBox>
 
       {/* GitHub PAT */}
-      <div className="bg-[var(--color-surface-primary)] border border-[var(--color-border-subtle)] rounded-xl p-5 mb-8">
+      <BevelBox className="bg-[var(--color-surface-primary)] p-5 mb-8">
         <GitHubPATSetting />
-      </div>
+      </BevelBox>
 
       {/* Recommended Configs */}
       <div className="mb-8">

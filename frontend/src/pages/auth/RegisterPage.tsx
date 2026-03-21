@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Zap } from 'lucide-react';
 import { useRegister } from '../../api/hooks';
 import { extractErrorMessage } from '../../types';
+import { BevelBox } from '../../components/ui/BevelBox';
 
 export function RegisterPage() {
   const navigate = useNavigate();
@@ -56,7 +57,7 @@ export function RegisterPage() {
           <p className="text-sm text-[var(--color-text-tertiary)]">Create your account</p>
         </div>
 
-        <div className="bg-[var(--color-surface-secondary)] border border-[var(--color-border-default)] rounded-xl p-8">
+        <BevelBox className="bg-[var(--color-surface-secondary)] p-8">
           {(localError || register.error) && (
             <div className="mb-4 p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
               {localError || extractErrorMessage(register.error, 'Registration failed')}
@@ -119,7 +120,7 @@ export function RegisterPage() {
               Sign in
             </Link>
           </p>
-        </div>
+        </BevelBox>
       </div>
     </div>
   );

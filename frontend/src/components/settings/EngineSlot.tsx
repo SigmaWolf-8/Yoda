@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
+import { BevelBox, BEVEL_NO_TL } from '../ui/BevelBox';
 import {
   Server,
   Cloud,
@@ -801,7 +802,7 @@ export function EngineSlotCard({
   };
 
   return (
-    <div className="bg-[var(--color-surface-primary)] border border-[var(--color-border-subtle)] rounded-b-xl rounded-tr-xl p-4">
+    <BevelBox bevel={BEVEL_NO_TL} className="bg-[var(--color-surface-primary)] p-4">
       {/* Header */}
       <div className="flex items-center justify-between mb-2.5">
         <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">{SLOT_LABELS[slot]}</h3>
@@ -1271,6 +1272,6 @@ export function EngineSlotCard({
           onConnected={() => markOnline.mutate(slot)}
         />
       )}
-    </div>
+    </BevelBox>
   );
 }

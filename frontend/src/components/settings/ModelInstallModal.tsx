@@ -11,6 +11,7 @@ import {
   WifiOff,
   HardDriveDownload,
 } from 'lucide-react';
+import { BevelBox } from '../ui/BevelBox';
 import { GGUF_INFO } from './EngineSlot';
 import {
   makeBashInstallScript,
@@ -179,7 +180,8 @@ export function ModelInstallModal({ modelName, slot, port = 8080, onClose, mode 
         onClick={onClose}
       />
 
-      <div ref={modalRef} className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl bg-[var(--color-surface-primary)] border border-[var(--color-border-default)] shadow-2xl flex flex-col">
+      <div ref={modalRef} className="relative w-full max-w-2xl">
+      <BevelBox className="bg-[var(--color-surface-primary)] max-h-[90vh] overflow-y-auto shadow-2xl flex flex-col">
 
         {/* Header */}
         <div className="flex items-center justify-between p-5 border-b border-[var(--color-border-subtle)]">
@@ -346,6 +348,7 @@ export function ModelInstallModal({ modelName, slot, port = 8080, onClose, mode 
             </div>
           )}
         </div>
+      </BevelBox>
       </div>
     </div>
   );

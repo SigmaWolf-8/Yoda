@@ -20,6 +20,7 @@ import {
   Brain,
 } from 'lucide-react';
 import { usePageHeader } from '../context/PageHeader';
+import { BevelBox } from '../components/ui/BevelBox';
 
 function SectionHeading({ icon: Icon, title }: { icon: React.ElementType; title: string }) {
   return (
@@ -32,9 +33,9 @@ function SectionHeading({ icon: Icon, title }: { icon: React.ElementType; title:
 
 function Card({ children, className = '' }: { children: React.ReactNode; className?: string }) {
   return (
-    <div className={`bg-[var(--color-surface-primary)] border border-[var(--color-border-subtle)] rounded-xl p-5 ${className}`}>
+    <BevelBox className={`bg-[var(--color-surface-primary)] p-5 ${className}`}>
       {children}
-    </div>
+    </BevelBox>
   );
 }
 
@@ -139,21 +140,21 @@ export function AboutPage() {
         </p>
         <p className="text-sm text-[var(--color-text-secondary)] mb-4">Two modes serve different needs:</p>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="rounded-lg border border-[var(--color-border-default)] bg-[var(--color-surface-secondary)] p-4">
+          <BevelBox className="bg-[var(--color-surface-secondary)] p-4">
             <p className="text-sm font-semibold text-[var(--color-plex-400)] mb-1">Yoda Mode</p>
             <p className="text-sm text-[var(--color-text-secondary)]">
               Produces architecture documents, technical analyses, security reviews, and strategic recommendations.
               It answers the question <em>"What should we build and why?"</em>
             </p>
-          </div>
-          <div className="rounded-lg border border-[var(--color-border-default)] bg-[var(--color-surface-secondary)] p-4">
+          </BevelBox>
+          <BevelBox className="bg-[var(--color-surface-secondary)] p-4">
             <p className="text-sm font-semibold text-[var(--color-plex-400)] mb-1">Ronin Mode</p>
             <p className="text-sm text-[var(--color-text-secondary)]">
               Produces implementation-ready code with the analysis baked in. Architecture decisions, code blocks,
               test cases, and deployment instructions — all generated through the same adversarial process.
               It answers <em>"Build it."</em>
             </p>
-          </div>
+          </BevelBox>
         </div>
         <p className="text-sm text-[var(--color-text-muted)] mt-3">
           Start in Yoda Mode to explore a problem space. Promote to Ronin Mode when you're ready to implement.
@@ -268,11 +269,11 @@ export function AboutPage() {
               body: 'The final approved output is assembled with its complete audit trail — every version, every review, every verdict — signed with TL-DSA and recorded in the Task Bible.',
             },
           ].map(({ label, body }) => (
-            <div key={label} className="rounded-lg border border-[var(--color-border-default)] bg-[var(--color-surface-secondary)] px-4 py-3">
+            <BevelBox key={label} className="bg-[var(--color-surface-secondary)] px-4 py-3">
               <p className="text-sm text-[var(--color-text-secondary)]">
                 <strong className="text-[var(--color-text-primary)]">{label}</strong>{' '}{body}
               </p>
-            </div>
+            </BevelBox>
           ))}
         </div>
         <p className="text-sm font-semibold text-[var(--color-plex-400)] text-center">
@@ -312,21 +313,21 @@ export function AboutPage() {
             { heading: 'Specialized (14+ agents)', body: 'Agents Orchestrator, LSP/Index Engineer, Blockchain Security Auditor, Compliance Auditor, Cultural Intelligence Strategist, Developer Advocate, Model QA Specialist, ZK Steward, and domain-specific data, identity, and payments agents.' },
             { heading: 'Strategy', body: 'Strategic planning and advisory agents for business direction, competitive positioning, and organizational alignment.' },
           ].map(({ heading, body }) => (
-            <div key={heading} className="rounded-lg border border-[var(--color-border-subtle)] bg-[var(--color-surface-secondary)] px-4 py-3">
+            <BevelBox key={heading} className="bg-[var(--color-surface-secondary)] px-4 py-3">
               <p className="text-sm text-[var(--color-text-secondary)]">
                 <strong className="text-[var(--color-text-primary)]">{heading}</strong>{' — '}{body}
               </p>
-            </div>
+            </BevelBox>
           ))}
         </div>
-        <div className="rounded-lg border border-[var(--color-plex-600)]/25 bg-[var(--color-plex-600)]/5 p-4 mb-3">
+        <BevelBox className="bg-[var(--color-plex-600)]/5 p-4 mb-3" wrapperClassName="border border-[var(--color-plex-600)]/25">
           <p className="text-sm text-[var(--color-text-secondary)]">
             <strong className="text-[var(--color-plex-400)]">Capomastro Proprietary (5 agents)</strong>{' — '}
             YODA Orchestrator, Ternary Crypto Reviewer, PlenumNET Integration Specialist, Knowledge Base
             Curator, and Maestro Task Bible Manager. Authored and maintained exclusively by Capomastro Holdings
             for the PlenumNET ecosystem and YODA orchestration protocol.
           </p>
-        </div>
+        </BevelBox>
         <p className="text-sm text-[var(--color-text-secondary)] mb-2">
           Every agent is fully editable — modify system prompts, competencies, review criteria, and compatible
           reviewers directly from the platform. Creating a new agent is a single click: define it in markdown,
@@ -365,14 +366,14 @@ export function AboutPage() {
               body: 'YODA tracks which engines perform best for which agent roles and domains. Over time, it routes tasks to the engines that have proven strongest for that type of work. Recent performance matters more than historical.',
             },
           ].map(({ icon: Icon, heading, body }) => (
-            <div key={heading} className="rounded-lg border border-[var(--color-border-default)] bg-[var(--color-surface-secondary)] px-4 py-3">
+            <BevelBox key={heading} className="bg-[var(--color-surface-secondary)] px-4 py-3">
               <div className="flex items-center gap-2 mb-1">
                 <Icon className="w-4 h-4 text-[var(--color-plex-400)] flex-shrink-0" />
               </div>
               <p className="text-sm text-[var(--color-text-secondary)]">
                 <strong className="text-[var(--color-text-primary)]">{heading}</strong>{' '}{body}
               </p>
-            </div>
+            </BevelBox>
           ))}
         </div>
       </Card>
@@ -442,14 +443,14 @@ export function AboutPage() {
               body: 'Three security levels (512, 768, 1024) for post-quantum key exchange. Shared secrets feed directly into Phase Encryption key derivation.',
             },
           ].map(({ name, body }) => (
-            <div key={name} className="rounded-lg border border-[var(--color-border-default)] bg-[var(--color-surface-secondary)] px-4 py-3">
+            <BevelBox key={name} className="bg-[var(--color-surface-secondary)] px-4 py-3">
               <div className="flex items-center gap-2 mb-1">
                 <Lock className="w-3.5 h-3.5 text-[var(--color-plex-400)] flex-shrink-0" />
               </div>
               <p className="text-sm text-[var(--color-text-secondary)]">
                 <strong className="text-[var(--color-text-primary)]">{name}</strong>{' '}{body}
               </p>
-            </div>
+            </BevelBox>
           ))}
         </div>
         <div className="border-t border-[var(--color-border-subtle)] pt-4">
