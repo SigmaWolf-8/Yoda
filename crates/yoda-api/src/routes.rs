@@ -74,6 +74,7 @@ pub fn build_router(state: AppState) -> Router {
         .route("/api/tasks/recent", get(list_recent_tasks))
         .route("/api/projects/{id}/tasks", get(list_tasks))
         .route("/api/tasks/{id}", get(get_task))
+        .route("/api/tasks/{id}/output", post(set_task_output))
         .route("/api/tasks/{id}/retry", post(retry_task))
         .route("/api/tasks/{id}/escalate", post(escalate_task))
         .route("/api/tasks/{id}/cancel", post(cancel_task))
@@ -337,6 +338,54 @@ async fn cancel_task(State(state): State<AppState>, Path(task_id): Path<Uuid>) -
     sqlx::query("UPDATE tasks SET status='ESCALATED' WHERE id=$1 AND status NOT IN ('FINAL','ESCALATED')")
         .bind(task_id).execute(&state.db).await.map_err(AppError::Database)?;
     Ok(StatusCode::NO_CONTENT)
+}
+
+/// POST /api/tasks/:id/output
+/// Browser relay: the frontend calls the local llama-server directly and
+/// posts the completed inference result here. Marks the task as FINAL.
+#[derive(Debug, Deserialize)]
+struct TaskOutputRequest {
+    content: String,
+    model: Option<String>,
+    latency_ms: Option<i32>,
+}
+
+async fn set_task_output(
+    State(state): State<AppState>,
+    Path(task_id): Path<Uuid>,
+    Json(req): Json<TaskOutputRequest>,
+) -> Result<Json<serde_json::Value>, AppError> {
+    // Store the result and mark the task complete
+    sqlx::query(
+        "UPDATE tasks SET status = 'FINAL', updated_at = NOW() WHERE id = $1 \
+         AND status NOT IN ('FINAL', 'ESCALATED')"
+    )
+    .bind(task_id)
+    .execute(&state.db)
+    .await
+    .map_err(AppError::Database)?;
+
+    // Insert a task_results row so the workspace page can display it.
+    // Uses actual schema: step_number (smallint), result_content (text), engine_slot (text).
+    sqlx::query(
+        "INSERT INTO task_results (id, task_id, step_number, engine_slot, result_content, created_at) \
+         VALUES (uuid_generate_v4(), $1, 1, $2, $3, NOW())"
+    )
+    .bind(task_id)
+    .bind(req.model.as_deref().unwrap_or("a"))
+    .bind(&req.content)
+    .execute(&state.db)
+    .await
+    .map_err(AppError::Database)?;
+
+    tracing::info!(
+        task_id = %task_id,
+        model = req.model.as_deref().unwrap_or("unknown"),
+        latency_ms = req.latency_ms,
+        "Browser-relayed inference result stored"
+    );
+
+    Ok(Json(serde_json::json!({ "status": "ok", "task_id": task_id })))
 }
 
 // ─── Engines ─────────────────────────────────────────────────────────

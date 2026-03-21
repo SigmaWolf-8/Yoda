@@ -46,8 +46,12 @@ export interface TaskTree {
 }
 
 export interface QueryResult {
-  status: 'executing' | 'pending_approval';
+  status?: 'executing' | 'pending_approval';
   task_ids?: string[];
   task_count?: number;
   task_tree?: TaskTree;
+  /** Present when the server created a task but couldn't reach the engine.
+   *  The browser should relay the inference call directly to this URL. */
+  task_id?: string;
+  relay_endpoint?: string;
 }

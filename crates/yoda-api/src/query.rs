@@ -29,6 +29,10 @@ pub struct QueryResponse {
     pub task_id: Option<Uuid>,
     /// Whether user approval is needed before proceeding.
     pub needs_approval: bool,
+    /// When set, the server could not reach the engine directly.
+    /// The browser should POST to `{relay_endpoint}/v1/chat/completions`
+    /// and then POST the result to /api/tasks/{task_id}/output.
+    pub relay_endpoint: Option<String>,
 }
 
 /// POST /api/projects/:id/query
@@ -104,6 +108,7 @@ pub async fn submit_query(
                     decomposition: Some(result),
                     task_id: None,
                     needs_approval,
+                    relay_endpoint: None,
                 })));
             }
             Err(e) => {
@@ -113,7 +118,16 @@ pub async fn submit_query(
         }
     }
 
-    // Fallback: create a single task (no decomposition)
+    // Fallback: create a single task (no decomposition).
+    // Fetch the next task number for this project (auto-increment per project).
+    let next_number: i64 = sqlx::query_scalar(
+        "SELECT COALESCE(MAX(task_number::bigint), 0) + 1 FROM tasks WHERE project_id = $1"
+    )
+    .bind(project_id)
+    .fetch_one(&state.db)
+    .await
+    .unwrap_or(1);
+
     let task_id = Uuid::new_v4();
     let now = chrono::Utc::now();
     let competencies = serde_json::to_value(
@@ -127,22 +141,37 @@ pub async fn submit_query(
     sqlx::query(
         "INSERT INTO tasks (id, project_id, task_number, title, competencies, dependencies, \
          status, workflow_position, mode, created_at, updated_at) \
-         VALUES ($1, $2, '1', $3, $4, '[]'::jsonb, 'QUEUED', 1, $5, $6, $6)"
+         VALUES ($1, $2, $3, $4, $5, '[]'::jsonb, 'QUEUED', $6, $7, $8, $8)"
     )
     .bind(task_id)
     .bind(project_id)
+    .bind(next_number.to_string())
     .bind(&req.text)
     .bind(&competencies)
+    .bind(next_number as i32)
     .bind(mode_str)
     .bind(now)
     .execute(&state.db)
     .await
     .map_err(AppError::Database)?;
 
+    // Fetch the online engine's endpoint so the browser can relay inference
+    // directly to the local llama-server (Replit cannot reach 10.x.x.x / localhost
+    // on the user's machine, but the browser can).
+    let relay_endpoint: Option<String> = sqlx::query_scalar(
+        "SELECT endpoint_url FROM engine_configs \
+         WHERE org_id = $1 AND health_status = 'online' ORDER BY slot LIMIT 1"
+    )
+    .bind(user.org_id)
+    .fetch_optional(&state.db)
+    .await
+    .unwrap_or(None);
+
     Ok((StatusCode::CREATED, Json(QueryResponse {
         decomposition: None,
         task_id: Some(task_id),
         needs_approval: false,
+        relay_endpoint,
     })))
 }
 
