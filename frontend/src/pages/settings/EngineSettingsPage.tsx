@@ -252,17 +252,21 @@ export function EngineSettingsPage() {
           })}
         </div>
 
-        {/* Active engine card — no extra wrapper border, card provides it */}
-        <EngineSlotCard
-          key={activeTab}
-          slot={activeTab}
-          config={engineMap.get(activeTab)}
-          hostRam={hostRam}
-          reservedRam={reservedRamFor(activeTab)}
-          usedModels={usedModelsFor(activeTab)}
-          onModelChange={(m) => setLiveModels((prev) => ({ ...prev, [activeTab]: m }))}
-          onModeChange={(m) => setLiveModes((prev) => ({ ...prev, [activeTab]: m }))}
-        />
+        {/* Engine slot cards — all three stay mounted so auto-save timers
+            survive tab switches. Only the active tab is visible. */}
+        {SLOTS.map((slot) => (
+          <div key={slot} style={{ display: slot === activeTab ? undefined : 'none' }}>
+            <EngineSlotCard
+              slot={slot}
+              config={engineMap.get(slot)}
+              hostRam={hostRam}
+              reservedRam={reservedRamFor(slot)}
+              usedModels={usedModelsFor(slot)}
+              onModelChange={(m) => setLiveModels((prev) => ({ ...prev, [slot]: m }))}
+              onModeChange={(m) => setLiveModes((prev) => ({ ...prev, [slot]: m }))}
+            />
+          </div>
+        ))}
       </div>
 
       {/* Diversity Validator */}
