@@ -390,6 +390,20 @@ const PROVIDERS: Record<string, { authType: AuthType; models: string[] }> = {
 
 const SLOT_LABELS: Record<Slot, string> = { a: 'Engine A', b: 'Engine B', c: 'Engine C' };
 
+// Reverse lookup: model name → provider key (e.g. 'grok-4-1-fast-reasoning' → 'xAI')
+const MODEL_TO_PROVIDER: Record<string, string> = {};
+for (const [pName, { models }] of Object.entries(PROVIDERS)) {
+  for (const m of models) MODEL_TO_PROVIDER[m] = pName;
+}
+
+const PROVIDER_URLS: Record<string, string> = {
+  Anthropic: 'https://api.anthropic.com/v1/messages',
+  OpenAI:    'https://api.openai.com/v1/chat/completions',
+  xAI:       'https://api.x.ai/v1/chat/completions',
+  Google:    'https://generativelanguage.googleapis.com/v1beta/models',
+  DeepSeek:  'https://api.deepseek.com/v1/chat/completions',
+};
+
 // ── Downloaded-model registry (persisted to localStorage) ────────────────────
 
 const DOWNLOADED_KEY = 'yoda_downloaded_models';
@@ -547,14 +561,36 @@ export function EngineSlotCard({
     seededRef.current = true;
     // Suppress the auto-save that would otherwise fire for the modelName change.
     hasMountedRef.current = false;
-    setMode((config.hosting_mode as HostingMode) ?? 'self_hosted');
-    setEndpoint(config.endpoint_url ?? '');
+    const hostingMode = (config.hosting_mode as HostingMode) ?? 'self_hosted';
+    setMode(hostingMode);
     setCubeEndpoint(config.cube_endpoint_url ?? `http://localhost:${CUBE_PORT[slot]}`);
-    setAuthType((config.auth_type as AuthType) ?? 'none');
     setFamilyOverride(config.family_override ?? '');
     setModelName(config.model_name ?? '');
     onModelChange(config.model_name ?? '');
-    onModeChange((config.hosting_mode as HostingMode) ?? 'self_hosted');
+    onModeChange(hostingMode);
+
+    // Restore provider for commercial/free_tier engines.
+    // The provider dropdown is pure UI state — never stored in DB — so we
+    // reverse-look it up from the saved model name.
+    const detectedProvider = MODEL_TO_PROVIDER[config.model_name ?? ''] ?? '';
+    setProvider(detectedProvider);
+
+    // Restore auth type (may be overridden below if endpoint is stale).
+    setAuthType((config.auth_type as AuthType) ?? 'none');
+
+    // Restore endpoint. If it looks like a stale default local slot URL but
+    // the engine is actually a cloud provider, replace it with the correct URL.
+    const storedEndpoint = config.endpoint_url ?? '';
+    const defaultLocalUrl = `http://localhost:${SLOT_PORT[slot]}`;
+    const isStaleLocal = storedEndpoint === defaultLocalUrl || storedEndpoint === '';
+    if (isStaleLocal && detectedProvider && PROVIDER_URLS[detectedProvider]) {
+      setEndpoint(PROVIDER_URLS[detectedProvider]);
+      // Also fix auth type to match the provider if it was left as 'none'.
+      const pInfo = PROVIDERS[detectedProvider];
+      if (pInfo) setAuthType(pInfo.authType);
+    } else {
+      setEndpoint(storedEndpoint);
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [config]);
 
