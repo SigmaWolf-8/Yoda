@@ -5,6 +5,7 @@ use yoda_inference_router::health::SharedHealthState;
 use yoda_orchestrator::agent::AgentRegistry;
 
 use crate::websocket::PipelineChannels;
+use crate::cube_relay::{RelaySenders, PendingRelays};
 
 /// Shared application state, cloneable (all fields are Arc-like or Clone).
 #[derive(Clone)]
