@@ -814,6 +814,36 @@ export function EngineSlotCard({
                 {config.health_status ?? 'unknown'}
                 {config.latency_ms ? ` · ${config.latency_ms}ms` : ''}
               </span>
+              {/* Manual override for self-hosted engines: server-side probe can't
+                  reach localhost — let the user confirm the engine is running. */}
+              {mode === 'self_hosted' && config.health_status !== 'online' && modelName && (
+                <button
+                  onClick={() => markOnline.mutate(slot)}
+                  disabled={markOnline.isPending}
+                  title="Mark this engine online (your browser can reach it even if the server probe cannot)"
+                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium border border-[var(--color-plex-500)]/40 text-[var(--color-plex-400)] hover:bg-[var(--color-plex-500)]/10 disabled:opacity-50 transition-colors"
+                >
+                  {markOnline.isPending
+                    ? <Loader2 className="w-3 h-3 animate-spin" />
+                    : <Wifi className="w-3 h-3" />
+                  }
+                  Mark online
+                </button>
+              )}
+              {mode === 'self_hosted' && config.health_status === 'online' && (
+                <button
+                  onClick={() => markOffline.mutate(slot)}
+                  disabled={markOffline.isPending}
+                  title="Mark offline"
+                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium border border-[var(--color-border-default)] text-[var(--color-text-muted)] hover:border-[var(--color-border-strong)] hover:text-[var(--color-text-secondary)] disabled:opacity-50 transition-colors"
+                >
+                  {markOffline.isPending
+                    ? <Loader2 className="w-3 h-3 animate-spin" />
+                    : <WifiOff className="w-3 h-3" />
+                  }
+                  Mark offline
+                </button>
+              )}
             </>
           )}
         </div>
