@@ -82,15 +82,33 @@ const CRS_WS: &str   = "wss://plenumnet.replit.app/ws/relay";
 /// Spawn the relay background task.  Call once after AppState is created.
 pub fn spawn_relay_task(state: AppState) {
     tokio::spawn(async move {
-        // Load or generate YODA's relay key.
-        // This is a throwaway key shortcut — not TL-DSA-87 compliant.
-        // The CRS stores whatever string we pass and matches it on re-auth.
+        // Load or generate YODA's relay public key.
+        // Throwaway random 32-byte hex when env var is absent.
         let public_key = std::env::var("PLENUMLAN_PUBLIC_KEY").unwrap_or_else(|_| {
-            // Derive a stable random key from the JWT secret so restarts reuse
-            // the same key (prevents accumulating orphan registrations on the CRS).
-            let seed = std::env::var("JWT_SECRET")
-                .unwrap_or_else(|_| "yoda-relay-default-seed".into());
-            format!("{:0>64}", hex::encode(seed.as_bytes()))
+            use std::time::{SystemTime, UNIX_EPOCH};
+            // Combine process start time nanos + two separate instants for entropy.
+            let t0 = SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .map(|d| d.subsec_nanos())
+                .unwrap_or(0xdeadbeef_u32);
+            let bytes: [u8; 32] = {
+                let mut b = [0u8; 32];
+                // Fill with cheap entropy: nanos, counter, pid, thread id hash
+                let pid = std::process::id();
+                let nanos2 = SystemTime::now()
+                    .duration_since(UNIX_EPOCH)
+                    .map(|d| d.subsec_nanos())
+                    .unwrap_or(0xcafebabe_u32);
+                b[0..4].copy_from_slice(&t0.to_le_bytes());
+                b[4..8].copy_from_slice(&pid.to_le_bytes());
+                b[8..12].copy_from_slice(&nanos2.to_le_bytes());
+                // Fill remaining with XOR-spread
+                for i in 12..32 {
+                    b[i] = b[i % 12].wrapping_add(i as u8).wrapping_mul(0x6d);
+                }
+                b
+            };
+            hex::encode(bytes)
         });
 
         let mut backoff_secs: u64 = 2;
@@ -101,8 +119,8 @@ pub fn spawn_relay_task(state: AppState) {
             let address = match register_with_crs(&state.http_client, &public_key).await {
                 Ok(a) => {
                     tracing::info!(address = %a, "Registered with PlenumLAN CRS");
-                    backoff_secs = 2;
                     a
+                    // Do NOT reset backoff here — reset only after a stable session.
                 }
                 Err(e) => {
                     tracing::warn!(
@@ -116,17 +134,23 @@ pub fn spawn_relay_task(state: AppState) {
                 }
             };
 
-            match run_relay_session(&state, &address, &public_key).await {
-                Ok(()) => {
-                    tracing::info!("PlenumLAN relay session ended cleanly");
-                }
-                Err(e) => {
-                    tracing::warn!(error = %e, "PlenumLAN relay session error");
-                }
-            }
+            let session_result = run_relay_session(&state, &address, &public_key).await;
 
             // Disarm relay_tx so query.rs falls back to browser relay
             *state.relay_tx.write().await = None;
+
+            match session_result {
+                Ok(()) => {
+                    tracing::info!("PlenumLAN relay session ended cleanly");
+                    // Clean exit: reset backoff — this was a stable session.
+                    backoff_secs = 2;
+                }
+                Err(e) => {
+                    tracing::warn!(error = %e, "PlenumLAN relay session error");
+                    // Session failed — advance backoff before reconnecting.
+                }
+            }
+
             tracing::info!(backoff_secs, "PlenumLAN relay reconnecting...");
             tokio::time::sleep(Duration::from_secs(backoff_secs)).await;
             backoff_secs = (backoff_secs * 2).min(60);
@@ -230,6 +254,15 @@ async fn run_relay_session(
             msg = stream.next() => {
                 match msg {
                     Some(Ok(Message::Text(text))) => {
+                        // auth_fail after session start is fatal — terminate so
+                        // the outer loop can re-register and re-auth.
+                        let v: serde_json::Value = serde_json::from_str(&text)
+                            .unwrap_or(serde_json::Value::Null);
+                        if v["type"].as_str() == Some("auth_fail") {
+                            let reason = v["error"].as_str().unwrap_or("unknown");
+                            tracing::warn!(reason = %reason, "auth_fail received in session main loop — terminating session");
+                            return Err(anyhow::anyhow!("auth_fail: {reason}"));
+                        }
                         handle_inbound(state, &text).await;
                     }
                     Some(Ok(Message::Ping(data))) => {
