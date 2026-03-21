@@ -264,15 +264,29 @@ pub async fn submit_query(
     // ── Browser relay fallback ────────────────────────────────────────────────
     // Replit's server can't reach local/LAN addresses so health checks mark them
     // offline — but the browser running on the user's machine CAN.
-    let relay_endpoint: Option<String> = sqlx::query_scalar(
-        "SELECT endpoint_url FROM engine_configs \
-         WHERE org_id = $1 AND endpoint_url IS NOT NULL AND endpoint_url <> '' \
+    // If no explicit endpoint_url is saved, derive a default localhost URL from
+    // the slot (A → :8080, B → :8081, C → :8082) for self-hosted engines.
+    let relay_info: Option<(String, String, Option<String>)> = sqlx::query_as(
+        "SELECT slot, hosting_mode, endpoint_url FROM engine_configs \
+         WHERE org_id = $1 \
          ORDER BY slot ASC LIMIT 1"
     )
     .bind(user.org_id)
     .fetch_optional(&state.db)
     .await
     .unwrap_or(None);
+
+    let relay_endpoint: Option<String> = relay_info.and_then(|(slot, hosting_mode, endpoint_url)| {
+        if let Some(url) = endpoint_url.filter(|u| !u.is_empty()) {
+            return Some(url);
+        }
+        if hosting_mode == "self_hosted" {
+            let port = match slot.as_str() { "b" => 8081u16, "c" => 8082, _ => 8080 };
+            Some(format!("http://localhost:{port}"))
+        } else {
+            None
+        }
+    });
 
     Ok((StatusCode::CREATED, Json(QueryResponse {
         decomposition: None,

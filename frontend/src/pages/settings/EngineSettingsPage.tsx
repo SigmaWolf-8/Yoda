@@ -236,8 +236,8 @@ export function EngineSettingsPage() {
                 onClick={() => setActiveTab(slot)}
                 className={`relative flex items-center gap-2 px-5 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors ${
                   activeTab === slot
-                    ? 'border-[var(--color-gold-500)] text-[var(--color-gold-400)]'
-                    : 'border-transparent text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]'
+                    ? 'border-sky-400 text-sky-300'
+                    : 'border-transparent text-[var(--color-text-muted)] hover:text-zinc-400'
                 }`}
               >
                 <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${dot}`} />
