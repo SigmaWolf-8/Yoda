@@ -172,29 +172,6 @@ export function PlenumNetPanel({ engines }: Props) {
         })}
       </div>
 
-      {/* CRS network stats footer */}
-      {stats && !error && (
-        <div className="pt-3 border-t border-[var(--color-border-subtle)] flex flex-wrap gap-x-5 gap-y-1 text-xs text-[var(--color-text-muted)]">
-          <span>
-            <span className="font-medium text-[var(--color-text-secondary)]">Network nodes: </span>
-            {stats.totalVertices.toLocaleString()}
-          </span>
-          <span>
-            <span className="font-medium text-[var(--color-text-secondary)]">Active registrations: </span>
-            {stats.registeredCount}
-          </span>
-          <span>
-            <span className="font-medium text-[var(--color-text-secondary)]">Utilization: </span>
-            {(stats.utilizationPercent * 100).toFixed(6)}%
-          </span>
-        </div>
-      )}
-      {error && (
-        <p className="text-xs text-[var(--color-text-muted)] pt-2 border-t border-[var(--color-border-subtle)]">
-          CRS stats unavailable — ensure the tunnel service is running.
-        </p>
-      )}
-
       {/* Connect modal — opened inline from this panel */}
       {connectingEngine && (
         <ModelInstallModal
