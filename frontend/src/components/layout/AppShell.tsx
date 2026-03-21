@@ -31,7 +31,7 @@ const MAIN_NAV = [
 export const HEADER_H = 144;
 
 function SidebarLogoVideo() {
-  const { sidebarRef, playBoth } = useVideoPlay();
+  const { sidebarRef, playSidebar } = useVideoPlay();
   return (
     <video
       ref={sidebarRef}
@@ -40,7 +40,7 @@ function SidebarLogoVideo() {
       autoPlay
       muted
       playsInline
-      onClick={playBoth}
+      onClick={playSidebar}
       onEnded={(e) => { e.currentTarget.currentTime = 0; e.currentTarget.pause(); }}
       style={{ cursor: 'pointer' }}
     />

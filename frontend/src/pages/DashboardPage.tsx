@@ -3,7 +3,7 @@ import { usePageHeader } from '../context/PageHeader';
 import { useVideoPlay } from '../context/VideoPlay';
 
 export function DashboardPage() {
-  const { heroRef, playBoth } = useVideoPlay();
+  const { heroRef, playHero } = useVideoPlay();
 
   usePageHeader({
     icon: LayoutDashboard,
@@ -27,7 +27,7 @@ export function DashboardPage() {
         shadow and highlight strips vanish into the same shade.
       */}
       <div
-        onClick={playBoth}
+        onClick={playHero}
         style={{
           height: '48vh',
           minHeight: 320,
