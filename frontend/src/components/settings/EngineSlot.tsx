@@ -66,10 +66,15 @@ export const MODEL_INFO: Record<string, ModelMeta> = {
   'gpt-4o':   { company: 'OpenAI', arch: 'Dense', type: 'LLM',          specialty: 'Fast · Multimodal · General purpose', desc: "OpenAI's versatile everyday model. Rapid responses with strong reasoning — ideal as a second or third reviewer engine." },
   'o3-mini':  { company: 'OpenAI', arch: 'Dense', type: 'Reasoning LLM', specialty: 'Math · Code · Step-by-step logic', desc: "OpenAI's compact reasoning model. Uses chain-of-thought internally to excel at structured problem-solving at lower cost than o3." },
   // ── xAI (cloud) ─────────────────────────────────────────────────────────
-  'grok-3':           { company: 'xAI', arch: 'Dense', type: 'LLM',          specialty: 'Real-time data · Long context · Coding', desc: "xAI's flagship model. Live web search, very long context, and top coding performance." },
-  'grok-3-fast':      { company: 'xAI', arch: 'Dense', type: 'LLM',          specialty: 'High throughput · Real-time data · Coding', desc: "Faster-throughput variant of Grok 3. Same capability ceiling at higher request volumes." },
-  'grok-3-mini':      { company: 'xAI', arch: 'Dense', type: 'Reasoning LLM', specialty: 'Efficient · Chain-of-thought · Cost-effective', desc: "xAI's compact reasoning model. Thinks before answering — great for structured logic at lower cost than Grok 3." },
-  'grok-3-mini-fast': { company: 'xAI', arch: 'Dense', type: 'Reasoning LLM', specialty: 'Fastest · Low latency · High volume', desc: "xAI's fastest and most cost-efficient model. Best for high-volume, latency-sensitive review passes." },
+  'grok-4':                      { company: 'xAI', arch: 'Dense', type: 'LLM',          specialty: 'Frontier reasoning · 2M context · Coding', desc: "xAI's most powerful model. Deep multi-step reasoning, 2M-token context, and top coding performance. Use when maximum intelligence matters." },
+  'grok-4-fast':                 { company: 'xAI', arch: 'Dense', type: 'LLM',          specialty: 'High throughput · 2M context · Non-reasoning', desc: "Non-reasoning variant of Grok 4 at 15× lower cost. Very fast throughput with 2M-token context — ideal for high-volume pipelines." },
+  'grok-4-1-fast-reasoning':     { company: 'xAI', arch: 'Dense', type: 'Reasoning LLM', specialty: 'Reasoning · Speed · Cost-efficient · 2M context', desc: "xAI's recommended default. Best balance of reasoning quality, throughput, and cost — 2M-token context at $0.20/$0.50 per million tokens." },
+  'grok-4-1-fast-non-reasoning': { company: 'xAI', arch: 'Dense', type: 'LLM',          specialty: 'Ultra-low latency · Instant responses · 2M context', desc: "Fastest Grok model. Non-reasoning variant of Grok 4.1 Fast — best for latency-sensitive tasks that don't need chain-of-thought." },
+  'grok-code-fast-1':            { company: 'xAI', arch: 'Dense', type: 'Coding LLM',   specialty: 'Coding agents · Agentic tasks · 256K context', desc: "xAI's coding specialist. Economical reasoning optimised for code generation, agentic workflows, and multi-step coding tasks." },
+  'grok-3':                      { company: 'xAI', arch: 'Dense', type: 'LLM',          specialty: 'Real-time data · Long context · Coding', desc: "Grok 3 flagship (superseded by Grok 4). Still capable — live web search, long context, and strong coding. Use Grok 4 for new projects." },
+  'grok-3-mini':                 { company: 'xAI', arch: 'Dense', type: 'Reasoning LLM', specialty: 'Efficient · Chain-of-thought · Cost-effective', desc: "Grok 3 compact reasoning model. Budget-friendly with chain-of-thought capability. Consider grok-4-1-fast-reasoning for better value in 2025+." },
+  'grok-3-fast':                 { company: 'xAI', arch: 'Dense', type: 'LLM',          specialty: 'High throughput · Real-time data · Coding', desc: "Faster-throughput variant of Grok 3 (legacy). Superseded by grok-4-fast for new deployments." },
+  'grok-3-mini-fast':            { company: 'xAI', arch: 'Dense', type: 'Reasoning LLM', specialty: 'Fastest Grok 3 · Low latency · High volume', desc: "xAI's fastest Grok 3 variant (legacy). Superseded by grok-4-1-fast-non-reasoning." },
   // ── Google (cloud) ──────────────────────────────────────────────────────
   'gemini-2.5-pro':   { company: 'Google', arch: 'Dense', type: 'LLM', specialty: 'Long context · Code · Multi-step reasoning', desc: "Google's most capable model. Handles up to 1M-token contexts, excels at large codebase analysis and document-heavy tasks." },
   'gemini-2.5-flash': { company: 'Google', arch: 'Dense', type: 'LLM', specialty: 'High throughput · Summarisation · Extraction', desc: "Google's speed-optimised model. Very fast token generation — ideal for high-volume extraction and summarisation passes." },
@@ -378,7 +383,7 @@ function groupedModels(
 const PROVIDERS: Record<string, { authType: AuthType; models: string[] }> = {
   Anthropic: { authType: 'api_key', models: ['claude-opus-4-6', 'claude-sonnet-4-6', 'claude-haiku-4-5'] },
   OpenAI:    { authType: 'bearer',  models: ['gpt-4.5', 'gpt-4o', 'o3-mini'] },
-  xAI:       { authType: 'bearer',  models: ['grok-3', 'grok-3-fast', 'grok-3-mini', 'grok-3-mini-fast'] },
+  xAI:       { authType: 'bearer',  models: ['grok-4', 'grok-4-fast', 'grok-4-1-fast-reasoning', 'grok-4-1-fast-non-reasoning', 'grok-code-fast-1', 'grok-3', 'grok-3-mini', 'grok-3-fast', 'grok-3-mini-fast'] },
   Google:    { authType: 'bearer',  models: ['gemini-2.5-pro', 'gemini-2.5-flash', 'gemini-3-pro'] },
   DeepSeek:  { authType: 'api_key', models: ['DeepSeek-V3.2', 'DeepSeek-R1'] },
 };
