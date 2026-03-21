@@ -273,14 +273,23 @@ async fn list_tasks(
     State(state): State<AppState>,
     user: axum::Extension<auth::AuthenticatedUser>,
     Path(project_id): Path<Uuid>,
-) -> Result<Json<Vec<TaskResponse>>, AppError> {
+) -> Result<Json<serde_json::Value>, AppError> {
     let _ = sqlx::query_scalar::<_,Uuid>("SELECT id FROM projects WHERE id=$1 AND org_id=$2")
         .bind(project_id).bind(user.org_id).fetch_optional(&state.db).await
         .map_err(AppError::Database)?.ok_or(AppError::NotFound("Project not found".into()))?;
-    let rows = sqlx::query_as::<_, (Uuid,String,String,String,String,serde_json::Value,serde_json::Value,Option<i32>,chrono::DateTime<chrono::Utc>)>(
-        "SELECT id,task_number,title,status,mode,competencies,dependencies,workflow_position,created_at FROM tasks WHERE project_id=$1 ORDER BY workflow_position,task_number"
+    let rows = sqlx::query_as::<_, (Uuid,Uuid,String,String,String,String,serde_json::Value,serde_json::Value,Option<i32>,Option<String>,Option<String>,chrono::DateTime<chrono::Utc>,chrono::DateTime<chrono::Utc>)>(
+        "SELECT id,project_id,task_number,title,status,mode,competencies,dependencies,workflow_position,primary_engine_slot,primary_agent_role,created_at,updated_at FROM tasks WHERE project_id=$1 ORDER BY workflow_position,task_number"
     ).bind(project_id).fetch_all(&state.db).await.map_err(AppError::Database)?;
-    Ok(Json(rows.into_iter().map(|(id,tn,t,s,m,c,d,wp,ca)| TaskResponse{id,task_number:tn,title:t,status:s,mode:m,competencies:c,dependencies:d,workflow_position:wp,created_at:ca}).collect()))
+    let tasks: Vec<serde_json::Value> = rows.into_iter().map(|(id,pid,tn,t,s,m,c,d,wp,pe,par,ca,ua)| {
+        serde_json::json!({
+            "id": id, "project_id": pid, "task_number": tn, "title": t,
+            "status": s, "mode": m, "competencies": c, "dependencies": d,
+            "workflow_position": wp, "primary_engine": pe, "primary_agent_role": par,
+            "parent_task_id": serde_json::Value::Null,
+            "created_at": ca, "updated_at": ua,
+        })
+    }).collect();
+    Ok(Json(serde_json::json!({ "tasks": tasks })))
 }
 
 /// GET /api/tasks/recent — most recent tasks across all projects for this org.
@@ -318,18 +327,37 @@ async fn list_recent_tasks(
     Ok(Json(serde_json::json!({ "tasks": tasks })))
 }
 
-async fn get_task(State(state): State<AppState>, Path(task_id): Path<Uuid>) -> Result<Json<TaskResponse>, AppError> {
-    let (id,tn,t,s,m,c,d,wp,ca) = sqlx::query_as::<_, (Uuid,String,String,String,String,serde_json::Value,serde_json::Value,Option<i32>,chrono::DateTime<chrono::Utc>)>(
-        "SELECT id,task_number,title,status,mode,competencies,dependencies,workflow_position,created_at FROM tasks WHERE id=$1"
+async fn get_task(State(state): State<AppState>, Path(task_id): Path<Uuid>) -> Result<Json<serde_json::Value>, AppError> {
+    let (id,pid,tn,t,s,m,c,d,wp,pe,par,ca,ua) = sqlx::query_as::<_, (Uuid,Uuid,String,String,String,String,serde_json::Value,serde_json::Value,Option<i32>,Option<String>,Option<String>,chrono::DateTime<chrono::Utc>,chrono::DateTime<chrono::Utc>)>(
+        "SELECT id,project_id,task_number,title,status,mode,competencies,dependencies,workflow_position,primary_engine_slot,primary_agent_role,created_at,updated_at FROM tasks WHERE id=$1"
     ).bind(task_id).fetch_optional(&state.db).await.map_err(AppError::Database)?.ok_or(AppError::NotFound("Task not found".into()))?;
-    Ok(Json(TaskResponse{id,task_number:tn,title:t,status:s,mode:m,competencies:c,dependencies:d,workflow_position:wp,created_at:ca}))
+
+    let task = serde_json::json!({
+        "id": id, "project_id": pid, "task_number": tn, "title": t,
+        "status": s, "mode": m, "competencies": c, "dependencies": d,
+        "workflow_position": wp, "primary_engine": pe, "primary_agent_role": par,
+        "parent_task_id": serde_json::Value::Null,
+        "created_at": ca, "updated_at": ua,
+    });
+
+    let result_rows = sqlx::query_as::<_, (Uuid, i16, String, String, String)>(
+        "SELECT id, step_number, result_content, engine_slot, agent_role FROM task_results WHERE task_id=$1 ORDER BY step_number"
+    ).bind(task_id).fetch_all(&state.db).await.map_err(AppError::Database)?;
+
+    let results: Vec<serde_json::Value> = result_rows.into_iter().map(|(rid, sn, rc, es, ar)| serde_json::json!({
+        "id": rid, "task_id": task_id, "step_number": sn,
+        "result_content": rc, "engine_id": es, "agent_role": ar,
+        "tis27_hash": "", "created_at": ca,
+    })).collect();
+
+    Ok(Json(serde_json::json!({ "task": task, "results": results, "reviews": [] })))
 }
 
 async fn retry_task(State(_state): State<AppState>, Path(_task_id): Path<Uuid>) -> Result<Json<serde_json::Value>, AppError> {
     Err(AppError::Internal("Task retry — full implementation in B-8 DAG engine".into()))
 }
 
-async fn escalate_task(State(state): State<AppState>, Path(task_id): Path<Uuid>) -> Result<Json<TaskResponse>, AppError> {
+async fn escalate_task(State(state): State<AppState>, Path(task_id): Path<Uuid>) -> Result<Json<serde_json::Value>, AppError> {
     sqlx::query("UPDATE tasks SET status='ESCALATED' WHERE id=$1").bind(task_id).execute(&state.db).await.map_err(AppError::Database)?;
     get_task(State(state), Path(task_id)).await
 }
@@ -366,13 +394,19 @@ async fn set_task_output(
     .map_err(AppError::Database)?;
 
     // Insert a task_results row so the workspace page can display it.
-    // Uses actual schema: step_number (smallint), result_content (text), engine_slot (text).
+    // ON CONFLICT DO UPDATE so idempotent if relay fires twice (UNIQUE task_id+step_number).
+    let model_name = req.model.as_deref().unwrap_or("browser-relay");
+    let tis27 = format!("relay-{task_id}");
     sqlx::query(
-        "INSERT INTO task_results (id, task_id, step_number, engine_slot, result_content, created_at) \
-         VALUES (uuid_generate_v4(), $1, 1, $2, $3, NOW())"
+        "INSERT INTO task_results \
+           (id, task_id, step_number, engine_slot, engine_model, agent_role, tis27_hash, result_content, created_at) \
+         VALUES (uuid_generate_v4(), $1, 1, 'a', $2, 'browser-relay', $3, $4, NOW()) \
+         ON CONFLICT (task_id, step_number) DO UPDATE \
+           SET result_content = EXCLUDED.result_content, engine_model = EXCLUDED.engine_model"
     )
     .bind(task_id)
-    .bind(req.model.as_deref().unwrap_or("a"))
+    .bind(model_name)
+    .bind(&tis27)
     .bind(&req.content)
     .execute(&state.db)
     .await

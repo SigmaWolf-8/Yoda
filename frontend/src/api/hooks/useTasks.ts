@@ -58,6 +58,11 @@ export function useTask(taskId?: string) {
       return res.data;
     },
     enabled: !!taskId,
+    refetchInterval: (q) => {
+      const status = q.state.data?.task.status;
+      if (!status || status === 'FINAL' || status === 'ESCALATED' || status === 'CANCELLED') return false;
+      return 3_000;
+    },
   });
 }
 
