@@ -43,7 +43,10 @@ export function PlenumNetPanel({ engines }: Props) {
 
   const configuredEngines = engines.filter((e) => e.model_name?.trim());
   const selfHostedEngines = configuredEngines.filter((e) => e.hosting_mode === 'self_hosted');
-  const hasActiveTunnel = !error && stats !== null && stats.registeredCount > 0;
+  // Tunnel is active if CRS reports registrations OR any self-hosted engine is already online
+  const crsActive = !error && stats !== null && stats.registeredCount > 0;
+  const anySelfHostedOnline = selfHostedEngines.some((e) => e.health_status === 'online');
+  const hasActiveTunnel = crsActive || anySelfHostedOnline;
   const needsReconnect = selfHostedEngines.length > 0 && !hasActiveTunnel && !error;
 
   function resolveModelName(eng: EngineConfig): string {
@@ -61,14 +64,16 @@ export function PlenumNetPanel({ engines }: Props) {
         </div>
         <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-sm font-medium border ${
           hasActiveTunnel
-            ? 'bg-[var(--color-plex-500)]/10 border-[var(--color-plex-500)]/30 text-[var(--color-plex-400)]'
+            ? 'bg-sky-400/10 border-sky-400/30 text-sky-300'
             : 'bg-[var(--color-surface-tertiary)] border-[var(--color-border-default)] text-[var(--color-text-muted)]'
         }`}>
           <span className={`w-1.5 h-1.5 rounded-full ${
-            hasActiveTunnel ? 'bg-[var(--color-plex-400)] animate-pulse' : 'bg-[var(--color-text-muted)]'
+            hasActiveTunnel ? 'bg-sky-300 animate-pulse' : 'bg-[var(--color-text-muted)]'
           }`} />
           {hasActiveTunnel
-            ? `PlenumNET Active · ${stats!.registeredCount} node${stats!.registeredCount !== 1 ? 's' : ''}`
+            ? crsActive
+              ? `PlenumNET Active · ${stats!.registeredCount} node${stats!.registeredCount !== 1 ? 's' : ''}`
+              : 'PlenumNET Active'
             : error
               ? 'CRS unreachable'
               : 'No active tunnels'}
@@ -103,15 +108,16 @@ export function PlenumNetPanel({ engines }: Props) {
         {configuredEngines.map((eng) => {
           const isSelfHosted = eng.hosting_mode === 'self_hosted';
           const isOnline = eng.health_status === 'online';
-          const showTunnel = isSelfHosted && hasActiveTunnel;
+          // Show PlenumNET label if self-hosted AND this engine is online (the connection IS the tunnel)
+          const showTunnel = isSelfHosted && isOnline;
           const showApi = !isSelfHosted && isOnline;
 
           const dotColor = isSelfHosted
             ? showTunnel
-              ? 'bg-[var(--color-plex-400)] animate-pulse'
-              : 'bg-[var(--color-plex-500)]/30'
+              ? 'bg-sky-300 animate-pulse'
+              : 'bg-[var(--color-surface-tertiary)] border border-[var(--color-border-default)]'
             : isOnline
-              ? 'bg-[var(--color-plex-400)]'
+              ? 'bg-sky-300'
               : 'bg-[var(--color-text-muted)]';
 
           const displayName = resolveModelName(eng);
@@ -136,19 +142,19 @@ export function PlenumNetPanel({ engines }: Props) {
 
               <div className="flex items-center gap-1.5 flex-shrink-0 ml-2">
                 {showTunnel && (
-                  <span className="flex items-center gap-1 text-xs text-[var(--color-plex-400)] font-medium">
+                  <span className="flex items-center gap-1 text-xs text-sky-300 font-medium">
                     <Radio className="w-3 h-3" />
                     PlenumNET
                   </span>
                 )}
                 {showApi && (
-                  <span className="flex items-center gap-1 text-xs text-[var(--color-plex-400)] font-medium">
+                  <span className="flex items-center gap-1 text-xs text-sky-300 font-medium">
                     <Globe2 className="w-3 h-3" />
                     API online
                   </span>
                 )}
-                {/* Reconnect button — only for self-hosted engines without active tunnel */}
-                {isSelfHosted && !showTunnel && displayName && (
+                {/* Connect button — only when self-hosted engine is not yet online */}
+                {isSelfHosted && !isOnline && displayName && (
                   <button
                     onClick={() => setConnectingEngine(eng)}
                     className="flex items-center gap-1 text-xs px-2 py-0.5 rounded-md border border-[var(--color-plex-500)]/40 bg-[var(--color-plex-500)]/8 text-[var(--color-plex-400)] hover:bg-[var(--color-plex-500)]/15 hover:border-[var(--color-plex-500)]/70 transition-colors"
@@ -157,7 +163,7 @@ export function PlenumNetPanel({ engines }: Props) {
                     Connect
                   </button>
                 )}
-                {isSelfHosted && !showTunnel && !displayName && (
+                {isSelfHosted && !isOnline && !displayName && (
                   <span className="flex items-center gap-1 text-xs text-[var(--color-text-muted)]">
                     <RefreshCw className="w-2.5 h-2.5" />
                     Not configured

@@ -22,24 +22,24 @@ function Indicator({
 }) {
   const dot =
     level === 'live'
-      ? 'bg-[var(--color-plex-400)] animate-pulse'
+      ? 'bg-sky-300 animate-pulse'
       : level === 'trouble'
       ? 'bg-[var(--color-text-muted)]'
       : 'bg-[var(--color-surface-tertiary)] border border-[var(--color-border-default)]';
 
   const iconColor =
     level === 'live'
-      ? 'text-[var(--color-plex-400)]'
+      ? 'text-sky-300'
       : 'text-[var(--color-text-muted)]';
 
   const statusColor =
     level === 'live'
-      ? 'text-[var(--color-plex-400)]'
+      ? 'text-sky-300'
       : 'text-[var(--color-text-muted)]';
 
   const bg =
     level === 'live'
-      ? 'bg-[var(--color-plex-500)]/6 border-[var(--color-plex-500)]/20'
+      ? 'bg-sky-400/6 border-sky-400/20'
       : 'bg-[var(--color-surface-secondary)] border-[var(--color-border-subtle)]';
 
   return (
