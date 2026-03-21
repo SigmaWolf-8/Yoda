@@ -47,6 +47,9 @@ pub fn build_router(state: AppState) -> Router {
         .route("/api/salvi/inter-cube/crs/register", post(crs_register))
         .route("/api/salvi/inter-cube/crs/heartbeat", post(crs_heartbeat))
         .route("/api/salvi/inter-cube/crs/stats", get(crs_stats))
+        .route("/api/salvi/inter-cube/topology", get(crs_topology))
+        .route("/api/salvi/inter-cube/fts/status", get(crs_fts_status))
+        .route("/api/monitoring/registered-nodes", get(monitoring_registered_nodes))
         .route("/api/yoda/crs/session/{token}", get(crs_session));
 
     // ── Protected routes (JWT or API key) ────────────────────────────
@@ -698,6 +701,69 @@ async fn crs_stats() -> Result<(StatusCode, Json<serde_json::Value>), AppError> 
         .await
         .map_err(|e| AppError::Internal(format!("CRS response: {e}")))?;
     Ok((status, Json(json)))
+}
+
+/// GET /api/salvi/inter-cube/topology → topology proxy
+async fn crs_topology() -> Result<(StatusCode, Json<serde_json::Value>), AppError> {
+    let client = crs_client()?;
+    let resp = client
+        .get(format!("{CRS_BASE}/api/salvi/inter-cube/topology"))
+        .send()
+        .await
+        .map_err(|e| AppError::Internal(format!("CRS unreachable: {e}")))?;
+    let status = StatusCode::from_u16(resp.status().as_u16())
+        .unwrap_or(StatusCode::INTERNAL_SERVER_ERROR);
+    let json: serde_json::Value = resp
+        .json()
+        .await
+        .map_err(|e| AppError::Internal(format!("CRS response: {e}")))?;
+    Ok((status, Json(json)))
+}
+
+/// GET /api/salvi/inter-cube/fts/status → FTS status proxy
+async fn crs_fts_status() -> Result<(StatusCode, Json<serde_json::Value>), AppError> {
+    let client = crs_client()?;
+    let resp = client
+        .get(format!("{CRS_BASE}/api/salvi/inter-cube/fts/status"))
+        .send()
+        .await
+        .map_err(|e| AppError::Internal(format!("CRS unreachable: {e}")))?;
+    let status = StatusCode::from_u16(resp.status().as_u16())
+        .unwrap_or(StatusCode::INTERNAL_SERVER_ERROR);
+    let json: serde_json::Value = resp
+        .json()
+        .await
+        .map_err(|e| AppError::Internal(format!("CRS response: {e}")))?;
+    Ok((status, Json(json)))
+}
+
+/// GET /api/monitoring/registered-nodes
+/// Returns cubes that have heartbeated in the last 5 minutes.
+async fn monitoring_registered_nodes(
+    State(state): State<AppState>,
+) -> Result<Json<serde_json::Value>, AppError> {
+    let rows = sqlx::query_as::<_, (String, String, chrono::DateTime<chrono::Utc>)>(
+        "SELECT address_str, endpoint, last_heartbeat \
+         FROM crs_registrations \
+         WHERE last_heartbeat > NOW() - INTERVAL '5 minutes' \
+         ORDER BY last_heartbeat DESC LIMIT 20",
+    )
+    .fetch_all(&state.db)
+    .await
+    .map_err(AppError::Database)?;
+
+    let nodes: Vec<serde_json::Value> = rows
+        .iter()
+        .map(|(addr, ep, hb)| {
+            serde_json::json!({
+                "address": addr,
+                "endpoint": ep,
+                "lastHeartbeat": hb,
+            })
+        })
+        .collect();
+
+    Ok(Json(serde_json::json!({ "nodes": nodes })))
 }
 
 /// GET /api/yoda/crs/session/{token} → CRS session poll

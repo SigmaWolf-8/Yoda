@@ -17,15 +17,40 @@ interface CrsStats {
   registeredCount: number;
   totalVertices: number;
   utilizationPercent: number;
+  neighborsPerCube?: number;
+  dimensions?: number;
 }
 
-const CRS_URL = (import.meta.env.VITE_CRS_URL as string | undefined) ?? '';
+interface FtsStats {
+  up: number;
+  suspect: number;
+  down: number;
+  recovering: number;
+  total: number;
+}
+
+interface RegisteredNode {
+  address: string;
+  endpoint: string;
+  lastHeartbeat: string;
+}
+
+const BASE = (import.meta.env.VITE_CRS_URL as string | undefined) ?? '';
+
+async function crsGet<T>(path: string): Promise<T> {
+  const origin = BASE || window.location.origin;
+  const res = await fetch(`${origin}${path}`);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json() as Promise<T>;
+}
 
 export function MonitoringPage() {
   const { data: engines, isLoading, refetch, isFetching } = useEngineConfigs({ refetchInterval: 30_000 });
 
-  const [crsStats, setCrsStats] = useState<CrsStats | null>(null);
-  const [crsError, setCrsError] = useState(false);
+  const [crsStats,    setCrsStats]    = useState<CrsStats | null>(null);
+  const [ftsStats,    setFtsStats]    = useState<FtsStats | null>(null);
+  const [crsError,    setCrsError]    = useState(false);
+  const [nodeAddress, setNodeAddress] = useState<string | undefined>(undefined);
 
   usePageHeader({
     icon: BarChart3,
@@ -36,34 +61,46 @@ export function MonitoringPage() {
   useEffect(() => {
     let cancelled = false;
 
-    async function fetchStats() {
+    async function fetchAll() {
+      // CRS stats (always try)
       try {
-        const base = CRS_URL || window.location.origin;
-        const res = await fetch(`${base}/api/salvi/inter-cube/crs/stats`);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data: CrsStats = await res.json();
+        const data = await crsGet<CrsStats>('/api/salvi/inter-cube/crs/stats');
         if (!cancelled) { setCrsStats(data); setCrsError(false); }
       } catch {
         if (!cancelled) setCrsError(true);
       }
+
+      // FTS status
+      try {
+        const data = await crsGet<FtsStats>('/api/salvi/inter-cube/fts/status');
+        if (!cancelled) setFtsStats(data);
+      } catch { /* FTS optional */ }
+
+      // Registered nodes → pick YODA node address (most recent heartbeat)
+      try {
+        const data = await crsGet<{ nodes: RegisteredNode[] }>('/api/monitoring/registered-nodes');
+        if (!cancelled && data.nodes.length > 0) {
+          setNodeAddress(data.nodes[0].address);
+        }
+      } catch { /* address optional */ }
     }
 
-    fetchStats();
-    const id = setInterval(fetchStats, 10_000);
+    fetchAll();
+    const id = setInterval(fetchAll, 15_000);
     return () => { cancelled = true; clearInterval(id); };
   }, []);
 
   const metricsData: { timestamp: string; engine_a?: number; engine_b?: number; engine_c?: number }[] = [];
   const allReviews: TaskReview[] = [];
 
-  const crsReachable = !crsError && crsStats !== null;
-  const crsHasNode = crsReachable && (crsStats?.registeredCount ?? 0) > 0;
+  const crsReachable  = !crsError && crsStats !== null;
+  const crsHasNode    = crsReachable && (crsStats?.registeredCount ?? 0) > 0;
 
   if (isLoading) {
     return (
       <div className="flex items-center gap-2 text-[var(--color-text-muted)] p-8 justify-center">
         <Loader2 className="w-4 h-4 animate-spin" />
-        <span className="text-sm">Loading engine status...</span>
+        <span className="text-sm">Loading engine status…</span>
       </div>
     );
   }
@@ -93,7 +130,12 @@ export function MonitoringPage() {
       {/* ── Node card + engine connections ── */}
       <div className="grid grid-cols-1 md:grid-cols-5 gap-5">
         <div className="md:col-span-2">
-          <NodeCard stats={crsStats} error={crsError} />
+          <NodeCard
+            stats={crsStats}
+            fts={ftsStats}
+            error={crsError}
+            nodeAddress={nodeAddress}
+          />
         </div>
         <div className="md:col-span-3">
           <PlenumNetPanel engines={engines ?? []} />
