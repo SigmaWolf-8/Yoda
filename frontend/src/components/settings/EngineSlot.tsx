@@ -1359,9 +1359,40 @@ export function EngineSlotCard({
             )}
             {/* Mark-online verification error — shown when the model server isn't reachable */}
             {markOnlineError && (
-              <div className="flex items-start gap-2 px-2.5 py-2 rounded-md bg-[var(--color-err)]/8 border border-[var(--color-err)]/25 text-xs text-[var(--color-err)]">
-                <XCircle className="w-3 h-3 flex-shrink-0 mt-0.5" />
-                <span>{markOnlineError}</span>
+              <div className="flex flex-col gap-2 px-2.5 py-2.5 rounded-md bg-[var(--color-err)]/8 border border-[var(--color-err)]/25 text-xs">
+                <div className="flex items-start gap-2 text-[var(--color-err)]">
+                  <XCircle className="w-3 h-3 flex-shrink-0 mt-0.5" />
+                  <span>{markOnlineError}</span>
+                </div>
+                <div className="flex items-center gap-2 pl-5">
+                  {GGUF_INFO[modelName] && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (detectOS() === 'windows') {
+                          handleStep2Install();
+                        } else {
+                          const info = GGUF_INFO[modelName];
+                          if (!info) return;
+                          const token = getStoredToken() ?? '';
+                          const crsUrl = 'https://plenumnet.replit.app';
+                          const sh = makeBashInstallScript(modelName, info.repo, info.file, SLOT_PORT[slot], token, crsUrl);
+                          triggerDownload(sh, 'yoda-install.sh', 'text/plain');
+                        }
+                      }}
+                      className="px-2 py-1 rounded bg-[var(--color-err)]/15 border border-[var(--color-err)]/30 text-[var(--color-err)] hover:bg-[var(--color-err)]/25 transition-colors font-medium"
+                    >
+                      {detectOS() === 'windows' ? 'Download Step 2 (.bat)' : 'Download Install Script'}
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setMarkOnlineError(null)}
+                    className="px-2 py-1 rounded bg-[var(--color-surface-tertiary)] border border-[var(--color-border-subtle)] text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)] transition-colors"
+                  >
+                    Dismiss
+                  </button>
+                </div>
               </div>
             )}
           </>
