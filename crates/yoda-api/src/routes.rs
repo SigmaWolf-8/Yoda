@@ -510,7 +510,7 @@ async fn clear_engine(
     if !["a","b","c"].contains(&slot.as_str()) {
         return Err(AppError::Validation("Slot must be 'a', 'b', or 'c'".into()));
     }
-    let default_port: u16 = match slot.as_str() { "a" => 8080, "b" => 8081, _ => 8082 };
+    let default_port: u16 = match slot.as_str() { "a" => 8080, "b" => 8082, _ => 8084 };
     sqlx::query(
         "UPDATE engine_configs \
          SET model_name='', model_family='', family_override=NULL, \
@@ -1028,11 +1028,15 @@ async fn node_info(
                 .join(".");
 
             // Parse engine port from stored endpoint (e.g., "10.0.0.35:8080" → "8080")
-            let engine_port = endpoint
+            let engine_port_str = endpoint
                 .rsplit(':')
                 .next()
                 .unwrap_or("8080")
                 .to_string();
+            // Node (daemon) port = engine port + 1 per relay reference (8080→8081, 8082→8083, 8084→8085)
+            let node_port_str = engine_port_str.parse::<u16>()
+                .map(|p| (p + 1).to_string())
+                .unwrap_or_else(|_| "8081".to_string());
 
             let crs_url = std::env::var("REPLIT_URL")
                 .or_else(|_| std::env::var("CRS_URL"))
@@ -1044,8 +1048,8 @@ async fn node_info(
                 "mode":          "cube",
                 "crsUrl":        crs_url,
                 "ports": {
-                    "engine": engine_port,
-                    "node":   "8081"
+                    "engine": engine_port_str,
+                    "node":   node_port_str
                 }
             })))
         }

@@ -314,8 +314,8 @@ const ALL_SELF_HOSTED_SET = new Set(
 
 // ── llama.cpp (llama-server) config ──────────────────────────────────────────
 // Each engine slot gets its own port so instances can run truly in parallel.
-export const SLOT_PORT: Record<Slot, number>      = { a: 8080,  b: 8081,  c: 8082  };
-export const CUBE_PORT: Record<Slot, number>      = { a: 9080,  b: 9081,  c: 9082  };
+export const SLOT_PORT: Record<Slot, number>      = { a: 8080,  b: 8082,  c: 8084  };
+export const CUBE_PORT: Record<Slot, number>      = { a: 8081,  b: 8083,  c: 8085  };
 
 // HuggingFace GGUF source for every self-hosted model.
 // llama-server downloads the file on first run, then serves on SLOT_PORT.

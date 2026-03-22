@@ -272,7 +272,7 @@ pub async fn submit_query(
     // Replit's server can't reach local/LAN addresses so health checks mark them
     // offline — but the browser running on the user's machine CAN.
     // If no explicit endpoint_url is saved, derive a default localhost URL from
-    // the slot (A → :8080, B → :8081, C → :8082) for self-hosted engines.
+    // the slot (A → :8080, B → :8082, C → :8084) for self-hosted engines.
     // Browser relay only makes sense for self-hosted local engines.
     // The browser has no credentials to call commercial/free_tier APIs directly,
     // and those should have been handled server-side in decomposition above.
@@ -291,7 +291,7 @@ pub async fn submit_query(
             return Some(url);
         }
         if hosting_mode == "self_hosted" {
-            let port = match slot.as_str() { "b" => 8081u16, "c" => 8082, _ => 8080 };
+            let port = match slot.as_str() { "b" => 8082u16, "c" => 8084, _ => 8080 };
             Some(format!("http://localhost:{port}"))
         } else {
             None

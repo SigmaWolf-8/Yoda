@@ -7,7 +7,7 @@
 
 # ── Configurable options ────────────────────────────────────
 $QUANT        = "Q4_K_M"          # Q4_K_M ~4.4 GB  |  Q5_K_M ~5.1 GB
-$LLAMA_PORT   = 8081              # Engine B slot (matches YODA default)
+$LLAMA_PORT   = 8082              # Engine B slot — Agent 1, LLM port = 8080 + 2×1
 $CTX_SIZE     = 8192              # Context window tokens
 $GPU_LAYERS   = 0                 # Set >0 if you have a GPU (e.g. 33)
 $MODELS_DIR   = "$HOME\yoda-models"
