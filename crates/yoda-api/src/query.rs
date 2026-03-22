@@ -166,16 +166,28 @@ pub async fn submit_query(
     .map_err(AppError::Database)?;
 
     // ── Try PlenumLAN relay first ────────────────────────────────────────────
-    // Only route through the CRS relay for cube-mode engines; self_hosted
-    // engines are localhost and the browser can reach them directly via browser
-    // relay — no 30 s relay timeout needed.
+    // Relay handles self_hosted engines (local llama-server) via the cube
+    // daemon's WebSocket tunnel.  We look up the live cube address from
+    // crs_registrations rather than using a hardcoded ternary value.
+    // Commercial / free_tier engines are handled server-side above.
     let engine_slot: Option<String> = sqlx::query_scalar(
         "SELECT slot FROM engine_configs \
          WHERE org_id = $1 AND endpoint_url IS NOT NULL AND endpoint_url <> '' \
-         AND hosting_mode NOT IN ('self_hosted', 'commercial', 'free_tier') \
+         AND hosting_mode = 'self_hosted' \
          ORDER BY slot ASC LIMIT 1"
     )
     .bind(user.org_id)
+    .fetch_optional(&state.db)
+    .await
+    .unwrap_or(None);
+
+    // Look up the most recently heartbeated cube node address.
+    // Falls back to the hardcoded slot map only if no live registration exists.
+    let live_cube_address: Option<String> = sqlx::query_scalar(
+        "SELECT address_str FROM crs_registrations \
+         WHERE last_heartbeat > NOW() - INTERVAL '5 minutes' \
+         ORDER BY last_heartbeat DESC LIMIT 1"
+    )
     .fetch_optional(&state.db)
     .await
     .unwrap_or(None);
@@ -184,7 +196,9 @@ pub async fn submit_query(
         // Check if the relay is alive
         if let Some(relay_tx) = state.relay_tx.read().await.clone() {
             let request_id = Uuid::new_v4();
-            let cube_address = slot_to_cube_address(slot).to_string();
+            let cube_address = live_cube_address
+                .clone()
+                .unwrap_or_else(|| slot_to_cube_address(slot).to_string());
 
             let messages = serde_json::json!([
                 {"role": "user", "content": req.text}

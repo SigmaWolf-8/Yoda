@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Send, Loader2, Wifi, AlertCircle, Copy, Check } from 'lucide-react';
+import { Send, Loader2, Wifi, AlertCircle } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useSubmitQuery } from '../../api/hooks';
 import apiClient from '../../api/client';
@@ -45,7 +45,6 @@ export function QueryInput({ projectId, mode, onResult }: Props) {
   const [text, setText]           = useState('');
   const [relayState, setRelayState] = useState<RelayState>('idle');
   const [relayError, setRelayError] = useState<RelayError | null>(null);
-  const [copied, setCopied]         = useState(false);
   const qc           = useQueryClient();
   const submit       = useSubmitQuery(projectId);
   const textareaRef  = useRef<HTMLTextAreaElement>(null);
@@ -185,12 +184,6 @@ export function QueryInput({ projectId, mode, onResult }: Props) {
     setRelayError(null);
   }
 
-  function copyCmd(cmd: string) {
-    navigator.clipboard.writeText(cmd).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    });
-  }
 
   const isBusy = submit.isPending || relayState === 'pending' || relayState === 'relaying';
 
@@ -201,16 +194,6 @@ export function QueryInput({ projectId, mode, onResult }: Props) {
     return null;
   }
 
-  function buildFixCmd(endpoint: string): string {
-    try {
-      const url  = new URL(endpoint);
-      const port = url.port || '8080';
-      return `llama-server --host 0.0.0.0 --port ${port} -m <your-model>.gguf`;
-    } catch {
-      return `llama-server --host 0.0.0.0 --port 8080 -m <your-model>.gguf`;
-    }
-  }
-
   function renderError() {
     if (!relayError && !submit.error) return null;
 
@@ -218,7 +201,7 @@ export function QueryInput({ projectId, mode, onResult }: Props) {
       return (
         <div className="mt-3 rounded-lg border border-[var(--color-err)]/30 bg-[var(--color-err)]/5 p-3">
           <p className="text-sm text-[var(--color-err)]">
-            Server rejected the query — check that at least one engine slot is saved in AI Engines settings.
+            Could not submit query. Make sure at least one engine is saved in Settings → AI Engines.
           </p>
         </div>
       );
@@ -227,20 +210,15 @@ export function QueryInput({ projectId, mode, onResult }: Props) {
     const { kind, endpoint, detail } = relayError!;
 
     if (kind === 'not_running') {
-      const cmd = buildFixCmd(endpoint);
       return (
         <div className="mt-3 rounded-lg border border-[var(--color-err)]/30 bg-[var(--color-err)]/5 p-3 space-y-2">
           <div className="flex items-start gap-2">
             <AlertCircle className="w-4 h-4 text-[var(--color-err)] flex-shrink-0 mt-0.5" />
-            <p className="text-sm text-[var(--color-err)] font-medium">Engine not running at <code className="font-mono text-xs">{endpoint}</code></p>
+            <p className="text-sm text-[var(--color-err)] font-medium">Local engine not responding at <code className="font-mono text-xs">{endpoint}</code></p>
           </div>
-          <p className="text-xs text-[var(--color-text-muted)]">Start llama-server on your machine:</p>
-          <div className="flex items-center gap-2 bg-[var(--color-surface-tertiary)] rounded-md px-3 py-2">
-            <code className="text-xs text-[var(--color-text-secondary)] flex-1 break-all">{cmd}</code>
-            <button onClick={() => copyCmd(cmd)} className="flex-shrink-0 text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]">
-              {copied ? <Check className="w-3.5 h-3.5 text-[var(--color-ok)]" /> : <Copy className="w-3.5 h-3.5" />}
-            </button>
-          </div>
+          <p className="text-xs text-[var(--color-text-muted)]">
+            Your model server has stopped. Go to <strong>Settings → AI Engines</strong> and click <strong>Sync Node</strong> to restart it, then try again.
+          </p>
           <button onClick={resetForRetry} className="text-xs text-[var(--color-plex-400)] hover:underline">Dismiss and retry</button>
         </div>
       );
@@ -251,10 +229,12 @@ export function QueryInput({ projectId, mode, onResult }: Props) {
         <div className="mt-3 rounded-lg border border-[var(--color-warn)]/30 bg-[var(--color-warn)]/5 p-3 space-y-2">
           <div className="flex items-start gap-2">
             <AlertCircle className="w-4 h-4 text-[var(--color-warn)] flex-shrink-0 mt-0.5" />
-            <p className="text-sm text-[var(--color-warn)] font-medium">Engine is running but blocked by browser security (CORS)</p>
+            <p className="text-sm text-[var(--color-warn)] font-medium">Engine reached but browser security blocked the connection</p>
           </div>
-          <p className="text-xs text-[var(--color-text-muted)]">Your browser blocked the direct connection to your local engine. Try dismissing and retrying — some llama-server builds allow cross-origin requests by default.</p>
-          <button onClick={resetForRetry} className="text-xs text-[var(--color-plex-400)] hover:underline">Dismiss and retry</button>
+          <p className="text-xs text-[var(--color-text-muted)]">
+            Your model at <code className="font-mono">{endpoint}</code> is running but your browser cannot connect to it directly. Make sure the PlenumNET daemon is also running — YODA will route through it automatically. If it is running, try again in a moment.
+          </p>
+          <button onClick={resetForRetry} className="text-xs text-[var(--color-plex-400)] hover:underline">Retry</button>
         </div>
       );
     }
@@ -264,9 +244,26 @@ export function QueryInput({ projectId, mode, onResult }: Props) {
         <div className="mt-3 rounded-lg border border-[var(--color-warn)]/30 bg-[var(--color-warn)]/5 p-3 space-y-1">
           <div className="flex items-start gap-2">
             <AlertCircle className="w-4 h-4 text-[var(--color-warn)] flex-shrink-0 mt-0.5" />
-            <p className="text-sm text-[var(--color-warn)] font-medium">Engine timed out at <code className="font-mono text-xs">{endpoint}</code></p>
+            <p className="text-sm text-[var(--color-warn)] font-medium">Engine took too long to respond</p>
           </div>
-          <p className="text-xs text-[var(--color-text-muted)]">The model may still be loading. Wait a moment and try again.</p>
+          <p className="text-xs text-[var(--color-text-muted)]">
+            Your model at <code className="font-mono text-xs">{endpoint}</code> is loading or under load. Wait a moment and try again.
+          </p>
+          <button onClick={resetForRetry} className="text-xs text-[var(--color-plex-400)] hover:underline">Retry</button>
+        </div>
+      );
+    }
+
+    if (kind === 'http') {
+      return (
+        <div className="mt-3 rounded-lg border border-[var(--color-err)]/30 bg-[var(--color-err)]/5 p-3 space-y-1">
+          <div className="flex items-start gap-2">
+            <AlertCircle className="w-4 h-4 text-[var(--color-err)] flex-shrink-0 mt-0.5" />
+            <p className="text-sm text-[var(--color-err)] font-medium">Engine returned an error ({detail})</p>
+          </div>
+          <p className="text-xs text-[var(--color-text-muted)]">
+            The engine at <code className="font-mono text-xs">{endpoint}</code> rejected the request. Check your engine configuration in Settings → AI Engines.
+          </p>
           <button onClick={resetForRetry} className="text-xs text-[var(--color-plex-400)] hover:underline">Dismiss and retry</button>
         </div>
       );
@@ -276,7 +273,7 @@ export function QueryInput({ projectId, mode, onResult }: Props) {
       <div className="mt-3 rounded-lg border border-[var(--color-err)]/30 bg-[var(--color-err)]/5 p-3 space-y-1">
         <div className="flex items-start gap-2">
           <AlertCircle className="w-4 h-4 text-[var(--color-err)] flex-shrink-0 mt-0.5" />
-          <p className="text-sm text-[var(--color-err)]">{detail ?? 'Unknown error'}</p>
+          <p className="text-sm text-[var(--color-err)]">{detail ?? 'Something went wrong connecting to your engine. Check Settings → AI Engines.'}</p>
         </div>
         <button onClick={resetForRetry} className="text-xs text-[var(--color-plex-400)] hover:underline">Dismiss and retry</button>
       </div>
