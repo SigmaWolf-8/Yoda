@@ -435,8 +435,8 @@ $cpuArch = [System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture.T
 Write-Host "  -> Architecture: $cpuArch"
 
 # Step A -- find and activate MSVC via vswhere (sets VCINSTALLDIR etc.)
-$vswhereX86 = "C:\Program Files (x86)\Microsoft Visual Studio\Installer\vswhere.exe"
-$vswhereNat = "C:\Program Files\Microsoft Visual Studio\Installer\vswhere.exe"
+$vswhereX86 = "C:\\Program Files (x86)\\Microsoft Visual Studio\\Installer\\vswhere.exe"
+$vswhereNat = "C:\\Program Files\\Microsoft Visual Studio\\Installer\\vswhere.exe"
 $vswhere = if (Test-Path -LiteralPath $vswhereX86) { $vswhereX86 } elseif (Test-Path -LiteralPath $vswhereNat) { $vswhereNat } else { "" }
 if ($vswhere) {
   $vsInstallPath = (& $vswhere -latest -products * -property installationPath 2>$null) |
@@ -467,7 +467,7 @@ if ($vswhere) {
 # Step B -- ensure clang is on PATH (ring needs it for ARM64 assembly)
 $hasClang = Get-Command clang -ErrorAction SilentlyContinue
 if (-not $hasClang) {
-  $llvmBin = "C:\Program Files\LLVM\bin"
+  $llvmBin = "C:\\Program Files\\LLVM\\bin"
   if (Test-Path -LiteralPath (Join-Path $llvmBin "clang.exe")) {
     $env:PATH += ";$llvmBin"
     $hasClang = Get-Command clang -ErrorAction SilentlyContinue
@@ -496,7 +496,7 @@ if ($hasClang) {
     Remove-Item $llvmInstaller -Force -ErrorAction SilentlyContinue
   }
   $env:PATH = [System.Environment]::GetEnvironmentVariable("PATH","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("PATH","User")
-  $llvmBin = "C:\Program Files\LLVM\bin"
+  $llvmBin = "C:\\Program Files\\LLVM\\bin"
   if (Test-Path -LiteralPath (Join-Path $llvmBin "clang.exe")) { $env:PATH += ";$llvmBin" }
   if (Get-Command clang -ErrorAction SilentlyContinue) {
     Write-Host "  OK clang installed"
