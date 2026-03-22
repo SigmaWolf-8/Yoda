@@ -1,0 +1,81 @@
+Windows PowerShell
+Copyright (C) Microsoft Corporation. All rights reserved.
+
+Install the latest PowerShell for new features and improvements! https://aka.ms/PSWindows
+
+PS C:\Users\Sigma> Select-String -Path "C:\Users\Sigma\PlenumNET\services\inter-cube\src\main.rs" -Pattern "8080|HTTP_PORT|http_port|bind|listen" | Select-Object -First 20
+
+PlenumNET\services\inter-cube\src\main.rs:23://   CUBE_API_PORT              — HTTP API bind port (default: 8080)
+PlenumNET\services\inter-cube\src\main.rs:53:        .unwrap_or(8080)
+PlenumNET\services\inter-cube\src\main.rs:167:    let listen_addr: SocketAddr = format!("0.0.0.0:{}",
+port).parse().unwrap();
+PlenumNET\services\inter-cube\src\main.rs:173:    println!("  http://{}", listen_addr);
+PlenumNET\services\inter-cube\src\main.rs:178:    let listener = tokio::net::TcpListener::bind(listen_addr)
+PlenumNET\services\inter-cube\src\main.rs:180:        .expect(&format!("Failed to bind to port {}", port));
+PlenumNET\services\inter-cube\src\main.rs:182:    axum::serve(listener, app)
+PlenumNET\services\inter-cube\src\main.rs:614:    let listen_addr: SocketAddr = format!("0.0.0.0:{}",
+port).parse().unwrap();
+PlenumNET\services\inter-cube\src\main.rs:617:    println!("  http://{}", listen_addr);
+PlenumNET\services\inter-cube\src\main.rs:623:    let listener = tokio::net::TcpListener::bind(listen_addr)
+PlenumNET\services\inter-cube\src\main.rs:625:        .expect(&format!("Failed to bind to port {}", port));
+PlenumNET\services\inter-cube\src\main.rs:627:    axum::serve(listener, app)
+
+
+PS C:\Users\Sigma> $env:CUBE_MODE          = "cube"
+PS C:\Users\Sigma> $env:CUBE_CRS_URL       = "https://plenumnet.replit.app"
+PS C:\Users\Sigma> $env:CUBE_ROLE          = "inference"
+PS C:\Users\Sigma> $env:CUBE_ENDPOINT      = "0.0.0.0:51820"
+PS C:\Users\Sigma> $env:CUBE_API_PORT      = "8081"
+PS C:\Users\Sigma> & "C:\Users\Sigma\PlenumNET\target\release\inter-cube-daemon.exe"
+===========================================================
+  PlenumNET Inter-Cube Infrastructure Services v0.2.0
+  Applied Physics Division -- Capomastro Holdings Ltd.
+===========================================================
+
+[CUBE] Mode: worker cube
+[CUBE] CRS URL: https://plenumnet.replit.app
+[CUBE] Endpoint: 0.0.0.0:51820
+[CUBE] Role: inference
+
+[IDENTITY] WARNING: CUBE_IDENTITY_PASSPHRASE not set. Using hostname-derived fallback passphrase. Set CUBE_IDENTITY_PASSPHRASE for production deployments.
+[IDENTITY] Loaded master secret from .plenumnet/identity\master.key
+[IDENTITY] PT26-DSA keypair derived (pk: 0301020302020103...)
+[CUBE] Resolved 0.0.0.0:51820 -> 0.0.0.0:51820
+[CUBE] Registration attempt 1/10 -> https://plenumnet.replit.app/api/salvi/inter-cube/relay/register?publicKey=030102030202010302010102010f104c8daca5271f44d8b95adfa8decd0d0ec98fd805ae7b5973896ed8cf247ba0dd9fd90ee19982875a28455dc2cf0b&endpoint=0.0.0.0%3A51820
+
+[CUBE] Registered! Address: 231.111.111.111.1 (2311111111111)
+[CUBE] Neighbors: 3 registered, 26 total
+[IDENTITY] Address-bound TL-DSA-87 key derived (pk: 6ea0236bc369735f...)
+[IDENTITY] Updated CRS with address-bound public key
+[CON] Resolved neighbor: 1311111111111 at 0.0.0.0:51820
+[CON] Resolved neighbor: 2111111111111 at 0.0.0.0:3000
+[CON] Resolved neighbor: 2211111111111 at 0.0.0.0:51820
+[CON] Overlay: 0 up, 0 resolving, 23 unknown
+[CON] 0 PQ-native tunnel keys derived (TL-Sponge-385)
+[FTS] 26 up, 0 suspect, 0 down, 0 recovering
+[GLB] 26 live neighbors, ready to forward
+
+=== Inter-Cube Stack Active (Cube Mode) ===
+  Address:       231.111.111.111.1 (2311111111111)
+  CRS:           https://plenumnet.replit.app
+  Dimensions:    13
+  Neighbors:     26 (3 registered)
+  Protocol:      PQ-Native (PT26-DSA + TL-Sponge-385)
+  Identity:      PT26-DSA (71-byte sigs, 28-sig budget)
+
+  CON -> FTS -> GLB pipeline operational.
+  The geometry IS the routing protocol.
+[IDENTITY] WARNING: CUBE_IDENTITY_PASSPHRASE not set. Using hostname-derived fallback passphrase. Set CUBE_IDENTITY_PASSPHRASE for production deployments.
+
+[ws-relay] Establishing relay connection to CRS...
+[ws-relay] Connecting to wss://plenumnet.replit.app/ws/relay
+
+=== HTTP Server (Cube) ===
+  http://0.0.0.0:8081
+  9 routes active
+  Relay:     WebSocket to CRS (NAT traversal)
+  Heartbeat every 30s to CRS (with key rotation check). Ctrl+C to stop.
+
+[ws-relay] WebSocket connected, authenticating...
+[ws-relay] Authenticated. 1 peer(s) online: ["3211111111111"]
+[ws-relay] Relay tunnel active — NAT traversal established
