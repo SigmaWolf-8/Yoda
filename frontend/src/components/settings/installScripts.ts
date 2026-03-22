@@ -594,8 +594,7 @@ $env:CUBE_MODE = $null
 $keygenOutput = if (Test-Path $keygenLog) { Get-Content $keygenLog } else { @() }
 $PUB_KEY = ""
 foreach ($line in $keygenOutput) {
-  $clean = $line -replace '\x1b\[[0-9;]*[a-zA-Z]', ''
-  if ($clean -match ':\s*([0-9a-fA-F]{32,})') {
+  if ($line -match '([0-9a-fA-F]{32,})') {
     $PUB_KEY = $matches[1]
     break
   }
