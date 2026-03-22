@@ -611,9 +611,12 @@ Write-Host ""
 Write-Host "Installing llama.cpp..."
 $llamaServer = Get-ChildItem -Path $LLAMA_DIR -Recurse -Filter "llama-server.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
 if ($llamaServer) {
-  $testOut = & $llamaServer.FullName --version 2>&1
-  if ($LASTEXITCODE -ne 0 -and -not ($testOut -match 'version|llama')) {
-    Write-Host "  WARN Existing llama-server.exe failed to run (likely wrong CPU arch) -- re-downloading..."
+  $ErrorActionPreference = "Continue"
+  & $llamaServer.FullName --version 2>$null | Out-Null
+  $llamaExitCode = $LASTEXITCODE
+  $ErrorActionPreference = "Stop"
+  if ($llamaExitCode -lt 0 -or $llamaExitCode -gt 200) {
+    Write-Host "  WARN Existing llama-server.exe failed (exit $llamaExitCode -- likely wrong CPU arch) -- re-downloading..."
     Remove-Item -Path $LLAMA_DIR -Recurse -Force -ErrorAction SilentlyContinue
     $llamaServer = $null
   } else {
