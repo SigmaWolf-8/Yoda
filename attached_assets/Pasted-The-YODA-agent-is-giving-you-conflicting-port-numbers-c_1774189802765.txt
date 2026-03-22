@@ -1,0 +1,42 @@
+The YODA agent is giving you conflicting port numbers compared to what I provided. Let me look at what's actually configured in the codebase and give you one definitive answer to send back.
+
+OK. Here's the definitive answer based on what's actually in the codebase. The source of truth is PLENUMLAN_RELAY_REFERENCE.md, which was written when the relay was built.
+
+There are two conflicting port schemes. The YODA agent made up 9080/9081/9082 — those don't exist anywhere in the code. Here's what the code actually defines:
+
+The reference doc (PLENUMLAN_RELAY_REFERENCE.md) says:
+
+Each agent gets unique ports: Agent N uses engine port 8080 + 2N and node port 8081 + 2N.
+
+So the actual port scheme per agent is:
+
+Agent	llama-server (LLM)	Cube Daemon (Network)	Cube Address
+Agent 0	8080	8081	1111111111112
+Agent 1	8082	8083	1111111111113
+Agent 2	8084	8085	1111111111121
+Each agent has 2 ports: one for the LLM engine, one for the cube daemon. The YODA agent's claim that the daemon is "outbound only, no local port" is wrong — the daemon runs a local REST API on its port (that's how you call /api/salvi/inter-cube/node/info, /health, etc. locally). The daemon also connects outbound to the CRS relay via WebSocket, but it does listen locally.
+
+However — the YODA agent is correct on one point: the daemon ports don't need inbound port forwarding from the internet. The daemon listens on localhost only. The outbound WebSocket to the CRS is what connects it to the network.
+
+Here's the clear response to send back to YODA:
+
+Correction for YODA:
+
+The port scheme 9080/9081/9082 does not exist in the codebase. The actual port scheme from PLENUMLAN_RELAY_REFERENCE.md is 8080 + 2N (engine) and 8081 + 2N (daemon).
+
+Each agent needs:
+
+1 llama-server port (inbound on localhost — serves LLM inference)
+1 cube daemon port (inbound on localhost — serves local REST API for node info, health, topology)
+1 outbound WebSocket (daemon connects to wss://plenumnet.replit.app/ws/relay — no port forwarding needed)
+1 unique Cube address (assigned by CRS at registration)
+Corrected table:
+
+Cube	Role	LLM Port	Daemon Port	Address
+Cube 1	CRS (Relay + Registry)	N/A	N/A	1111111111111
+Cube 2	YODA Agent 1	8080	8081	1111111111112
+Cube 3	YODA Agent 2	8082	8083	1111111111113
+Cube 4	YODA Agent 3	8084	8085	1111111111121
+The daemon is not outbound-only. It listens on localhost for local API calls (health checks, topology queries, node info). It also connects outbound to the CRS relay. Both functions require the daemon port.
+
+yoda.replit.app dispatches inference requests through the CRS relay to the correct Cube address. The CRS relay routes by ternary address, not by port number.
