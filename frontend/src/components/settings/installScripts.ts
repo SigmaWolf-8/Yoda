@@ -348,7 +348,7 @@ echo "=============================="
 echo ""
 echo "Both processes run in the background — they survive terminal close."
 echo "Logs : \$LOG_DIR/"
-echo "Use the Connect button in YODA to reconnect after reboot."
+echo "Use the [Sync Node] button in YODA Settings to reconnect after reboot."
 `;
 }
 
@@ -739,7 +739,7 @@ Write-Host "==============================" -ForegroundColor Green
 Write-Host ""
 Write-Host "Both processes run in the background." -ForegroundColor Yellow
 Write-Host "Logs: $LOG_DIR" -ForegroundColor Yellow
-Write-Host "Use the Connect button in YODA to reconnect after reboot."
+Write-Host "Use the [Sync Node] button in YODA Settings to reconnect after reboot."
 `;
 }
 

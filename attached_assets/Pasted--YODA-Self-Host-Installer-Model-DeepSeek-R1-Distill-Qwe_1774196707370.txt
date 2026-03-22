@@ -1,0 +1,274 @@
+=== YODA Self-Host Installer ===
+Model  : DeepSeek-R1-Distill-Qwen-7B
+Port   : 8080
+
+Local endpoint : 10.0.0.35:51820
+
+Checking Rust/Cargo...
+  OK Cargo already installed: cargo 1.94.0 (85eff7c80 2026-01-15)
+
+Setting up build environment for the ring crypto crate...
+  -> Architecture: Arm64
+  WARN No VS installation found via vswhere.
+  OK clang: C:\Program Files\LLVM\bin\clang.exe
+
+Installing PlenumNET (inter-cube)...
+  -> Repository exists, updating...
+  -> Already up to date.
+  -> Building inter-cube daemon (first build takes a few minutes)...
+  Cargo warnings are normal -- only errors matter.
+warning: profiles for the non root package will be ignored, specify profiles at the workspace root:
+package:   C:\Users\Sigma\PlenumNET\ternary-math\napi\Cargo.toml
+workspace: C:\Users\Sigma\PlenumNET\Cargo.toml
+warning: profiles for the non root package will be ignored, specify profiles at the workspace root:
+package:   C:\Users\Sigma\PlenumNET\src\kernel\Cargo.toml
+workspace: C:\Users\Sigma\PlenumNET\Cargo.toml
+warning: unused imports: `SIGMAS` and `WEIGHT_VECTOR`
+  --> ternary-math\src\pt26_walk.rs:15:28
+   |
+15 | use crate::plenum_square::{SIGMAS, WEIGHT_VECTOR, MAGIC_CONSTANT};
+   |                            ^^^^^^  ^^^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+System.Management.Automation.RemoteException
+warning: unused variable: `adaptive_rep`
+    --> ternary-math\src\ttc.rs:1994:47
+     |
+1994 |     let independent = aflags & 0x04 != 0; let adaptive_rep = aflags & 0x08 != 0;
+     |                                               ^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_adaptive_rep`
+     |
+     = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+System.Management.Automation.RemoteException
+warning: unused variable: `mode`
+    --> ternary-math\src\ttc.rs:2048:9
+     |
+2048 |     let mode = CompressionMode::from_u8(compressed[0x05])?;
+     |         ^^^^ help: if this is intentional, prefix it with an underscore: `_mode`
+System.Management.Automation.RemoteException
+warning: unused variable: `adaptive_rep`
+    --> ternary-math\src\ttc.rs:2055:9
+     |
+2055 |     let adaptive_rep = aflags & 0x08 != 0;
+     |         ^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_adaptive_rep`
+System.Management.Automation.RemoteException
+warning: function `mod3_small` is never used
+  --> ternary-math\src\gf3_algebra.rs:13:22
+   |
+13 | #[inline(always)] fn mod3_small(mut n: u8) -> u8 { if n >= 3 { n -= 3; } n }
+   |                      ^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+System.Management.Automation.RemoteException
+warning: function `mod3_med` is never used
+  --> ternary-math\src\gf3_algebra.rs:14:22
+   |
+14 | #[inline(always)] fn mod3_med(mut n: u8) -> u8 { if n >= 3 { n -= 3; } if n >= 3 { n -= 3; } n }
+   |                      ^^^^^^^^
+System.Management.Automation.RemoteException
+warning: constant `TRIBONACCI_SEQ` is never used
+   --> ternary-math\src\ttc.rs:119:7
+    |
+119 | const TRIBONACCI_SEQ: [u64; 30] = [
+    |       ^^^^^^^^^^^^^^
+System.Management.Automation.RemoteException
+warning: associated function `new` is never used
+   --> ternary-math\src\ttc.rs:538:8
+    |
+536 | impl TritStreamWriter {
+    | --------------------- associated function in this implementation
+537 |     #[inline]
+538 |     fn new() -> Self { Self { buffer: Vec::new(), pending: [0; 5], count: 0, total_trits: 0 } }
+    |        ^^^
+System.Management.Automation.RemoteException
+warning: method `is_exhausted` is never used
+   --> ternary-math\src\ttc.rs:619:8
+    |
+593 | impl<'a> TritStreamReader<'a> {
+    | ----------------------------- method in this implementation
+...
+619 |     fn is_exhausted(&self) -> bool {
+    |        ^^^^^^^^^^^^
+System.Management.Automation.RemoteException
+warning: function `deserialize_ternary_enhanced` is never used
+    --> ternary-math\src\ttc.rs:1601:4
+     |
+1601 | fn deserialize_ternary_enhanced(payload: &[u8], _adaptive_rep: bool) -> TtcResult<Vec<Token>> {
+     |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+System.Management.Automation.RemoteException
+warning: `ternary-math` (lib) generated 10 warnings (run `cargo fix --lib -p ternary-math` to apply 4 suggestions)
+warning: unused import: `RepCTrit`
+  --> services\inter-cube\src\crs.rs:48:34
+   |
+48 | use crate::cube_addr::{CubeAddr, RepCTrit, DIMENSIONS, NEIGHBORS_PER_CUBE, TOTAL_VERTICES};
+   |                                  ^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+System.Management.Automation.RemoteException
+warning: unused import: `Path`
+  --> services\inter-cube\src\persistence.rs:60:17
+   |
+60 | use std::path::{Path, PathBuf};
+   |                 ^^^^
+System.Management.Automation.RemoteException
+warning: unused import: `DIMENSIONS`
+  --> services\inter-cube\src\lattice_mixer.rs:49:34
+   |
+49 | use crate::cube_addr::{CubeAddr, DIMENSIONS};
+   |                                  ^^^^^^^^^^
+System.Management.Automation.RemoteException
+warning: unused import: `TOTAL_VERTICES`
+  --> services\inter-cube\src\sampling.rs:51:46
+   |
+51 | use crate::cube_addr::{CubeAddr, DIMENSIONS, TOTAL_VERTICES};
+   |                                              ^^^^^^^^^^^^^^
+System.Management.Automation.RemoteException
+warning: unused import: `DimensionDensity`
+  --> services\inter-cube\src\sampling.rs:52:42
+   |
+52 | use crate::placement::{hamming_distance, DimensionDensity};
+   |                                          ^^^^^^^^^^^^^^^^
+System.Management.Automation.RemoteException
+warning: unused import: `std::collections::HashMap`
+  --> services\inter-cube\src\pt26_parallel.rs:13:5
+   |
+13 | use std::collections::HashMap;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^
+System.Management.Automation.RemoteException
+warning: unused imports: `DOMAIN_SIG` and `SIG_COMMIT_LEN`
+  --> services\inter-cube\src\pt26_parallel.rs:18:46
+   |
+18 |     DIMENSIONS, NUM_SIGMAS, STEP_COMMIT_LEN, SIG_COMMIT_LEN,
+   |                                              ^^^^^^^^^^^^^^
+19 |     DOMAIN_MSG, DOMAIN_SIG,
+   |                 ^^^^^^^^^^
+System.Management.Automation.RemoteException
+warning: unused variable: `destination`
+   --> services\inter-cube\src\glb.rs:272:9
+    |
+272 |         destination: &CubeAddr,
+    |         ^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_destination`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+System.Management.Automation.RemoteException
+warning: unused variable: `min_c`
+   --> services\inter-cube\src\dimension_tracker.rs:224:17
+    |
+224 |             let min_c = *counts.iter().min().unwrap();
+    |                 ^^^^^ help: if this is intentional, prefix it with an underscore: `_min_c`
+System.Management.Automation.RemoteException
+warning: variable does not need to be mutable
+  --> services\inter-cube\src\pt26_parallel.rs:84:17
+   |
+84 |             let mut current_trits = addr_bytes;
+   |                 ----^^^^^^^^^^^^^
+   |                 |
+   |                 help: remove this `mut`
+   |
+   = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+System.Management.Automation.RemoteException
+warning: fields `heartbeat_interval` and `key_rotation_interval` are never read
+   --> services\inter-cube\src\overlay.rs:273:5
+    |
+263 | pub struct CubeOverlayNetwork {
+    |            ------------------ fields in this struct
+...
+273 |     heartbeat_interval: Duration,
+    |     ^^^^^^^^^^^^^^^^^^
+274 |     /// Key rotation interval.
+275 |     key_rotation_interval: Duration,
+    |     ^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+System.Management.Automation.RemoteException
+warning: method `count` is never used
+   --> services\inter-cube\src\crs.rs:340:8
+    |
+275 | impl AddressAllocator {
+    | --------------------- method in this implementation
+...
+340 |     fn count(&self) -> u64 {
+    |        ^^^^^
+System.Management.Automation.RemoteException
+warning: field `heartbeat_interval` is never read
+   --> services\inter-cube\src\crs.rs:468:5
+    |
+462 | pub struct CubeRegistrationService {
+    |            ----------------------- field in this struct
+...
+468 |     heartbeat_interval: Duration,
+    |     ^^^^^^^^^^^^^^^^^^
+System.Management.Automation.RemoteException
+warning: associated function `entropy_seed` is never used
+   --> services\inter-cube\src\identity.rs:236:19
+    |
+180 | impl MasterSecret {
+    | ----------------- associated function in this implementation
+...
+236 |     pub(crate) fn entropy_seed() -> Vec<u8> {
+    |                   ^^^^^^^^^^^^
+System.Management.Automation.RemoteException
+warning: constant `GRID_ROWS` is never used
+  --> services\inter-cube\src\wire_ecc.rs:74:7
+   |
+74 | const GRID_ROWS: usize = 3;
+   |       ^^^^^^^^^
+System.Management.Automation.RemoteException
+warning: constant `OVERFLOW` is never used
+  --> services\inter-cube\src\wire_ecc.rs:75:7
+   |
+75 | const OVERFLOW: usize = 4;
+   |       ^^^^^^^^
+System.Management.Automation.RemoteException
+warning: constant `ROW_SIZES` is never used
+   --> services\inter-cube\src\wire_ecc.rs:110:7
+    |
+110 | const ROW_SIZES: [usize; 4] = [3, 3, 3, 4];
+    |       ^^^^^^^^^
+System.Management.Automation.RemoteException
+warning: `inter-cube` (lib) generated 17 warnings (run `cargo fix --lib -p inter-cube` to apply 10 suggestions)
+warning: unused variable: `endpoint_for_heartbeat`
+   --> services\inter-cube\src\main.rs:418:9
+    |
+418 |     let endpoint_for_heartbeat = cube_endpoint.clone();
+    |         ^^^^^^^^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_endpoint_for_heartbeat`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+System.Management.Automation.RemoteException
+warning: `inter-cube` (bin "inter-cube-daemon") generated 1 warning (run `cargo fix --bin "inter-cube-daemon" -p inter-cube` to apply 1 suggestion)
+    Finished `release` profile [optimized] target(s) in 0.14s
+  OK Daemon built: C:\Users\Sigma\PlenumNET\target\release\inter-cube-daemon.exe
+
+Setting up PlenumNET identity...
+  -> Loaded existing identity passphrase
+  -> Generating PT26-DSA identity keypair...
+  OK Public key: 01010102030302030203030302a6b16a...
+
+Installing llama.cpp...
+  OK llama-server.exe: C:\Users\Sigma\llama.cpp\llama-server.exe
+
+Registering with YODA CRS...
+  OK Registered with YODA CRS
+
+Downloading model: DeepSeek-R1-Distill-Qwen-7B-Q4_K_M.gguf
+  Source : https://huggingface.co/bartowski/DeepSeek-R1-Distill-Qwen-7B-GGUF
+  Dest   : C:\Users\Sigma\yoda-models\DeepSeek-R1-Distill-Qwen-7B-Q4_K_M.gguf
+  OK Already downloaded (4.36 GB), skipping
+  OK Model ready (4.36 GB)
+
+Starting llama-server on port 8080...
+  OK llama-server started (PID 139628) -- log: C:\Users\Sigma\yoda-models\logs\llama-server-8080-out.log
+
+Starting PlenumNET tunnel daemon...
+  OK Daemon started (PID 139632) -- log: C:\Users\Sigma\yoda-models\logs\intercube-out.log
+
+==============================
+  Setup complete!
+  Model  : DeepSeek-R1-Distill-Qwen-7B
+  Server : http://localhost:8080  (OpenAI-compatible)
+  Tunnel : 10.0.0.35:51820 -> YODA CRS
+==============================
+
+Both processes run in the background.
+Logs: C:\Users\Sigma\yoda-models\logs
+Use the Connect button in YODA to reconnect after reboot.
+Press any key to continue . . .
