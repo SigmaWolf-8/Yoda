@@ -853,10 +853,17 @@ export function EngineSlotCard({
   }, [modelName]);
 
   const healthDot = config?.health_status === 'online'
-    ? 'bg-[var(--color-plex-400)]'
+    ? 'bg-sky-400'
     : config?.health_status === 'suspect'
-      ? 'bg-blue-300'
+      ? 'bg-[var(--color-gold-400)]'
       : 'bg-[var(--color-text-muted)]';
+
+  const healthLabel: Record<string, string> = {
+    online:  'online',
+    offline: 'offline',
+    suspect: 'reachable — verify key',
+    unknown: 'unknown',
+  };
 
   const grouped = groupedModels(searchQuery, usedModels);
   const availableGb  = hostRam - OS_OVERHEAD_GB - reservedRam;
@@ -877,8 +884,8 @@ export function EngineSlotCard({
             <>
               <span className={`w-2 h-2 rounded-full ${healthDot}`} />
               <span className="text-sm text-[var(--color-text-muted)]">
-                {config.health_status ?? 'unknown'}
-                {config.latency_ms ? ` · ${config.latency_ms}ms` : ''}
+                {healthLabel[config.health_status ?? ''] ?? config.health_status ?? 'unknown'}
+                {config.latency_ms && config.health_status === 'online' ? ` · ${config.latency_ms}ms` : ''}
               </span>
               {/* Manual override: server-side probe can't reach local engines
                   or validate cloud API keys — let the user confirm. */}
