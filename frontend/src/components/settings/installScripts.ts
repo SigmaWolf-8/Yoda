@@ -329,7 +329,7 @@ echo "Starting PlenumNET tunnel daemon..."
 pkill -f "inter-cube-daemon" 2>/dev/null || true
 sleep 1
 export CUBE_MODE=cube
-export CUBE_API_PORT=$((SERVER_PORT + 1))
+export CUBE_API_PORT=$((SERVER_PORT + 2))
 export CUBE_CRS_URL="\$CRS_URL"
 export CUBE_ENDPOINT="\$CUBE_ENDPOINT"
 export CUBE_SESSION_TOKEN="\$SESSION_TOKEN"
@@ -720,7 +720,7 @@ Write-Host "Starting PlenumNET tunnel daemon..."
 Get-Process | Where-Object { $_.Name -like "inter-cube*" } | Stop-Process -Force -ErrorAction SilentlyContinue
 Start-Sleep -Milliseconds 800
 $env:CUBE_MODE          = "cube"
-$env:CUBE_API_PORT      = $SERVER_PORT + 1
+$env:CUBE_API_PORT      = $SERVER_PORT + 2
 $env:CUBE_CRS_URL       = $CRS_URL
 $env:CUBE_ENDPOINT      = $CUBE_ENDPOINT
 $env:CUBE_SESSION_TOKEN = $SESSION_TOKEN
@@ -958,7 +958,7 @@ Write-Host "Starting PlenumNET tunnel daemon..."
 Get-Process | Where-Object { $_.Name -like "inter-cube*" } | Stop-Process -Force -ErrorAction SilentlyContinue
 Start-Sleep -Milliseconds 800
 $env:CUBE_MODE          = "cube"
-$env:CUBE_API_PORT      = $SERVER_PORT + 1
+$env:CUBE_API_PORT      = $SERVER_PORT + 2
 $env:CUBE_CRS_URL       = $CRS_URL
 $env:CUBE_ENDPOINT      = $CUBE_ENDPOINT
 $env:CUBE_SESSION_TOKEN = $SESSION_TOKEN
@@ -1236,7 +1236,7 @@ sleep 2
 pkill -f "inter-cube-daemon" 2>/dev/null || true
 sleep 1
 export CUBE_MODE=cube
-export CUBE_API_PORT=$((SERVER_PORT + 1))
+export CUBE_API_PORT=$((SERVER_PORT + 2))
 export CUBE_CRS_URL="\$CRS_URL"
 export CUBE_ENDPOINT="\$CUBE_ENDPOINT"
 export CUBE_SESSION_TOKEN="\$SESSION_TOKEN"
@@ -1343,7 +1343,7 @@ Start-Sleep -Seconds 2
 Get-Process | Where-Object { $_.Name -like "inter-cube*" } | Stop-Process -Force -ErrorAction SilentlyContinue
 Start-Sleep -Milliseconds 800
 $env:CUBE_MODE          = "cube"
-$env:CUBE_API_PORT      = $SERVER_PORT + 1
+$env:CUBE_API_PORT      = $SERVER_PORT + 2
 $env:CUBE_CRS_URL       = $CRS_URL
 $env:CUBE_ENDPOINT      = $CUBE_ENDPOINT
 $env:CUBE_SESSION_TOKEN = $SESSION_TOKEN
