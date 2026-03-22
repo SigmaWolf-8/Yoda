@@ -678,8 +678,47 @@ async fn probe_engine_inner(
             }
         }
     } else {
-        // ── Self-hosted: PlenumNET /health first, Ollama /api/tags fallback ──
+        // ── Self-hosted probe ─────────────────────────────────────────────────
         let base = endpoint_url.trim_end_matches('/');
+
+        // Local/LAN addresses are unreachable from the cloud server — the probe
+        // would always fail and falsely write 'offline' to the DB.  Detect them
+        // early and return an informational response without touching health_status.
+        // Status for these engines is only changed by mark-online / mark-offline.
+        let after_scheme = base
+            .trim_start_matches("https://")
+            .trim_start_matches("http://");
+        let host_part = after_scheme.split('/').next().unwrap_or(after_scheme);
+        // Strip port number to isolate just the hostname.
+        let hostname = host_part.split(':').next().unwrap_or(host_part);
+        let is_local = matches!(hostname,
+            "localhost" | "127.0.0.1" | "::1"
+        ) || hostname.starts_with("192.168.")
+          || hostname.starts_with("10.")
+          || {
+              // 172.16.0.0/12 range
+              if let Some(second) = hostname.strip_prefix("172.") {
+                  let octet: u8 = second.split('.').next()
+                      .and_then(|o| o.parse().ok())
+                      .unwrap_or(0);
+                  (16..=31).contains(&octet)
+              } else {
+                  false
+              }
+          };
+
+        if is_local {
+            // Do NOT write to the DB — health_status is managed exclusively
+            // via mark-online / mark-offline for local endpoints.
+            return serde_json::json!({
+                "reachable": false,
+                "local_endpoint": true,
+                "endpoint_url": endpoint_url,
+                "note": "Local/LAN address — the cloud server cannot reach it. Your browser will relay inference calls directly. This is expected.",
+            });
+        }
+
+        // Non-local self-hosted (e.g. a VM with a public IP).
         let candidates = [
             format!("{base}/health"),
             format!("{base}/api/tags"),
