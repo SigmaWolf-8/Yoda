@@ -12,7 +12,7 @@
 
 use axum::{
     body::Bytes,
-    extract::{Path, State},
+    extract::{Path, Query, State},
     http::StatusCode,
     middleware,
     routing::{delete, get, post, put},
@@ -46,6 +46,7 @@ pub fn build_router(state: AppState) -> Router {
         // ── CRS proxy routes (unauthenticated — called by install scripts) ──
         .route("/api/salvi/inter-cube/crs/register", post(crs_register))
         .route("/api/salvi/inter-cube/crs/heartbeat", post(crs_heartbeat))
+        .route("/api/salvi/inter-cube/relay/heartbeat", get(relay_heartbeat_get))
         .route("/api/salvi/inter-cube/crs/stats", get(crs_stats))
         .route("/api/salvi/inter-cube/topology", get(crs_topology))
         .route("/api/salvi/inter-cube/fts/status", get(crs_fts_status))
@@ -965,6 +966,53 @@ async fn crs_heartbeat(
     }
 
     Ok((StatusCode::OK, Json(serde_json::json!({"ok": true}))))
+}
+
+/// GET /api/salvi/inter-cube/relay/heartbeat?address=<ternary>&publicKey=<hex>
+///
+/// The PlenumNET daemon sends keepalive heartbeats as GET requests with query
+/// params (the external CRS relay protocol). This route captures the cube's
+/// live address and stores it in local crs_registrations so query.rs can look
+/// it up for relay routing. Always returns 200 OK.
+#[derive(Deserialize)]
+struct RelayHeartbeatParams {
+    address: Option<String>,
+    #[serde(rename = "publicKey")]
+    public_key: Option<String>,
+    endpoint: Option<String>,
+}
+
+async fn relay_heartbeat_get(
+    State(state): State<AppState>,
+    Query(params): Query<RelayHeartbeatParams>,
+) -> (StatusCode, Json<serde_json::Value>) {
+    if let Some(addr) = &params.address {
+        let ep = params.endpoint.as_deref().unwrap_or("0.0.0.0:51820");
+        let _ = sqlx::query(
+            r#"INSERT INTO crs_registrations
+                (id, endpoint, public_key, address_str, last_heartbeat)
+               VALUES (uuid_generate_v4(), $1, $2, $3, NOW())
+               ON CONFLICT (address_str)
+               DO UPDATE SET endpoint       = EXCLUDED.endpoint,
+                             public_key     = EXCLUDED.public_key,
+                             last_heartbeat = NOW()"#,
+        )
+        .bind(ep)
+        .bind(params.public_key.as_deref().unwrap_or(""))
+        .bind(addr)
+        .execute(&state.db)
+        .await;
+
+        if let Some(ip) = ep.rsplitn(2, ':').last() {
+            if !ip.is_empty() {
+                mark_engines_online_by_ip(&state.db, ip).await;
+            }
+        }
+
+        tracing::debug!(address = %addr, endpoint = %ep, "GET relay heartbeat — cube registration refreshed");
+    }
+
+    (StatusCode::OK, Json(serde_json::json!({"ok": true})))
 }
 
 /// Extract the host IP from `{ "endpoint": "ip:port", ... }` JSON bodies.

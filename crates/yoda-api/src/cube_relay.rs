@@ -271,7 +271,7 @@ async fn run_relay_session(
                 }
             }
 
-            // Keepalive
+            // Keepalive: WebSocket ping + HTTP heartbeat to CRS
             _ = ping_interval.tick() => {
                 // If we haven't seen a pong in 75 s (3 missed ping cycles), reconnect.
                 if last_pong_at.elapsed() > Duration::from_secs(75) {
@@ -281,6 +281,12 @@ async fn run_relay_session(
                 if let Err(e) = sink.send(Message::Text(r#"{"type":"ping"}"#.into())).await {
                     break Err(e.into());
                 }
+                // HTTP heartbeat keeps YODA's CRS registration alive (5-min TTL).
+                let hb_url = format!(
+                    "{}/api/salvi/inter-cube/relay/heartbeat?address={}&publicKey={}",
+                    CRS_BASE, address, public_key
+                );
+                let _ = state.http_client.get(&hb_url).send().await;
             }
         }
     };

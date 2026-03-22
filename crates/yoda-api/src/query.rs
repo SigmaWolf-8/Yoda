@@ -226,7 +226,7 @@ pub async fn submit_query(
                         "Inference request dispatched via PlenumLAN relay — awaiting response"
                     );
 
-                    match tokio::time::timeout(Duration::from_secs(30), rx).await {
+                    match tokio::time::timeout(Duration::from_secs(6), rx).await {
                         Ok(Ok(result)) => {
                             // Write result to DB and mark task FINAL
                             sqlx::query(
