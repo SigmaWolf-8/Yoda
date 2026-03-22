@@ -146,7 +146,7 @@ async fn register_with_crs(
     public_key: &str,
 ) -> Result<String, anyhow::Error> {
     let url = format!(
-        "{}/api/salvi/inter-cube/relay/register?publicKey={}&endpoint=yoda-api",
+        "{}/api/salvi/inter-cube/relay/register?publicKey={}&endpoint=0.0.0.0:3000",
         CRS_BASE, public_key
     );
     let resp = client.get(&url).send().await?.error_for_status()?;
