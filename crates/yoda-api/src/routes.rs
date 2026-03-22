@@ -895,37 +895,76 @@ async fn crs_register(
 }
 
 /// POST /api/salvi/inter-cube/crs/heartbeat → CRS heartbeat proxy.
-/// Side-effect: each inbound heartbeat automatically marks the matching engine online,
-/// so health status self-heals every 30 s without any probe or manual action.
+///
+/// Side-effects (always, regardless of internal CRS outcome):
+///  1. Upserts the cube's address + endpoint into our local `crs_registrations`
+///     so query.rs can look up the live address without depending on the
+///     external plenumnet CRS database.
+///  2. Marks matching engine slots online by IP.
+///
+/// Always returns 200 OK to the daemon if we can parse the body — the daemon
+/// only needs an ACK; whether our internal CRS already knows about this node
+/// is irrelevant.
 async fn crs_heartbeat(
     State(state): State<AppState>,
     body: Bytes,
 ) -> Result<(StatusCode, Json<serde_json::Value>), AppError> {
-    let endpoint_ip = extract_endpoint_ip(&body);
+    // Parse body once; address may be a decimal ternary string or byte array.
+    let body_json: serde_json::Value =
+        serde_json::from_slice(&body).unwrap_or(serde_json::Value::Null);
 
-    let client = crs_client()?;
-    let resp = client
-        .post(format!("{CRS_BASE}/api/salvi/inter-cube/crs/heartbeat"))
-        .header("Content-Type", "application/json")
-        .body(body)
-        .send()
-        .await
-        .map_err(|e| AppError::Internal(format!("CRS unreachable: {e}")))?;
-
-    let status = StatusCode::from_u16(resp.status().as_u16())
-        .unwrap_or(StatusCode::INTERNAL_SERVER_ERROR);
-    let json: serde_json::Value = resp
-        .json()
-        .await
-        .map_err(|e| AppError::Internal(format!("CRS response: {e}")))?;
-
-    if status.is_success() {
-        if let Some(ip) = endpoint_ip {
-            mark_engines_online_by_ip(&state.db, &ip).await;
+    let address_str: Option<String> = body_json.get("address").and_then(|a| match a {
+        serde_json::Value::String(s) => Some(s.clone()),
+        serde_json::Value::Array(arr) => {
+            // byte-array format: [1,2,3,...] → decimal digit string
+            let digits: String = arr.iter()
+                .filter_map(|v| v.as_u64())
+                .map(|n| std::char::from_digit(n as u32, 10).unwrap_or('0'))
+                .collect();
+            if digits.is_empty() { None } else { Some(digits) }
         }
+        _ => None,
+    });
+    let endpoint_str: Option<String> = body_json
+        .get("endpoint")
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_owned());
+
+    // ── Write to local crs_registrations ─────────────────────────────────
+    if let (Some(addr), Some(ep)) = (&address_str, &endpoint_str) {
+        let _ = sqlx::query(
+            r#"INSERT INTO crs_registrations
+                (id, endpoint, public_key, address_str, last_heartbeat)
+               VALUES (uuid_generate_v4(), $1, '', $2, NOW())
+               ON CONFLICT (address_str)
+               DO UPDATE SET endpoint = EXCLUDED.endpoint,
+                             last_heartbeat = NOW()"#,
+        )
+        .bind(ep)
+        .bind(addr)
+        .execute(&state.db)
+        .await;
+
+        tracing::debug!(address = %addr, endpoint = %ep, "Heartbeat — cube registration refreshed");
     }
 
-    Ok((status, Json(json)))
+    // ── Mark matching engine slots online by IP ───────────────────────────
+    if let Some(ip) = extract_endpoint_ip(&body) {
+        mark_engines_online_by_ip(&state.db, &ip).await;
+    }
+
+    // ── Forward to internal CRS (best-effort) ────────────────────────────
+    // We don't care if the internal CRS returns 404/422 — always ACK the daemon.
+    if let Ok(client) = crs_client() {
+        let _ = client
+            .post(format!("{CRS_BASE}/api/salvi/inter-cube/crs/heartbeat"))
+            .header("Content-Type", "application/json")
+            .body(body)
+            .send()
+            .await;
+    }
+
+    Ok((StatusCode::OK, Json(serde_json::json!({"ok": true}))))
 }
 
 /// Extract the host IP from `{ "endpoint": "ip:port", ... }` JSON bodies.

@@ -47,10 +47,33 @@ struct ExtendedRegisterRequest {
     session_token: Option<String>,
 }
 
+/// Daemon sends address as either a decimal-ternary string ("1231111111111")
+/// or a JSON byte array.  Accept both so old and new daemon versions work.
 #[derive(Deserialize)]
 struct HeartbeatRequest {
+    #[serde(deserialize_with = "deser_address_flexible")]
     address: Vec<u8>,
     endpoint: String,
+}
+
+fn deser_address_flexible<'de, D>(de: D) -> Result<Vec<u8>, D::Error>
+where D: serde::Deserializer<'de>
+{
+    let v: serde_json::Value = serde::Deserialize::deserialize(de)?;
+    match v {
+        serde_json::Value::Array(arr) => {
+            arr.iter()
+                .map(|x| x.as_u64().map(|n| n as u8)
+                    .ok_or_else(|| serde::de::Error::custom("address byte out of range")))
+                .collect()
+        }
+        serde_json::Value::String(s) => {
+            // Decimal ternary string: each char is a trit (0-2).
+            // The inter-cube address is 13 trits packed as base-3 digits.
+            Ok(s.chars().map(|c| c as u8 - b'0').collect())
+        }
+        _ => Err(serde::de::Error::custom("address must be array or string")),
+    }
 }
 
 // ── DB helpers (runtime queries — no compile-time table check) ────────────────
