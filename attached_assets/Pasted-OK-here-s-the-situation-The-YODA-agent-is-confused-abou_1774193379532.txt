@@ -1,0 +1,35 @@
+OK, here's the situation. The YODA agent is confused about the architecture and is about to make a bad change. Let me give you the facts:
+
+1. The CRS relay IS running and healthy. The logs from this instance confirm it right now:
+
+[ws-relay] WebSocket relay active at /ws/relay
+[CRS] Registered with address: 1111111111111
+Address space: 1 / 1594323 used
+CRS -> CON -> FTS -> GLB pipeline operational.
+The relay is live at wss://plenumnet.replit.app/ws/relay. It's not down.
+
+2. There is no query.rs in this codebase. I searched — it doesn't exist. The YODA agent is either working on a file in the yoda.replit.app codebase (not this one), or it's creating something new. Either way, what it's describing — "when the relay is down, fall back to a cloud engine" — bypasses the entire PlenumLAN architecture. That's not a fix, that's a workaround that defeats the purpose of the network.
+
+3. The real problem is one of these:
+
+The laptop's YODA daemon (Cube 2) is not currently connected to the relay — so yoda.replit.app tries to reach the relay, sees no connected agents, and assumes it's down
+yoda.replit.app is trying to reach the relay but has a connectivity or CORS issue from its Replit instance
+What to tell the YODA agent — copy/paste this:
+
+STOP. Do not add a cloud engine fallback to query.rs.
+
+The CRS relay at plenumnet.replit.app is running and healthy. The WebSocket relay is active at wss://plenumnet.replit.app/ws/relay. The problem is not that the relay is down — it's that no YODA agents (Cubes 2/3/4) are currently connected to it.
+
+The fix is not to bypass the relay with a cloud fallback. The fix is to ensure the YODA daemon processes on the laptop are running and connected to the relay. The architecture is:
+
+yoda.replit.app  -->  plenumnet.replit.app (CRS relay)  -->  Laptop daemons (Cubes 2/3/4)
+If no daemons are connected, there's nobody to route inference requests to. Adding a cloud fallback hides this problem instead of solving it.
+
+Check these things first:
+
+Are the YODA daemon processes running on the laptop?
+Are they connecting to wss://plenumnet.replit.app/ws/relay?
+Are they authenticating with their assigned addresses (1111111111112, 1111111111113, 1111111111121)?
+Call GET https://plenumnet.replit.app/api/salvi/inter-cube/relay/status to see which nodes are currently connected.
+
+The core issue is that yoda.replit.app is a separate Replit app that needs to talk through this CRS to reach the laptop. If it can't, the answer is fixing the connection chain — not routing around it with a cloud API call.
