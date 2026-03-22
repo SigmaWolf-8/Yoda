@@ -268,14 +268,97 @@ pub async fn submit_query(
         }
     }
 
-    // ── Browser relay fallback ────────────────────────────────────────────────
-    // Replit's server can't reach local/LAN addresses so health checks mark them
-    // offline — but the browser running on the user's machine CAN.
-    // If no explicit endpoint_url is saved, derive a default localhost URL from
-    // the slot (A → :8080, B → :8082, C → :8084) for self-hosted engines.
-    // Browser relay only makes sense for self-hosted local engines.
-    // The browser has no credentials to call commercial/free_tier APIs directly,
-    // and those should have been handled server-side in decomposition above.
+    // ── Cloud engine server-side inference fallback ───────────────────────────
+    // PlenumLAN relay is down (CRS unreachable or timed out). Before handing off
+    // to the browser, try any online cloud engine directly from the server.
+    // The browser relay to http://localhost is blocked by mixed-content policy
+    // from an HTTPS origin, so this is the only path that actually works when
+    // the local engine's CRS tunnel isn't established.
+    const INFERENCE_SYSTEM_PROMPT: &str =
+        "You are YODA — a senior engineering intelligence system. \
+         Analyse the user's query thoroughly. Provide structured, expert-level analysis \
+         covering technical depth, security implications, trade-offs, and concrete \
+         recommendations. Be precise. Use markdown where appropriate.";
+
+    let cloud_engine_rows = sqlx::query_as::<_, (String, String, String, Option<String>, String, String)>(
+        "SELECT slot, hosting_mode, endpoint_url, credentials_encrypted, model_name, auth_type \
+         FROM engine_configs \
+         WHERE org_id = $1 \
+           AND health_status = 'online' \
+           AND hosting_mode IN ('commercial', 'free_tier') \
+           AND endpoint_url IS NOT NULL AND endpoint_url <> '' \
+         ORDER BY slot ASC"
+    )
+    .bind(user.org_id)
+    .fetch_all(&state.db)
+    .await
+    .unwrap_or_default();
+
+    for engine_row in &cloud_engine_rows {
+        let engine_cfg = build_engine_config(engine_row);
+        match yoda_inference_router::dispatch::call_engine(
+            &state.http_client,
+            &engine_cfg,
+            INFERENCE_SYSTEM_PROMPT,
+            &req.text,
+            Some(4096),
+        ).await {
+            Ok(result) => {
+                let slot_str = match engine_cfg.slot {
+                    yoda_inference_router::EngineSlot::A => "a",
+                    yoda_inference_router::EngineSlot::B => "b",
+                    yoda_inference_router::EngineSlot::C => "c",
+                };
+                sqlx::query(
+                    "UPDATE tasks SET status = 'FINAL', updated_at = NOW() WHERE id = $1"
+                )
+                .bind(task_id)
+                .execute(&state.db)
+                .await
+                .map_err(AppError::Database)?;
+
+                sqlx::query(
+                    "INSERT INTO task_results \
+                     (id, task_id, step_number, engine_slot, result_content, created_at) \
+                     VALUES (uuid_generate_v4(), $1, 1, $2, $3, NOW())"
+                )
+                .bind(task_id)
+                .bind(slot_str)
+                .bind(&result.content)
+                .execute(&state.db)
+                .await
+                .map_err(AppError::Database)?;
+
+                tracing::info!(
+                    task_id = %task_id,
+                    slot = slot_str,
+                    latency_ms = result.latency_ms,
+                    "Cloud engine inference complete — task FINAL"
+                );
+
+                return Ok((StatusCode::CREATED, Json(QueryResponse {
+                    decomposition: None,
+                    task_id: Some(task_id),
+                    needs_approval: false,
+                    relay_endpoint: None,
+                })));
+            }
+            Err(e) => {
+                tracing::warn!(
+                    slot = ?engine_cfg.slot,
+                    error = %e,
+                    "Cloud engine inference failed — trying next"
+                );
+            }
+        }
+    }
+
+    // ── Browser relay last resort ─────────────────────────────────────────────
+    // No cloud engine succeeded. Return the local endpoint so the browser can
+    // attempt a direct fetch. This only works when the page is served over HTTP
+    // (not HTTPS) or when the browser has mixed-content exceptions. On HTTPS
+    // this will fail with a CORS/mixed-content error — the user needs the CRS
+    // tunnel working or a cloud engine configured.
     let relay_info: Option<(String, String, Option<String>)> = sqlx::query_as(
         "SELECT slot, hosting_mode, endpoint_url FROM engine_configs \
          WHERE org_id = $1 AND hosting_mode = 'self_hosted' \
