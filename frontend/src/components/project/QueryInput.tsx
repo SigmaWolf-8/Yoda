@@ -254,7 +254,7 @@ export function QueryInput({ projectId, mode, onResult }: Props) {
             <AlertCircle className="w-4 h-4 text-[var(--color-warn)] flex-shrink-0 mt-0.5" />
             <p className="text-sm text-[var(--color-warn)] font-medium">Engine is running but CORS is not enabled</p>
           </div>
-          <p className="text-xs text-[var(--color-text-muted)]">Restart llama-server with the <code className="font-mono">--cors</code> flag:</p>
+          <p className="text-xs text-[var(--color-text-muted)]">Restart llama-server with the <code className="font-mono">--cors-allow-origins "*"</code> flag:</p>
           <div className="flex items-center gap-2 bg-[var(--color-surface-tertiary)] rounded-md px-3 py-2">
             <code className="text-xs text-[var(--color-text-secondary)] flex-1 break-all">{cmd}</code>
             <button onClick={() => copyCmd(cmd)} className="flex-shrink-0 text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]">
