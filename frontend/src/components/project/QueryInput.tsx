@@ -205,9 +205,9 @@ export function QueryInput({ projectId, mode, onResult }: Props) {
     try {
       const url  = new URL(endpoint);
       const port = url.port || '8080';
-      return `llama-server --cors --host 0.0.0.0 --port ${port} -m <your-model>.gguf`;
+      return `llama-server --host 0.0.0.0 --port ${port} -m <your-model>.gguf`;
     } catch {
-      return `llama-server --cors --host 0.0.0.0 --port 8080 -m <your-model>.gguf`;
+      return `llama-server --host 0.0.0.0 --port 8080 -m <your-model>.gguf`;
     }
   }
 

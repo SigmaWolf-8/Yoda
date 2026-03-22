@@ -317,7 +317,6 @@ nohup "\$LLAMA_SERVER" \\
   -c 4096 \\
   --parallel 4 \\
   -ngl 99 \\
-  --cors \\
   --log-disable \\
   >> "\$LOG_DIR/llama-server-\${SERVER_PORT}.log" 2>&1 &
 SERVER_PID=\$!
@@ -710,7 +709,7 @@ Start-Sleep -Milliseconds 800
 $serverOutLog = Join-Path $LOG_DIR "llama-server-$SERVER_PORT-out.log"
 $serverErrLog = Join-Path $LOG_DIR "llama-server-$SERVER_PORT-err.log"
 $nglArgs = if ($cpuArch -eq "Arm64") { "" } else { "-ngl 99" }
-$serverProc = Start-Process -FilePath $LLAMA_SERVER -ArgumentList "--model \`"$MODEL_PATH\`" --port $SERVER_PORT --host 0.0.0.0 -c 4096 --parallel 4 $nglArgs --cors --log-disable" -NoNewWindow -PassThru -RedirectStandardOutput $serverOutLog -RedirectStandardError $serverErrLog
+$serverProc = Start-Process -FilePath $LLAMA_SERVER -ArgumentList "--model \`"$MODEL_PATH\`" --port $SERVER_PORT --host 0.0.0.0 -c 4096 --parallel 4 $nglArgs --log-disable" -NoNewWindow -PassThru -RedirectStandardOutput $serverOutLog -RedirectStandardError $serverErrLog
 Write-Host "  OK llama-server started (PID $($serverProc.Id)) -- log: $serverOutLog"
 Start-Sleep -Seconds 2
 
@@ -1073,7 +1072,7 @@ Write-Host "Starting llama-server on port $SERVER_PORT..."
 $serverOutLog = Join-Path $LOG_DIR "llama-server-$SERVER_PORT-out.log"
 $serverErrLog = Join-Path $LOG_DIR "llama-server-$SERVER_PORT-err.log"
 $serverProc = Start-Process -FilePath $LLAMA_SERVER \`
-  -ArgumentList "--model \`"$MODEL_PATH\`" --port $SERVER_PORT --host 0.0.0.0 -c 4096 --parallel 4 -ngl 99 --cors --log-disable" \`
+  -ArgumentList "--model \`"$MODEL_PATH\`" --port $SERVER_PORT --host 0.0.0.0 -c 4096 --parallel 4 -ngl 99 --log-disable" \`
   -NoNewWindow -PassThru \`
   -RedirectStandardOutput $serverOutLog \`
   -RedirectStandardError  $serverErrLog
@@ -1223,7 +1222,6 @@ nohup "\$LLAMA_SERVER" \\
   -c 4096 \\
   --parallel 4 \\
   -ngl 99 \\
-  --cors \\
   --log-disable \\
   >> "\$LOG_DIR/llama-server-\${SERVER_PORT}.log" 2>&1 &
 echo "  ✓ llama-server started (PID \$!)"
@@ -1331,7 +1329,7 @@ New-Item -ItemType Directory -Force -Path $LOG_DIR | Out-Null
 Get-Process -Name "llama-server" -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
 Start-Sleep -Milliseconds 800
 $serverLog  = Join-Path $LOG_DIR "llama-server-$SERVER_PORT.log"
-$serverProc = Start-Process -FilePath $LLAMA_SERVER -ArgumentList "--model \`"$MODEL_PATH\`" --port $SERVER_PORT --host 0.0.0.0 -c 4096 --parallel 4 -ngl 99 --cors --log-disable" -NoNewWindow -PassThru -RedirectStandardOutput $serverLog -RedirectStandardError $serverLog
+$serverProc = Start-Process -FilePath $LLAMA_SERVER -ArgumentList "--model \`"$MODEL_PATH\`" --port $SERVER_PORT --host 0.0.0.0 -c 4096 --parallel 4 -ngl 99 --log-disable" -NoNewWindow -PassThru -RedirectStandardOutput $serverLog -RedirectStandardError $serverLog
 Write-Host "  OK llama-server started (PID $($serverProc.Id)) -- log: $serverLog"
 Start-Sleep -Seconds 2
 
