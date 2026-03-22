@@ -1057,8 +1057,8 @@ export function EngineSlotCard({
 
             <ModelCard modelName={modelName} hostRam={hostRam} reservedRam={reservedRam} />
 
-            {/* Install / Connect — two-step flow for Windows, all-in-one for Mac/Linux */}
-            {modelName && GGUF_INFO[modelName] && (() => {
+            {/* Install / Connect — hidden when engine is already online */}
+            {modelName && GGUF_INFO[modelName] && config?.health_status !== 'online' && (() => {
               const isWin = detectOS() === 'windows';
 
               // Step completion flags
