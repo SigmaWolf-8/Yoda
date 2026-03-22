@@ -735,17 +735,9 @@ export function EngineSlotCard({
    *  for local self-hosted endpoints. */
   async function verifyAndMarkOnline() {
     setMarkOnlineError(null);
-    const isLocal = mode === 'self_hosted' && LOCAL_RE.test(endpoint);
-    if (isLocal && endpoint) {
-      const running = await browserProbeLocal(endpoint);
-      if (!running) {
-        setMarkOnlineError(
-          `Model server not responding at ${endpoint}. ` +
-          `Make sure llama-server is running — complete Step 2 from the install flow first.`
-        );
-        return;
-      }
-    }
+    // For local endpoints the cloud server can never probe localhost — skip browser
+    // probe entirely (llama-server won't respond until model loads anyway) and just
+    // mark online.  The daemon relay validates real connectivity at inference time.
     markOnline.mutate(slot, {
       onSuccess: () => { setMarkOnlineError(null); qc.invalidateQueries({ queryKey: ['engines'] }); },
     });
@@ -763,28 +755,23 @@ export function EngineSlotCard({
       if (res.ok) {
         const data = await res.json();
         if (data.reachable) {
+          // Cloud/remote engine confirmed reachable.
           qc.invalidateQueries({ queryKey: ['engines'] });
           setSyncResult('ok');
           return;
         }
-      }
-      // Server probe can't reach localhost — verify from browser before marking online.
-      const isLocal = mode === 'self_hosted' && LOCAL_RE.test(endpoint);
-      if (isLocal && endpoint) {
-        const running = await browserProbeLocal(endpoint);
-        if (!running) {
-          setSyncResult('fail');
-          setMarkOnlineError(
-            `Model server not responding at ${endpoint}. ` +
-            `Run Step 2 from the install flow to download and start the model.`
-          );
+        if (data.local_endpoint) {
+          // Local endpoint — the cloud server can never reach localhost directly.
+          // The daemon relay handles actual inference; mark online and trust the user.
+          markOnline.mutate(slot, {
+            onSuccess: () => { setSyncResult('ok'); qc.invalidateQueries({ queryKey: ['engines'] }); },
+            onError:   () => setSyncResult('fail'),
+          });
           return;
         }
       }
-      markOnline.mutate(slot, {
-        onSuccess: () => { setSyncResult('ok'); qc.invalidateQueries({ queryKey: ['engines'] }); },
-        onError:   () => setSyncResult('fail'),
-      });
+      // Non-local engine that couldn't be reached.
+      setSyncResult('fail');
     } catch {
       setSyncResult('fail');
     } finally {
