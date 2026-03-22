@@ -1,0 +1,51 @@
+Good — YODA reverted the bad change. Its response is now correct.
+
+The chain is exactly right:
+
+yoda.replit.app → plenumnet.replit.app relay → laptop daemon → llama-server
+And the verification step is right too — hit https://plenumnet.replit.app/api/salvi/inter-cube/relay/status to see what's connected.
+
+The only question is: do you have yoda-step1-tunnel.bat set up on your laptop, and are you ready to run it? Once that daemon connects, the relay status endpoint will show Cube 2 (1111111111112) as connected, and inference requests from yoda.replit.app will start routing through.
+
+What do you mean setup e yoda-step1-tunnel.bat ? I don't even know what this bat file does and have probably run it 20 times already.
+
+Let me find out exactly what that batch file does.
+
+OK, now I've read the actual installer. Here's the clear picture to send back to YODA.
+
+The yoda-setup.bat file is a single installer that does ALL of the following in order:
+
+Detects your local IP
+Installs Rust/Cargo if missing
+Checks for Git
+Sets up MSVC build environment + clang
+Clones the PlenumNET repo from GitHub and builds the inter-cube daemon binary
+Generates a PT26-DSA identity keypair
+Installs llama.cpp (downloads llama-server.exe)
+Registers with the CRS at the Replit dev URL
+Downloads the DeepSeek-R1 GGUF model (~several GB)
+Starts llama-server on port 8080
+Starts the Inter-Cube tunnel daemon in cube mode
+This installer sets up ONE agent (Agent 0) only. It uses port 8080 for the LLM. There is no yoda-step1-tunnel.bat — the YODA agent made that name up. The real file is called yoda-setup.bat.
+
+There are two problems I can see:
+
+The CRS_URL in the installer is pointing to the Replit dev URL (the long picard.replit.dev address), not to https://plenumnet.replit.app. The dev URL changes every time the Replit instance restarts. That's likely why the relay appears "unreachable" — the installer registered with a stale URL.
+
+There is only one installer for one agent. To run 3 agents in parallel (Cubes 2/3/4), you'd need to either modify the script or run it 3 times with different port configurations. That hasn't been built yet.
+
+Here's the clear response for YODA:
+
+The file is yoda-setup.bat, not yoda-step1-tunnel.bat.
+
+The real problem: the installer's $CRS_URL is hardcoded to the Replit dev URL (the long picard.replit.dev address), not to https://plenumnet.replit.app. Dev URLs rotate on restart. The daemon registers with the CRS at a URL that goes stale, then the relay looks unreachable.
+
+The fix is not a cloud fallback. The fix is:
+
+Update $CRS_URL in the installer to https://plenumnet.replit.app (the stable deployed URL)
+Re-run the installer so the daemon registers and connects to the correct relay
+The relay at plenumnet.replit.app is live and healthy right now. Address space shows 1/1,594,323 used (just the CRS itself). No cube nodes are connected because they registered against a dead dev URL.
+
+Additionally: this installer only sets up 1 agent on port 8080. To run 3 agents in parallel, we need a multi-agent version of the installer or a way to run it 3 times with different port/address configurations. That does not exist yet.
+
+That's the root cause. 
