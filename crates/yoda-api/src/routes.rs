@@ -472,14 +472,17 @@ async fn update_engine(
     .bind(&req.model_family).bind(&req.family_override).bind(&req.cube_endpoint_url)
     .execute(&state.db).await.map_err(AppError::Database)?;
 
-    // Spawn a background probe so health_status is updated immediately after save.
-    // tokio::spawn requires 'static — clone everything before moving into the task.
-    let db_clone   = state.db.clone();
-    let org_clone  = user.org_id;
-    let slot_clone = slot.clone();
-    tokio::spawn(async move {
-        probe_engine_inner(db_clone, org_clone, slot_clone).await;
-    });
+    // Spawn a background probe for cloud engines so health_status updates
+    // immediately after save. Skip self-hosted — the server can't reach
+    // localhost/LAN addresses, so a probe would always return offline.
+    if req.hosting_mode == "commercial" || req.hosting_mode == "free_tier" {
+        let db_clone   = state.db.clone();
+        let org_clone  = user.org_id;
+        let slot_clone = slot.clone();
+        tokio::spawn(async move {
+            probe_engine_inner(db_clone, org_clone, slot_clone).await;
+        });
+    }
 
     Ok(Json(serde_json::json!({"status":"updated","slot":slot})))
 }

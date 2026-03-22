@@ -808,8 +808,15 @@ export function EngineSlotCard({
 
   function handleSave() {
     update.mutate(buildPayload(), {
-      onSuccess: () => toast('success', `Engine ${slot.toUpperCase()} saved — ${modelName || 'configuration updated'}.`),
-      onError:   () => toast('error',   `Failed to save Engine ${slot.toUpperCase()}. Check your connection and try again.`),
+      onSuccess: () => {
+        toast('success', `Engine ${slot.toUpperCase()} saved — ${modelName || 'configuration updated'}.`);
+        // For cloud engines, probe runs in the background (~1–2 s).
+        // Schedule a second invalidation to pick up the updated health_status.
+        if (mode === 'commercial' || mode === 'free_tier') {
+          setTimeout(() => { qc.invalidateQueries({ queryKey: ['engines'] }); }, 2500);
+        }
+      },
+      onError: () => toast('error', `Failed to save Engine ${slot.toUpperCase()}. Check your connection and try again.`),
     });
   }
 
