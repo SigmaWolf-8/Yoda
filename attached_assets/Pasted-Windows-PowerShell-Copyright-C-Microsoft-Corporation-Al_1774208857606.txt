@@ -1,0 +1,260 @@
+Windows PowerShell
+Copyright (C) Microsoft Corporation. All rights reserved.
+
+Install the latest PowerShell for new features and improvements! https://aka.ms/PSWindows
+
+PS C:\Users\Sigma> cd C:\Users\Sigma\PlenumNET
+PS C:\Users\Sigma\PlenumNET> git pull
+remote: Enumerating objects: 46, done.
+remote: Counting objects: 100% (46/46), done.
+remote: Compressing objects: 100% (8/8), done.
+remote: Total 32 (delta 24), reused 32 (delta 24), pack-reused 0 (from 0)
+Unpacking objects: 100% (32/32), 18.76 KiB | 181.00 KiB/s, done.
+From https://github.com/SigmaWolf-8/Ternary
+   dc8331a..695435c  main       -> origin/main
+Updating dc8331a..695435c
+Fast-forward
+ .agents/agent_assets_metadata.toml                 |   6 +
+ PLENUMLAN_RELAY_REFERENCE.md                       |  31 ++-
+ ...Inference-via-WS-What-Why-YOD_1774074614182.txt |  69 +++++++
+ ...ments-5-PlenumLAN-Relay-Cl-17_1774074811288.txt | 100 ++++++++++
+ ...iption-of-everything-that-yuo_1774189219194.txt |  46 +++++
+ ...-36hours-spinning-wheels-what_1774203436387.txt | 101 ++++++++++
+ ...ook-at-the-key-line-ws-relay-_1774208253241.txt |  87 +++++++++
+ ...ht-C-Microsoft-Corporation-Al_1774203897123.txt |  68 +++++++
+ server/index.ts                                    | 209 ++++++++++++++-------
+ server/storage.ts                                  |  55 +++++-
+ services/inter-cube/src/main.rs                    | 157 +++++++++++++++-
+ shared/schema.ts                                   |  15 ++
+ 12 files changed, 860 insertions(+), 84 deletions(-)
+ create mode 100644 attached_assets/Pasted--5-PlenumLAN-Relay-Client-Inference-via-WS-What-Why-YOD_1774074614182.txt
+ create mode 100644 attached_assets/Pasted--Library-Search-Other-Documents-5-PlenumLAN-Relay-Cl-17_1774074811288.txt
+ create mode 100644 attached_assets/Pasted-I-need-a-summary-and-description-of-everything-that-yuo_1774189219194.txt
+ create mode 100644 attached_assets/Pasted-I-ve-been-at-this-for-like-36hours-spinning-wheels-what_1774203436387.txt
+ create mode 100644 attached_assets/Pasted-The-tunnel-is-fully-live-Look-at-the-key-line-ws-relay-_1774208253241.txt
+ create mode 100644 attached_assets/Pasted-Windows-PowerShell-Copyright-C-Microsoft-Corporation-Al_1774203897123.txt
+PS C:\Users\Sigma\PlenumNET> cargo build --release --manifest-path services/inter-cube/Cargo.toml
+warning: profiles for the non root package will be ignored, specify profiles at the workspace root:
+package:   C:\Users\Sigma\PlenumNET\ternary-math\napi\Cargo.toml
+workspace: C:\Users\Sigma\PlenumNET\Cargo.toml
+warning: profiles for the non root package will be ignored, specify profiles at the workspace root:
+package:   C:\Users\Sigma\PlenumNET\src\kernel\Cargo.toml
+workspace: C:\Users\Sigma\PlenumNET\Cargo.toml
+warning: unused imports: `SIGMAS` and `WEIGHT_VECTOR`
+  --> ternary-math\src\pt26_walk.rs:15:28
+   |
+15 | use crate::plenum_square::{SIGMAS, WEIGHT_VECTOR, MAGIC_CONSTANT};
+   |                            ^^^^^^  ^^^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `adaptive_rep`
+    --> ternary-math\src\ttc.rs:1994:47
+     |
+1994 |     let independent = aflags & 0x04 != 0; let adaptive_rep = aflags & 0x08 != 0;
+     |                                               ^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_adaptive_rep`
+     |
+     = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `mode`
+    --> ternary-math\src\ttc.rs:2048:9
+     |
+2048 |     let mode = CompressionMode::from_u8(compressed[0x05])?;
+     |         ^^^^ help: if this is intentional, prefix it with an underscore: `_mode`
+
+warning: unused variable: `adaptive_rep`
+    --> ternary-math\src\ttc.rs:2055:9
+     |
+2055 |     let adaptive_rep = aflags & 0x08 != 0;
+     |         ^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_adaptive_rep`
+
+warning: function `mod3_small` is never used
+  --> ternary-math\src\gf3_algebra.rs:13:22
+   |
+13 | #[inline(always)] fn mod3_small(mut n: u8) -> u8 { if n >= 3 { n -= 3; } n }
+   |                      ^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `mod3_med` is never used
+  --> ternary-math\src\gf3_algebra.rs:14:22
+   |
+14 | #[inline(always)] fn mod3_med(mut n: u8) -> u8 { if n >= 3 { n -= 3; } if n >= 3 { n -= 3; } n }
+   |                      ^^^^^^^^
+
+warning: constant `TRIBONACCI_SEQ` is never used
+   --> ternary-math\src\ttc.rs:119:7
+    |
+119 | const TRIBONACCI_SEQ: [u64; 30] = [
+    |       ^^^^^^^^^^^^^^
+
+warning: associated function `new` is never used
+   --> ternary-math\src\ttc.rs:538:8
+    |
+536 | impl TritStreamWriter {
+    | --------------------- associated function in this implementation
+537 |     #[inline]
+538 |     fn new() -> Self { Self { buffer: Vec::new(), pending: [0; 5], count: 0, total_trits: 0 } }
+    |        ^^^
+
+warning: method `is_exhausted` is never used
+   --> ternary-math\src\ttc.rs:619:8
+    |
+593 | impl<'a> TritStreamReader<'a> {
+    | ----------------------------- method in this implementation
+...
+619 |     fn is_exhausted(&self) -> bool {
+    |        ^^^^^^^^^^^^
+
+warning: function `deserialize_ternary_enhanced` is never used
+    --> ternary-math\src\ttc.rs:1601:4
+     |
+1601 | fn deserialize_ternary_enhanced(payload: &[u8], _adaptive_rep: bool) -> TtcResult<Vec<Token>> {
+     |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: `ternary-math` (lib) generated 10 warnings (run `cargo fix --lib -p ternary-math` to apply 4 suggestions)
+warning: unused import: `RepCTrit`
+  --> services\inter-cube\src\crs.rs:48:34
+   |
+48 | use crate::cube_addr::{CubeAddr, RepCTrit, DIMENSIONS, NEIGHBORS_PER_CUBE, TOTAL_VERTICES};
+   |                                  ^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `Path`
+  --> services\inter-cube\src\persistence.rs:60:17
+   |
+60 | use std::path::{Path, PathBuf};
+   |                 ^^^^
+
+warning: unused import: `DIMENSIONS`
+  --> services\inter-cube\src\lattice_mixer.rs:49:34
+   |
+49 | use crate::cube_addr::{CubeAddr, DIMENSIONS};
+   |                                  ^^^^^^^^^^
+
+warning: unused import: `TOTAL_VERTICES`
+  --> services\inter-cube\src\sampling.rs:51:46
+   |
+51 | use crate::cube_addr::{CubeAddr, DIMENSIONS, TOTAL_VERTICES};
+   |                                              ^^^^^^^^^^^^^^
+
+warning: unused import: `DimensionDensity`
+  --> services\inter-cube\src\sampling.rs:52:42
+   |
+52 | use crate::placement::{hamming_distance, DimensionDensity};
+   |                                          ^^^^^^^^^^^^^^^^
+
+warning: unused import: `std::collections::HashMap`
+  --> services\inter-cube\src\pt26_parallel.rs:13:5
+   |
+13 | use std::collections::HashMap;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `DOMAIN_SIG` and `SIG_COMMIT_LEN`
+  --> services\inter-cube\src\pt26_parallel.rs:18:46
+   |
+18 |     DIMENSIONS, NUM_SIGMAS, STEP_COMMIT_LEN, SIG_COMMIT_LEN,
+   |                                              ^^^^^^^^^^^^^^
+19 |     DOMAIN_MSG, DOMAIN_SIG,
+   |                 ^^^^^^^^^^
+
+warning: unused variable: `destination`
+   --> services\inter-cube\src\glb.rs:272:9
+    |
+272 |         destination: &CubeAddr,
+    |         ^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_destination`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `min_c`
+   --> services\inter-cube\src\dimension_tracker.rs:224:17
+    |
+224 |             let min_c = *counts.iter().min().unwrap();
+    |                 ^^^^^ help: if this is intentional, prefix it with an underscore: `_min_c`
+
+warning: variable does not need to be mutable
+  --> services\inter-cube\src\pt26_parallel.rs:84:17
+   |
+84 |             let mut current_trits = addr_bytes;
+   |                 ----^^^^^^^^^^^^^
+   |                 |
+   |                 help: remove this `mut`
+   |
+   = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: fields `heartbeat_interval` and `key_rotation_interval` are never read
+   --> services\inter-cube\src\overlay.rs:273:5
+    |
+263 | pub struct CubeOverlayNetwork {
+    |            ------------------ fields in this struct
+...
+273 |     heartbeat_interval: Duration,
+    |     ^^^^^^^^^^^^^^^^^^
+274 |     /// Key rotation interval.
+275 |     key_rotation_interval: Duration,
+    |     ^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: method `count` is never used
+   --> services\inter-cube\src\crs.rs:340:8
+    |
+275 | impl AddressAllocator {
+    | --------------------- method in this implementation
+...
+340 |     fn count(&self) -> u64 {
+    |        ^^^^^
+
+warning: field `heartbeat_interval` is never read
+   --> services\inter-cube\src\crs.rs:468:5
+    |
+462 | pub struct CubeRegistrationService {
+    |            ----------------------- field in this struct
+...
+468 |     heartbeat_interval: Duration,
+    |     ^^^^^^^^^^^^^^^^^^
+
+warning: associated function `entropy_seed` is never used
+   --> services\inter-cube\src\identity.rs:236:19
+    |
+180 | impl MasterSecret {
+    | ----------------- associated function in this implementation
+...
+236 |     pub(crate) fn entropy_seed() -> Vec<u8> {
+    |                   ^^^^^^^^^^^^
+
+warning: constant `GRID_ROWS` is never used
+  --> services\inter-cube\src\wire_ecc.rs:74:7
+   |
+74 | const GRID_ROWS: usize = 3;
+   |       ^^^^^^^^^
+
+warning: constant `OVERFLOW` is never used
+  --> services\inter-cube\src\wire_ecc.rs:75:7
+   |
+75 | const OVERFLOW: usize = 4;
+   |       ^^^^^^^^
+
+warning: constant `ROW_SIZES` is never used
+   --> services\inter-cube\src\wire_ecc.rs:110:7
+    |
+110 | const ROW_SIZES: [usize; 4] = [3, 3, 3, 4];
+    |       ^^^^^^^^^
+
+warning: `inter-cube` (lib) generated 17 warnings (run `cargo fix --lib -p inter-cube` to apply 10 suggestions)
+   Compiling inter-cube v0.2.0 (C:\Users\Sigma\PlenumNET\services\inter-cube)
+warning: unused variable: `endpoint_for_heartbeat`
+   --> services\inter-cube\src\main.rs:418:9
+    |
+418 |     let endpoint_for_heartbeat = cube_endpoint.clone();
+    |         ^^^^^^^^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_endpoint_for_heartbeat`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: `inter-cube` (bin "inter-cube-daemon") generated 1 warning (run `cargo fix --bin "inter-cube-daemon" -p inter-cube` to apply 1 suggestion)
+error: failed to remove file `C:\Users\Sigma\PlenumNET\target\release\inter-cube-daemon.exe`
+
+Caused by:
+  Access is denied. (os error 5)
+PS C:\Users\Sigma\PlenumNET>
