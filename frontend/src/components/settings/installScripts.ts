@@ -439,10 +439,12 @@ $vswhereX86 = "C:\Program Files (x86)\Microsoft Visual Studio\Installer\vswhere.
 $vswhereNat = "C:\Program Files\Microsoft Visual Studio\Installer\vswhere.exe"
 $vswhere = if (Test-Path -LiteralPath $vswhereX86) { $vswhereX86 } elseif (Test-Path -LiteralPath $vswhereNat) { $vswhereNat } else { "" }
 if ($vswhere) {
-  $vsInstallPath = & $vswhere -latest -products * -property installationPath 2>$null
+  $vsInstallPath = (& $vswhere -latest -products * -property installationPath 2>$null) |
+                    Where-Object { $_ -ne '' } | Select-Object -First 1
+  if ($vsInstallPath) { $vsInstallPath = $vsInstallPath.Trim() }
   if ($vsInstallPath) {
     $vcvarsName = if ($cpuArch -eq "Arm64") { "vcvarsarm64.bat" } else { "vcvars64.bat" }
-    $vcvars = Join-Path (Join-Path (Join-Path $vsInstallPath "VC") "Auxiliary\Build") $vcvarsName
+    $vcvars = Join-Path (Join-Path $vsInstallPath "VC\Auxiliary\Build") $vcvarsName
     if (Test-Path -LiteralPath $vcvars) {
       Write-Host "  -> Activating MSVC environment ($vcvarsName)..."
       $envLines = cmd.exe /c ('"' + $vcvars + '" > nul 2>&1 && set')
