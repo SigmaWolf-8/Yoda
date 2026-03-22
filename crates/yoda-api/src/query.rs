@@ -166,11 +166,13 @@ pub async fn submit_query(
     .map_err(AppError::Database)?;
 
     // ── Try PlenumLAN relay first ────────────────────────────────────────────
-    // Pick the engine slot the user has configured and send the request through
-    // the CRS relay.  30 s timeout — on miss, fall back to browser relay.
+    // Only route through the CRS relay for cube-mode engines; self_hosted
+    // engines are localhost and the browser can reach them directly via browser
+    // relay — no 30 s relay timeout needed.
     let engine_slot: Option<String> = sqlx::query_scalar(
         "SELECT slot FROM engine_configs \
          WHERE org_id = $1 AND endpoint_url IS NOT NULL AND endpoint_url <> '' \
+         AND hosting_mode NOT IN ('self_hosted', 'commercial', 'free_tier') \
          ORDER BY slot ASC LIMIT 1"
     )
     .bind(user.org_id)
