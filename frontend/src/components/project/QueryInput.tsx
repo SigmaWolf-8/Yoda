@@ -247,20 +247,13 @@ export function QueryInput({ projectId, mode, onResult }: Props) {
     }
 
     if (kind === 'cors') {
-      const cmd = buildFixCmd(endpoint);
       return (
         <div className="mt-3 rounded-lg border border-[var(--color-warn)]/30 bg-[var(--color-warn)]/5 p-3 space-y-2">
           <div className="flex items-start gap-2">
             <AlertCircle className="w-4 h-4 text-[var(--color-warn)] flex-shrink-0 mt-0.5" />
-            <p className="text-sm text-[var(--color-warn)] font-medium">Engine is running but CORS is not enabled</p>
+            <p className="text-sm text-[var(--color-warn)] font-medium">Engine is running but blocked by browser security (CORS)</p>
           </div>
-          <p className="text-xs text-[var(--color-text-muted)]">Restart llama-server with the <code className="font-mono">--cors-allow-origins "*"</code> flag:</p>
-          <div className="flex items-center gap-2 bg-[var(--color-surface-tertiary)] rounded-md px-3 py-2">
-            <code className="text-xs text-[var(--color-text-secondary)] flex-1 break-all">{cmd}</code>
-            <button onClick={() => copyCmd(cmd)} className="flex-shrink-0 text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]">
-              {copied ? <Check className="w-3.5 h-3.5 text-[var(--color-ok)]" /> : <Copy className="w-3.5 h-3.5" />}
-            </button>
-          </div>
+          <p className="text-xs text-[var(--color-text-muted)]">Your browser blocked the direct connection to your local engine. Try dismissing and retrying — some llama-server builds allow cross-origin requests by default.</p>
           <button onClick={resetForRetry} className="text-xs text-[var(--color-plex-400)] hover:underline">Dismiss and retry</button>
         </div>
       );

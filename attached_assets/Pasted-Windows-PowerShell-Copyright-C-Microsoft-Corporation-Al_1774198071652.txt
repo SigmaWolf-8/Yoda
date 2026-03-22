@@ -1,0 +1,21 @@
+Windows PowerShell
+Copyright (C) Microsoft Corporation. All rights reserved.
+
+Install the latest PowerShell for new features and improvements! https://aka.ms/PSWindows
+
+PS C:\Users\Sigma> curl.exe http://localhost:8080/v1/models
+{"models":[{"name":"DeepSeek-R1-Distill-Qwen-7B-Q4_K_M.gguf","model":"DeepSeek-R1-Distill-Qwen-7B-Q4_K_M.gguf","modified_at":"","size":"","digest":"","type":"model","description":"","tags":[""],"capabilities":["completion"],"parameters":"","details":{"parent_model":"","format":"gguf","family":"","families":[""],"parameter_size":"","quantization_level":""}}],"object":"list","data":[{"id":"DeepSeek-R1-Distill-Qwen-7B-Q4_K_M.gguf","aliases":[],"tags":[],"object":"model","created":1774197578,"owned_by":"llamacpp","meta":{"vocab_type":2,"n_vocab":152064,"n_ctx_train":131072,"n_embd":3584,"n_params":7615616512,"size":4677120000}}]}
+PS C:\Users\Sigma> ^C
+PS C:\Users\Sigma> $srv = Get-ChildItem -Path "C:\Users\Sigma\llama.cpp" -Recurse -Filter "llama-server.exe" | Select-Object -First 1
+PS C:\Users\Sigma> & $srv.FullName --model "C:\Users\Sigma\yoda-models\DeepSeek-R1-Distill-Qwen-7B-Q4_K_M.gguf" --port 8080 --host 0.0.0.0 -c 4096 --parallel 4 --cors-allow-origins "*"
+load_backend: loaded RPC backend from C:\Users\Sigma\llama.cpp\ggml-rpc.dll
+load_backend: loaded CPU backend from C:\Users\Sigma\llama.cpp\ggml-cpu.dll
+error: invalid argument: --cors-allow-origins
+PS C:\Users\Sigma> $srv = Get-ChildItem -Path "C:\Users\Sigma\llama.cpp" -Recurse -Filter "llama-server.exe" | Select-Object -First 1
+PS C:\Users\Sigma> & $srv.FullName --help 2>&1 | Select-String -Pattern "cors|origin|access"
+
+--yarn-orig-ctx N                       YaRN: original context size of model (default: 0 = model training
+-hft,  --hf-token TOKEN                 Hugging Face access token (default: value from HF_TOKEN environment
+--offline                               Offline mode: forces use of cache, prevents network access
+                                        experimental: whether to enable MCP CORS proxy - do not enable in
+--media-path PATH                       directory for loading local media files; files can be accessed via
