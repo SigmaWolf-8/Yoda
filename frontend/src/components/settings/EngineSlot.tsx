@@ -1336,15 +1336,22 @@ export function EngineSlotCard({
                 </button>
               </div>
             )}
-            {/* Step 2 always-accessible shortcut for Windows self-hosted engines */}
-            {modelName && GGUF_INFO[modelName] && detectOS() === 'windows' && config?.health_status !== 'online' && (
+            {/* Always-visible installer download for Windows self-hosted engines */}
+            {modelName && GGUF_INFO[modelName] && detectOS() === 'windows' && (
               <button
                 type="button"
-                onClick={() => { setInstallPhase('tunnel_ready'); handleStep2Install(); }}
+                onClick={() => {
+                  const info = GGUF_INFO[modelName];
+                  if (!info) return;
+                  const token = crypto.randomUUID();
+                  const ps  = makePsInstallScript(modelName, info.repo, info.file, SLOT_PORT[slot], token, crsUrl);
+                  const bat = makeBatWrapper(ps, modelName);
+                  triggerDownload(bat, 'yoda-setup.bat', 'application/octet-stream');
+                }}
                 className="w-full flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg border border-[var(--color-gold-500)]/40 bg-[var(--color-gold-500)]/8 text-[var(--color-gold-400)] text-sm font-medium hover:bg-[var(--color-gold-500)]/15 hover:border-[var(--color-gold-500)]/60 transition-colors"
               >
                 <Download className="w-3.5 h-3.5" />
-                Download Step 2 — Install Model
+                Download Installer — yoda-setup.bat
               </button>
             )}
             {/* Sync result feedback */}
