@@ -592,19 +592,22 @@ async fn probe_engine_inner(
 
         // Pick the lightest probe endpoint available per provider.
         // GET /v1/models is standard for OpenAI-compatible APIs.
-        // Google uses a query-param key; Anthropic needs an extra version header.
-        let probe_url = if is_google && !key.is_empty() {
-            format!("{origin}/v1beta/models?key={key}")
-        } else if is_google {
+        // Google uses a query-param key (request); response redacts the key.
+        // Anthropic needs an extra version header.
+        let probe_url = if is_google {
             format!("{origin}/v1beta/models")
         } else {
             format!("{origin}/v1/models")
         };
+        // Safe display URL never includes credential material.
+        let probe_url_display = probe_url.clone();
 
         let start = std::time::Instant::now();
 
         let mut req = client.get(&probe_url);
-        if !is_google && !key.is_empty() {
+        if is_google && !key.is_empty() {
+            req = req.query(&[("key", &key)]);
+        } else if !key.is_empty() {
             req = match auth_type.as_str() {
                 "bearer"  => req.header("Authorization", format!("Bearer {key}")),
                 "api_key" => req.header("x-api-key", &key),
@@ -621,23 +624,23 @@ async fn probe_engine_inner(
                 let status     = resp.status().as_u16();
                 let latency_ms = start.elapsed().as_millis() as u64;
                 // 2xx/4xx = reachable; 5xx or connection failure = offline.
-                // 401/403 means credentials invalid but the API is up.
-                let reachable    = status < 500;
-                let creds_ok     = status != 401 && status != 403;
+                // 401/403 = endpoint is up but credentials are invalid → "suspect".
+                let reachable = status < 500;
+                let creds_ok  = status != 401 && status != 403;
 
-                if reachable && creds_ok {
-                    let _ = sqlx::query(
-                        "UPDATE engine_configs SET health_status='online', avg_latency_ms=$1 \
-                         WHERE org_id=$2 AND slot=$3",
-                    )
-                    .bind(latency_ms as i32)
-                    .bind(org_id)
-                    .bind(&slot)
-                    .execute(&db)
-                    .await;
-                }
-                // Note: 401/403 → leave health_status unchanged (don't flip to offline
-                // just because the API key changed — the endpoint is still reachable).
+                let new_status = if reachable && creds_ok { "online" }
+                                 else if reachable        { "suspect" }
+                                 else                     { "offline" };
+                let _ = sqlx::query(
+                    "UPDATE engine_configs SET health_status=$1, avg_latency_ms=$2 \
+                     WHERE org_id=$3 AND slot=$4",
+                )
+                .bind(new_status)
+                .bind(latency_ms as i32)
+                .bind(org_id)
+                .bind(&slot)
+                .execute(&db)
+                .await;
 
                 let note: Option<&str> = if !creds_ok {
                     Some("Reachable — credentials appear invalid (401/403)")
@@ -648,7 +651,7 @@ async fn probe_engine_inner(
                     "reachable": reachable,
                     "latency_ms": latency_ms,
                     "http_status": status,
-                    "probe_url": probe_url,
+                    "probe_url": probe_url_display,
                     "endpoint_url": endpoint_url,
                     "note": note,
                 })
@@ -666,7 +669,7 @@ async fn probe_engine_inner(
                     "reachable": false,
                     "latency_ms": latency_ms,
                     "error": e.to_string().lines().next().unwrap_or("Connection failed").to_string(),
-                    "probe_url": probe_url,
+                    "probe_url": probe_url_display,
                     "endpoint_url": endpoint_url,
                 })
             }

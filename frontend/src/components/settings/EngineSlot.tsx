@@ -537,7 +537,7 @@ export function EngineSlotCard({
   const [searchQuery, setSearchQuery] = useState('');
   const [installModalMode, setInstallModalMode] = useState<'connect' | null>(null);
   const [downloaded, markDownloaded] = useDownloadedModels();
-  type ProbeResult = { reachable: boolean; latency_ms?: number; http_status?: number; error?: string };
+  type ProbeResult = { reachable: boolean; latency_ms?: number; http_status?: number; error?: string; note?: string | null };
   const [probeState, setProbeState] = useState<null | 'loading' | ProbeResult>(null);
   const [syncing,    setSyncing]    = useState(false);
   const [syncResult, setSyncResult] = useState<'ok' | 'fail' | null>(null);
@@ -1118,9 +1118,19 @@ export function EngineSlotCard({
                 className="w-full px-3 py-1.5 rounded-lg bg-[var(--color-surface-secondary)] border border-[var(--color-border-default)] text-sm text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-gold-500)] focus:ring-1 focus:ring-[var(--color-gold-500)]/30 transition-colors"
               />
               {probeState !== null && probeState !== 'loading' && (
-                <div className={`mt-1.5 flex items-center gap-1.5 text-sm px-2.5 py-1.5 rounded-md ${probeState.reachable ? 'bg-[var(--color-plex-500)]/10 text-[var(--color-plex-400)]' : 'bg-[var(--color-surface-tertiary)] text-[var(--color-text-muted)]'}`}>
+                <div className={`mt-1.5 flex items-center gap-1.5 text-sm px-2.5 py-1.5 rounded-md ${
+                  probeState.reachable
+                    ? probeState.note
+                      ? 'bg-[var(--color-gold-500)]/10 text-[var(--color-gold-400)]'
+                      : 'bg-[var(--color-plex-500)]/10 text-[var(--color-plex-400)]'
+                    : 'bg-[var(--color-surface-tertiary)] text-[var(--color-text-muted)]'
+                }`}>
                   {probeState.reachable ? (
-                    <><CheckCircle2 className="w-3 h-3 flex-shrink-0" /> Reachable — {probeState.latency_ms} ms</>
+                    probeState.note ? (
+                      <><AlertTriangle className="w-3 h-3 flex-shrink-0" />{' '}{probeState.note}{probeState.http_status ? ` (HTTP ${probeState.http_status})` : ''}</>
+                    ) : (
+                      <><CheckCircle2 className="w-3 h-3 flex-shrink-0" /> Reachable — {probeState.latency_ms} ms{probeState.http_status ? ` · HTTP ${probeState.http_status}` : ''}</>
+                    )
                   ) : (
                     <>
                       <XCircle className="w-3 h-3 flex-shrink-0" />
