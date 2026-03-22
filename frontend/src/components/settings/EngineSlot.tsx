@@ -25,6 +25,8 @@ import { ModelInstallModal } from './ModelInstallModal';
 import {
   detectOS,
   makeBashInstallScript,
+  makeBatWrapper,
+  makePsInstallScript,
   triggerDownload,
 } from './installScripts';
 import { useUpdateEngine, useDeleteEngine, useMarkEngineOnline, useMarkEngineOffline } from '../../api/hooks';
@@ -728,29 +730,18 @@ export function EngineSlotCard({
     }
   }
 
-  const PLENUMNET_INSTALLER_URL = 'https://plenumnet.replit.app/api/yoda-installer.bat';
-
   function handleDirectInstall() {
     const info = GGUF_INFO[modelName];
     if (!info) return;
 
-    const os = detectOS();
+    const os    = detectOS();
+    const token = crypto.randomUUID();
 
     if (os === 'windows') {
-      // Serve fresh from PlenumNET — no local script generation needed
-      const a = document.createElement('a');
-      a.href     = PLENUMNET_INSTALLER_URL;
-      a.download = 'yoda-installer.bat';
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      setInstallPhase('downloaded');
-      return;
-    }
-
-    // macOS / Linux — still generated locally with CRS session token
-    const token = crypto.randomUUID();
-    if (os === 'mac') {
+      const ps  = makePsInstallScript(modelName, info.repo, info.file, SLOT_PORT[slot], token, crsUrl);
+      const bat = makeBatWrapper(ps, modelName);
+      triggerDownload(bat, 'yoda-installer.bat', 'application/octet-stream');
+    } else if (os === 'mac') {
       const sh = makeBashInstallScript(modelName, info.repo, info.file, SLOT_PORT[slot], token, crsUrl);
       triggerDownload(sh, 'yoda-setup.command', 'text/x-shellscript');
     } else {
@@ -758,7 +749,10 @@ export function EngineSlotCard({
       triggerDownload(sh, 'yoda-setup.sh', 'text/x-shellscript');
     }
 
-    if (!crsUrl) return;
+    if (!crsUrl) {
+      setInstallPhase('downloaded');
+      return;
+    }
     if (installPollRef.current) clearInterval(installPollRef.current);
     setInstallPhase('polling');
     setInstallAddress('');
