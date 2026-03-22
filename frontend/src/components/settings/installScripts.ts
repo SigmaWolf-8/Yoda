@@ -592,11 +592,13 @@ cmd.exe /c ('"' + $DAEMON_PATH + '" > "' + $keygenLog + '" 2>&1')
 $ErrorActionPreference = "Stop"
 $env:CUBE_MODE = $null
 $keygenOutput = if (Test-Path $keygenLog) { Get-Content $keygenLog } else { @() }
-$pkLine = $keygenOutput | Where-Object { $_ -match "PT26-DSA Public Key" } | Select-Object -First 1
-if ($pkLine -match ':\s*([0-9a-fA-F]+)\s*$') {
-  $PUB_KEY = $matches[1]
-} else {
-  $PUB_KEY = ""
+$PUB_KEY = ""
+foreach ($line in $keygenOutput) {
+  $clean = $line -replace '\x1b\[[0-9;]*[a-zA-Z]', ''
+  if ($clean -match ':\s*([0-9a-fA-F]{32,})') {
+    $PUB_KEY = $matches[1]
+    break
+  }
 }
 if (-not $PUB_KEY) {
   Write-Host "  Keygen output:" -ForegroundColor Yellow
