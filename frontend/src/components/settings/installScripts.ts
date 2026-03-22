@@ -1042,15 +1042,46 @@ $serverProc = Start-Process -FilePath $LLAMA_SERVER \`
   -RedirectStandardOutput $serverOutLog \`
   -RedirectStandardError  $serverErrLog
 Write-Host "  OK PID $($serverProc.Id) -- log: $serverOutLog"
-Write-Host "  Waiting for model to load (30-60 sec)..."
-Start-Sleep -Seconds 5
+Write-Host ""
+Write-Host "Waiting for model to finish loading (can take 1-3 min)..."
+$maxWait  = 300
+$waited   = 0
+$ready    = $false
+while ($waited -lt $maxWait) {
+  if (-not (Get-Process -Id $serverProc.Id -ErrorAction SilentlyContinue)) {
+    Write-Host ""
+    Write-Host "  ERROR: llama-server process exited unexpectedly." -ForegroundColor Red
+    Write-Host "  Check log for details: $serverOutLog" -ForegroundColor Red
+    Write-Host ""
+    Read-Host "Press Enter to close"
+    exit 1
+  }
+  try {
+    $r = Invoke-WebRequest -Uri "http://localhost:$SERVER_PORT/health" -TimeoutSec 3 -ErrorAction Stop -UseBasicParsing
+    if ($r.StatusCode -lt 500) { $ready = $true; break }
+  } catch { }
+  Start-Sleep -Seconds 3
+  $waited += 3
+  Write-Host "  ...still loading ($waited s elapsed)"
+}
+
+Write-Host ""
+if (-not $ready) {
+  Write-Host "  WARN: Timed out after $maxWait s -- model may still be loading." -ForegroundColor Yellow
+  Write-Host "  Check: $serverOutLog" -ForegroundColor Yellow
+} else {
+  Write-Host "  OK Model loaded and ready ($waited s)!" -ForegroundColor Green
+}
 
 Write-Host ""
 Write-Host "======================================" -ForegroundColor Green
 Write-Host "  Step 2 Complete!" -ForegroundColor Green
-Write-Host "  llama-server is loading the model." -ForegroundColor Green
-Write-Host "  Return to YODA and click" -ForegroundColor Green
-Write-Host "  [Mark Online] for this engine." -ForegroundColor Green
+if ($ready) {
+  Write-Host "  Model is loaded and accepting requests." -ForegroundColor Green
+} else {
+  Write-Host "  Server started but still warming up." -ForegroundColor Yellow
+}
+Write-Host "  Return to YODA and click [Sync Node]." -ForegroundColor Green
 Write-Host "======================================" -ForegroundColor Green
 Write-Host ""
 Read-Host "Press Enter to close (server keeps running)"

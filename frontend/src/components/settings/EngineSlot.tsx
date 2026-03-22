@@ -761,12 +761,22 @@ export function EngineSlotCard({
           return;
         }
         if (data.local_endpoint) {
-          // Local endpoint — the cloud server can never reach localhost directly.
-          // The daemon relay handles actual inference; mark online and trust the user.
-          markOnline.mutate(slot, {
-            onSuccess: () => { setSyncResult('ok'); qc.invalidateQueries({ queryKey: ['engines'] }); },
-            onError:   () => setSyncResult('fail'),
-          });
+          // Cloud server can't reach localhost — probe from the browser instead.
+          // llama-server only responds once the model is fully loaded, so this
+          // is the real readiness check.
+          const running = await browserProbeLocal(endpoint);
+          if (running) {
+            markOnline.mutate(slot, {
+              onSuccess: () => { setSyncResult('ok'); qc.invalidateQueries({ queryKey: ['engines'] }); },
+              onError:   () => setSyncResult('fail'),
+            });
+          } else {
+            setSyncResult('fail');
+            setMarkOnlineError(
+              `Model server not responding at ${endpoint}. ` +
+              `Run Step 2 and wait for it to say "Model loaded and ready" before returning here.`
+            );
+          }
           return;
         }
       }
