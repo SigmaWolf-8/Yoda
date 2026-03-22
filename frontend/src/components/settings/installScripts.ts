@@ -611,11 +611,33 @@ Write-Host ""
 Write-Host "Installing llama.cpp..."
 $llamaServer = Get-ChildItem -Path $LLAMA_DIR -Recurse -Filter "llama-server.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
 if ($llamaServer) {
-  Write-Host "  OK llama-server.exe: $($llamaServer.FullName)"
-} else {
+  $testOut = & $llamaServer.FullName --version 2>&1
+  if ($LASTEXITCODE -ne 0 -and -not ($testOut -match 'version|llama')) {
+    Write-Host "  WARN Existing llama-server.exe failed to run (likely wrong CPU arch) -- re-downloading..."
+    Remove-Item -Path $LLAMA_DIR -Recurse -Force -ErrorAction SilentlyContinue
+    $llamaServer = $null
+  } else {
+    Write-Host "  OK llama-server.exe: $($llamaServer.FullName)"
+  }
+}
+if (-not $llamaServer) {
   New-Item -ItemType Directory -Force -Path $LLAMA_DIR | Out-Null
   $release = (Invoke-RestMethod "https://api.github.com/repos/ggerganov/llama.cpp/releases/latest").tag_name
-  $zipUrl  = "https://github.com/ggerganov/llama.cpp/releases/download/$release/llama-$release-bin-win-avx2-x64.zip"
+  if ($cpuArch -eq "Arm64") {
+    $zipName = "llama-$release-bin-win-arm64.zip"
+    $zipUrl  = "https://github.com/ggerganov/llama.cpp/releases/download/$release/$zipName"
+    Write-Host "  -> ARM64 detected -- checking for native build..."
+    try {
+      Invoke-WebRequest -Uri $zipUrl -Method Head -UseBasicParsing -ErrorAction Stop | Out-Null
+      Write-Host "  -> Using ARM64 native llama.cpp build"
+    } catch {
+      $zipName = "llama-$release-bin-win-noavx-x64.zip"
+      $zipUrl  = "https://github.com/ggerganov/llama.cpp/releases/download/$release/$zipName"
+      Write-Host "  -> ARM64 native not available, falling back to noavx-x64 (runs under emulation)"
+    }
+  } else {
+    $zipUrl = "https://github.com/ggerganov/llama.cpp/releases/download/$release/llama-$release-bin-win-avx2-x64.zip"
+  }
   Write-Host "  -> Downloading llama.cpp $release..."
   $zipPath = Join-Path $env:TEMP "llamacpp.zip"
   if (Get-Command curl.exe -ErrorAction SilentlyContinue) {
@@ -626,7 +648,7 @@ if ($llamaServer) {
   Expand-Archive -Path $zipPath -DestinationPath $LLAMA_DIR -Force
   Remove-Item $zipPath -Force -ErrorAction SilentlyContinue
   $llamaServer = Get-ChildItem -Path $LLAMA_DIR -Recurse -Filter "llama-server.exe" | Select-Object -First 1
-  if (-not $llamaServer) { throw "llama-server.exe not found after extraction -- the zip may be for a different CPU architecture." }
+  if (-not $llamaServer) { throw "llama-server.exe not found after extraction." }
 }
 $LLAMA_SERVER = $llamaServer.FullName
 
@@ -684,7 +706,8 @@ Get-Process -Name "llama-server" -ErrorAction SilentlyContinue | Stop-Process -F
 Start-Sleep -Milliseconds 800
 $serverOutLog = Join-Path $LOG_DIR "llama-server-$SERVER_PORT-out.log"
 $serverErrLog = Join-Path $LOG_DIR "llama-server-$SERVER_PORT-err.log"
-$serverProc = Start-Process -FilePath $LLAMA_SERVER -ArgumentList "--model \`"$MODEL_PATH\`" --port $SERVER_PORT --host 0.0.0.0 -c 4096 --parallel 4 -ngl 99 --cors --log-disable" -NoNewWindow -PassThru -RedirectStandardOutput $serverOutLog -RedirectStandardError $serverErrLog
+$nglArgs = if ($cpuArch -eq "Arm64") { "" } else { "-ngl 99" }
+$serverProc = Start-Process -FilePath $LLAMA_SERVER -ArgumentList "--model \`"$MODEL_PATH\`" --port $SERVER_PORT --host 0.0.0.0 -c 4096 --parallel 4 $nglArgs --cors --log-disable" -NoNewWindow -PassThru -RedirectStandardOutput $serverOutLog -RedirectStandardError $serverErrLog
 Write-Host "  OK llama-server started (PID $($serverProc.Id)) -- log: $serverOutLog"
 Start-Sleep -Seconds 2
 
