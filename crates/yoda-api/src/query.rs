@@ -81,11 +81,16 @@ pub async fn submit_query(
     let orchestrator = state.agents.get("capomastro-yoda-orchestrator")
         .or_else(|| state.agents.find_best_match(&["orchestration".into()]).ok());
 
-    // Get a configured engine for decomposition
+    // Get a configured engine for decomposition.
+    // Prefer cloud/free-tier engines (server can call them directly) over
+    // self-hosted localhost engines (server cannot reach the user's machine).
     let engines = sqlx::query_as::<_, (String, String, String, Option<String>, String, String)>(
         "SELECT slot, hosting_mode, endpoint_url, credentials_encrypted, model_name, auth_type \
          FROM engine_configs WHERE org_id = $1 AND health_status = 'online' \
-         ORDER BY slot LIMIT 1"
+         ORDER BY \
+           CASE WHEN hosting_mode IN ('commercial', 'free_tier') THEN 0 ELSE 1 END, \
+           slot \
+         LIMIT 1"
     )
     .bind(user.org_id)
     .fetch_optional(&state.db)
@@ -266,9 +271,12 @@ pub async fn submit_query(
     // offline — but the browser running on the user's machine CAN.
     // If no explicit endpoint_url is saved, derive a default localhost URL from
     // the slot (A → :8080, B → :8081, C → :8082) for self-hosted engines.
+    // Browser relay only makes sense for self-hosted local engines.
+    // The browser has no credentials to call commercial/free_tier APIs directly,
+    // and those should have been handled server-side in decomposition above.
     let relay_info: Option<(String, String, Option<String>)> = sqlx::query_as(
         "SELECT slot, hosting_mode, endpoint_url FROM engine_configs \
-         WHERE org_id = $1 \
+         WHERE org_id = $1 AND hosting_mode = 'self_hosted' \
          ORDER BY slot ASC LIMIT 1"
     )
     .bind(user.org_id)

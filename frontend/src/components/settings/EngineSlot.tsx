@@ -545,6 +545,7 @@ export function EngineSlotCard({
   const [probeState, setProbeState] = useState<null | 'loading' | ProbeResult>(null);
   const [syncing,    setSyncing]    = useState(false);
   const [syncResult, setSyncResult] = useState<'ok' | 'fail' | null>(null);
+  const [markOnlineError, setMarkOnlineError] = useState<string | null>(null);
 
   type InstallPhase = 'idle' | 'downloaded' | 'polling' | 'tunnel_ready' | 'step2_ready' | 'connected' | 'timeout';
   const PHASE_KEY = `yoda_install_phase_slot${slot}`;
@@ -712,9 +713,48 @@ export function EngineSlotCard({
     }
   }
 
+  const LOCAL_RE = /localhost|127\.0\.0\.1|192\.168\.|^10\.|172\.(1[6-9]|2\d|3[01])\./;
+
+  /** For local endpoints: browser-fetch the model server before marking online.
+   *  Returns true if the server responded (even with CORS error), false if refused. */
+  async function browserProbeLocal(url: string): Promise<boolean> {
+    try {
+      // mode:'no-cors' returns an opaque response when the server is up,
+      // and throws TypeError when the connection is refused.
+      await fetch(`${url.replace(/\/$/, '')}/v1/models`, {
+        mode: 'no-cors',
+        signal: AbortSignal.timeout(5000),
+      });
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  /** Mark online — but verify the model server is actually responding first
+   *  for local self-hosted endpoints. */
+  async function verifyAndMarkOnline() {
+    setMarkOnlineError(null);
+    const isLocal = mode === 'self_hosted' && LOCAL_RE.test(endpoint);
+    if (isLocal && endpoint) {
+      const running = await browserProbeLocal(endpoint);
+      if (!running) {
+        setMarkOnlineError(
+          `Model server not responding at ${endpoint}. ` +
+          `Make sure llama-server is running — complete Step 2 from the install flow first.`
+        );
+        return;
+      }
+    }
+    markOnline.mutate(slot, {
+      onSuccess: () => { setMarkOnlineError(null); qc.invalidateQueries({ queryKey: ['engines'] }); },
+    });
+  }
+
   async function syncNode() {
     setSyncing(true);
     setSyncResult(null);
+    setMarkOnlineError(null);
     try {
       const token = getStoredToken() ?? '';
       const res = await fetch(`/api/settings/engines/${slot}/probe`, {
@@ -728,7 +768,19 @@ export function EngineSlotCard({
           return;
         }
       }
-      // Probe could not confirm — force mark online so UI reflects running state
+      // Server probe can't reach localhost — verify from browser before marking online.
+      const isLocal = mode === 'self_hosted' && LOCAL_RE.test(endpoint);
+      if (isLocal && endpoint) {
+        const running = await browserProbeLocal(endpoint);
+        if (!running) {
+          setSyncResult('fail');
+          setMarkOnlineError(
+            `Model server not responding at ${endpoint}. ` +
+            `Run Step 2 from the install flow to download and start the model.`
+          );
+          return;
+        }
+      }
       markOnline.mutate(slot, {
         onSuccess: () => { setSyncResult('ok'); qc.invalidateQueries({ queryKey: ['engines'] }); },
         onError:   () => setSyncResult('fail'),
@@ -911,9 +963,9 @@ export function EngineSlotCard({
                   or validate cloud API keys — let the user confirm. */}
               {config.health_status !== 'online' && modelName && (
                 <button
-                  onClick={() => markOnline.mutate(slot)}
+                  onClick={verifyAndMarkOnline}
                   disabled={markOnline.isPending}
-                  title="Mark this engine online — use when the engine is running but the server probe cannot verify it"
+                  title="Mark this engine online — verifies model server is reachable first"
                   className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium border border-[var(--color-plex-500)]/40 text-[var(--color-plex-400)] hover:bg-[var(--color-plex-500)]/10 disabled:opacity-50 transition-colors"
                 >
                   {markOnline.isPending
@@ -1185,9 +1237,9 @@ export function EngineSlotCard({
                 <div className="flex items-center gap-1">
                   {config?.health_status !== 'online' && endpoint && (
                     <button
-                      onClick={() => markOnline.mutate(slot)}
+                      onClick={verifyAndMarkOnline}
                       disabled={markOnline.isPending}
-                      title="Force status to online (use when your node is running but unreachable from the probe)"
+                      title="Mark online — verifies model server is reachable from your browser first"
                       className="flex items-center gap-1 text-sm px-2 py-0.5 rounded-md border border-[var(--color-plex-500)]/40 text-[var(--color-plex-400)] hover:border-[var(--color-plex-400)] hover:text-[var(--color-plex-300)] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                     >
                       {markOnline.isPending ? (
@@ -1214,7 +1266,7 @@ export function EngineSlotCard({
               <input
                 type="text"
                 value={endpoint}
-                onChange={(e) => { setEndpoint(e.target.value); setProbeState(null); }}
+                onChange={(e) => { setEndpoint(e.target.value); setProbeState(null); setMarkOnlineError(null); }}
                 placeholder="http://localhost:11434"
                 className="w-full px-3 py-1.5 rounded-lg bg-[var(--color-surface-secondary)] border border-[var(--color-border-default)] text-sm text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-gold-500)] focus:ring-1 focus:ring-[var(--color-gold-500)]/30 transition-colors"
               />
@@ -1293,7 +1345,7 @@ export function EngineSlotCard({
               </div>
             )}
             {/* Sync result feedback */}
-            {syncResult && (
+            {syncResult && !markOnlineError && (
               <div className={`flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-md ${
                 syncResult === 'ok'
                   ? 'bg-sky-400/8 border border-sky-400/20 text-sky-300'
@@ -1303,6 +1355,13 @@ export function EngineSlotCard({
                   ? <><CheckCircle2 className="w-3 h-3 flex-shrink-0" /> Node synced — connection confirmed</>
                   : <><XCircle className="w-3 h-3 flex-shrink-0" /> Sync failed — is the daemon running?</>
                 }
+              </div>
+            )}
+            {/* Mark-online verification error — shown when the model server isn't reachable */}
+            {markOnlineError && (
+              <div className="flex items-start gap-2 px-2.5 py-2 rounded-md bg-[var(--color-err)]/8 border border-[var(--color-err)]/25 text-xs text-[var(--color-err)]">
+                <XCircle className="w-3 h-3 flex-shrink-0 mt-0.5" />
+                <span>{markOnlineError}</span>
               </div>
             )}
           </>
