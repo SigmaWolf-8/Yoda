@@ -27,6 +27,8 @@ import {
   makeBashInstallScript,
   makeBatWrapper,
   makePsInstallScript,
+  makePsStep1Script,
+  makePsStep2Script,
   triggerDownload,
 } from './installScripts';
 import { useUpdateEngine, useDeleteEngine, useMarkEngineOnline, useMarkEngineOffline } from '../../api/hooks';
@@ -544,8 +546,16 @@ export function EngineSlotCard({
   const [syncing,    setSyncing]    = useState(false);
   const [syncResult, setSyncResult] = useState<'ok' | 'fail' | null>(null);
 
-  type InstallPhase = 'idle' | 'downloaded' | 'polling' | 'connected' | 'timeout';
-  const [installPhase,   setInstallPhase]   = useState<InstallPhase>('idle');
+  type InstallPhase = 'idle' | 'downloaded' | 'polling' | 'tunnel_ready' | 'step2_ready' | 'connected' | 'timeout';
+  const PHASE_KEY = `yoda_install_phase_slot${slot}`;
+  const [installPhase, setInstallPhaseRaw] = useState<InstallPhase>(
+    () => (localStorage.getItem(PHASE_KEY) as InstallPhase | null) ?? 'idle',
+  );
+  function setInstallPhase(phase: InstallPhase) {
+    setInstallPhaseRaw(phase);
+    if (phase === 'idle' || phase === 'connected') localStorage.removeItem(PHASE_KEY);
+    else localStorage.setItem(PHASE_KEY, phase);
+  }
   const [installAddress, setInstallAddress] = useState('');
   const installPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const crsUrl = (import.meta.env.VITE_CRS_URL as string | undefined) ?? '';
@@ -738,9 +748,10 @@ export function EngineSlotCard({
     const token = crypto.randomUUID();
 
     if (os === 'windows') {
-      const ps  = makePsInstallScript(modelName, info.repo, info.file, SLOT_PORT[slot], token, crsUrl);
+      // Step 1: PlenumNET tunnel setup only
+      const ps  = makePsStep1Script(modelName, SLOT_PORT[slot], token, crsUrl);
       const bat = makeBatWrapper(ps, modelName);
-      triggerDownload(bat, 'yoda-installer.bat', 'application/octet-stream');
+      triggerDownload(bat, 'yoda-step1-tunnel.bat', 'application/octet-stream');
     } else if (os === 'mac') {
       const sh = makeBashInstallScript(modelName, info.repo, info.file, SLOT_PORT[slot], token, crsUrl);
       triggerDownload(sh, 'yoda-setup.command', 'text/x-shellscript');
@@ -762,7 +773,6 @@ export function EngineSlotCard({
       if (count > 200) {
         clearInterval(installPollRef.current!);
         setInstallPhase('timeout');
-        markOffline.mutate(slot);
         return;
       }
       try {
@@ -771,13 +781,29 @@ export function EngineSlotCard({
         const data: { status: string; address?: string } = await res.json();
         if (data.status === 'registered' && data.address) {
           clearInterval(installPollRef.current!);
-          setInstallPhase('connected');
-          setInstallAddress(data.address);
-          markDownloaded(modelName);
-          markOnline.mutate(slot);
+          // Tunnel is up — for Windows, advance to Step 2
+          if (detectOS() === 'windows') {
+            setInstallPhase('tunnel_ready');
+            setInstallAddress(data.address);
+          } else {
+            // Mac/Linux: all-in-one script, go straight to connected
+            setInstallPhase('connected');
+            setInstallAddress(data.address);
+            markDownloaded(modelName);
+            markOnline.mutate(slot);
+          }
         }
       } catch { /* keep polling */ }
     }, 3000);
+  }
+
+  function handleStep2Install() {
+    const info = GGUF_INFO[modelName];
+    if (!info) return;
+    const ps  = makePsStep2Script(modelName, info.repo, info.file, SLOT_PORT[slot]);
+    const bat = makeBatWrapper(ps, modelName);
+    triggerDownload(bat, 'yoda-step2-model.bat', 'application/octet-stream');
+    setInstallPhase('step2_ready');
   }
 
   useEffect(() => () => { if (installPollRef.current) clearInterval(installPollRef.current); }, []);
@@ -1031,60 +1057,127 @@ export function EngineSlotCard({
 
             <ModelCard modelName={modelName} hostRam={hostRam} reservedRam={reservedRam} />
 
-            {/* Install / Connect buttons — visible for all self-hosted models */}
-            {modelName && GGUF_INFO[modelName] && (
-              <div className="space-y-1.5">
-                <div className="flex gap-2">
-                  {downloaded.has(modelName) ? (
-                    <button
-                      onClick={handleDirectInstall}
-                      className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg border border-[var(--color-plex-500)]/40 bg-[var(--color-plex-500)]/8 text-[var(--color-plex-400)] text-sm font-medium hover:bg-[var(--color-plex-500)]/15 hover:border-[var(--color-plex-500)]/70 transition-colors"
-                    >
-                      <HardDriveDownload className="w-3.5 h-3.5" />
-                      Re-Install
-                    </button>
-                  ) : (
-                    <button
-                      onClick={handleDirectInstall}
-                      className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg border border-[var(--color-gold-500)]/40 bg-[var(--color-gold-500)]/8 text-[var(--color-gold-400)] text-sm font-medium hover:bg-[var(--color-gold-500)]/15 hover:border-[var(--color-gold-500)]/70 transition-colors"
-                    >
-                      <Download className="w-3.5 h-3.5" />
-                      Install
-                    </button>
+            {/* Install / Connect — two-step flow for Windows, all-in-one for Mac/Linux */}
+            {modelName && GGUF_INFO[modelName] && (() => {
+              const isWin = detectOS() === 'windows';
+
+              // Step completion flags
+              const step1Done = isWin && (
+                installPhase === 'tunnel_ready' ||
+                installPhase === 'step2_ready'  ||
+                installPhase === 'connected'
+              );
+              const step2Done = isWin && installPhase === 'connected';
+
+              return (
+                <div className="space-y-2">
+                  {/* Windows step-progress indicator */}
+                  {isWin && installPhase !== 'idle' && (
+                    <div className="flex items-center gap-1 text-xs px-1">
+                      {/* Step 1 */}
+                      <div className={`flex items-center gap-1 ${step1Done ? 'text-[var(--color-plex-400)]' : installPhase === 'polling' || installPhase === 'downloaded' ? 'text-[var(--color-gold-400)]' : 'text-[var(--color-text-muted)]'}`}>
+                        <div className={`w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-bold border ${step1Done ? 'border-[var(--color-plex-400)] bg-[var(--color-plex-400)]/15' : 'border-[var(--color-gold-500)]/60 bg-[var(--color-gold-500)]/10'}`}>
+                          {step1Done ? '✓' : '1'}
+                        </div>
+                        <span className="font-medium">Tunnel</span>
+                      </div>
+                      <div className="flex-1 h-px bg-[var(--color-text-muted)]/20 mx-1" />
+                      {/* Step 2 */}
+                      <div className={`flex items-center gap-1 ${step2Done ? 'text-[var(--color-plex-400)]' : step1Done ? 'text-[var(--color-gold-400)]' : 'text-[var(--color-text-muted)]/40'}`}>
+                        <div className={`w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-bold border ${step2Done ? 'border-[var(--color-plex-400)] bg-[var(--color-plex-400)]/15' : step1Done ? 'border-[var(--color-gold-500)]/60 bg-[var(--color-gold-500)]/10' : 'border-[var(--color-text-muted)]/20'}`}>
+                          {step2Done ? '✓' : '2'}
+                        </div>
+                        <span className="font-medium">Model</span>
+                      </div>
+                      <div className="flex-1 h-px bg-[var(--color-text-muted)]/20 mx-1" />
+                      {/* Step 3 */}
+                      <div className={`flex items-center gap-1 ${installPhase === 'connected' ? 'text-sky-400' : 'text-[var(--color-text-muted)]/40'}`}>
+                        <div className={`w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-bold border ${installPhase === 'connected' ? 'border-sky-400 bg-sky-400/15' : 'border-[var(--color-text-muted)]/20'}`}>
+                          {installPhase === 'connected' ? '✓' : '3'}
+                        </div>
+                        <span className="font-medium">Online</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Primary action button */}
+                  <div className="flex gap-2">
+                    {/* Step 1 / Install button — idle, timeout, downloaded */}
+                    {(installPhase === 'idle' || installPhase === 'timeout' || installPhase === 'downloaded') && (
+                      <button
+                        onClick={handleDirectInstall}
+                        className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg border text-sm font-medium transition-colors ${
+                          downloaded.has(modelName)
+                            ? 'border-[var(--color-plex-500)]/40 bg-[var(--color-plex-500)]/8 text-[var(--color-plex-400)] hover:bg-[var(--color-plex-500)]/15 hover:border-[var(--color-plex-500)]/70'
+                            : 'border-[var(--color-gold-500)]/40 bg-[var(--color-gold-500)]/8 text-[var(--color-gold-400)] hover:bg-[var(--color-gold-500)]/15 hover:border-[var(--color-gold-500)]/70'
+                        }`}
+                      >
+                        <Download className="w-3.5 h-3.5" />
+                        {isWin
+                          ? (installPhase === 'timeout' ? 'Retry Step 1 — Network Setup' : 'Step 1: Network Setup')
+                          : (downloaded.has(modelName) ? 'Re-Install' : 'Install')}
+                      </button>
+                    )}
+
+                    {/* Step 2 button — tunnel confirmed, model not yet installed */}
+                    {installPhase === 'tunnel_ready' && (
+                      <button
+                        onClick={handleStep2Install}
+                        className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border border-[var(--color-gold-500)]/60 bg-[var(--color-gold-500)]/12 text-[var(--color-gold-300)] text-sm font-semibold hover:bg-[var(--color-gold-500)]/20 hover:border-[var(--color-gold-500)]/80 transition-colors"
+                      >
+                        <Download className="w-3.5 h-3.5" />
+                        Step 2: Install Model
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Status messages */}
+                  {installPhase === 'polling' && (
+                    <div className="flex items-start gap-2 px-3 py-2 rounded-lg bg-[var(--color-gold-500)]/8 border border-[var(--color-gold-500)]/25 text-xs text-[var(--color-gold-300)]">
+                      <Loader2 className="w-3 h-3 animate-spin flex-shrink-0 mt-0.5" />
+                      <span>
+                        <strong>yoda-step1-tunnel.bat</strong> downloaded — double-click it to run.
+                        {isWin ? ' Waiting for tunnel confirmation…' : ' Waiting for connection…'}
+                      </span>
+                    </div>
+                  )}
+                  {installPhase === 'downloaded' && (
+                    <div className="flex items-start gap-2 px-2.5 py-1.5 rounded-lg bg-[var(--color-gold-500)]/8 border border-[var(--color-gold-500)]/25 text-xs text-[var(--color-gold-300)]">
+                      <HardDriveDownload className="w-3 h-3 flex-shrink-0 mt-0.5" />
+                      <span>Installer downloaded — double-click to run, then click <strong>Mark Online</strong> when ready.</span>
+                    </div>
+                  )}
+                  {installPhase === 'tunnel_ready' && (
+                    <div className="flex items-start gap-2 px-3 py-2 rounded-lg bg-[var(--color-gold-500)]/10 border border-[var(--color-gold-500)]/35 text-xs text-[var(--color-gold-200)]">
+                      <Wifi className="w-3 h-3 flex-shrink-0 mt-0.5 text-[var(--color-gold-400)]" />
+                      <span>
+                        <strong>Tunnel established</strong> — {installAddress && `node ${installAddress} — `}now download and run <strong>Step 2</strong> to install the AI model on your machine.
+                      </span>
+                    </div>
+                  )}
+                  {installPhase === 'step2_ready' && (
+                    <div className="flex items-start gap-2 px-3 py-2 rounded-lg bg-[var(--color-gold-500)]/8 border border-[var(--color-gold-500)]/25 text-xs text-[var(--color-gold-300)]">
+                      <Loader2 className="w-3 h-3 flex-shrink-0 mt-0.5" />
+                      <span>
+                        <strong>yoda-step2-model.bat</strong> downloaded — double-click it to download and start the model (4–8 GB, takes a while). When the script says "Step 2 Complete", click <strong>Mark Online</strong> below.
+                      </span>
+                    </div>
+                  )}
+                  {installPhase === 'connected' && (
+                    <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-sky-400/8 border border-sky-400/25 text-xs text-sky-300">
+                      <Wifi className="w-3 h-3 flex-shrink-0" />
+                      <span>Connected{installAddress ? ` — ${installAddress}` : ''}</span>
+                    </div>
+                  )}
+                  {installPhase === 'timeout' && (
+                    <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-[var(--color-text-muted)]/5 border border-[var(--color-text-muted)]/15 text-xs text-[var(--color-text-muted)]">
+                      <WifiOff className="w-3 h-3 flex-shrink-0" />
+                      <span>Timed out waiting for tunnel. Click Retry above and re-run the script.</span>
+                    </div>
                   )}
                 </div>
-
-                {/* Inline install status — replaces the modal for install flow */}
-                {installPhase === 'downloaded' && (
-                  <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-[var(--color-gold-500)]/8 border border-[var(--color-gold-500)]/25 text-xs text-[var(--color-gold-300)]">
-                    <HardDriveDownload className="w-3 h-3 flex-shrink-0" />
-                    <span>
-                      Installer downloaded — double-click <strong>yoda-installer.bat</strong> to run it, then click <strong>Mark Online</strong> when your engine is ready.
-                    </span>
-                  </div>
-                )}
-                {installPhase === 'polling' && (
-                  <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-[var(--color-gold-500)]/8 border border-[var(--color-gold-500)]/25 text-sm text-[var(--color-gold-300)]">
-                    <Loader2 className="w-3 h-3 animate-spin flex-shrink-0" />
-                    <span>
-                      Script downloaded — double-click it to run, then wait here for connection…
-                    </span>
-                  </div>
-                )}
-                {installPhase === 'connected' && (
-                  <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-[var(--color-plex-500)]/10 border border-[var(--color-plex-500)]/30 text-sm text-[var(--color-plex-300)]">
-                    <Wifi className="w-3 h-3 flex-shrink-0" />
-                    <span>Connected — {installAddress}</span>
-                  </div>
-                )}
-                {installPhase === 'timeout' && (
-                  <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-blue-500/8 border border-blue-500/25 text-sm text-[var(--color-text-muted)]">
-                    <WifiOff className="w-3 h-3 flex-shrink-0" />
-                    <span>Timed out. Click Install again and run the downloaded file.</span>
-                  </div>
-                )}
-              </div>
-            )}
+              );
+            })()}
 
             <div>
               <div className="flex items-center justify-between mb-1">

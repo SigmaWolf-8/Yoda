@@ -712,6 +712,350 @@ Write-Host "Use the Connect button in YODA to reconnect after reboot."
 `;
 }
 
+// ── Step-1 installer: PlenumNET tunnel only (no model download) ───────────────
+// Downloads / builds inter-cube daemon, registers with CRS, starts tunnel.
+// The YODA UI polls CRS and advances to "Step 2" when registration lands.
+
+export function makePsStep1Script(
+  modelName : string,
+  port      : number,
+  token     : string,
+  crsUrl    : string,
+): string {
+  return `# YODA Step 1 -- Network Tunnel Setup
+# Model: ${modelName}  |  Port: ${port}
+# This script installs PlenumNET and establishes the secure tunnel to YODA.
+# Step 2 (model download) runs separately once the tunnel is confirmed.
+$ErrorActionPreference = "Stop"
+trap {
+  Write-Host ""
+  Write-Host "=== STEP 1 ERROR ===" -ForegroundColor Red
+  Write-Host $_.Exception.Message -ForegroundColor Red
+  Write-Host ""
+  Read-Host "Press Enter to close"
+  break
+}
+
+$SESSION_TOKEN = "${token}"
+$CRS_URL       = "${crsUrl}"
+$LOG_DIR       = Join-Path $env:USERPROFILE "yoda-models\\logs"
+$LLAMA_DIR     = Join-Path $env:USERPROFILE "llama.cpp"
+$PLENUMNET_DIR = Join-Path $env:USERPROFILE "PlenumNET"
+$IDENTITY_DIR  = Join-Path (Join-Path $env:USERPROFILE ".plenumnet") "identity"
+
+New-Item -ItemType Directory -Force -Path $LOG_DIR | Out-Null
+
+Write-Host "=== YODA -- Step 1: Network Tunnel Setup ===" -ForegroundColor Cyan
+Write-Host "Model  : ${modelName}"
+Write-Host "Port   : ${port}"
+Write-Host ""
+
+# -- 1. Detect local IP ---------------------------------------------------
+$ip = (Get-NetIPAddress -AddressFamily IPv4 |
+  Where-Object { $_.IPAddress -notmatch '^127\\.' -and $_.IPAddress -notmatch '^169\\.254' -and $_.PrefixOrigin -ne 'WellKnown' } |
+  Sort-Object @{ Expression = { switch -Wildcard ($_.InterfaceAlias) { 'Wi-Fi*' { 0 } 'Ethernet*' { 1 } default { 2 } } } } |
+  Select-Object -First 1).IPAddress
+if (-not $ip) { $ip = "0.0.0.0" }
+$CUBE_ENDPOINT = "$ip\`:51820"
+Write-Host "Local endpoint : $CUBE_ENDPOINT"
+
+# -- 2. Check / install Rust ----------------------------------------------
+Write-Host ""
+Write-Host "Checking Rust/Cargo..."
+if (-not (Get-Command cargo -ErrorAction SilentlyContinue)) {
+  Write-Host "  -> Rust not found -- installing rustup..."
+  $rustupExe = Join-Path $env:TEMP "rustup-init.exe"
+  Invoke-WebRequest -Uri "https://win.rustup.rs/x86_64" -OutFile $rustupExe -UseBasicParsing
+  Start-Process -FilePath $rustupExe -ArgumentList "-y" -Wait -NoNewWindow
+  Remove-Item $rustupExe -Force -ErrorAction SilentlyContinue
+  $cargoBin = Join-Path (Join-Path $env:USERPROFILE ".cargo") "bin"
+  $env:PATH += ";$cargoBin"
+  Write-Host "  OK Rust installed"
+} else {
+  Write-Host "  OK Cargo: $(cargo --version 2>$null)"
+}
+if (-not (Get-Command cargo -ErrorAction SilentlyContinue)) {
+  throw "cargo not found after install -- restart this script in a new terminal so PATH is refreshed."
+}
+
+# -- 3. Check Git ---------------------------------------------------------
+if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
+  throw "Git is not installed. Install from https://git-scm.com/download/win then re-run."
+}
+
+# -- 4. MSVC + clang for ARM64 ring crate ---------------------------------
+Write-Host ""
+Write-Host "Setting up ARM64 build environment..."
+$cpuArch = [System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString()
+$vswhereX86 = "C:\\Program Files (x86)\\Microsoft Visual Studio\\Installer\\vswhere.exe"
+$vswhereNat = "C:\\Program Files\\Microsoft Visual Studio\\Installer\\vswhere.exe"
+$vswhere = if (Test-Path -LiteralPath $vswhereX86) { $vswhereX86 } elseif (Test-Path -LiteralPath $vswhereNat) { $vswhereNat } else { "" }
+if ($vswhere) {
+  $vsInstallPath = & $vswhere -latest -products * -property installationPath 2>$null
+  if ($vsInstallPath) {
+    $vcvarsName = if ($cpuArch -eq "Arm64") { "vcvarsarm64.bat" } else { "vcvars64.bat" }
+    $vcvars = Join-Path (Join-Path (Join-Path $vsInstallPath "VC") "Auxiliary\\Build") $vcvarsName
+    if (Test-Path -LiteralPath $vcvars) {
+      $envLines = cmd.exe /c ('"' + $vcvars + '" > nul 2>&1 && set')
+      foreach ($line in $envLines) {
+        if ($line -match '^([^=\\r\\n]+)=(.*)$') { [System.Environment]::SetEnvironmentVariable($Matches[1], $Matches[2], "Process") }
+      }
+      Write-Host "  OK MSVC environment activated"
+    }
+  }
+}
+$hasClang = Get-Command clang -ErrorAction SilentlyContinue
+if (-not $hasClang) {
+  $llvmBin = "C:\\Program Files\\LLVM\\bin"
+  if (Test-Path -LiteralPath (Join-Path $llvmBin "clang.exe")) { $env:PATH += ";$llvmBin"; $hasClang = $true }
+}
+if (-not $hasClang) {
+  Write-Host "  -> clang not found -- installing LLVM via winget..."
+  if (Get-Command winget -ErrorAction SilentlyContinue) {
+    winget install --id LLVM.LLVM --silent --accept-package-agreements --accept-source-agreements
+  }
+  $env:PATH = [System.Environment]::GetEnvironmentVariable("PATH","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("PATH","User")
+  $llvmBin2 = "C:\\Program Files\\LLVM\\bin"
+  if (Test-Path -LiteralPath (Join-Path $llvmBin2 "clang.exe")) { $env:PATH += ";$llvmBin2" }
+  if (-not (Get-Command clang -ErrorAction SilentlyContinue)) {
+    throw "clang not found after LLVM install -- restart this script in a new terminal."
+  }
+}
+Write-Host "  OK clang available"
+
+# -- 5. Clone/update PlenumNET and build inter-cube daemon ----------------
+Write-Host ""
+Write-Host "Building PlenumNET inter-cube daemon..."
+function Invoke-ClonePlenumNET {
+  git clone --depth 1 https://github.com/SigmaWolf-8/Ternary $PLENUMNET_DIR
+}
+if (Test-Path (Join-Path $PLENUMNET_DIR ".git")) {
+  try { git -C $PLENUMNET_DIR pull --ff-only 2>&1 | Out-Null } catch { }
+  $icToml = Join-Path (Join-Path (Join-Path $PLENUMNET_DIR "services") "inter-cube") "Cargo.toml"
+  if (-not (Test-Path $icToml)) { Remove-Item -Recurse -Force $PLENUMNET_DIR; Invoke-ClonePlenumNET }
+} else {
+  Invoke-ClonePlenumNET
+}
+Write-Host "  -> Building (first build: 5-10 min, Cargo warnings are normal)..."
+Push-Location $PLENUMNET_DIR
+$ErrorActionPreference = "Continue"
+cargo build --release --package inter-cube 2>&1 | ForEach-Object { Write-Host $_ }
+$buildExit = $LASTEXITCODE
+$ErrorActionPreference = "Stop"
+Pop-Location
+if ($buildExit -ne 0) { throw "cargo build failed -- see output above." }
+$relDir    = Join-Path (Join-Path $PLENUMNET_DIR "target") "release"
+$daemonBin = Get-ChildItem -Path $relDir -Filter "inter-cube*.exe" -ErrorAction SilentlyContinue |
+  Where-Object { $_.Name -notlike "*.d" } | Select-Object -First 1
+if (-not $daemonBin) { throw "inter-cube.exe not found after build." }
+$DAEMON_PATH = $daemonBin.FullName
+Write-Host "  OK Daemon: $DAEMON_PATH"
+
+# -- 6. Identity keypair --------------------------------------------------
+Write-Host ""
+Write-Host "Setting up PlenumNET identity..."
+New-Item -ItemType Directory -Force -Path $IDENTITY_DIR | Out-Null
+$PASSPHRASE_FILE = Join-Path $IDENTITY_DIR ".passphrase"
+if (Test-Path $PASSPHRASE_FILE) {
+  $CUBE_PASSPHRASE = (Get-Content $PASSPHRASE_FILE -Raw).Trim()
+  Write-Host "  -> Loaded existing passphrase"
+} else {
+  $rng = [System.Security.Cryptography.RNGCryptoServiceProvider]::new()
+  $bytes = [byte[]]::new(24)
+  $rng.GetBytes($bytes)
+  $CUBE_PASSPHRASE = ($bytes | ForEach-Object { $_.ToString("x2") }) -join ""
+  $rng.Dispose()
+  $CUBE_PASSPHRASE | Set-Content -Path $PASSPHRASE_FILE -NoNewline
+  Write-Host "  OK Passphrase saved"
+}
+$env:CUBE_IDENTITY_PASSPHRASE = $CUBE_PASSPHRASE
+$env:CUBE_MODE = "keygen"
+$keygenLog = Join-Path $LOG_DIR "keygen.log"
+$ErrorActionPreference = "Continue"
+$keygenOutput = & $DAEMON_PATH 2>$keygenLog
+$ErrorActionPreference = "Stop"
+$env:CUBE_MODE = $null
+$pkLine = $keygenOutput | Where-Object { $_ -match "PT26-DSA Public Key" } | Select-Object -First 1
+if ($pkLine -match ':\\s*([0-9a-fA-F]+)\\s*$') { $PUB_KEY = $matches[1] } else { $PUB_KEY = "" }
+if (-not $PUB_KEY) { throw "Keygen produced no public key -- see $keygenLog" }
+Write-Host "  OK Key: $($PUB_KEY.Substring(0, [Math]::Min(32, $PUB_KEY.Length)))..."
+
+# -- 7. Download llama-server.exe (needed for Step 2) --------------------
+Write-Host ""
+Write-Host "Downloading llama-server.exe (pre-built)..."
+$llamaServer = Get-ChildItem -Path $LLAMA_DIR -Recurse -Filter "llama-server.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
+if ($llamaServer) {
+  Write-Host "  OK Already present: $($llamaServer.FullName)"
+} else {
+  New-Item -ItemType Directory -Force -Path $LLAMA_DIR | Out-Null
+  $release = (Invoke-RestMethod "https://api.github.com/repos/ggerganov/llama.cpp/releases/latest").tag_name
+  $arch    = [System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString()
+  $suffix  = if ($arch -eq "Arm64") { "arm64" } else { "avx2-x64" }
+  $zipUrl  = "https://github.com/ggerganov/llama.cpp/releases/download/$release/llama-$release-bin-win-$suffix.zip"
+  Write-Host "  -> Downloading $zipUrl..."
+  $zipPath = Join-Path $env:TEMP "llamacpp.zip"
+  if (Get-Command curl.exe -ErrorAction SilentlyContinue) { curl.exe -fL "$zipUrl" -o "$zipPath" }
+  else { Invoke-WebRequest -Uri $zipUrl -OutFile $zipPath -UseBasicParsing }
+  Expand-Archive -Path $zipPath -DestinationPath $LLAMA_DIR -Force
+  Remove-Item $zipPath -Force -ErrorAction SilentlyContinue
+  $llamaServer = Get-ChildItem -Path $LLAMA_DIR -Recurse -Filter "llama-server.exe" | Select-Object -First 1
+  if (-not $llamaServer) { throw "llama-server.exe not found after extraction." }
+  Write-Host "  OK llama-server.exe: $($llamaServer.FullName)"
+}
+
+# -- 8. Register with YODA CRS (triggers UI to advance to Step 2) --------
+Write-Host ""
+Write-Host "Registering with YODA CRS..."
+$regBody = ConvertTo-Json @{ endpoint = $CUBE_ENDPOINT; publicKey = $PUB_KEY; sessionToken = $SESSION_TOKEN }
+$regOk = $false
+for ($attempt = 1; $attempt -le 3; $attempt++) {
+  try {
+    Invoke-RestMethod -Uri "$CRS_URL/api/yoda/crs/session/register" -Method Post -ContentType "application/json" -Body $regBody | Out-Null
+    $regOk = $true; break
+  } catch {
+    Write-Host "  Attempt $attempt failed: $_ -- retrying in 3s..."
+    Start-Sleep -Seconds 3
+  }
+}
+if (-not $regOk) { throw "CRS registration failed -- check internet and that YODA is reachable." }
+Write-Host "  OK Registered with YODA CRS -- tunnel session: $SESSION_TOKEN"
+
+# -- 9. Start PlenumNET tunnel daemon -------------------------------------
+Write-Host ""
+Write-Host "Starting PlenumNET tunnel daemon..."
+Get-Process | Where-Object { $_.Name -like "inter-cube*" } | Stop-Process -Force -ErrorAction SilentlyContinue
+Start-Sleep -Milliseconds 800
+$env:CUBE_MODE          = "cube"
+$env:CUBE_CRS_URL       = $CRS_URL
+$env:CUBE_ENDPOINT      = $CUBE_ENDPOINT
+$env:CUBE_SESSION_TOKEN = $SESSION_TOKEN
+$env:CUBE_ROLE          = "inference"
+$daemonOutLog = Join-Path $LOG_DIR "intercube-out.log"
+$daemonErrLog = Join-Path $LOG_DIR "intercube-err.log"
+$daemonProc = Start-Process -FilePath $DAEMON_PATH -NoNewWindow -PassThru -RedirectStandardOutput $daemonOutLog -RedirectStandardError $daemonErrLog
+Write-Host "  OK Tunnel daemon PID $($daemonProc.Id) -- log: $daemonOutLog"
+
+Write-Host ""
+Write-Host "========================================" -ForegroundColor Green
+Write-Host "  Step 1 Complete -- Tunnel Established" -ForegroundColor Green
+Write-Host "  Return to YODA -- it will detect the" -ForegroundColor Green
+Write-Host "  connection and prompt you for Step 2." -ForegroundColor Green
+Write-Host "  (Step 2 downloads the AI model ~4-8 GB)" -ForegroundColor Green
+Write-Host "========================================" -ForegroundColor Green
+Write-Host ""
+Read-Host "Press Enter to close (tunnel keeps running)"
+`;
+}
+
+// ── Step-2 installer: Model download + llama-server start ─────────────────────
+// Assumes Step 1 ran and llama-server.exe is already in ~/llama.cpp.
+// Downloads the GGUF and starts the inference server on the correct port.
+
+export function makePsStep2Script(
+  modelName : string,
+  ggufRepo  : string,
+  ggufFile  : string,
+  port      : number,
+): string {
+  return `# YODA Step 2 -- Model Installation
+# Model: ${modelName}  |  Port: ${port}
+# Downloads the AI model and starts the inference server.
+$ErrorActionPreference = "Stop"
+trap {
+  Write-Host ""
+  Write-Host "=== STEP 2 ERROR ===" -ForegroundColor Red
+  Write-Host $_.Exception.Message -ForegroundColor Red
+  Write-Host ""
+  Read-Host "Press Enter to close"
+  break
+}
+
+$GGUF_REPO   = "${ggufRepo}"
+$GGUF_FILE   = "${ggufFile}"
+$SERVER_PORT = ${port}
+$MODELS_DIR  = Join-Path $env:USERPROFILE "yoda-models"
+$MODEL_PATH  = Join-Path $MODELS_DIR $GGUF_FILE
+$LOG_DIR     = Join-Path $MODELS_DIR "logs"
+$LLAMA_DIR   = Join-Path $env:USERPROFILE "llama.cpp"
+
+New-Item -ItemType Directory -Force -Path $MODELS_DIR | Out-Null
+New-Item -ItemType Directory -Force -Path $LOG_DIR    | Out-Null
+
+Write-Host "=== YODA -- Step 2: Model Setup ===" -ForegroundColor Cyan
+Write-Host "Model : ${modelName}"
+Write-Host "Port  : $SERVER_PORT"
+Write-Host ""
+
+# -- 1. Find llama-server.exe (installed in Step 1) -----------------------
+$llamaServer = Get-ChildItem -Path $LLAMA_DIR -Recurse -Filter "llama-server.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
+if (-not $llamaServer) {
+  throw "llama-server.exe not found in $LLAMA_DIR -- please run Step 1 first."
+}
+$LLAMA_SERVER = $llamaServer.FullName
+Write-Host "  OK llama-server: $LLAMA_SERVER"
+
+# -- 2. Download GGUF model -----------------------------------------------
+Write-Host ""
+Write-Host "Downloading model: $GGUF_FILE"
+if ((Test-Path $MODEL_PATH) -and (Get-Item $MODEL_PATH).Length -gt 100MB) {
+  $sz = [math]::Round((Get-Item $MODEL_PATH).Length / 1GB, 2)
+  Write-Host "  OK Already downloaded ($sz GB) -- skipping"
+} else {
+  $modelUrl = "https://huggingface.co/$GGUF_REPO/resolve/main/$GGUF_FILE"
+  Write-Host "  Source : $modelUrl"
+  Write-Host "  Dest   : $MODEL_PATH"
+  Write-Host "  (This is 4-8 GB -- download resumes if interrupted)"
+  if (Get-Command curl.exe -ErrorAction SilentlyContinue) {
+    curl.exe -fL -C - --progress-bar "$modelUrl" -o "$MODEL_PATH"
+  } else {
+    try {
+      Start-BitsTransfer -Source $modelUrl -Destination $MODEL_PATH -Priority Normal
+    } catch {
+      Write-Host "  -> BITS unavailable, falling back to WebClient..."
+      (New-Object System.Net.WebClient).DownloadFile($modelUrl, $MODEL_PATH)
+    }
+  }
+}
+if (-not (Test-Path $MODEL_PATH) -or (Get-Item $MODEL_PATH).Length -eq 0) {
+  throw "Model file missing or empty -- check internet and disk space."
+}
+$modelSz = [math]::Round((Get-Item $MODEL_PATH).Length / 1GB, 2)
+Write-Host "  OK Model ready ($modelSz GB)"
+
+# -- 3. Kill any existing llama-server on this port -----------------------
+$existing = Get-NetTCPConnection -LocalPort $SERVER_PORT -ErrorAction SilentlyContinue
+if ($existing) {
+  $pids = ($existing | Select-Object -ExpandProperty OwningProcess) | Sort-Object -Unique
+  foreach ($p in $pids) { try { Stop-Process -Id $p -Force -ErrorAction SilentlyContinue } catch {} }
+  Start-Sleep -Seconds 1
+}
+
+# -- 4. Start llama-server ------------------------------------------------
+Write-Host ""
+Write-Host "Starting llama-server on port $SERVER_PORT..."
+$serverOutLog = Join-Path $LOG_DIR "llama-server-$SERVER_PORT-out.log"
+$serverErrLog = Join-Path $LOG_DIR "llama-server-$SERVER_PORT-err.log"
+$serverProc = Start-Process -FilePath $LLAMA_SERVER \`
+  -ArgumentList "--model \`"$MODEL_PATH\`" --port $SERVER_PORT --host 0.0.0.0 -c 4096 --parallel 4 -ngl 99 --log-disable" \`
+  -NoNewWindow -PassThru \`
+  -RedirectStandardOutput $serverOutLog \`
+  -RedirectStandardError  $serverErrLog
+Write-Host "  OK PID $($serverProc.Id) -- log: $serverOutLog"
+Write-Host "  Waiting for model to load (30-60 sec)..."
+Start-Sleep -Seconds 5
+
+Write-Host ""
+Write-Host "======================================" -ForegroundColor Green
+Write-Host "  Step 2 Complete!" -ForegroundColor Green
+Write-Host "  llama-server is loading the model." -ForegroundColor Green
+Write-Host "  Return to YODA and click" -ForegroundColor Green
+Write-Host "  [Mark Online] for this engine." -ForegroundColor Green
+Write-Host "======================================" -ForegroundColor Green
+Write-Host ""
+Read-Host "Press Enter to close (server keeps running)"
+`;
+}
+
 // ── Reconnect scripts (skip install — just restart both processes) ─────────────
 
 export function makeBashReconnectScript(
