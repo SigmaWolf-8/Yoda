@@ -20,6 +20,7 @@ import {
   WifiOff,
   ExternalLink,
   RefreshCcw,
+  Power,
 } from 'lucide-react';
 import { ModelInstallModal } from './ModelInstallModal';
 import {
@@ -31,7 +32,7 @@ import {
   makePsStep2Script,
   triggerDownload,
 } from './installScripts';
-import { useUpdateEngine, useDeleteEngine, useMarkEngineOnline, useMarkEngineOffline } from '../../api/hooks';
+import { useUpdateEngine, useDeleteEngine, useMarkEngineOnline, useMarkEngineOffline, useDisableEngine, useEnableEngine } from '../../api/hooks';
 import { getStoredToken } from '../../api/client';
 import { useToast } from '../common/Toast';
 import type {
@@ -523,6 +524,8 @@ export function EngineSlotCard({
   const clearSlot = useDeleteEngine();
   const markOnline = useMarkEngineOnline();
   const markOffline = useMarkEngineOffline();
+  const disableEngine = useDisableEngine();
+  const enableEngine = useEnableEngine();
   const qc = useQueryClient();
   const { toast } = useToast();
 
@@ -936,35 +939,74 @@ export function EngineSlotCard({
     free_tier:   "Use a provider's free or trial tier — same setup as Commercial but typically rate-limited with daily message caps.",
   };
 
+  const isDisabled = config?.is_disabled ?? false;
+
+  function handleToggleDisabled() {
+    if (isDisabled) {
+      enableEngine.mutate(slot, {
+        onSuccess: () => toast('success', `Engine ${slot.toUpperCase()} enabled.`),
+        onError:   () => toast('error',   `Failed to enable Engine ${slot.toUpperCase()}.`),
+      });
+    } else {
+      disableEngine.mutate(slot, {
+        onSuccess: () => toast('success', `Engine ${slot.toUpperCase()} disabled — YODA will skip it.`),
+        onError:   () => toast('error',   `Failed to disable Engine ${slot.toUpperCase()}.`),
+      });
+    }
+  }
+
   return (
-    <BevelBox bevel={BEVEL_NO_TL} className="bg-[var(--color-surface-primary)] p-4">
+    <BevelBox bevel={BEVEL_NO_TL} className={`bg-[var(--color-surface-primary)] p-4 ${isDisabled ? 'opacity-60' : ''}`}>
       {/* Header */}
       <div className="flex items-center justify-between mb-2.5">
         <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">{SLOT_LABELS[slot]}</h3>
         <div className="flex items-center gap-2">
           {config && (
             <>
-              <span className={`w-2 h-2 rounded-full ${healthDot}`} />
-              <span className="text-sm text-[var(--color-text-muted)]">
-                {healthLabel[config.health_status ?? ''] ?? config.health_status ?? 'unknown'}
-                {config.latency_ms && config.health_status === 'online' ? ` · ${config.latency_ms}ms` : ''}
-              </span>
-              {/* Manual override: server-side probe can't reach local engines
-                  or validate cloud API keys — let the user confirm. */}
-              {config.health_status !== 'online' && modelName && (
-                <button
-                  onClick={verifyAndMarkOnline}
-                  disabled={markOnline.isPending}
-                  title="Mark this engine online — verifies model server is reachable first"
-                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium border border-[var(--color-plex-500)]/40 text-[var(--color-plex-400)] hover:bg-[var(--color-plex-500)]/10 disabled:opacity-50 transition-colors"
-                >
-                  {markOnline.isPending
-                    ? <Loader2 className="w-3 h-3 animate-spin" />
-                    : <Wifi className="w-3 h-3" />
-                  }
-                  Mark online
-                </button>
+              {!isDisabled && (
+                <>
+                  <span className={`w-2 h-2 rounded-full ${healthDot}`} />
+                  <span className="text-sm text-[var(--color-text-muted)]">
+                    {healthLabel[config.health_status ?? ''] ?? config.health_status ?? 'unknown'}
+                    {config.latency_ms && config.health_status === 'online' ? ` · ${config.latency_ms}ms` : ''}
+                  </span>
+                  {/* Manual override: server-side probe can't reach local engines
+                      or validate cloud API keys — let the user confirm. */}
+                  {config.health_status !== 'online' && modelName && (
+                    <button
+                      onClick={verifyAndMarkOnline}
+                      disabled={markOnline.isPending}
+                      title="Mark this engine online — verifies model server is reachable first"
+                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium border border-[var(--color-plex-500)]/40 text-[var(--color-plex-400)] hover:bg-[var(--color-plex-500)]/10 disabled:opacity-50 transition-colors"
+                    >
+                      {markOnline.isPending
+                        ? <Loader2 className="w-3 h-3 animate-spin" />
+                        : <Wifi className="w-3 h-3" />
+                      }
+                      Mark online
+                    </button>
+                  )}
+                </>
               )}
+              {isDisabled && (
+                <span className="text-xs text-[var(--color-text-muted)] italic">disabled</span>
+              )}
+              <button
+                onClick={handleToggleDisabled}
+                disabled={disableEngine.isPending || enableEngine.isPending}
+                title={isDisabled ? 'Enable this engine' : 'Disable this engine — YODA will skip it'}
+                className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium border transition-colors disabled:opacity-50 ${
+                  isDisabled
+                    ? 'border-[var(--color-plex-500)]/40 text-[var(--color-plex-400)] hover:bg-[var(--color-plex-500)]/10'
+                    : 'border-[var(--color-border-default)] text-[var(--color-text-muted)] hover:border-[var(--color-border-strong)] hover:text-[var(--color-text-secondary)]'
+                }`}
+              >
+                {(disableEngine.isPending || enableEngine.isPending)
+                  ? <Loader2 className="w-3 h-3 animate-spin" />
+                  : <Power className="w-3 h-3" />
+                }
+                {isDisabled ? 'Enable' : 'Disable'}
+              </button>
             </>
           )}
         </div>

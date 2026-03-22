@@ -67,6 +67,26 @@ export function useMarkEngineOffline() {
   });
 }
 
+export function useDisableEngine() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (slot: EngineSlot) => {
+      await apiClient.post(`/settings/engines/${slot}/disable`);
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['engines'] }),
+  });
+}
+
+export function useEnableEngine() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (slot: EngineSlot) => {
+      await apiClient.post(`/settings/engines/${slot}/enable`);
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['engines'] }),
+  });
+}
+
 export function useValidateDiversity() {
   return useMutation({
     mutationFn: async () => {

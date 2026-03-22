@@ -101,6 +101,8 @@ pub fn build_router(state: AppState) -> Router {
         .route("/api/settings/engines/{slot}/probe", get(probe_engine))
         .route("/api/settings/engines/{slot}/mark-online", post(mark_engine_online))
         .route("/api/settings/engines/{slot}/mark-offline", post(mark_engine_offline))
+        .route("/api/settings/engines/{slot}/disable", post(disable_engine))
+        .route("/api/settings/engines/{slot}/enable", post(enable_engine))
         .route("/api/settings/engines/validate-diversity", post(validate_diversity))
 
         // Project settings (B5.7)
@@ -429,13 +431,13 @@ async fn get_engines(
     State(state): State<AppState>,
     user: axum::Extension<auth::AuthenticatedUser>,
 ) -> Result<Json<serde_json::Value>, AppError> {
-    let rows = sqlx::query_as::<_, (Uuid,String,String,String,String,String,String,Option<String>,String,Option<i32>,Option<String>)>(
-        "SELECT id,slot,hosting_mode,endpoint_url,auth_type,model_name,model_family,family_override,health_status,avg_latency_ms,cube_endpoint_url FROM engine_configs WHERE org_id=$1 ORDER BY slot"
+    let rows = sqlx::query_as::<_, (Uuid,String,String,String,String,String,String,Option<String>,String,Option<i32>,Option<String>,bool)>(
+        "SELECT id,slot,hosting_mode,endpoint_url,auth_type,model_name,model_family,family_override,health_status,avg_latency_ms,cube_endpoint_url,is_disabled FROM engine_configs WHERE org_id=$1 ORDER BY slot"
     ).bind(user.org_id).fetch_all(&state.db).await.map_err(AppError::Database)?;
-    let engines: Vec<serde_json::Value> = rows.into_iter().map(|(id,slot,hm,eu,at,mn,mf,fo,hs,al,ce)| serde_json::json!({
+    let engines: Vec<serde_json::Value> = rows.into_iter().map(|(id,slot,hm,eu,at,mn,mf,fo,hs,al,ce,dis)| serde_json::json!({
         "id":id,"slot":slot,"hosting_mode":hm,"endpoint_url":eu,"auth_type":at,
         "model_name":mn,"model_family":mf,"family_override":fo,"health_status":hs,"avg_latency_ms":al,
-        "cube_endpoint_url":ce
+        "cube_endpoint_url":ce,"is_disabled":dis
     })).collect();
     Ok(Json(serde_json::json!({ "engines": engines })))
 }
@@ -828,6 +830,48 @@ async fn mark_engine_offline(
     .await
     .map_err(AppError::Database)?;
     Ok(Json(serde_json::json!({"status": "offline", "slot": slot})))
+}
+
+/// POST /api/settings/engines/{slot}/disable
+/// Disables a slot — YODA skips it for all inference until re-enabled.
+async fn disable_engine(
+    State(state): State<AppState>,
+    user: axum::Extension<auth::AuthenticatedUser>,
+    Path(slot): Path<String>,
+) -> Result<Json<serde_json::Value>, AppError> {
+    if !["a","b","c"].contains(&slot.as_str()) {
+        return Err(AppError::Validation("Slot must be 'a', 'b', or 'c'".into()));
+    }
+    sqlx::query(
+        "UPDATE engine_configs SET is_disabled=true WHERE org_id=$1 AND slot=$2",
+    )
+    .bind(user.org_id)
+    .bind(&slot)
+    .execute(&state.db)
+    .await
+    .map_err(AppError::Database)?;
+    Ok(Json(serde_json::json!({"disabled": true, "slot": slot})))
+}
+
+/// POST /api/settings/engines/{slot}/enable
+/// Re-enables a previously disabled slot.
+async fn enable_engine(
+    State(state): State<AppState>,
+    user: axum::Extension<auth::AuthenticatedUser>,
+    Path(slot): Path<String>,
+) -> Result<Json<serde_json::Value>, AppError> {
+    if !["a","b","c"].contains(&slot.as_str()) {
+        return Err(AppError::Validation("Slot must be 'a', 'b', or 'c'".into()));
+    }
+    sqlx::query(
+        "UPDATE engine_configs SET is_disabled=false WHERE org_id=$1 AND slot=$2",
+    )
+    .bind(user.org_id)
+    .bind(&slot)
+    .execute(&state.db)
+    .await
+    .map_err(AppError::Database)?;
+    Ok(Json(serde_json::json!({"disabled": false, "slot": slot})))
 }
 
 // ─── Capability Matrix ───────────────────────────────────────────────

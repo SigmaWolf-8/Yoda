@@ -91,6 +91,7 @@ pub async fn submit_query(
          WHERE org_id = $1 \
            AND health_status = 'online' \
            AND hosting_mode IN ('commercial', 'free_tier') \
+           AND is_disabled = false \
          ORDER BY slot \
          LIMIT 1"
     )
@@ -173,7 +174,7 @@ pub async fn submit_query(
     let engine_slot: Option<String> = sqlx::query_scalar(
         "SELECT slot FROM engine_configs \
          WHERE org_id = $1 AND endpoint_url IS NOT NULL AND endpoint_url <> '' \
-         AND hosting_mode = 'self_hosted' \
+         AND hosting_mode = 'self_hosted' AND is_disabled = false \
          ORDER BY slot ASC LIMIT 1"
     )
     .bind(user.org_id)

@@ -21,6 +21,7 @@ export interface EngineConfig {
   error_rate?: number;
   daily_messages_used?: number;
   daily_messages_limit?: number;
+  is_disabled: boolean;
 }
 
 export interface EngineUpdatePayload {

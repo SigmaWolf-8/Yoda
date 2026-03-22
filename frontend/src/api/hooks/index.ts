@@ -30,6 +30,8 @@ export {
   useDeleteEngine,
   useMarkEngineOnline,
   useMarkEngineOffline,
+  useDisableEngine,
+  useEnableEngine,
   useValidateDiversity,
   useModelLineages,
 } from './useEngines';
