@@ -1,0 +1,55 @@
+Windows PowerShell
+Copyright (C) Microsoft Corporation. All rights reserved.
+
+Install the latest PowerShell for new features and improvements! https://aka.ms/PSWindows
+
+PS C:\Users\Sigma> $daemon = Get-ChildItem -Path (Join-Path $env:USERPROFILE "PlenumNET\target\release") -Filter "inter-cube*.exe" | Select-Object -First 1
+PS C:\Users\Sigma> if ($daemon) {
+>>     Write-Host "Found: $($daemon.FullName)"
+>>     $env:CUBE_CRS_URL = "https://plenumnet.replit.app"
+>>     & $daemon.FullName
+>> } else {
+>>     Write-Host "Not found — you'll need to reinstall via the Sync Node button"
+>> }
+Found: C:\Users\Sigma\PlenumNET\target\release\inter-cube-daemon.exe
+===========================================================
+  PlenumNET Inter-Cube Infrastructure Services v0.2.0
+  Applied Physics Division -- Capomastro Holdings Ltd.
+===========================================================
+
+[IDENTITY] WARNING: CUBE_IDENTITY_PASSPHRASE not set. Using hostname-derived fallback passphrase. Set CUBE_IDENTITY_PASSPHRASE for production deployments.
+[IDENTITY] WARNING: Failed to decrypt .plenumnet/identity\master.key: decryption failed (wrong passphrase or corrupted)
+[IDENTITY] Generating fresh master secret
+[IDENTITY] Master secret encrypted and saved to .plenumnet/identity\master.key
+[IDENTITY] PT26-DSA keypair derived (pk: 0301020302020103...)
+[CRS] Registered with address: 1111111111111
+[CRS] PT26-DSA identity: 0301020302020103...
+[CRS] 26 neighbors: 0 registered, 26 awaiting
+[CON] Overlay: 0 up, 26 unknown
+[CON] 0 PQ-native tunnel keys derived (TL-Sponge-385)
+[FTS] 26 up, 0 suspect, 0 down, 0 recovering
+[GLB] 26 live neighbors, ready to forward
+[IDENTITY] Address-bound TL-DSA-87 key derived (pk: 3c9db448a0d96998...)
+[IDENTITY] CRS registry updated with address-bound key
+
+=== Inter-Cube Stack Active ===
+  Address:       111.111.111.111.1 (1111111111111)
+  Address space: 1 / 1594323 used
+  Dimensions:    13
+  Neighbors:     26
+  Protocol:      PQ-Native (PT26-DSA + TL-Sponge-385)
+  Identity:      PT26-DSA (71-byte sigs, 28-sig budget)
+
+  CRS -> CON -> FTS -> GLB pipeline operational.
+  The geometry IS the routing protocol.
+
+=== HTTP Server (CRS) ===
+  http://0.0.0.0:8080
+  12 routes active
+  Ready for cube registrations. Ctrl+C to stop.
+
+
+thread 'main' (69700) panicked at services\inter-cube\src\main.rs:180:10:
+Failed to bind to port 8080: Os { code: 10048, kind: AddrInUse, message: "Only one usage of each socket address (protocol/network address/port) is normally permitted." }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+PS C:\Users\Sigma>
