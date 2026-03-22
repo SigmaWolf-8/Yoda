@@ -81,15 +81,17 @@ pub async fn submit_query(
     let orchestrator = state.agents.get("capomastro-yoda-orchestrator")
         .or_else(|| state.agents.find_best_match(&["orchestration".into()]).ok());
 
-    // Get a configured engine for decomposition.
-    // Prefer cloud/free-tier engines (server can call them directly) over
-    // self-hosted localhost engines (server cannot reach the user's machine).
+    // Get a configured cloud engine for decomposition.
+    // Only commercial/free_tier engines can be called directly from the server.
+    // Self-hosted localhost engines cannot be reached from Replit — the browser
+    // relay handles those after the task is created.
     let engines = sqlx::query_as::<_, (String, String, String, Option<String>, String, String)>(
         "SELECT slot, hosting_mode, endpoint_url, credentials_encrypted, model_name, auth_type \
-         FROM engine_configs WHERE org_id = $1 AND health_status = 'online' \
-         ORDER BY \
-           CASE WHEN hosting_mode IN ('commercial', 'free_tier') THEN 0 ELSE 1 END, \
-           slot \
+         FROM engine_configs \
+         WHERE org_id = $1 \
+           AND health_status = 'online' \
+           AND hosting_mode IN ('commercial', 'free_tier') \
+         ORDER BY slot \
          LIMIT 1"
     )
     .bind(user.org_id)
@@ -97,7 +99,7 @@ pub async fn submit_query(
     .await
     .map_err(AppError::Database)?;
 
-    // If we have an orchestrator agent and an online engine, do full decomposition
+    // If we have an orchestrator agent and an online cloud engine, do full decomposition
     if let (Some(agent), Some(engine_row)) = (orchestrator, engines) {
         let engine_config = build_engine_config(&engine_row);
 

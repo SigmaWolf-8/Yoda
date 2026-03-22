@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { Send, Loader2, Wifi, AlertCircle, Copy, Check } from 'lucide-react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useSubmitQuery } from '../../api/hooks';
 import apiClient from '../../api/client';
 import type { QueryResult } from '../../types';
@@ -45,6 +46,7 @@ export function QueryInput({ projectId, mode, onResult }: Props) {
   const [relayState, setRelayState] = useState<RelayState>('idle');
   const [relayError, setRelayError] = useState<RelayError | null>(null);
   const [copied, setCopied]         = useState(false);
+  const qc           = useQueryClient();
   const submit       = useSubmitQuery(projectId);
   const textareaRef  = useRef<HTMLTextAreaElement>(null);
   const abortRef     = useRef<AbortController | null>(null);
@@ -122,6 +124,10 @@ export function QueryInput({ projectId, mode, onResult }: Props) {
         model: llmData?.model ?? 'local',
         latency_ms,
       });
+
+      // Immediately refresh the task so the result shows without waiting for the next poll
+      qc.invalidateQueries({ queryKey: ['task', taskId] });
+      qc.invalidateQueries({ queryKey: ['tasks', projectId] });
 
       setRelayState('done');
       setText('');

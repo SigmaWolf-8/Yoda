@@ -458,6 +458,19 @@ async fn update_engine(
     // TODO: encrypt credentials via Phase Encryption (B-5)
     let credentials_encrypted = req.credentials;
 
+    // Normalize endpoint_url: strip common API path suffixes so the stored
+    // value is always a base URL (dispatch.rs appends /v1/chat/completions itself).
+    let endpoint_url = {
+        let mut url = req.endpoint_url.trim_end_matches('/').to_string();
+        for suffix in &["/v1/chat/completions", "/v1/completions", "/chat/completions", "/v1"] {
+            if url.ends_with(suffix) {
+                url.truncate(url.len() - suffix.len());
+                break;
+            }
+        }
+        url
+    };
+
     sqlx::query(
         "INSERT INTO engine_configs (id, org_id, slot, hosting_mode, endpoint_url, auth_type, \
          credentials_encrypted, model_name, model_family, family_override, health_status, cube_endpoint_url) \
@@ -467,7 +480,7 @@ async fn update_engine(
          credentials_encrypted=COALESCE($6, engine_configs.credentials_encrypted), \
          model_name=$7, model_family=$8, family_override=$9, cube_endpoint_url=$10"
     )
-    .bind(user.org_id).bind(&slot).bind(&req.hosting_mode).bind(&req.endpoint_url)
+    .bind(user.org_id).bind(&slot).bind(&req.hosting_mode).bind(&endpoint_url)
     .bind(&req.auth_type).bind(&credentials_encrypted).bind(&req.model_name)
     .bind(&req.model_family).bind(&req.family_override).bind(&req.cube_endpoint_url)
     .execute(&state.db).await.map_err(AppError::Database)?;
