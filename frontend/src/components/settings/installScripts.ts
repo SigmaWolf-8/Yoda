@@ -588,10 +588,11 @@ Write-Host "  -> Generating PT26-DSA identity keypair..."
 $env:CUBE_MODE = "keygen"
 $keygenLog = Join-Path $LOG_DIR "keygen.log"
 $ErrorActionPreference = "Continue"
-$keygenOutput = & $DAEMON_PATH 2>$keygenLog
+$keygenOutput = & $DAEMON_PATH 2>&1
 $ErrorActionPreference = "Stop"
 $env:CUBE_MODE = $null
-$pkLine = $keygenOutput | Where-Object { $_ -match "PT26-DSA Public Key" } | Select-Object -First 1
+$keygenOutput | Out-File -FilePath $keygenLog -Encoding utf8
+$pkLine = $keygenOutput | ForEach-Object { "$_" } | Where-Object { $_ -match "PT26-DSA Public Key" } | Select-Object -First 1
 if ($pkLine -match ':\s*([0-9a-fA-F]+)\s*$') {
   $PUB_KEY = $matches[1]
 } else {
