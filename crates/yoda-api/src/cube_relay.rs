@@ -48,7 +48,8 @@ pub struct RelayInferResult {
 pub type RelayTx = Arc<RwLock<Option<mpsc::Sender<RelayInferRequest>>>>;
 
 /// Pending oneshots awaiting relay responses, keyed by request_id.
-pub type PendingRelays = Arc<RwLock<HashMap<Uuid, oneshot::Sender<RelayInferResult>>>>;
+/// The inner Result carries Ok(result) on success or Err(message) on inference_error.
+pub type PendingRelays = Arc<RwLock<HashMap<Uuid, oneshot::Sender<Result<RelayInferResult, String>>>>>;
 
 pub fn new_relay_tx() -> RelayTx {
     Arc::new(RwLock::new(None))
@@ -326,6 +327,14 @@ struct InferenceResponsePayload {
     content: String,
     model: Option<String>,
     tokens: Option<u64>,
+    usage: Option<serde_json::Value>,
+}
+
+#[derive(Debug, Deserialize)]
+struct InferenceErrorPayload {
+    #[serde(rename = "requestId")]
+    request_id: String,
+    error: String,
 }
 
 async fn handle_inbound(state: &AppState, text: &str) {
@@ -339,28 +348,61 @@ async fn handle_inbound(state: &AppState, text: &str) {
 
     match env.kind.as_str() {
         "relay" => {
-            if env.msg_type.as_deref() == Some("inference_response") {
-                let payload_str = env.payload.as_deref().unwrap_or("{}");
-                let Ok(payload) = serde_json::from_str::<InferenceResponsePayload>(payload_str)
-                else {
-                    tracing::warn!(from = ?env.from, "inference_response: invalid payload JSON");
-                    return;
-                };
-                let Ok(request_id) = payload.request_id.parse::<Uuid>() else {
-                    tracing::warn!("inference_response: invalid requestId UUID");
-                    return;
-                };
-                let result = RelayInferResult {
-                    content: payload.content,
-                    model: payload.model.unwrap_or_else(|| "local".into()),
-                    tokens: payload.tokens.unwrap_or(0),
-                };
-                let mut pending = state.pending_relays.write().await;
-                if let Some(sender) = pending.remove(&request_id) {
-                    let _ = sender.send(result);
-                    tracing::info!(request_id = %request_id, "inference_response resolved via relay");
-                } else {
-                    tracing::warn!(request_id = %request_id, "No pending relay for request_id");
+            let payload_str = env.payload.as_deref().unwrap_or("{}");
+            match env.msg_type.as_deref() {
+                Some("inference_response") => {
+                    let Ok(payload) = serde_json::from_str::<InferenceResponsePayload>(payload_str)
+                    else {
+                        tracing::warn!(from = ?env.from, "inference_response: invalid payload JSON");
+                        return;
+                    };
+                    let Ok(request_id) = payload.request_id.parse::<Uuid>() else {
+                        tracing::warn!("inference_response: invalid requestId UUID");
+                        return;
+                    };
+                    let result = RelayInferResult {
+                        content: payload.content,
+                        model: payload.model.unwrap_or_else(|| "local".into()),
+                        tokens: payload.tokens
+                            .or_else(|| {
+                                // Fall back to usage.completion_tokens if present
+                                payload.usage.as_ref()
+                                    .and_then(|u| u["completion_tokens"].as_u64())
+                            })
+                            .unwrap_or(0),
+                    };
+                    let mut pending = state.pending_relays.write().await;
+                    if let Some(sender) = pending.remove(&request_id) {
+                        let _ = sender.send(Ok(result));
+                        tracing::info!(request_id = %request_id, "inference_response resolved via relay");
+                    } else {
+                        tracing::warn!(request_id = %request_id, "No pending relay for inference_response");
+                    }
+                }
+                Some("inference_error") => {
+                    let Ok(payload) = serde_json::from_str::<InferenceErrorPayload>(payload_str)
+                    else {
+                        tracing::warn!(from = ?env.from, "inference_error: invalid payload JSON");
+                        return;
+                    };
+                    let Ok(request_id) = payload.request_id.parse::<Uuid>() else {
+                        tracing::warn!("inference_error: invalid requestId UUID");
+                        return;
+                    };
+                    let mut pending = state.pending_relays.write().await;
+                    if let Some(sender) = pending.remove(&request_id) {
+                        let _ = sender.send(Err(payload.error.clone()));
+                        tracing::warn!(
+                            request_id = %request_id,
+                            error = %payload.error,
+                            "inference_error received from cube — relayed to query handler"
+                        );
+                    } else {
+                        tracing::warn!(request_id = %request_id, "No pending relay for inference_error");
+                    }
+                }
+                other => {
+                    tracing::debug!(msg_type = ?other, from = ?env.from, "Unhandled relay msgType");
                 }
             }
         }

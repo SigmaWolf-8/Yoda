@@ -227,7 +227,7 @@ pub async fn submit_query(
                     );
 
                     match tokio::time::timeout(Duration::from_secs(6), rx).await {
-                        Ok(Ok(result)) => {
+                        Ok(Ok(Ok(result))) => {
                             // Write result to DB and mark task FINAL
                             sqlx::query(
                                 "UPDATE tasks SET status = 'FINAL', updated_at = NOW() \
@@ -263,6 +263,14 @@ pub async fn submit_query(
                                 relay_endpoint: None,
                             })));
                         }
+                        Ok(Ok(Err(error_msg))) => {
+                            // Cube returned inference_error — fall through to browser relay
+                            tracing::warn!(
+                                task_id = %task_id,
+                                error = %error_msg,
+                                "Cube returned inference_error — falling back to browser relay"
+                            );
+                        }
                         Ok(Err(_)) => {
                             tracing::warn!(task_id = %task_id, "Relay oneshot sender dropped");
                         }
@@ -270,7 +278,7 @@ pub async fn submit_query(
                             tracing::warn!(
                                 task_id = %task_id,
                                 request_id = %request_id,
-                                "Relay inference timed out after 30 s — falling back to browser relay"
+                                "Relay inference timed out after 6 s — falling back to browser relay"
                             );
                             state.pending_relays.write().await.remove(&request_id);
                         }
