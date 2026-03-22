@@ -463,13 +463,23 @@ async fn update_engine(
          credentials_encrypted, model_name, model_family, family_override, health_status, cube_endpoint_url) \
          VALUES (uuid_generate_v4(), $1, $2, $3, $4, $5, $6, $7, $8, $9, 'offline', $10) \
          ON CONFLICT (org_id, slot) DO UPDATE SET \
-         hosting_mode=$3, endpoint_url=$4, auth_type=$5, credentials_encrypted=$6, \
+         hosting_mode=$3, endpoint_url=$4, auth_type=$5, \
+         credentials_encrypted=COALESCE($6, engine_configs.credentials_encrypted), \
          model_name=$7, model_family=$8, family_override=$9, cube_endpoint_url=$10"
     )
     .bind(user.org_id).bind(&slot).bind(&req.hosting_mode).bind(&req.endpoint_url)
     .bind(&req.auth_type).bind(&credentials_encrypted).bind(&req.model_name)
     .bind(&req.model_family).bind(&req.family_override).bind(&req.cube_endpoint_url)
     .execute(&state.db).await.map_err(AppError::Database)?;
+
+    // Spawn a background probe so health_status is updated immediately after save.
+    // tokio::spawn requires 'static — clone everything before moving into the task.
+    let db_clone   = state.db.clone();
+    let org_clone  = user.org_id;
+    let slot_clone = slot.clone();
+    tokio::spawn(async move {
+        probe_engine_inner(db_clone, org_clone, slot_clone).await;
+    });
 
     Ok(Json(serde_json::json!({"status":"updated","slot":slot})))
 }
@@ -528,89 +538,201 @@ async fn validate_diversity(
 
 // ─── Engine Probe ────────────────────────────────────────────────────
 
+// ── Engine probe helpers ──────────────────────────────────────────────────────
+
+/// Extract the URL origin (scheme + host) from a full URL.
+/// "https://api.x.ai/v1/chat/completions" → "https://api.x.ai"
+fn extract_origin(url: &str) -> String {
+    if let Some(after_scheme) = url.split("://").nth(1) {
+        let host = after_scheme.split('/').next().unwrap_or(after_scheme);
+        let scheme = if url.starts_with("https://") { "https" } else { "http" };
+        format!("{scheme}://{host}")
+    } else {
+        url.to_string()
+    }
+}
+
+/// Core probe logic — extracted so both the GET /probe route and the
+/// post-save background task can share it.
+async fn probe_engine_inner(
+    db: sqlx::PgPool,
+    org_id: Uuid,
+    slot: String,
+) -> serde_json::Value {
+    let row = sqlx::query_as::<_, (String, String, Option<String>, String)>(
+        "SELECT hosting_mode, endpoint_url, credentials_encrypted, auth_type \
+         FROM engine_configs WHERE org_id=$1 AND slot=$2",
+    )
+    .bind(org_id)
+    .bind(&slot)
+    .fetch_optional(&db)
+    .await
+    .ok()
+    .flatten();
+
+    let (hosting_mode, endpoint_url, credentials, auth_type) = match row {
+        Some(r) => r,
+        None => return serde_json::json!({ "reachable": false, "error": "Engine not configured" }),
+    };
+
+    let client = match reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(10))
+        .build()
+    {
+        Ok(c) => c,
+        Err(e) => return serde_json::json!({ "reachable": false, "error": format!("HTTP client: {e}") }),
+    };
+
+    if hosting_mode == "commercial" || hosting_mode == "free_tier" {
+        // ── Real credentialed probe ───────────────────────────────────────
+        let key = credentials.as_deref().unwrap_or("").trim().to_string();
+        let is_google    = endpoint_url.contains("googleapis.com");
+        let is_anthropic = endpoint_url.contains("anthropic.com");
+        let origin = extract_origin(&endpoint_url);
+
+        // Pick the lightest probe endpoint available per provider.
+        // GET /v1/models is standard for OpenAI-compatible APIs.
+        // Google uses a query-param key; Anthropic needs an extra version header.
+        let probe_url = if is_google && !key.is_empty() {
+            format!("{origin}/v1beta/models?key={key}")
+        } else if is_google {
+            format!("{origin}/v1beta/models")
+        } else {
+            format!("{origin}/v1/models")
+        };
+
+        let start = std::time::Instant::now();
+
+        let mut req = client.get(&probe_url);
+        if !is_google && !key.is_empty() {
+            req = match auth_type.as_str() {
+                "bearer"  => req.header("Authorization", format!("Bearer {key}")),
+                "api_key" => req.header("x-api-key", &key),
+                _         => req,
+            };
+        }
+        if is_anthropic {
+            req = req.header("anthropic-version", "2023-06-01");
+            if !key.is_empty() { req = req.header("x-api-key", &key); }
+        }
+
+        match req.send().await {
+            Ok(resp) => {
+                let status     = resp.status().as_u16();
+                let latency_ms = start.elapsed().as_millis() as u64;
+                // 2xx/4xx = reachable; 5xx or connection failure = offline.
+                // 401/403 means credentials invalid but the API is up.
+                let reachable    = status < 500;
+                let creds_ok     = status != 401 && status != 403;
+
+                if reachable && creds_ok {
+                    let _ = sqlx::query(
+                        "UPDATE engine_configs SET health_status='online', avg_latency_ms=$1 \
+                         WHERE org_id=$2 AND slot=$3",
+                    )
+                    .bind(latency_ms as i32)
+                    .bind(org_id)
+                    .bind(&slot)
+                    .execute(&db)
+                    .await;
+                }
+                // Note: 401/403 → leave health_status unchanged (don't flip to offline
+                // just because the API key changed — the endpoint is still reachable).
+
+                let note: Option<&str> = if !creds_ok {
+                    Some("Reachable — credentials appear invalid (401/403)")
+                } else {
+                    None
+                };
+                serde_json::json!({
+                    "reachable": reachable,
+                    "latency_ms": latency_ms,
+                    "http_status": status,
+                    "probe_url": probe_url,
+                    "endpoint_url": endpoint_url,
+                    "note": note,
+                })
+            }
+            Err(e) => {
+                let latency_ms = start.elapsed().as_millis() as u64;
+                let _ = sqlx::query(
+                    "UPDATE engine_configs SET health_status='offline' WHERE org_id=$1 AND slot=$2",
+                )
+                .bind(org_id)
+                .bind(&slot)
+                .execute(&db)
+                .await;
+                serde_json::json!({
+                    "reachable": false,
+                    "latency_ms": latency_ms,
+                    "error": e.to_string().lines().next().unwrap_or("Connection failed").to_string(),
+                    "probe_url": probe_url,
+                    "endpoint_url": endpoint_url,
+                })
+            }
+        }
+    } else {
+        // ── Self-hosted: PlenumNET /health first, Ollama /api/tags fallback ──
+        let base = endpoint_url.trim_end_matches('/');
+        let candidates = [
+            format!("{base}/health"),
+            format!("{base}/api/tags"),
+        ];
+
+        let start = std::time::Instant::now();
+        let mut reachable = false;
+        let mut http_status: Option<u16> = None;
+        let mut probe_url_used = candidates[0].clone();
+
+        for url in &candidates {
+            match client.get(url).send().await {
+                Ok(resp) => {
+                    let status = resp.status().as_u16();
+                    if status < 500 {
+                        reachable = true;
+                        http_status = Some(status);
+                        probe_url_used = url.clone();
+                        break;
+                    }
+                }
+                Err(_) => continue,
+            }
+        }
+
+        let latency_ms = start.elapsed().as_millis() as u64;
+        let health_str = if reachable { "online" } else { "offline" };
+        let _ = sqlx::query(
+            "UPDATE engine_configs SET health_status=$1, avg_latency_ms=$2 \
+             WHERE org_id=$3 AND slot=$4",
+        )
+        .bind(health_str)
+        .bind(latency_ms as i32)
+        .bind(org_id)
+        .bind(&slot)
+        .execute(&db)
+        .await;
+
+        serde_json::json!({
+            "reachable": reachable,
+            "latency_ms": latency_ms,
+            "http_status": http_status,
+            "probe_url": probe_url_used,
+            "endpoint_url": endpoint_url,
+        })
+    }
+}
+
 /// GET /api/settings/engines/{slot}/probe
-/// Tries the engine endpoint from the server side.
-/// Checks /health (PlenumNET / inter-cube) first, then /api/tags (Ollama) as fallback.
-/// Writes health_status + avg_latency_ms back to the DB on success.
+/// For self-hosted engines: tries /health then /api/tags (no auth).
+/// For commercial/free_tier: makes a real credentialed request to the
+/// provider's models endpoint using the stored API key.
+/// Writes health_status back to DB on conclusive result.
 async fn probe_engine(
     State(state): State<AppState>,
     user: axum::Extension<auth::AuthenticatedUser>,
     Path(slot): Path<String>,
 ) -> Result<Json<serde_json::Value>, AppError> {
-    let row = sqlx::query_as::<_, (String,)>(
-        "SELECT endpoint_url FROM engine_configs WHERE org_id=$1 AND slot=$2",
-    )
-    .bind(user.org_id)
-    .bind(&slot)
-    .fetch_optional(&state.db)
-    .await
-    .map_err(AppError::Database)?;
-
-    let endpoint_url = match row {
-        Some((url,)) => url,
-        None => {
-            return Ok(Json(serde_json::json!({
-                "reachable": false,
-                "error": "Engine not configured"
-            })))
-        }
-    };
-
-    let base = endpoint_url.trim_end_matches('/');
-    let client = reqwest::Client::builder()
-        .timeout(std::time::Duration::from_secs(5))
-        .build()
-        .map_err(|e| AppError::Internal(format!("HTTP client: {e}")))?;
-
-    // Try /health first (PlenumNET/inter-cube), then /api/tags (Ollama)
-    let candidates = [
-        format!("{base}/health"),
-        format!("{base}/api/tags"),
-    ];
-
-    let start = std::time::Instant::now();
-    let mut reachable = false;
-    let mut http_status: Option<u16> = None;
-    let mut probe_url_used = candidates[0].clone();
-
-    for url in &candidates {
-        match client.get(url).send().await {
-            Ok(resp) => {
-                let status = resp.status().as_u16();
-                if status < 500 {
-                    reachable = true;
-                    http_status = Some(status);
-                    probe_url_used = url.clone();
-                    break;
-                }
-            }
-            Err(_) => continue,
-        }
-    }
-
-    let latency_ms = start.elapsed().as_millis() as u64;
-
-    // Write health result back to DB
-    let health_str = if reachable { "online" } else { "offline" };
-    let latency_i = latency_ms as i32;
-    let _ = sqlx::query(
-        "UPDATE engine_configs SET health_status=$1, avg_latency_ms=$2 \
-         WHERE org_id=$3 AND slot=$4",
-    )
-    .bind(health_str)
-    .bind(latency_i)
-    .bind(user.org_id)
-    .bind(&slot)
-    .execute(&state.db)
-    .await;
-
-    Ok(Json(serde_json::json!({
-        "reachable": reachable,
-        "latency_ms": latency_ms,
-        "http_status": http_status,
-        "probe_url": probe_url_used,
-        "endpoint_url": endpoint_url,
-    })))
+    Ok(Json(probe_engine_inner(state.db.clone(), user.org_id, slot).await))
 }
 
 /// POST /api/settings/engines/{slot}/mark-online

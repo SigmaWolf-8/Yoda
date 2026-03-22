@@ -579,15 +579,33 @@ export function EngineSlotCard({
     setAuthType((config.auth_type as AuthType) ?? 'none');
 
     // Restore endpoint. If it looks like a stale default local slot URL but
-    // the engine is actually a cloud provider, replace it with the correct URL.
+    // the engine is actually a cloud provider, replace it with the correct URL
+    // and immediately persist it so the server probe uses the right address.
     const storedEndpoint = config.endpoint_url ?? '';
     const defaultLocalUrl = `http://localhost:${SLOT_PORT[slot]}`;
     const isStaleLocal = storedEndpoint === defaultLocalUrl || storedEndpoint === '';
     if (isStaleLocal && detectedProvider && PROVIDER_URLS[detectedProvider]) {
-      setEndpoint(PROVIDER_URLS[detectedProvider]);
-      // Also fix auth type to match the provider if it was left as 'none'.
-      const pInfo = PROVIDERS[detectedProvider];
-      if (pInfo) setAuthType(pInfo.authType);
+      const fixedEndpoint = PROVIDER_URLS[detectedProvider];
+      const fixedAuthType = PROVIDERS[detectedProvider]?.authType ?? 'none';
+      setEndpoint(fixedEndpoint);
+      setAuthType(fixedAuthType);
+
+      // Silently auto-save the corrected config so the DB endpoint is fixed
+      // without the user needing to click Save. Build payload from local
+      // variables — state hasn't re-rendered yet. Credentials are omitted
+      // intentionally: the server preserves them via COALESCE.
+      const autoPayload = {
+        slot,
+        hosting_mode: hostingMode,
+        endpoint_url: fixedEndpoint,
+        cube_endpoint_url: config.cube_endpoint_url ?? `http://localhost:${CUBE_PORT[slot]}`,
+        auth_type: fixedAuthType,
+        credentials: undefined,
+        model_name: config.model_name ?? '',
+        model_family: '',
+        family_override: config.family_override ?? null,
+      };
+      setTimeout(() => { update.mutate(autoPayload); }, 300);
     } else {
       setEndpoint(storedEndpoint);
     }
