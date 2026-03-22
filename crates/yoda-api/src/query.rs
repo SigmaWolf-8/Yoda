@@ -303,7 +303,7 @@ pub async fn submit_query(
     // and those should have been handled server-side in decomposition above.
     let relay_info: Option<(String, String, Option<String>)> = sqlx::query_as(
         "SELECT slot, hosting_mode, endpoint_url FROM engine_configs \
-         WHERE org_id = $1 AND hosting_mode = 'self_hosted' \
+         WHERE org_id = $1 AND hosting_mode = 'self_hosted' AND is_disabled = false \
          ORDER BY slot ASC LIMIT 1"
     )
     .bind(user.org_id)

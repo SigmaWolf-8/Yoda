@@ -408,7 +408,15 @@ async fn handle_inbound(state: &AppState, text: &str) {
         }
         "relay_ack" => {
             if env.delivered == Some(false) {
-                tracing::warn!("Relay message undelivered — Cube node may be offline; will timeout");
+                tracing::warn!("Relay message undelivered — Cube node may be offline; failing pending relays immediately");
+                // Fast-fail all waiting relay requests so the query handler can
+                // fall back to the browser relay without sitting out the full
+                // 6-second timeout.  This lets llama-server respond directly
+                // via the browser even when the daemon is not running.
+                let mut pending = state.pending_relays.write().await;
+                for (_, sender) in pending.drain() {
+                    let _ = sender.send(Err("Cube node offline — falling back to browser relay".into()));
+                }
             }
         }
         "pong" => {}
