@@ -1,0 +1,64 @@
+Windows PowerShell
+Copyright (C) Microsoft Corporation. All rights reserved.
+
+Install the latest PowerShell for new features and improvements! https://aka.ms/PSWindows
+
+PS C:\Users\Sigma> $env:CUBE_MODE          = "cube"
+PS C:\Users\Sigma> $env:CUBE_CRS_URL       = "https://plenumnet.replit.app"
+PS C:\Users\Sigma> $env:CUBE_ROLE          = "inference"
+PS C:\Users\Sigma> $env:CUBE_ENDPOINT      = "0.0.0.0:51820"
+PS C:\Users\Sigma> $env:CUBE_HTTP_PORT     = "8081"
+PS C:\Users\Sigma> & "C:\Users\Sigma\PlenumNET\target\release\inter-cube-daemon.exe"
+===========================================================
+  PlenumNET Inter-Cube Infrastructure Services v0.2.0
+  Applied Physics Division -- Capomastro Holdings Ltd.
+===========================================================
+
+[CUBE] Mode: worker cube
+[CUBE] CRS URL: https://plenumnet.replit.app
+[CUBE] Endpoint: 0.0.0.0:51820
+[CUBE] Role: inference
+
+[IDENTITY] WARNING: CUBE_IDENTITY_PASSPHRASE not set. Using hostname-derived fallback passphrase. Set CUBE_IDENTITY_PASSPHRASE for production deployments.
+[IDENTITY] Loaded master secret from .plenumnet/identity\master.key
+[IDENTITY] PT26-DSA keypair derived (pk: 0301020302020103...)
+[CUBE] Resolved 0.0.0.0:51820 -> 0.0.0.0:51820
+[CUBE] Registration attempt 1/10 -> https://plenumnet.replit.app/api/salvi/inter-cube/relay/register?publicKey=030102030202010302010102010f104c8daca5271f44d8b95adfa8decd0d0ec98fd805ae7b5973896ed8cf247ba0dd9fd90ee19982875a28455dc2cf0b&endpoint=0.0.0.0%3A51820
+
+[CUBE] Registered! Address: 131.111.111.111.1 (1311111111111)
+[CUBE] Neighbors: 2 registered, 26 total
+[IDENTITY] Address-bound TL-DSA-87 key derived (pk: c29242d87bde7706...)
+[IDENTITY] Updated CRS with address-bound public key
+[CON] Resolved neighbor: 1111111111111 at 0.0.0.0:51820
+[CON] Resolved neighbor: 1211111111111 at 0.0.0.0:3000
+[CON] Overlay: 0 up, 0 resolving, 24 unknown
+[CON] 0 PQ-native tunnel keys derived (TL-Sponge-385)
+[FTS] 26 up, 0 suspect, 0 down, 0 recovering
+[GLB] 26 live neighbors, ready to forward
+
+=== Inter-Cube Stack Active (Cube Mode) ===
+  Address:       131.111.111.111.1 (1311111111111)
+  CRS:           https://plenumnet.replit.app
+  Dimensions:    13
+  Neighbors:     26 (2 registered)
+  Protocol:      PQ-Native (PT26-DSA + TL-Sponge-385)
+  Identity:      PT26-DSA (71-byte sigs, 28-sig budget)
+
+  CON -> FTS -> GLB pipeline operational.
+  The geometry IS the routing protocol.
+[IDENTITY] WARNING: CUBE_IDENTITY_PASSPHRASE not set. Using hostname-derived fallback passphrase. Set CUBE_IDENTITY_PASSPHRASE for production deployments.
+
+[ws-relay] Establishing relay connection to CRS...
+
+=== HTTP Server (Cube) ===
+  http://0.0.0.0:8080
+  9 routes active
+  Relay:     WebSocket to CRS (NAT traversal)
+  Heartbeat every 30s to CRS (with key rotation check). Ctrl+C to stop.
+
+[ws-relay] Connecting to wss://plenumnet.replit.app/ws/relay
+
+thread 'main' (81392) panicked at services\inter-cube\src\main.rs:625:10:
+Failed to bind to port 8080: Os { code: 10048, kind: AddrInUse, message: "Only one usage of each socket address (protocol/network address/port) is normally permitted." }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+PS C:\Users\Sigma>
