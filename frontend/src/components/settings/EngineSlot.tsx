@@ -1314,6 +1314,7 @@ export function EngineSlotCard({
             {modelName && (
               <div className="flex gap-2">
                 <button
+                  type="button"
                   onClick={openNewNode}
                   className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg border border-[var(--color-border-default)] bg-[var(--color-surface-secondary)] text-[var(--color-text-muted)] text-sm font-medium hover:text-[var(--color-text-secondary)] hover:border-[var(--color-border-strong)] transition-colors"
                 >
@@ -1321,6 +1322,7 @@ export function EngineSlotCard({
                   Open New Node
                 </button>
                 <button
+                  type="button"
                   onClick={syncNode}
                   disabled={syncing || markOnline.isPending}
                   className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg border border-[var(--color-plex-500)]/40 bg-[var(--color-plex-500)]/6 text-[var(--color-plex-400)] text-sm font-medium hover:bg-[var(--color-plex-500)]/12 hover:border-[var(--color-plex-500)]/70 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
@@ -1333,6 +1335,17 @@ export function EngineSlotCard({
                   Sync Node
                 </button>
               </div>
+            )}
+            {/* Step 2 always-accessible shortcut for Windows self-hosted engines */}
+            {modelName && GGUF_INFO[modelName] && detectOS() === 'windows' && config?.health_status !== 'online' && (
+              <button
+                type="button"
+                onClick={() => { setInstallPhase('tunnel_ready'); handleStep2Install(); }}
+                className="w-full flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg border border-[var(--color-gold-500)]/40 bg-[var(--color-gold-500)]/8 text-[var(--color-gold-400)] text-sm font-medium hover:bg-[var(--color-gold-500)]/15 hover:border-[var(--color-gold-500)]/60 transition-colors"
+              >
+                <Download className="w-3.5 h-3.5" />
+                Download Step 2 — Install Model
+              </button>
             )}
             {/* Sync result feedback */}
             {syncResult && !markOnlineError && (
