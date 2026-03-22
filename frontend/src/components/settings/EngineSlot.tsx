@@ -849,7 +849,9 @@ export function EngineSlotCard({
   function handleStep2Install() {
     const info = GGUF_INFO[modelName];
     if (!info) return;
-    const ps  = makePsStep2Script(modelName, info.repo, info.file, SLOT_PORT[slot]);
+    const token   = getStoredToken() ?? '';
+    const yodaUrl = window.location.origin;
+    const ps  = makePsStep2Script(modelName, info.repo, info.file, SLOT_PORT[slot], slot, token, yodaUrl);
     const bat = makeBatWrapper(ps, modelName);
     triggerDownload(bat, 'yoda-step2-model.bat', 'application/octet-stream');
     setInstallPhase('step2_ready');

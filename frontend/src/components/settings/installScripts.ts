@@ -957,6 +957,9 @@ export function makePsStep2Script(
   ggufRepo  : string,
   ggufFile  : string,
   port      : number,
+  slot      : string = 'a',
+  token     : string = '',
+  yodaUrl   : string = '',
 ): string {
   return `# YODA Step 2 -- Model Installation
 # Model: ${modelName}  |  Port: ${port}
@@ -974,6 +977,9 @@ trap {
 $GGUF_REPO   = "${ggufRepo}"
 $GGUF_FILE   = "${ggufFile}"
 $SERVER_PORT = ${port}
+$SLOT        = "${slot}"
+$YODA_TOKEN  = "${token}"
+$YODA_URL    = "${yodaUrl}"
 $MODELS_DIR  = Join-Path $env:USERPROFILE "yoda-models"
 $MODEL_PATH  = Join-Path $MODELS_DIR $GGUF_FILE
 $LOG_DIR     = Join-Path $MODELS_DIR "logs"
@@ -1073,15 +1079,39 @@ if (-not $ready) {
   Write-Host "  OK Model loaded and ready ($waited s)!" -ForegroundColor Green
 }
 
+# -- 5. Auto-mark engine online in YODA ------------------------------------
+$marked = $false
+if ($ready -and $YODA_TOKEN -ne "" -and $YODA_URL -ne "") {
+  Write-Host ""
+  Write-Host "Marking engine online in YODA..." -NoNewline
+  try {
+    $markUrl = "$YODA_URL/api/settings/engines/$SLOT/mark-online"
+    $hdrs    = @{ Authorization = "Bearer $YODA_TOKEN"; "Content-Type" = "application/json" }
+    $resp    = Invoke-WebRequest -Uri $markUrl -Method Post -Headers $hdrs -UseBasicParsing -TimeoutSec 10 -ErrorAction Stop
+    if ($resp.StatusCode -lt 300) {
+      Write-Host " OK" -ForegroundColor Green
+      $marked = $true
+    } else {
+      Write-Host " HTTP $($resp.StatusCode)" -ForegroundColor Yellow
+    }
+  } catch {
+    Write-Host " failed ($_)" -ForegroundColor Yellow
+  }
+}
+
 Write-Host ""
 Write-Host "======================================" -ForegroundColor Green
 Write-Host "  Step 2 Complete!" -ForegroundColor Green
-if ($ready) {
-  Write-Host "  Model is loaded and accepting requests." -ForegroundColor Green
+if ($ready -and $marked) {
+  Write-Host "  Model loaded. Engine marked ONLINE." -ForegroundColor Green
+  Write-Host "  Return to YODA -- you are ready to run queries." -ForegroundColor Green
+} elseif ($ready) {
+  Write-Host "  Model loaded. Return to YODA and" -ForegroundColor Green
+  Write-Host "  click [Sync Node] to confirm." -ForegroundColor Green
 } else {
   Write-Host "  Server started but still warming up." -ForegroundColor Yellow
+  Write-Host "  Check log: $serverOutLog" -ForegroundColor Yellow
 }
-Write-Host "  Return to YODA and click [Sync Node]." -ForegroundColor Green
 Write-Host "======================================" -ForegroundColor Green
 Write-Host ""
 Read-Host "Press Enter to close (server keeps running)"
