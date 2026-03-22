@@ -1,0 +1,80 @@
+OK, there are multiple problems here. Let me break down what's actually happening from the logs.
+
+The good news: The daemon DID connect. It registered with the CRS, got address 3321111111111, and the WebSocket relay connected to wss://plenumnet.replit.app/ws/relay. The core networking works.
+
+Problem 1: The address is wrong. The daemon got 3321111111111, not 1111111111112 as expected. That means there are already other registrations in the CRS from previous runs. The CRS assigns addresses sequentially, and your previous 36 hours of attempts have been filling up the registry. This isn't a crisis — the address still works — but it means the address tables need cleanup at some point.
+
+Problem 2: Port 8081 was already in use. The daemon crashed because a previous run left a stale inter-cube-daemon.exe process still holding port 8081. That's it. The fix is exactly what YODA said — kill the old process, restart.
+
+Problem 3: YODA changed the port to 8082 instead of fixing the root cause. The problem wasn't the port number. The problem was a stale process. Changing from 8081 to 8082 "works" but now the port scheme is drifting from the reference spec. Every time this happens, it gets harder to keep track.
+
+Problem 4: The neighbors resolved to 0.0.0.0:3000. Look at this:
+
+[CON] Resolved neighbor: 1321111111111 at 0.0.0.0:3000
+[CON] Resolved neighbor: 2321111111111 at 0.0.0.0:3000
+Those are other stale registrations from previous runs that registered with bogus endpoints. They're not real nodes.
+
+Here's what you should tell YODA — the actual fix is simple:
+
+Kill ALL old inter-cube processes first — every time, before starting a new one. That's non-negotiable. The installer should do this automatically (and it does — step 10 in the bat file kills old processes before starting a new one). But when you run the daemon manually from PowerShell, you have to kill old ones yourself first.
+
+Use port 8081 (the original spec), not 8082. Just kill the old process first:
+
+Get-Process | Where-Object { $_.Name -like "inter-cube*" } | Stop-Process -Force
+Then start fresh on 8081.
+
+The daemon DID connect to the relay before crashing. The architecture works. The only issue was a leftover process holding the port. That's not 36 hours of wheel-spinning on a code problem — it's a process management issue.
+
+Stop changing port numbers to work around stale processes. Kill the old one, use the correct port.
+
+Want me to create a task to clean up the stale CRS registrations and add proper process-kill logic to the startup sequence so this stops happening?
+
+Time worked
+24 seconds
+Agent Usage
+$0.72
+Please repeat and state exactly how to kill eht inter-cube process. Provide step by step I can send to Yoda.
+
+Here's the exact step-by-step to send to YODA:
+
+Step-by-Step: Kill Stale Inter-Cube Daemon and Restart Clean
+
+Step 1 — Kill all inter-cube daemon processes:
+
+Get-Process | Where-Object { $_.Name -like "inter-cube*" } | Stop-Process -Force -ErrorAction SilentlyContinue
+Step 2 — Verify port 8081 is free:
+
+Get-NetTCPConnection -LocalPort 8081 -ErrorAction SilentlyContinue
+If this returns anything, something else is still holding the port. Kill it:
+
+Stop-Process -Id (Get-NetTCPConnection -LocalPort 8081 -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty OwningProcess) -Force -ErrorAction SilentlyContinue
+Step 3 — Verify nothing is left:
+
+Get-NetTCPConnection -LocalPort 8081 -ErrorAction SilentlyContinue
+This should return nothing. If it still shows something, reboot the laptop — a zombie process is holding the port.
+
+Step 4 — Start the daemon on port 8081 (the correct port):
+
+$env:CUBE_MODE     = "cube"
+$env:CUBE_API_PORT = "8081"
+$env:CUBE_CRS_URL  = "https://plenumnet.replit.app"
+$env:CUBE_ROLE     = "inference"
+$env:CUBE_ENDPOINT = "0.0.0.0:51820"
+& "C:\Users\Sigma\PlenumNET\target\release\inter-cube-daemon.exe"
+Step 5 — Confirm it's running. You should see:
+
+=== Inter-Cube Stack Active (Cube Mode) ===
+  Address:       <some 13-trit address>
+  CRS:           https://plenumnet.replit.app
+  ...
+  http://0.0.0.0:8081
+  9 routes active
+  Relay:     WebSocket to CRS (NAT traversal)
+If it says "Inter-Cube Stack Active" and does NOT crash with a port-in-use error, it's working.
+
+Step 6 — Verify the relay connection from any browser:
+
+https://plenumnet.replit.app/api/salvi/inter-cube/relay/status
+This should show your cube's address in the connected nodes list.
+
+Important: Do NOT change the port to 8082. The port was never the problem — a leftover process was holding it. Kill the old process, use 8081. Always kill old daemons before starting new ones.
