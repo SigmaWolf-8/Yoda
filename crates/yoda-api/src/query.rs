@@ -230,7 +230,7 @@ pub async fn submit_query(
                         "Inference request dispatched via PlenumLAN relay — awaiting response"
                     );
 
-                    match tokio::time::timeout(Duration::from_secs(6), rx).await {
+                    match tokio::time::timeout(Duration::from_secs(120), rx).await {
                         Ok(Ok(Ok(result))) => {
                             // Write result to DB and mark task FINAL
                             sqlx::query(
@@ -282,7 +282,7 @@ pub async fn submit_query(
                             tracing::warn!(
                                 task_id = %task_id,
                                 request_id = %request_id,
-                                "Relay inference timed out after 6 s — falling back to browser relay"
+                                "Relay inference timed out after 120 s — falling back to browser relay"
                             );
                             state.pending_relays.write().await.remove(&request_id);
                         }

@@ -124,7 +124,7 @@ pub fn spawn_relay_task(state: AppState) {
                 }
             };
 
-            let session_result = run_relay_session(&state, &address, &public_key, neighbors).await;
+            let session_result = run_relay_session(&state, &address, &public_key, neighbors, state.http_client.clone()).await;
 
             // Disarm relay_tx so query.rs falls back to browser relay
             *state.relay_tx.write().await = None;
@@ -206,6 +206,7 @@ async fn run_relay_session(
     address: &str,
     public_key: &str,
     neighbors: Vec<String>,
+    http_client: reqwest::Client,
 ) -> Result<(), anyhow::Error> {
     let (ws_stream, _) = connect_async(CRS_WS).await?;
     let (mut sink, mut stream) = ws_stream.split();
@@ -288,9 +289,15 @@ async fn run_relay_session(
         }
     }
 
+    // Track addresses already probed so we only send new probes when we
+    // re-query the CRS and find freshly registered nodes.
+    let mut probed: std::collections::HashSet<String> = neighbors.iter().cloned().collect();
+
     // ── Main loop ──────────────────────────────────────────────────────────
-    let mut ping_interval = tokio::time::interval(Duration::from_secs(25));
-    ping_interval.tick().await; // discard the immediate first tick
+    let mut ping_interval    = tokio::time::interval(Duration::from_secs(25));
+    let mut reprobe_interval = tokio::time::interval(Duration::from_secs(30));
+    ping_interval.tick().await;    // discard the immediate first tick
+    reprobe_interval.tick().await; // discard the immediate first tick
     let mut last_pong_at = std::time::Instant::now();
 
     let result = loop {
@@ -354,6 +361,40 @@ async fn run_relay_session(
                     }
                     Some(Err(e)) => break Err(e.into()),
                     _ => {}
+                }
+            }
+
+            // Periodic re-probe: re-query CRS for freshly registered nodes and
+            // probe any addresses not yet tried.  Only runs while live_cube_peer
+            // is still unconfirmed (i.e., daemon hasn't responded yet or dropped off).
+            _ = reprobe_interval.tick() => {
+                if state.live_cube_peer.read().await.is_none() {
+                    tracing::info!("Re-probing CRS for newly registered inference daemons");
+                    if let Ok((_, fresh_neighbors)) = register_with_crs(&http_client, public_key).await {
+                        if fresh_neighbors.is_empty() {
+                            tracing::debug!("Re-probe: no registered neighbors found");
+                        } else {
+                            tracing::info!(count = fresh_neighbors.len(), addrs = ?fresh_neighbors, "Re-probe: sending probes to all registered neighbors");
+                            for neighbor in &fresh_neighbors {
+                                let probe_id = uuid::Uuid::new_v4().to_string();
+                                let probe_payload = serde_json::json!({
+                                    "requestId": probe_id,
+                                    "messages": [{"role": "user", "content": "ping"}],
+                                    "maxTokens": 1,
+                                    "model": "local",
+                                    "temperature": 0,
+                                });
+                                let probe_envelope = serde_json::json!({
+                                    "type": "relay",
+                                    "to": neighbor,
+                                    "msgType": "inference_request",
+                                    "payload": probe_payload.to_string(),
+                                });
+                                probed.insert(neighbor.clone());
+                                let _ = sink.send(Message::Text(probe_envelope.to_string().into())).await;
+                            }
+                        }
+                    }
                 }
             }
 
