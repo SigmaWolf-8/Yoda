@@ -397,6 +397,24 @@ async fn handle_inbound(state: &AppState, text: &str, own_address: &str) {
                 }
             }
         }
+        // Relay may send a dedicated peer_list message with all online nodes
+        "peer_list" | "peers" | "online_peers" => {
+            let v: serde_json::Value = serde_json::from_str(text).unwrap_or_default();
+            let list = v["peers"].as_array()
+                .or_else(|| v["addresses"].as_array())
+                .or_else(|| v["online"].as_array());
+            if let Some(list) = list {
+                for peer in list {
+                    if let Some(addr) = peer.as_str() {
+                        if addr != own_address {
+                            tracing::info!(peer = %addr, "Live cube peer discovered from peer_list — updating relay target");
+                            *state.live_cube_peer.write().await = Some(addr.to_string());
+                            break;
+                        }
+                    }
+                }
+            }
+        }
         "relay" => {
             let payload_str = env.payload.as_deref().unwrap_or("{}");
             match env.msg_type.as_deref() {
@@ -478,7 +496,7 @@ async fn handle_inbound(state: &AppState, text: &str, own_address: &str) {
         }
         "pong" => {}
         other => {
-            tracing::debug!(kind = %other, "Ignoring relay message type in main loop");
+            tracing::info!(kind = %other, raw = %text, "Unrecognised relay message — logging for peer discovery debug");
         }
     }
 }
