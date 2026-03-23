@@ -1,0 +1,33 @@
+Two bugs visible in that output that need fixing in the Rust daemon:
+
+Port bug: The daemon ignores CUBE_API_PORT/API_PORT in cube mode — always binds to 8080
+BLAKE3 violation: The daemon prints (BLAKE3) in two places — violates invariant I-01
+Let me find and fix both in the source:
+
+No BLAKE3 in the Rust source — so "BLAKE3" is hardcoded in the compiled binary from a different module. Let me search wider:
+
+Good — I can see the daemon DOES call api_port() on line 737 and binds to it on line 738. So it should work. Let me look at the cube mode function more carefully to see where the port 8080 hardcoding actually happens:
+
+Now I see what's going on. The source code is actually correct on both counts:
+
+Line 370: Already says (TL-Sponge-385), not BLAKE3
+Line 396: Already says PQ-Native (PT26-DSA + TL-Sponge-385)
+Line 737: Already calls api_port() which reads CUBE_API_PORT
+But the user's binary output shows v0.2.0 while the source code says v0.3.0. The compiled binary is stale — it predates these fixes.
+
+The user needs to rebuild. Let me update the invariants doc to note this, and also correct YODA's workaround suggestion (moving llama-server to 8090 is unnecessary once the binary is rebuilt):
+
+Here's the situation: both bugs are already fixed in the source code — the binary on the laptop is just stale.
+
+The daemon output shows v0.2.0, but the current source is v0.3.0. In v0.3.0:
+
+CUBE_API_PORT is properly read and used for the HTTP bind (line 737-738)
+"BLAKE3" has been replaced with "TL-Sponge-385" everywhere (line 370, 396)
+YODA's workaround of moving llama-server to port 8090 is unnecessary. Once you rebuild:
+
+Set-Location C:\PlenumNET
+git pull origin main
+cargo build --release -p inter-cube
+The daemon will respect CUBE_API_PORT=8081, llama-server stays on 8080 as designed, and "BLAKE3" will no longer appear in the output. The port table in the invariants doc is correct — it just needs a fresh compile.
+
+I've also added build instructions to the invariants doc so YODA knows to tell you to rebuild if the binary behavior doesn't match the spec.
