@@ -106,10 +106,10 @@ pub fn spawn_relay_task(state: AppState) {
         loop {
             // Re-register (HTTP) on every reconnect — CRS clears its in-memory
             // registry on restart (Replit restarts periodically).
-            let address = match register_with_crs(&state.http_client, &public_key).await {
-                Ok(a) => {
+            let (address, neighbors) = match register_with_crs(&state.http_client, &public_key).await {
+                Ok((a, n)) => {
                     tracing::info!(address = %a, "Registered with PlenumLAN CRS");
-                    a
+                    (a, n)
                     // Do NOT reset backoff here — reset only after a stable session.
                 }
                 Err(e) => {
@@ -124,7 +124,7 @@ pub fn spawn_relay_task(state: AppState) {
                 }
             };
 
-            let session_result = run_relay_session(&state, &address, &public_key).await;
+            let session_result = run_relay_session(&state, &address, &public_key, neighbors).await;
 
             // Disarm relay_tx so query.rs falls back to browser relay
             *state.relay_tx.write().await = None;
@@ -150,20 +150,53 @@ pub fn spawn_relay_task(state: AppState) {
 
 // ── CRS HTTP registration ──────────────────────────────────────────────────
 
+/// Returns (own_address, registered_neighbor_addresses).
 async fn register_with_crs(
     client: &reqwest::Client,
     public_key: &str,
-) -> Result<String, anyhow::Error> {
+) -> Result<(String, Vec<String>), anyhow::Error> {
     let url = format!(
         "{}/api/salvi/inter-cube/relay/register?publicKey={}&endpoint=0.0.0.0:3000",
         CRS_BASE, public_key
     );
     let resp = client.get(&url).send().await?.error_for_status()?;
     let body: serde_json::Value = resp.json().await?;
-    body["address"]
+    let address = body["address"]
         .as_str()
         .map(|s| s.to_string())
-        .ok_or_else(|| anyhow::anyhow!("CRS registration response missing 'address' field"))
+        .ok_or_else(|| anyhow::anyhow!("CRS registration response missing 'address' field"))?;
+
+    // Collect registered neighbor addresses for peer probing.
+    // The response may contain "neighbors" as an array of objects or strings.
+    let neighbors: Vec<String> = body["neighbors"]
+        .as_array()
+        .unwrap_or(&vec![])
+        .iter()
+        .filter_map(|n| {
+            // Format 1: {"address":"...", "registered":true}
+            if let Some(addr) = n["address"].as_str() {
+                let registered = n["registered"].as_bool().unwrap_or(true);
+                if registered && addr != address {
+                    return Some(addr.to_string());
+                }
+            }
+            // Format 2: plain string addresses
+            if let Some(addr) = n.as_str() {
+                if addr != address {
+                    return Some(addr.to_string());
+                }
+            }
+            None
+        })
+        .collect();
+
+    tracing::info!(
+        count = neighbors.len(),
+        neighbors = ?neighbors,
+        "CRS registration: registered neighbor addresses"
+    );
+
+    Ok((address, neighbors))
 }
 
 // ── WebSocket session ──────────────────────────────────────────────────────
@@ -172,6 +205,7 @@ async fn run_relay_session(
     state: &AppState,
     address: &str,
     public_key: &str,
+    neighbors: Vec<String>,
 ) -> Result<(), anyhow::Error> {
     let (ws_stream, _) = connect_async(CRS_WS).await?;
     let (mut sink, mut stream) = ws_stream.split();
@@ -225,6 +259,34 @@ async fn run_relay_session(
     let (req_tx, mut req_rx) = mpsc::channel::<RelayInferRequest>(32);
     *state.relay_tx.write().await = Some(req_tx);
     tracing::info!("PlenumLAN relay armed — inference requests will route through CRS");
+
+    // ── Probe registered neighbors to discover the daemon ──────────────────
+    // The relay sends no peer-join notifications, so we probe each registered
+    // neighbor with a tiny inference request.  The daemon responds and its
+    // `from` address is captured by the inference_response handler below,
+    // populating live_cube_peer automatically.
+    if !neighbors.is_empty() {
+        tracing::info!(count = neighbors.len(), "Probing registered neighbors to discover inference daemon");
+        for neighbor in &neighbors {
+            let probe_id = uuid::Uuid::new_v4().to_string();
+            let probe_payload = serde_json::json!({
+                "requestId": probe_id,
+                "messages": [{"role": "user", "content": "ping"}],
+                "maxTokens": 1,
+                "model": "local",
+                "temperature": 0,
+            });
+            let probe_envelope = serde_json::json!({
+                "type": "relay",
+                "to": neighbor,
+                "msgType": "inference_request",
+                "payload": probe_payload.to_string(),
+            });
+            tracing::debug!(to = %neighbor, probe_id = %probe_id, "Sending probe to neighbor");
+            // Ignore send errors — the session loop will catch WS failures.
+            let _ = sink.send(Message::Text(probe_envelope.to_string().into())).await;
+        }
+    }
 
     // ── Main loop ──────────────────────────────────────────────────────────
     let mut ping_interval = tokio::time::interval(Duration::from_secs(25));
