@@ -197,8 +197,11 @@ pub async fn submit_query(
         // Check if the relay is alive
         if let Some(relay_tx) = state.relay_tx.read().await.clone() {
             let request_id = Uuid::new_v4();
-            let cube_address = live_cube_address
-                .clone()
+            // Prefer the live peer address discovered from the relay session (most up-to-date),
+            // then fall back to the CRS DB lookup, then the hardcoded slot map.
+            let live_peer = state.live_cube_peer.read().await.clone();
+            let cube_address = live_peer
+                .or_else(|| live_cube_address.clone())
                 .unwrap_or_else(|| slot_to_cube_address(slot).to_string());
 
             let messages = serde_json::json!([

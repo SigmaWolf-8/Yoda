@@ -5,7 +5,7 @@ use yoda_inference_router::health::SharedHealthState;
 use yoda_orchestrator::agent::AgentRegistry;
 
 use crate::websocket::PipelineChannels;
-use crate::cube_relay::{PendingRelays, RelayTx};
+use crate::cube_relay::{LiveCubePeer, PendingRelays, RelayTx};
 
 /// Shared application state, cloneable (all fields are Arc-like or Clone).
 #[derive(Clone)]
@@ -36,6 +36,9 @@ pub struct AppState {
     pub relay_tx: RelayTx,
     /// Pending inference requests awaiting a relay response (keyed by request_id).
     pub pending_relays: PendingRelays,
+    /// The most recently seen inference cube peer address from the relay session.
+    /// Populated from auth_ok peers and peer_joined messages; cleared on relay_ack undelivered.
+    pub live_cube_peer: LiveCubePeer,
 }
 
 impl AppState {
@@ -72,6 +75,7 @@ impl AppState {
             pipeline_channels: crate::websocket::new_pipeline_channels(),
             relay_tx: crate::cube_relay::new_relay_tx(),
             pending_relays: crate::cube_relay::new_pending_relays(),
+            live_cube_peer: crate::cube_relay::new_live_cube_peer(),
         }
     }
 }

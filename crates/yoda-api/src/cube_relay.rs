@@ -51,12 +51,20 @@ pub type RelayTx = Arc<RwLock<Option<mpsc::Sender<RelayInferRequest>>>>;
 /// The inner Result carries Ok(result) on success or Err(message) on inference_error.
 pub type PendingRelays = Arc<RwLock<HashMap<Uuid, oneshot::Sender<Result<RelayInferResult, String>>>>>;
 
+/// The ternary address of the most recently seen inference cube peer.
+/// Updated from auth_ok peer list and peer_joined messages; cleared on undelivered ack.
+pub type LiveCubePeer = Arc<RwLock<Option<String>>>;
+
 pub fn new_relay_tx() -> RelayTx {
     Arc::new(RwLock::new(None))
 }
 
 pub fn new_pending_relays() -> PendingRelays {
     Arc::new(RwLock::new(HashMap::new()))
+}
+
+pub fn new_live_cube_peer() -> LiveCubePeer {
+    Arc::new(RwLock::new(None))
 }
 
 // ── Address mapping (slot → cube ternary address) ─────────────────────────
@@ -183,6 +191,21 @@ async fn run_relay_session(
             match v["type"].as_str() {
                 Some("auth_ok") => {
                     tracing::info!(address = %address, "PlenumLAN relay authenticated");
+                    // Capture any peers already online — the daemon may already be connected.
+                    // The relay sends peers as either v["peers"] array or v["online"] array.
+                    let peers = v["peers"].as_array()
+                        .or_else(|| v["online"].as_array());
+                    if let Some(peers) = peers {
+                        for peer in peers {
+                            if let Some(addr) = peer.as_str() {
+                                if addr != address {
+                                    tracing::info!(peer = %addr, "Live cube peer discovered from auth_ok");
+                                    *state.live_cube_peer.write().await = Some(addr.to_string());
+                                    break;
+                                }
+                            }
+                        }
+                    }
                 }
                 Some("auth_fail") => {
                     anyhow::bail!("PlenumLAN auth_fail: {}", v["error"].as_str().unwrap_or("unknown"));
@@ -252,7 +275,7 @@ async fn run_relay_session(
                             last_pong_at = std::time::Instant::now();
                             tracing::trace!("pong received");
                         } else {
-                            handle_inbound(state, &text).await;
+                            handle_inbound(state, &text, address).await;
                         }
                     }
                     Some(Ok(Message::Pong(_))) => {
@@ -337,7 +360,7 @@ struct InferenceErrorPayload {
     error: String,
 }
 
-async fn handle_inbound(state: &AppState, text: &str) {
+async fn handle_inbound(state: &AppState, text: &str, own_address: &str) {
     let env: RelayEnvelope = match serde_json::from_str(text) {
         Ok(e) => e,
         Err(_) => {
@@ -347,6 +370,33 @@ async fn handle_inbound(state: &AppState, text: &str) {
     };
 
     match env.kind.as_str() {
+        // Peer joined/left notifications — update live_cube_peer
+        "peer_joined" | "peer_online" | "peer_connected" => {
+            // Relay may put the address in "address", "from", or "peer" field
+            let v: serde_json::Value = serde_json::from_str(text).unwrap_or_default();
+            let addr = v["address"].as_str()
+                .or_else(|| v["peer"].as_str())
+                .or_else(|| env.from.as_deref());
+            if let Some(addr) = addr {
+                if addr != own_address {
+                    tracing::info!(peer = %addr, "Live cube peer joined — updating relay target");
+                    *state.live_cube_peer.write().await = Some(addr.to_string());
+                }
+            }
+        }
+        "peer_left" | "peer_offline" | "peer_disconnected" => {
+            let v: serde_json::Value = serde_json::from_str(text).unwrap_or_default();
+            let addr = v["address"].as_str()
+                .or_else(|| v["peer"].as_str())
+                .or_else(|| env.from.as_deref());
+            if let Some(addr) = addr {
+                let mut peer = state.live_cube_peer.write().await;
+                if peer.as_deref() == Some(addr) {
+                    tracing::info!(peer = %addr, "Live cube peer left — clearing relay target");
+                    *peer = None;
+                }
+            }
+        }
         "relay" => {
             let payload_str = env.payload.as_deref().unwrap_or("{}");
             match env.msg_type.as_deref() {
@@ -360,6 +410,12 @@ async fn handle_inbound(state: &AppState, text: &str) {
                         tracing::warn!("inference_response: invalid requestId UUID");
                         return;
                     };
+                    // Confirm the sender's address as the live cube peer for future requests
+                    if let Some(from) = &env.from {
+                        if from != own_address {
+                            *state.live_cube_peer.write().await = Some(from.clone());
+                        }
+                    }
                     let result = RelayInferResult {
                         content: payload.content,
                         model: payload.model.unwrap_or_else(|| "local".into()),
@@ -409,10 +465,11 @@ async fn handle_inbound(state: &AppState, text: &str) {
         "relay_ack" => {
             if env.delivered == Some(false) {
                 tracing::warn!("Relay message undelivered — Cube node may be offline; failing pending relays immediately");
+                // Clear the stale peer address — it's no longer reachable at the stored address.
+                *state.live_cube_peer.write().await = None;
                 // Fast-fail all waiting relay requests so the query handler can
                 // fall back to the browser relay without sitting out the full
-                // 6-second timeout.  This lets llama-server respond directly
-                // via the browser even when the daemon is not running.
+                // 6-second timeout.
                 let mut pending = state.pending_relays.write().await;
                 for (_, sender) in pending.drain() {
                     let _ = sender.send(Err("Cube node offline — falling back to browser relay".into()));
