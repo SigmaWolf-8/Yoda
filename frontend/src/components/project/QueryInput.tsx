@@ -209,31 +209,23 @@ export function QueryInput({ projectId, mode, onResult }: Props) {
 
     const { kind, endpoint, detail } = relayError!;
 
-    if (kind === 'not_running') {
-      return (
-        <div className="mt-3 rounded-lg border border-[var(--color-err)]/30 bg-[var(--color-err)]/5 p-3 space-y-2">
-          <div className="flex items-start gap-2">
-            <AlertCircle className="w-4 h-4 text-[var(--color-err)] flex-shrink-0 mt-0.5" />
-            <p className="text-sm text-[var(--color-err)] font-medium">Local engine not responding at <code className="font-mono text-xs">{endpoint}</code></p>
-          </div>
-          <p className="text-xs text-[var(--color-text-muted)]">
-            Your model server has stopped. Go to <strong>Settings → AI Engines</strong> and click <strong>Sync Node</strong> to restart it, then try again.
-          </p>
-          <button onClick={resetForRetry} className="text-xs text-[var(--color-plex-400)] hover:underline">Dismiss and retry</button>
-        </div>
-      );
-    }
-
-    if (kind === 'cors') {
+    if (kind === 'not_running' || kind === 'cors') {
       return (
         <div className="mt-3 rounded-lg border border-[var(--color-warn)]/30 bg-[var(--color-warn)]/5 p-3 space-y-2">
           <div className="flex items-start gap-2">
             <AlertCircle className="w-4 h-4 text-[var(--color-warn)] flex-shrink-0 mt-0.5" />
-            <p className="text-sm text-[var(--color-warn)] font-medium">Engine reached but browser security blocked the connection</p>
+            <p className="text-sm text-[var(--color-warn)] font-medium">Daemon required — browser cannot reach localhost directly</p>
           </div>
           <p className="text-xs text-[var(--color-text-muted)]">
-            Your model at <code className="font-mono">{endpoint}</code> is running but your browser cannot connect to it directly. Make sure the PlenumNET daemon is also running — YODA will route through it automatically. If it is running, try again in a moment.
+            Modern browsers block HTTPS pages from connecting to <code className="font-mono">{endpoint || 'http://localhost:8080'}</code> directly.
+            {' '}The <strong>PlenumNET daemon</strong> acts as the secure bridge. Start it alongside llama-server:
           </p>
+          <pre className="text-[10px] text-[var(--color-text-muted)] bg-[var(--color-surface-secondary)] rounded px-2 py-1.5 overflow-x-auto whitespace-pre-wrap leading-relaxed">
+{`$env:CUBE_MODE="cube"; $env:CUBE_API_PORT="8081"
+$env:CUBE_CRS_URL="https://plenumnet.replit.app"
+$env:CUBE_ROLE="inference"; $env:CUBE_ENDPOINT="0.0.0.0:51820"
+& "C:\\Users\\Sigma\\PlenumNET\\target\\release\\inter-cube-daemon.exe"`}
+          </pre>
           <button onClick={resetForRetry} className="text-xs text-[var(--color-plex-400)] hover:underline">Retry</button>
         </div>
       );
