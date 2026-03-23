@@ -224,7 +224,7 @@ export function QueryInput({ projectId, mode, onResult }: Props) {
 {`$env:CUBE_MODE="cube"; $env:CUBE_API_PORT="8081"
 $env:CUBE_CRS_URL="https://plenumnet.replit.app"
 $env:CUBE_ROLE="inference"
-& "C:\\Users\\Sigma\\PlenumNET\\target\\release\\inter-cube-daemon.exe"`}
+& "C:\\PlenumNET\\target\\release\\inter-cube-daemon.exe"`}
           </pre>
           <button onClick={resetForRetry} className="text-xs text-[var(--color-plex-400)] hover:underline">Retry</button>
         </div>
