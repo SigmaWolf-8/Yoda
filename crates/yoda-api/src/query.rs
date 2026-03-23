@@ -198,100 +198,103 @@ pub async fn submit_query(
         if let Some(relay_tx) = state.relay_tx.read().await.clone() {
             let request_id = Uuid::new_v4();
             // Prefer the live peer address discovered from the relay session (most up-to-date),
-            // then fall back to the CRS DB lookup, then the hardcoded slot map.
+            // then fall back to the CRS DB lookup.
+            // If neither is known, skip the relay — no point dispatching to a wrong address.
             let live_peer = state.live_cube_peer.read().await.clone();
-            let cube_address = live_peer
-                .or_else(|| live_cube_address.clone())
-                .unwrap_or_else(|| slot_to_cube_address(slot).to_string());
+            let cube_address_opt = live_peer.or_else(|| live_cube_address.clone());
 
-            let messages = serde_json::json!([
-                {"role": "user", "content": req.text}
-            ]);
+            if let Some(cube_address) = cube_address_opt {
+                let messages = serde_json::json!([
+                    {"role": "user", "content": req.text}
+                ]);
 
-            let relay_req = RelayInferRequest {
-                request_id,
-                task_id,
-                cube_address,
-                messages,
-                model: "local".to_string(),
-                max_tokens: 1024,
-                temperature: 0.7,
-            };
+                let relay_req = RelayInferRequest {
+                    request_id,
+                    task_id,
+                    cube_address,
+                    messages,
+                    model: "local".to_string(),
+                    max_tokens: 1024,
+                    temperature: 0.7,
+                };
 
-            // Register a pending oneshot before sending (avoid a race)
-            let (tx, rx) = oneshot::channel();
-            state.pending_relays.write().await.insert(request_id, tx);
+                // Register a pending oneshot before sending (avoid a race)
+                let (tx, rx) = oneshot::channel();
+                state.pending_relays.write().await.insert(request_id, tx);
 
-            match relay_tx.send(relay_req).await {
-                Ok(()) => {
-                    tracing::info!(
-                        task_id = %task_id,
-                        request_id = %request_id,
-                        "Inference request dispatched via PlenumLAN relay — awaiting response"
-                    );
+                match relay_tx.send(relay_req).await {
+                    Ok(()) => {
+                        tracing::info!(
+                            task_id = %task_id,
+                            request_id = %request_id,
+                            "Inference request dispatched via PlenumLAN relay — awaiting response"
+                        );
 
-                    match tokio::time::timeout(Duration::from_secs(120), rx).await {
-                        Ok(Ok(Ok(result))) => {
-                            // Write result to DB and mark task FINAL
-                            sqlx::query(
-                                "UPDATE tasks SET status = 'FINAL', updated_at = NOW() \
-                                 WHERE id = $1"
-                            )
-                            .bind(task_id)
-                            .execute(&state.db)
-                            .await
-                            .map_err(AppError::Database)?;
+                        match tokio::time::timeout(Duration::from_secs(120), rx).await {
+                            Ok(Ok(Ok(result))) => {
+                                // Write result to DB and mark task FINAL
+                                sqlx::query(
+                                    "UPDATE tasks SET status = 'FINAL', updated_at = NOW() \
+                                     WHERE id = $1"
+                                )
+                                .bind(task_id)
+                                .execute(&state.db)
+                                .await
+                                .map_err(AppError::Database)?;
 
-                            sqlx::query(
-                                "INSERT INTO task_results \
-                                 (id, task_id, step_number, engine_slot, result_content, created_at) \
-                                 VALUES (uuid_generate_v4(), $1, 1, $2, $3, NOW())"
-                            )
-                            .bind(task_id)
-                            .bind(&result.model)
-                            .bind(&result.content)
-                            .execute(&state.db)
-                            .await
-                            .map_err(AppError::Database)?;
+                                sqlx::query(
+                                    "INSERT INTO task_results \
+                                     (id, task_id, step_number, engine_slot, result_content, created_at) \
+                                     VALUES (uuid_generate_v4(), $1, 1, $2, $3, NOW())"
+                                )
+                                .bind(task_id)
+                                .bind(&result.model)
+                                .bind(&result.content)
+                                .execute(&state.db)
+                                .await
+                                .map_err(AppError::Database)?;
 
-                            tracing::info!(
-                                task_id = %task_id,
-                                tokens = result.tokens,
-                                "Relay inference result stored — task FINAL"
-                            );
+                                tracing::info!(
+                                    task_id = %task_id,
+                                    tokens = result.tokens,
+                                    "Relay inference result stored — task FINAL"
+                                );
 
-                            return Ok((StatusCode::CREATED, Json(QueryResponse {
-                                decomposition: None,
-                                task_id: Some(task_id),
-                                needs_approval: false,
-                                relay_endpoint: None,
-                            })));
-                        }
-                        Ok(Ok(Err(error_msg))) => {
-                            // Cube returned inference_error — fall through to browser relay
-                            tracing::warn!(
-                                task_id = %task_id,
-                                error = %error_msg,
-                                "Cube returned inference_error — falling back to browser relay"
-                            );
-                        }
-                        Ok(Err(_)) => {
-                            tracing::warn!(task_id = %task_id, "Relay oneshot sender dropped");
-                        }
-                        Err(_) => {
-                            tracing::warn!(
-                                task_id = %task_id,
-                                request_id = %request_id,
-                                "Relay inference timed out after 120 s — falling back to browser relay"
-                            );
-                            state.pending_relays.write().await.remove(&request_id);
+                                return Ok((StatusCode::CREATED, Json(QueryResponse {
+                                    decomposition: None,
+                                    task_id: Some(task_id),
+                                    needs_approval: false,
+                                    relay_endpoint: None,
+                                })));
+                            }
+                            Ok(Ok(Err(error_msg))) => {
+                                // Cube returned inference_error — fall through to browser relay
+                                tracing::warn!(
+                                    task_id = %task_id,
+                                    error = %error_msg,
+                                    "Cube returned inference_error — falling back to browser relay"
+                                );
+                            }
+                            Ok(Err(_)) => {
+                                tracing::warn!(task_id = %task_id, "Relay oneshot sender dropped");
+                            }
+                            Err(_) => {
+                                tracing::warn!(
+                                    task_id = %task_id,
+                                    request_id = %request_id,
+                                    "Relay inference timed out after 120 s — falling back to browser relay"
+                                );
+                                state.pending_relays.write().await.remove(&request_id);
+                            }
                         }
                     }
+                    Err(e) => {
+                        tracing::warn!(error = %e, "relay_tx send failed — relay may be disconnecting");
+                        state.pending_relays.write().await.remove(&request_id);
+                    }
                 }
-                Err(e) => {
-                    tracing::warn!(error = %e, "relay_tx send failed — relay may be disconnecting");
-                    state.pending_relays.write().await.remove(&request_id);
-                }
+            } else {
+                tracing::info!(task_id = %task_id, "No confirmed cube peer — skipping relay, falling back to browser relay");
             }
         }
     }
