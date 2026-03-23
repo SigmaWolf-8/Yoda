@@ -1,0 +1,98 @@
+Windows PowerShell
+Copyright (C) Microsoft Corporation. All rights reserved.
+
+Install the latest PowerShell for new features and improvements! https://aka.ms/PSWindows
+
+PS C:\Users\Sigma> $env:PATH = "C:\Program Files\LLVM\bin;" + $env:PATH
+PS C:\Users\Sigma> Set-Location C:\PlenumNET
+PS C:\PlenumNET> cargo build --release -p inter-cube
+warning: profiles for the non root package will be ignored, specify profiles at the workspace root:
+package:   C:\PlenumNET\src\kernel\Cargo.toml
+workspace: C:\PlenumNET\Cargo.toml
+   Compiling ring v0.17.14
+warning: unused imports: `SIGMAS` and `WEIGHT_VECTOR`
+  --> ternary-math\src\pt26_walk.rs:15:28
+   |
+15 | use crate::plenum_square::{SIGMAS, WEIGHT_VECTOR, MAGIC_CONSTANT};
+   |                            ^^^^^^  ^^^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `mod3_small` is never used
+  --> ternary-math\src\gf3_algebra.rs:13:22
+   |
+13 | #[inline(always)] fn mod3_small(mut n: u8) -> u8 { if n >= 3 { n -= 3; } n }
+   |                      ^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `mod3_med` is never used
+  --> ternary-math\src\gf3_algebra.rs:14:22
+   |
+14 | #[inline(always)] fn mod3_med(mut n: u8) -> u8 { if n >= 3 { n -= 3; } if n >= 3 { n -= 3; } n }
+   |                      ^^^^^^^^
+
+warning: function `rot` is never used
+  --> ternary-math\src\tis_sponge.rs:88:4
+   |
+88 | fn rot(src: &[u8], dst: &mut [u8], dist: usize, w: usize) {
+   |    ^^^
+
+warning: `ternary-math` (lib) generated 4 warnings (run `cargo fix --lib -p ternary-math` to apply 1 suggestion)
+   Compiling rustls v0.23.37
+   Compiling rustls-webpki v0.103.9
+   Compiling tokio-rustls v0.26.4
+   Compiling hyper-rustls v0.27.7
+   Compiling reqwest v0.12.28
+   Compiling inter-cube v0.2.0 (C:\PlenumNET\services\inter-cube)
+warning: unused import: `RepCTrit`
+  --> services\inter-cube\src\crs.rs:40:34
+   |
+40 | use crate::cube_addr::{CubeAddr, RepCTrit, DIMENSIONS, NEIGHBORS_PER_CUBE, TOTAL_VERTICES};
+   |                                  ^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `destination`
+   --> services\inter-cube\src\glb.rs:272:9
+    |
+272 |         destination: &CubeAddr,
+    |         ^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_destination`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: fields `heartbeat_interval` and `key_rotation_interval` are never read
+   --> services\inter-cube\src\overlay.rs:214:5
+    |
+204 | pub struct CubeOverlayNetwork {
+    |            ------------------ fields in this struct
+...
+214 |     heartbeat_interval: Duration,
+    |     ^^^^^^^^^^^^^^^^^^
+215 |     /// Key rotation interval.
+216 |     key_rotation_interval: Duration,
+    |     ^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: method `count` is never used
+   --> services\inter-cube\src\crs.rs:235:8
+    |
+170 | impl AddressAllocator {
+    | --------------------- method in this implementation
+...
+235 |     fn count(&self) -> u64 {
+    |        ^^^^^
+
+warning: field `heartbeat_interval` is never read
+   --> services\inter-cube\src\crs.rs:259:5
+    |
+253 | pub struct CubeRegistrationService {
+    |            ----------------------- field in this struct
+...
+259 |     heartbeat_interval: Duration,
+    |     ^^^^^^^^^^^^^^^^^^
+
+warning: `inter-cube` (lib) generated 5 warnings (run `cargo fix --lib -p inter-cube` to apply 2 suggestions)
+    Finished `release` profile [optimized] target(s) in 38.28s
+PS C:\PlenumNET>
