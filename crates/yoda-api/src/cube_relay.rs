@@ -227,8 +227,9 @@ async fn run_relay_session(
                 Some("auth_ok") => {
                     tracing::info!(address = %address, "PlenumLAN relay authenticated");
                     // Capture any peers already online — the daemon may already be connected.
-                    // The relay sends peers as either v["peers"] array or v["online"] array.
-                    let peers = v["peers"].as_array()
+                    // Per PlenumLAN relay protocol spec, auth_ok uses "connectedPeers".
+                    let peers = v["connectedPeers"].as_array()
+                        .or_else(|| v["peers"].as_array())
                         .or_else(|| v["online"].as_array());
                     if let Some(peers) = peers {
                         for peer in peers {
