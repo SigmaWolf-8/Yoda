@@ -221,9 +221,9 @@ export function QueryInput({ projectId, mode, onResult }: Props) {
             {' '}The <strong>PlenumNET daemon</strong> acts as the secure bridge. Start it alongside llama-server:
           </p>
           <pre className="text-[10px] text-[var(--color-text-muted)] bg-[var(--color-surface-secondary)] rounded px-2 py-1.5 overflow-x-auto whitespace-pre-wrap leading-relaxed">
-{`$env:CUBE_MODE="cube"; $env:CUBE_API_PORT="8081"
-$env:CUBE_CRS_URL="https://plenumnet.replit.app"
-$env:CUBE_ROLE="inference"
+{`$env:CUBE_MODE="cube"; $env:CUBE_API_PORT="8081"; $env:LLM_PORT="8080"
+$env:CUBE_CRS_URL="https://plenumnet.replit.app"; $env:CUBE_ROLE="inference"
+$env:CUBE_IDENTITY_DIR="$env:USERPROFILE\\.plenumnet\\identity-a"
 & "C:\\PlenumNET\\target\\release\\inter-cube-daemon.exe"`}
           </pre>
           <button onClick={resetForRetry} className="text-xs text-[var(--color-plex-400)] hover:underline">Retry</button>
