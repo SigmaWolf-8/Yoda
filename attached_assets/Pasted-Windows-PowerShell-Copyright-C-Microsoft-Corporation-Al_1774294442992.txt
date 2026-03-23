@@ -1,0 +1,53 @@
+Windows PowerShell
+Copyright (C) Microsoft Corporation. All rights reserved.
+
+Install the latest PowerShell for new features and improvements! https://aka.ms/PSWindows
+
+PS C:\Users\Sigma> $env:CUBE_MODE="cube"; $env:CUBE_API_PORT="8081"; $env:LLM_PORT="8080"
+PS C:\Users\Sigma> $env:CUBE_CRS_URL="https://plenumnet.replit.app"; $env:CUBE_ROLE="inference"
+PS C:\Users\Sigma> $env:CUBE_IDENTITY_DIR="$env:USERPROFILE\.plenumnet\identity-a"
+PS C:\Users\Sigma> & "C:\PlenumNET\target\release\inter-cube-daemon.exe"
+===========================================================
+  PlenumNET Inter-Cube Infrastructure Services v0.2.0
+  Applied Physics Division -- Capomastro Holdings Ltd.
+===========================================================
+
+[CUBE] Mode: worker cube
+[CUBE] CRS URL: https://plenumnet.replit.app
+[CUBE] Endpoint: 0.0.0.0:51820
+
+[CUBE] Resolved 0.0.0.0:51820 -> 0.0.0.0:51820
+[CUBE] Registration attempt 1/10 -> https://plenumnet.replit.app/api/salvi/inter-cube/relay/register?publicKey=6d8f64d6301a0b8a391e9ce96e20856e1c9908bfe378583be45edf994d21cd99&endpoint=0.0.0.0%3A51820
+
+[CUBE] Registered! Address: 1323111111111
+[CUBE] Neighbors: 5 registered, 26 total
+[CON] Resolved neighbor: 1123111111111 at 0.0.0.0:3000
+[CON] Resolved neighbor: 1223111111111 at 0.0.0.0:3000
+[CON] Resolved neighbor: 1313111111111 at 0.0.0.0:3000
+[CON] Resolved neighbor: 1321111111111 at 0.0.0.0:3000
+[CON] Resolved neighbor: 1322111111111 at 0.0.0.0:3000
+[CON] Overlay: 0 up, 0 resolving, 21 unknown
+[CON] 26 PQ-native tunnel keys derived (BLAKE3)
+[FTS] 26 up, 0 suspect, 0 down, 0 recovering
+[GLB] 26 live neighbors, ready to forward
+
+=== Inter-Cube Stack Active (Cube Mode) ===
+  Address:       1323111111111
+  CRS:           https://plenumnet.replit.app
+  Dimensions:    13
+  Neighbors:     26 (5 registered)
+  Protocol:      PQ-Native (BLAKE3 key derivation)
+
+  CON -> FTS -> GLB pipeline operational.
+  The geometry IS the routing protocol.
+
+=== HTTP Server (Cube) ===
+  http://0.0.0.0:8080
+  8 routes active
+  Heartbeat every 30s to CRS. Ctrl+C to stop.
+
+
+thread 'main' (156044) panicked at services\inter-cube\src\main.rs:706:10:
+Failed to bind to port 8080: Os { code: 10048, kind: AddrInUse, message: "Only one usage of each socket address (protocol/network address/port) is normally permitted." }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+PS C:\Users\Sigma>
