@@ -346,9 +346,14 @@ async fn run_relay_session(
 
     // ── Main loop ──────────────────────────────────────────────────────────
     let mut ping_interval    = tokio::time::interval(Duration::from_secs(25));
-    let mut reprobe_interval = tokio::time::interval(Duration::from_secs(30));
+    // Reprobe backs off exponentially: 60s, 120s, 240s … up to 10 min.
+    // After 6 consecutive full-failure cycles we stop probing entirely and
+    // rely on peer_joined events (which the relay sends automatically when
+    // any daemon reconnects).  This avoids flooding the relay queue.
+    let mut reprobe_secs: u64 = 60;
+    let mut reprobe_fail_count: u32 = 0;
+    let mut reprobe_deadline = tokio::time::Instant::now() + Duration::from_secs(reprobe_secs);
     ping_interval.tick().await;    // discard the immediate first tick
-    reprobe_interval.tick().await; // discard the immediate first tick
     let mut last_pong_at = std::time::Instant::now();
 
     let result = loop {
@@ -395,6 +400,13 @@ async fn run_relay_session(
                             last_pong_at = std::time::Instant::now();
                             tracing::trace!("pong received");
                         } else {
+                            // When a daemon comes back online, reset the reprobe backoff
+                            // so we start probing again quickly for any remaining offline daemons.
+                            if matches!(v["type"].as_str(), Some("peer_joined") | Some("peer_online") | Some("peer_connected")) {
+                                reprobe_fail_count = 0;
+                                reprobe_secs = 60;
+                                reprobe_deadline = tokio::time::Instant::now() + Duration::from_secs(10);
+                            }
                             handle_inbound(state, &text, address).await;
                         }
                     }
@@ -415,37 +427,49 @@ async fn run_relay_session(
                 }
             }
 
-            // Periodic re-probe: re-query CRS for freshly registered nodes and
-            // probe any addresses not yet tried.  Only runs while live_cube_peer
-            // is still unconfirmed (i.e., daemon hasn't responded yet or dropped off).
-            _ = reprobe_interval.tick() => {
-                // Always re-probe any known addresses not yet confirmed live.
-                // This handles the case where daemons come online after startup.
+            // Periodic re-probe — exponential backoff, stops after 6 full-failure cycles.
+            // Probe type: mesh_ping (lightweight, not queued by relay like inference_request).
+            // Relies on peer_joined events as the primary discovery mechanism once all
+            // daemons are confirmed offline; probing is just an early-reconnect optimisation.
+            _ = tokio::time::sleep_until(reprobe_deadline) => {
                 let live_count = state.live_cube_peer.read().await.len();
-                if live_count < 3 {
-                    tracing::info!(live = live_count, "Re-probing Array3 addresses for offline daemons");
-                    // Collect the confirmed live set first to avoid holding the lock
+                if live_count >= 3 {
+                    // All daemons live — reset backoff and wait.
+                    reprobe_fail_count = 0;
+                    reprobe_secs = 60;
+                    reprobe_deadline = tokio::time::Instant::now() + Duration::from_secs(reprobe_secs);
+                } else if reprobe_fail_count >= 6 {
+                    // Gave up probing — relay peer_joined will wake us when a daemon connects.
+                    // Check again in 10 min in case peer_joined was missed.
+                    reprobe_deadline = tokio::time::Instant::now() + Duration::from_secs(600);
+                    tracing::debug!("Reprobe suspended — waiting for peer_joined events");
+                } else {
+                    tracing::info!(live = live_count, backoff_secs = reprobe_secs,
+                                   fail_cycle = reprobe_fail_count,
+                                   "Re-probing Array3 addresses for offline daemons");
                     let live_now = state.live_cube_peer.read().await.clone();
+                    let mut any_sent = false;
                     for &known_addr in all_daemon_addresses().iter() {
                         if known_addr != address && !live_now.contains(known_addr) {
-                            let probe_id = uuid::Uuid::new_v4().to_string();
-                            let probe_payload = serde_json::json!({
-                                "requestId": probe_id,
-                                "messages": [{"role": "user", "content": "ping"}],
-                                "maxTokens": 1,
-                                "model": "local",
-                                "temperature": 0,
-                            });
-                            let probe_envelope = serde_json::json!({
+                            // Use mesh_ping — lighter weight, relay does not queue pings for
+                            // offline targets (returns undelivered immediately).
+                            let ping_envelope = serde_json::json!({
                                 "type": "relay",
                                 "to": known_addr,
-                                "msgType": "inference_request",
-                                "payload": probe_payload.to_string(),
+                                "msgType": "mesh_ping",
+                                "payload": serde_json::json!({"nonce": uuid::Uuid::new_v4().to_string()}).to_string(),
                             });
-                            probed.insert(known_addr.to_string());
-                            let _ = sink.send(Message::Text(probe_envelope.to_string().into())).await;
+                            if sink.send(Message::Text(ping_envelope.to_string().into())).await.is_ok() {
+                                any_sent = true;
+                            }
                         }
                     }
+                    if any_sent {
+                        reprobe_fail_count += 1;
+                    }
+                    // Exponential backoff: 60s → 120s → 240s → 480s → 600s cap
+                    reprobe_secs = (reprobe_secs * 2).min(600);
+                    reprobe_deadline = tokio::time::Instant::now() + Duration::from_secs(reprobe_secs);
                 }
             }
 
