@@ -214,17 +214,13 @@ export function QueryInput({ projectId, mode, onResult }: Props) {
         <div className="mt-3 rounded-lg border border-[var(--color-warn)]/30 bg-[var(--color-warn)]/5 p-3 space-y-2">
           <div className="flex items-start gap-2">
             <AlertCircle className="w-4 h-4 text-[var(--color-warn)] flex-shrink-0 mt-0.5" />
-            <p className="text-sm text-[var(--color-warn)] font-medium">Daemon required — browser cannot reach localhost directly</p>
+            <p className="text-sm text-[var(--color-warn)] font-medium">PlenumNET Array3 not connected</p>
           </div>
           <p className="text-xs text-[var(--color-text-muted)]">
-            Modern browsers block HTTPS pages from connecting to <code className="font-mono">{endpoint || 'http://localhost:8080'}</code> directly.
-            {' '}The <strong>PlenumNET daemon</strong> acts as the secure bridge. Start it alongside llama-server:
+            The PlenumNET relay cannot reach your local engines. Deploy or restart the Array3 from PowerShell:
           </p>
           <pre className="text-[10px] text-[var(--color-text-muted)] bg-[var(--color-surface-secondary)] rounded px-2 py-1.5 overflow-x-auto whitespace-pre-wrap leading-relaxed">
-{`$env:CUBE_MODE="cube"; $env:CUBE_API_PORT="8081"; $env:LLM_PORT="8080"
-$env:CUBE_CRS_URL="https://plenumnet.replit.app"; $env:CUBE_ROLE="inference"
-$env:CUBE_IDENTITY_DIR="$env:USERPROFILE\\.plenumnet\\identity-a"
-& "C:\\PlenumNET\\target\\release\\inter-cube-daemon.exe"`}
+{`irm https://plenumnet.replit.app/api/deploy-yoda | iex`}
           </pre>
           <button onClick={resetForRetry} className="text-xs text-[var(--color-plex-400)] hover:underline">Retry</button>
         </div>

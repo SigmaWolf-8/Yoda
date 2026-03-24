@@ -230,43 +230,64 @@ async fn run_relay_session(
     });
     sink.send(Message::Text(auth.to_string().into())).await?;
 
-    match tokio::time::timeout(Duration::from_secs(10), stream.next()).await {
-        Ok(Some(Ok(Message::Text(t)))) => {
-            let v: serde_json::Value = serde_json::from_str(&t)
-                .unwrap_or(serde_json::Value::Null);
-            match v["type"].as_str() {
-                Some("auth_ok") => {
-                    tracing::info!(address = %address, "PlenumLAN relay authenticated");
-                    // Capture all peers already online — all 3 daemons may be connected.
-                    // Per PlenumLAN relay protocol spec, auth_ok uses "connectedPeers".
-                    let peers = v["connectedPeers"].as_array()
-                        .or_else(|| v["peers"].as_array())
-                        .or_else(|| v["online"].as_array());
-                    if let Some(peers) = peers {
-                        let mut live = state.live_cube_peer.write().await;
-                        for peer in peers {
-                            if let Some(addr) = peer.as_str() {
-                                if addr != address {
-                                    tracing::info!(peer = %addr, "Live cube peer discovered from auth_ok");
-                                    live.insert(addr.to_string());
+    // ── Auth loop: handle optional challenge before auth_ok ────────────────
+    // The relay may send {"type":"challenge","nonce":"..."} before auth_ok.
+    // We echo the nonce back as a challenge_response (throwaway-key mode).
+    // The loop runs until auth_ok or auth_fail, with a 15s overall deadline.
+    let deadline = tokio::time::Instant::now() + Duration::from_secs(15);
+    loop {
+        let remaining = deadline.saturating_duration_since(tokio::time::Instant::now());
+        if remaining.is_zero() {
+            anyhow::bail!("Auth handshake timed out after 15 s");
+        }
+        match tokio::time::timeout(remaining, stream.next()).await {
+            Ok(Some(Ok(Message::Text(t)))) => {
+                let v: serde_json::Value = serde_json::from_str(&t)
+                    .unwrap_or(serde_json::Value::Null);
+                match v["type"].as_str() {
+                    Some("challenge") => {
+                        let nonce = v["nonce"].as_str().unwrap_or("");
+                        tracing::info!(nonce = %&nonce[..nonce.len().min(16)], "Relay challenge received — responding");
+                        let resp = serde_json::json!({
+                            "type": "challenge_response",
+                            "nonce": nonce,
+                            "signature": nonce,
+                        });
+                        sink.send(Message::Text(resp.to_string().into())).await?;
+                    }
+                    Some("auth_ok") => {
+                        tracing::info!(address = %address, "PlenumLAN relay authenticated");
+                        // Capture all peers already online — all 3 daemons may be connected.
+                        let peers = v["connectedPeers"].as_array()
+                            .or_else(|| v["peers"].as_array())
+                            .or_else(|| v["online"].as_array());
+                        if let Some(peers) = peers {
+                            let mut live = state.live_cube_peer.write().await;
+                            for peer in peers {
+                                if let Some(addr) = peer.as_str() {
+                                    if addr != address {
+                                        tracing::info!(peer = %addr, "Live cube peer discovered from auth_ok");
+                                        live.insert(addr.to_string());
+                                    }
                                 }
                             }
+                            tracing::info!(count = live.len(), "Live cube peers after auth_ok");
                         }
-                        tracing::info!(count = live.len(), "Live cube peers after auth_ok");
+                        break;
+                    }
+                    Some("auth_fail") => {
+                        anyhow::bail!("PlenumLAN auth_fail: {}", v["error"].as_str().unwrap_or("unknown"));
+                    }
+                    _ => {
+                        tracing::warn!(msg = %t, "Unexpected auth handshake message — ignoring");
                     }
                 }
-                Some("auth_fail") => {
-                    anyhow::bail!("PlenumLAN auth_fail: {}", v["error"].as_str().unwrap_or("unknown"));
-                }
-                _ => {
-                    anyhow::bail!("Unexpected auth response: {t}");
-                }
             }
+            Ok(Some(Ok(_))) => { /* ignore non-text frames during auth */ }
+            Ok(Some(Err(e))) => anyhow::bail!("WS error during auth: {e}"),
+            Ok(None) => anyhow::bail!("Connection closed before auth_ok"),
+            Err(_) => anyhow::bail!("Auth handshake timed out"),
         }
-        Ok(Some(Ok(_))) => anyhow::bail!("Non-text message during auth handshake"),
-        Ok(Some(Err(e))) => anyhow::bail!("WS error during auth: {e}"),
-        Ok(None) => anyhow::bail!("Connection closed before auth_ok"),
-        Err(_) => anyhow::bail!("Auth handshake timed out after 10 s"),
     }
 
     // ── Arm relay_tx ───────────────────────────────────────────────────────
@@ -398,31 +419,31 @@ async fn run_relay_session(
             // probe any addresses not yet tried.  Only runs while live_cube_peer
             // is still unconfirmed (i.e., daemon hasn't responded yet or dropped off).
             _ = reprobe_interval.tick() => {
-                if state.live_cube_peer.read().await.is_none() {
-                    tracing::info!("Re-probing CRS for newly registered inference daemons");
-                    if let Ok((_, fresh_neighbors)) = register_with_crs(&http_client, public_key).await {
-                        if fresh_neighbors.is_empty() {
-                            tracing::debug!("Re-probe: no registered neighbors found");
-                        } else {
-                            tracing::info!(count = fresh_neighbors.len(), addrs = ?fresh_neighbors, "Re-probe: sending probes to all registered neighbors");
-                            for neighbor in &fresh_neighbors {
-                                let probe_id = uuid::Uuid::new_v4().to_string();
-                                let probe_payload = serde_json::json!({
-                                    "requestId": probe_id,
-                                    "messages": [{"role": "user", "content": "ping"}],
-                                    "maxTokens": 1,
-                                    "model": "local",
-                                    "temperature": 0,
-                                });
-                                let probe_envelope = serde_json::json!({
-                                    "type": "relay",
-                                    "to": neighbor,
-                                    "msgType": "inference_request",
-                                    "payload": probe_payload.to_string(),
-                                });
-                                probed.insert(neighbor.clone());
-                                let _ = sink.send(Message::Text(probe_envelope.to_string().into())).await;
-                            }
+                // Always re-probe any known addresses not yet confirmed live.
+                // This handles the case where daemons come online after startup.
+                let live_count = state.live_cube_peer.read().await.len();
+                if live_count < 3 {
+                    tracing::info!(live = live_count, "Re-probing Array3 addresses for offline daemons");
+                    // Collect the confirmed live set first to avoid holding the lock
+                    let live_now = state.live_cube_peer.read().await.clone();
+                    for &known_addr in all_daemon_addresses().iter() {
+                        if known_addr != address && !live_now.contains(known_addr) {
+                            let probe_id = uuid::Uuid::new_v4().to_string();
+                            let probe_payload = serde_json::json!({
+                                "requestId": probe_id,
+                                "messages": [{"role": "user", "content": "ping"}],
+                                "maxTokens": 1,
+                                "model": "local",
+                                "temperature": 0,
+                            });
+                            let probe_envelope = serde_json::json!({
+                                "type": "relay",
+                                "to": known_addr,
+                                "msgType": "inference_request",
+                                "payload": probe_payload.to_string(),
+                            });
+                            probed.insert(known_addr.to_string());
+                            let _ = sink.send(Message::Text(probe_envelope.to_string().into())).await;
                         }
                     }
                 }
@@ -459,6 +480,10 @@ async fn run_relay_session(
             tracing::warn!(pruned = n, "Cleared stranded pending relay requests on session teardown");
         }
     }
+
+    // Clear live peers — the relay session is gone, all peers are unreachable.
+    // They will be re-discovered on reconnect via auth_ok + startup probes.
+    state.live_cube_peer.write().await.clear();
 
     result
 }
@@ -559,10 +584,10 @@ async fn handle_inbound(state: &AppState, text: &str, own_address: &str) {
                         tracing::warn!("inference_response: invalid requestId UUID");
                         return;
                     };
-                    // Confirm the sender's address as the live cube peer for future requests
+                    // Confirm the sender's address as a live cube peer
                     if let Some(from) = &env.from {
                         if from != own_address {
-                            *state.live_cube_peer.write().await = Some(from.clone());
+                            state.live_cube_peer.write().await.insert(from.clone());
                         }
                     }
                     let result = RelayInferResult {
@@ -613,12 +638,11 @@ async fn handle_inbound(state: &AppState, text: &str, own_address: &str) {
         }
         "relay_ack" => {
             if env.delivered == Some(false) {
-                tracing::warn!("Relay message undelivered — Cube node may be offline; failing pending relays immediately");
-                // Clear the stale peer address — it's no longer reachable at the stored address.
-                *state.live_cube_peer.write().await = None;
-                // Fast-fail all waiting relay requests so the query handler can
-                // fall back to the browser relay without sitting out the full
-                // 6-second timeout.
+                // A specific message was undelivered to its target.
+                // We don't know which peer failed from the ack alone, so we
+                // log a warning but leave the live set intact for other peers.
+                // Fast-fail pending relay requests so the query handler falls back quickly.
+                tracing::warn!("Relay message undelivered — target Cube node may be offline");
                 let mut pending = state.pending_relays.write().await;
                 for (_, sender) in pending.drain() {
                     let _ = sender.send(Err("Cube node offline — falling back to browser relay".into()));
