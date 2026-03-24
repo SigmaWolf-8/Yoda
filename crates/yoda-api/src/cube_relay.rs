@@ -15,7 +15,7 @@
 use futures_util::{SinkExt, StreamExt};
 use rand::RngCore;
 use serde::Deserialize;
-use std::{collections::HashMap, sync::Arc, time::Duration};
+use std::{collections::{HashMap, HashSet}, sync::Arc, time::Duration};
 use tokio::sync::{mpsc, oneshot, RwLock};
 use tokio_tungstenite::{connect_async, tungstenite::Message};
 use uuid::Uuid;
@@ -51,9 +51,10 @@ pub type RelayTx = Arc<RwLock<Option<mpsc::Sender<RelayInferRequest>>>>;
 /// The inner Result carries Ok(result) on success or Err(message) on inference_error.
 pub type PendingRelays = Arc<RwLock<HashMap<Uuid, oneshot::Sender<Result<RelayInferResult, String>>>>>;
 
-/// The ternary address of the most recently seen inference cube peer.
-/// Updated from auth_ok peer list and peer_joined messages; cleared on undelivered ack.
-pub type LiveCubePeer = Arc<RwLock<Option<String>>>;
+/// The set of ternary addresses of live inference cube peers currently connected
+/// to the relay.  Updated from auth_ok, peer_joined/left, and peer_list messages.
+/// Stores all three daemons when all are online.
+pub type LiveCubePeer = Arc<RwLock<HashSet<String>>>;
 
 pub fn new_relay_tx() -> RelayTx {
     Arc::new(RwLock::new(None))
@@ -64,22 +65,32 @@ pub fn new_pending_relays() -> PendingRelays {
 }
 
 pub fn new_live_cube_peer() -> LiveCubePeer {
-    Arc::new(RwLock::new(None))
+    Arc::new(RwLock::new(HashSet::new()))
 }
 
 // ── Address mapping (slot → cube ternary address) ─────────────────────────
 //
-// Multi-agent table (from PlenumLAN Relay Protocol Reference):
-//   Agent 0 (Engine A, ports 8080/8081) → 1111111111112
-//   Agent 1 (Engine B, ports 8082/8083) → 1111111111113
-//   Agent 2 (Engine C, ports 8084/8085) → 1111111111121
+// Array3 address table (from PlenumNET Invariants & Handoff doc Section 3b):
+//   Agent A (CRS coordinator, ports 8080/8081) → 1111111111111
+//   Agent B (Worker,          ports 8082/8083) → 2111111111111
+//   Agent C (Worker,          ports 8084/8085) → 3111111111111
+//
+// These are the deterministic addresses derived from each daemon's PT26-DSA
+// identity.  Do NOT change them — port assignments and addresses are fixed.
 
 pub fn slot_to_cube_address(slot: &str) -> &'static str {
     match slot {
-        "b" => "1111111111113",
-        "c" => "1111111111121",
-        _   => "1111111111112",
+        "b" => "2111111111111",
+        "c" => "3111111111111",
+        _   => "1111111111111",
     }
+}
+
+/// All three Array3 daemon addresses, ordered A/B/C.
+/// Used for startup probing so all daemons are discovered even if CRS
+/// registration returns no neighbors.
+fn all_daemon_addresses() -> [&'static str; 3] {
+    ["1111111111111", "2111111111111", "3111111111111"]
 }
 
 // ── Constants ─────────────────────────────────────────────────────────────
@@ -226,21 +237,22 @@ async fn run_relay_session(
             match v["type"].as_str() {
                 Some("auth_ok") => {
                     tracing::info!(address = %address, "PlenumLAN relay authenticated");
-                    // Capture any peers already online — the daemon may already be connected.
+                    // Capture all peers already online — all 3 daemons may be connected.
                     // Per PlenumLAN relay protocol spec, auth_ok uses "connectedPeers".
                     let peers = v["connectedPeers"].as_array()
                         .or_else(|| v["peers"].as_array())
                         .or_else(|| v["online"].as_array());
                     if let Some(peers) = peers {
+                        let mut live = state.live_cube_peer.write().await;
                         for peer in peers {
                             if let Some(addr) = peer.as_str() {
                                 if addr != address {
                                     tracing::info!(peer = %addr, "Live cube peer discovered from auth_ok");
-                                    *state.live_cube_peer.write().await = Some(addr.to_string());
-                                    break;
+                                    live.insert(addr.to_string());
                                 }
                             }
                         }
+                        tracing::info!(count = live.len(), "Live cube peers after auth_ok");
                     }
                 }
                 Some("auth_fail") => {
@@ -262,14 +274,30 @@ async fn run_relay_session(
     *state.relay_tx.write().await = Some(req_tx);
     tracing::info!("PlenumLAN relay armed — inference requests will route through CRS");
 
-    // ── Probe registered neighbors to discover the daemon ──────────────────
-    // The relay sends no peer-join notifications, so we probe each registered
-    // neighbor with a tiny inference request.  The daemon responds and its
-    // `from` address is captured by the inference_response handler below,
-    // populating live_cube_peer automatically.
-    if !neighbors.is_empty() {
-        tracing::info!(count = neighbors.len(), "Probing registered neighbors to discover inference daemon");
+    // ── Probe all known Array3 daemon addresses to discover live peers ────────
+    // The relay may not send peer-join notifications, so we send a minimal
+    // inference probe to each known daemon address.  When the daemon is online
+    // it responds with inference_response; the `from` field is captured by
+    // handle_inbound and inserted into live_cube_peer.
+    {
+        let mut probed_now: Vec<&str> = Vec::new();
+        // First: probe the CRS-registered neighbors (may include YODA itself)
         for neighbor in &neighbors {
+            if neighbor != address {
+                probed_now.push(neighbor.as_str());
+            }
+        }
+        // Second: always probe all three known Array3 addresses regardless of
+        // CRS response, so we don't miss any daemon that is online but whose
+        // registration hasn't appeared in the CRS neighbor list yet.
+        for &known_addr in all_daemon_addresses().iter() {
+            if known_addr != address && !probed_now.contains(&known_addr) {
+                probed_now.push(known_addr);
+            }
+        }
+
+        tracing::info!(count = probed_now.len(), addresses = ?probed_now, "Probing Array3 daemon addresses");
+        for target in &probed_now {
             let probe_id = uuid::Uuid::new_v4().to_string();
             let probe_payload = serde_json::json!({
                 "requestId": probe_id,
@@ -280,19 +308,20 @@ async fn run_relay_session(
             });
             let probe_envelope = serde_json::json!({
                 "type": "relay",
-                "to": neighbor,
+                "to": target,
                 "msgType": "inference_request",
                 "payload": probe_payload.to_string(),
             });
-            tracing::debug!(to = %neighbor, probe_id = %probe_id, "Sending probe to neighbor");
-            // Ignore send errors — the session loop will catch WS failures.
+            tracing::debug!(to = %target, probe_id = %probe_id, "Sending startup probe");
             let _ = sink.send(Message::Text(probe_envelope.to_string().into())).await;
         }
     }
 
-    // Track addresses already probed so we only send new probes when we
-    // re-query the CRS and find freshly registered nodes.
-    let mut probed: std::collections::HashSet<String> = neighbors.iter().cloned().collect();
+    // Track probed addresses for the re-probe interval logic.
+    let mut probed: HashSet<String> = neighbors.iter().cloned().collect();
+    for &a in all_daemon_addresses().iter() {
+        probed.insert(a.to_string());
+    }
 
     // ── Main loop ──────────────────────────────────────────────────────────
     let mut ping_interval    = tokio::time::interval(Duration::from_secs(25));
@@ -474,17 +503,16 @@ async fn handle_inbound(state: &AppState, text: &str, own_address: &str) {
     };
 
     match env.kind.as_str() {
-        // Peer joined/left notifications — update live_cube_peer
+        // Peer joined/left notifications — update live_cube_peer set
         "peer_joined" | "peer_online" | "peer_connected" => {
-            // Relay may put the address in "address", "from", or "peer" field
             let v: serde_json::Value = serde_json::from_str(text).unwrap_or_default();
             let addr = v["address"].as_str()
                 .or_else(|| v["peer"].as_str())
                 .or_else(|| env.from.as_deref());
             if let Some(addr) = addr {
                 if addr != own_address {
-                    tracing::info!(peer = %addr, "Live cube peer joined — updating relay target");
-                    *state.live_cube_peer.write().await = Some(addr.to_string());
+                    tracing::info!(peer = %addr, "Live cube peer joined relay");
+                    state.live_cube_peer.write().await.insert(addr.to_string());
                 }
             }
         }
@@ -494,10 +522,9 @@ async fn handle_inbound(state: &AppState, text: &str, own_address: &str) {
                 .or_else(|| v["peer"].as_str())
                 .or_else(|| env.from.as_deref());
             if let Some(addr) = addr {
-                let mut peer = state.live_cube_peer.write().await;
-                if peer.as_deref() == Some(addr) {
-                    tracing::info!(peer = %addr, "Live cube peer left — clearing relay target");
-                    *peer = None;
+                let removed = state.live_cube_peer.write().await.remove(addr);
+                if removed {
+                    tracing::info!(peer = %addr, "Live cube peer left relay");
                 }
             }
         }
@@ -508,15 +535,15 @@ async fn handle_inbound(state: &AppState, text: &str, own_address: &str) {
                 .or_else(|| v["addresses"].as_array())
                 .or_else(|| v["online"].as_array());
             if let Some(list) = list {
+                let mut live = state.live_cube_peer.write().await;
                 for peer in list {
                     if let Some(addr) = peer.as_str() {
                         if addr != own_address {
-                            tracing::info!(peer = %addr, "Live cube peer discovered from peer_list — updating relay target");
-                            *state.live_cube_peer.write().await = Some(addr.to_string());
-                            break;
+                            live.insert(addr.to_string());
                         }
                     }
                 }
+                tracing::info!(count = live.len(), "Live cube peers updated from peer_list");
             }
         }
         "relay" => {
