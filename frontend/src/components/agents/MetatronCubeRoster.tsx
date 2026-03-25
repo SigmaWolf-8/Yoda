@@ -85,6 +85,8 @@ export function MetatronCubeRoster({
   const hoveredDivRef   = useRef<AgentDivision | null>(null);
   /* hoverProgress: 0 = idle, 1 = fully bloomed. Lerped in RAF, read during render. */
   const hoverProgressRef = useRef(0);
+  /* Which row in the hover panel is currently moused-over (for highlight) */
+  const hoveredRowIdxRef = useRef<number | null>(null);
 
   const dark = useMemo(() => {
     if (typeof window === 'undefined') return true;
@@ -510,22 +512,42 @@ export function MetatronCubeRoster({
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
               {hoverAgents.map((ag, i) => {
                 /* Each item has its own staggered progress, faster snap-in */
-                const itemHp = Math.min(1, Math.max(0, (hp - i * 0.13) * 2.0));
+                const itemHp    = Math.min(1, Math.max(0, (hp - i * 0.13) * 2.0));
                 /* Horizontal distance from panel centre to node */
-                const panelCX = panelOnLeft ? 110 : w - 110;
-                const xDist   = (hoveredPos?.x ?? cx) - panelCX;
-                const xOff    = ((1 - itemHp) * xDist).toFixed(1);
+                const panelCX   = panelOnLeft ? 110 : w - 110;
+                const xDist     = (hoveredPos?.x ?? cx) - panelCX;
+                const xOff      = ((1 - itemHp) * xDist).toFixed(1);
+                const isRowHov  = hoveredRowIdxRef.current === i;
                 return (
-                  <div key={ag.agent_id ?? i} style={{
-                    display: 'flex', flexDirection: 'column', gap: '2px',
-                    opacity: itemHp,
-                    transform: `translateX(${xOff}px)`,
-                  }}>
+                  <div
+                    key={ag.agent_id ?? i}
+                    onMouseEnter={() => { hoveredRowIdxRef.current = i; }}
+                    onMouseLeave={() => { hoveredRowIdxRef.current = null; }}
+                    onClick={() => {
+                      if (hoveredDivision && itemHp > 0.5) {
+                        onSelectDivision(hoveredDivision);
+                        onSelectAgent(i);
+                      }
+                    }}
+                    style={{
+                      display: 'flex', flexDirection: 'column', gap: '2px',
+                      opacity: itemHp,
+                      transform: `translateX(${xOff}px)`,
+                      pointerEvents: hp > 0.4 ? 'auto' : 'none',
+                      cursor: 'pointer',
+                      padding: '5px 8px',
+                      margin: '-5px -8px',
+                      borderRadius: '6px',
+                      background: isRowHov ? 'rgba(255,255,255,0.06)' : 'transparent',
+                      boxShadow: isRowHov ? `0 0 12px ${hoveredRingCol}22` : 'none',
+                    }}
+                  >
                     <span style={{
                       fontFamily: "'Inter', system-ui, sans-serif",
                       fontSize: '13px', fontWeight: 700,
                       letterSpacing: '0.08em', textTransform: 'uppercase',
-                      color: 'var(--color-text-primary)', lineHeight: 1.2,
+                      color: isRowHov ? hoveredRingCol : 'var(--color-text-primary)',
+                      lineHeight: 1.2,
                     }}>{ag.display_name}</span>
                     {ag.primary_role && (
                       <span style={{
