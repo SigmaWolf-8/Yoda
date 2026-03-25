@@ -187,7 +187,8 @@ export function MetatronCubeRoster({
   }, [allPositions, selectedDivision, divAgents]);
 
   /* Division click handler */
-  const handleDivClick = (divId: AgentDivision) => {
+  const handleDivClick = (e: React.MouseEvent, divId: AgentDivision) => {
+    e.stopPropagation();
     if (selectedDivision === divId) {
       onSelectDivision(null);
       onSelectAgent(null);
@@ -373,6 +374,7 @@ export function MetatronCubeRoster({
       <svg
         viewBox={`0 0 ${w} ${h}`}
         style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }}
+        onClick={() => { onSelectDivision(null); onSelectAgent(null); }}
       >
         {/* Main division hit-areas */}
         {positions.map(p => (
@@ -382,7 +384,7 @@ export function MetatronCubeRoster({
             r={NODE_RADIUS[p.ring] + 14}
             fill="transparent"
             style={{ cursor: 'pointer' }}
-            onClick={() => handleDivClick(p.div.id)}
+            onClick={(e) => handleDivClick(e, p.div.id)}
           />
         ))}
 
@@ -394,7 +396,7 @@ export function MetatronCubeRoster({
             r={NODE_RADIUS['satellite'] + 12}
             fill="transparent"
             style={{ cursor: 'pointer' }}
-            onClick={() => handleDivClick(s.div.id)}
+            onClick={(e) => handleDivClick(e, s.div.id)}
           />
         ))}
 
