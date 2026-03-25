@@ -114,10 +114,10 @@ export function MetatronCubeRoster({
     const tick = () => {
       if (!on) return;
       setPhase(p => (p + 0.003) % (Math.PI * 2));
-      /* Smooth lerp: bloom in fast (~18 frames), decay out slower (~35 frames) */
+      /* Smooth lerp: bloom in slowly (~55 frames ≈ 0.9s), decay out even slower */
       const target = hoveredDivRef.current ? 1 : 0;
       const cur    = hoverProgressRef.current;
-      const speed  = target > cur ? 0.055 : 0.028;
+      const speed  = target > cur ? 0.018 : 0.011;
       hoverProgressRef.current = cur + (target - cur) * speed;
       rafRef.current = requestAnimationFrame(tick);
     };
@@ -327,14 +327,6 @@ export function MetatronCubeRoster({
       }
       parts.push(`<circle cx="${p.x}" cy="${p.y}" r="${displayR}" fill="${col}" opacity="${op * (isSel || isHov ? 1 : 0.75)}" pointer-events="none"/>`);
 
-      const ly    = isDepth ? p.y - displayR - 10 : p.y + displayR + 15;
-      const lblOp = dimmed ? 0.15 : 0.85;
-      parts.push(`<text x="${p.x}" y="${ly}" text-anchor="middle" fill="${P.fgSoft}" font-size="13" font-family="'JetBrains Mono', monospace" font-weight="500" opacity="${lblOp}" pointer-events="none">${p.div.label}</text>`);
-
-      if (!dimmed && !isDepth) {
-        parts.push(`<text x="${p.x}" y="${ly + 14}" text-anchor="middle" fill="${P.fgMuted}" font-size="11" font-family="'JetBrains Mono', monospace" opacity="0.6" pointer-events="none">${count} agent${count !== 1 ? 's' : ''}</text>`);
-      }
-
       /* Agent spray — selected (opaque) */
       if (isSel && divAgents.length > 0) {
         const n    = divAgents.length;
@@ -391,13 +383,6 @@ export function MetatronCubeRoster({
         parts.push(`<circle cx="${s.x}" cy="${s.y}" r="${dr+4}" fill="none" stroke="${col}" stroke-width="0.9" opacity="${(0.4 * hp).toFixed(3)}" pointer-events="none"/>`);
       }
       parts.push(`<circle cx="${s.x}" cy="${s.y}" r="${dr}" fill="${col}" opacity="${op * (isSel || isHov ? 1 : 0.72)}" pointer-events="none"/>`);
-
-      const ly    = s.y + dr + 13;
-      const lblOp = dimmed ? 0.1 : 0.8;
-      parts.push(`<text x="${s.x}" y="${ly}" text-anchor="middle" fill="${P.satellite}" font-size="11" font-family="'JetBrains Mono', monospace" font-weight="500" opacity="${lblOp}" pointer-events="none">${s.div.label}</text>`);
-      if (!dimmed) {
-        parts.push(`<text x="${s.x}" y="${ly + 13}" text-anchor="middle" fill="${P.fgMuted}" font-size="10" font-family="'JetBrains Mono', monospace" opacity="0.55" pointer-events="none">${count} agent${count !== 1 ? 's' : ''}</text>`);
-      }
 
       /* Agent spray — selected */
       if (isSel && divAgents.length > 0) {
@@ -458,6 +443,9 @@ export function MetatronCubeRoster({
       divAgents, hoverAgents, selectedDivision, selectedAgentIdx, hoveredDivision, hp]);
 
   /* ── Render ── */
+  const leftNodes  = allPositions.filter(p => p.x <= cx);
+  const rightNodes = allPositions.filter(p => p.x > cx);
+
   return (
     <div ref={containerRef} style={{ position: 'relative', width: '100%', height: '100%', minHeight: 400 }}>
 
@@ -467,6 +455,74 @@ export function MetatronCubeRoster({
         style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none' }}
         dangerouslySetInnerHTML={{ __html: svgContent }}
       />
+
+      {/* ── Left label panel ── */}
+      <div style={{
+        position: 'absolute', left: 0, top: 0, bottom: 0,
+        display: 'flex', flexDirection: 'column', justifyContent: 'center',
+        gap: '10px', padding: '0 10px 0 14px', width: '138px',
+        pointerEvents: 'none', zIndex: 5,
+      }}>
+        {leftNodes.map(p => {
+          const isHov  = hoveredDivision === p.div.id;
+          const isSel  = selectedDivision === p.div.id;
+          const dimmed = !!selectedDivision && !isSel;
+          const ringCol = P[RING_COLOR_KEY[p.ring]];
+          return (
+            <div key={p.div.id} style={{
+              display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '1px',
+              opacity:   dimmed ? 0.15 : isHov || isSel ? 1 : 0.45,
+              transform: isHov || isSel ? 'translateX(6px)' : 'translateX(0)',
+              transition: 'opacity 0.7s ease, transform 0.7s ease',
+            }}>
+              <span style={{
+                fontSize: '12px', fontFamily: "'JetBrains Mono', monospace",
+                fontWeight: isSel ? 600 : 400, letterSpacing: '0.2px', lineHeight: 1.3,
+                color: isHov || isSel ? ringCol : P.fgSoft,
+                transition: 'color 0.5s ease',
+              }}>{p.div.label}</span>
+              <span style={{
+                fontSize: '10px', fontFamily: "'JetBrains Mono', monospace",
+                color: P.fgMuted, lineHeight: 1.2,
+              }}>{divCounts[p.div.id] || 0} agents</span>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* ── Right label panel ── */}
+      <div style={{
+        position: 'absolute', right: 0, top: 0, bottom: 0,
+        display: 'flex', flexDirection: 'column', justifyContent: 'center',
+        gap: '10px', padding: '0 14px 0 10px', width: '138px',
+        pointerEvents: 'none', zIndex: 5,
+      }}>
+        {rightNodes.map(p => {
+          const isHov  = hoveredDivision === p.div.id;
+          const isSel  = selectedDivision === p.div.id;
+          const dimmed = !!selectedDivision && !isSel;
+          const ringCol = P[RING_COLOR_KEY[p.ring]];
+          return (
+            <div key={p.div.id} style={{
+              display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '1px',
+              opacity:   dimmed ? 0.15 : isHov || isSel ? 1 : 0.45,
+              transform: isHov || isSel ? 'translateX(-6px)' : 'translateX(0)',
+              transition: 'opacity 0.7s ease, transform 0.7s ease',
+            }}>
+              <span style={{
+                fontSize: '12px', fontFamily: "'JetBrains Mono', monospace",
+                fontWeight: isSel ? 600 : 400, letterSpacing: '0.2px', lineHeight: 1.3,
+                color: isHov || isSel ? ringCol : P.fgSoft,
+                transition: 'color 0.5s ease',
+              }}>{p.div.label}</span>
+              <span style={{
+                fontSize: '10px', fontFamily: "'JetBrains Mono', monospace",
+                color: P.fgMuted, lineHeight: 1.2,
+              }}>{divCounts[p.div.id] || 0} agents</span>
+            </div>
+          );
+        })}
+      </div>
 
       {/* Click + hover target overlay */}
       <svg
