@@ -45,18 +45,18 @@ const NODE_RADIUS: Record<CubeRing, number> = {
   satellite: 5,
 };
 
-/* ── Edge config ── */
+/* ── Edge config — boosted for visibility, pulse applied per-frame ── */
 function edgeStyles(eA: number) {
   return {
-    f:  `hsla(210, 80%, 55%, ${(0.22 * eA).toFixed(3)})`,
-    i:  `hsla(210, 80%, 55%, ${(0.12 * eA).toFixed(3)})`,
-    is: `hsla(210, 70%, 55%, ${(0.06 * eA).toFixed(3)})`,
-    io: `hsla(210, 60%, 55%, ${(0.03 * eA).toFixed(3)})`,
-    o:  `hsla(270, 50%, 60%, ${(0.10 * eA).toFixed(3)})`,
-    os: `hsla(270, 50%, 60%, ${(0.05 * eA).toFixed(3)})`,
-    c:  `hsla(340, 55%, 55%, ${(0.07 * eA).toFixed(3)})`,
-    d:  `hsla(210, 60%, 60%, ${(0.06 * eA).toFixed(3)})`,
-    s:  `hsla(180, 55%, 60%, ${(0.30 * eA).toFixed(3)})`,
+    f:  `hsla(210, 80%, 65%, ${(0.72 * eA).toFixed(3)})`,   // central → inner
+    i:  `hsla(210, 80%, 65%, ${(0.52 * eA).toFixed(3)})`,   // inner ring adjacent
+    is: `hsla(210, 70%, 65%, ${(0.28 * eA).toFixed(3)})`,   // inner ring skip-1
+    io: `hsla(210, 60%, 65%, ${(0.16 * eA).toFixed(3)})`,   // inner ring diameter
+    o:  `hsla(270, 60%, 70%, ${(0.48 * eA).toFixed(3)})`,   // outer ring adjacent
+    os: `hsla(270, 55%, 70%, ${(0.24 * eA).toFixed(3)})`,   // outer ring skip
+    c:  `hsla(340, 65%, 65%, ${(0.32 * eA).toFixed(3)})`,   // cross inner→outer
+    d:  `hsla(210, 65%, 65%, ${(0.28 * eA).toFixed(3)})`,   // depth → inner
+    s:  `hsla(180, 65%, 65%, ${(0.62 * eA).toFixed(3)})`,   // satellite tethers
   };
 }
 
@@ -255,30 +255,47 @@ export function MetatronCubeRoster({
   const out = positions.slice(1 + nI, 1 + nI + nO);
   const dep = positions[1 + nI + nO];
 
+  /* Pulse: slow breath between 65 % and 100 % opacity — two overlapping waves */
+  const edgePulse = (0.65 + 0.20 * Math.sin(phase * 1.2) + 0.15 * Math.sin(phase * 0.7)).toFixed(3);
+
   const buildEdges = () => {
-    const lines: string[] = [];
-    inn.forEach(n => lines.push(`<line x1="${cen.x}" y1="${cen.y}" x2="${n.x}" y2="${n.y}" stroke="${EC.f}" stroke-width="0.9"/>`));
+    const inner: string[] = [];
+    const outer: string[] = [];
+    const cross: string[] = [];
+    const depth: string[] = [];
+    const teth:  string[] = [];
+
+    /* Central → inner */
+    inn.forEach(n => inner.push(`<line x1="${cen.x}" y1="${cen.y}" x2="${n.x}" y2="${n.y}" stroke="${EC.f}" stroke-width="1.6"/>`));
+    /* Inner ring */
     for (let i = 0; i < nI; i++) {
-      lines.push(`<line x1="${inn[i].x}" y1="${inn[i].y}" x2="${inn[(i+1)%nI].x}" y2="${inn[(i+1)%nI].y}" stroke="${EC.i}" stroke-width="0.5"/>`);
-      lines.push(`<line x1="${inn[i].x}" y1="${inn[i].y}" x2="${inn[(i+2)%nI].x}" y2="${inn[(i+2)%nI].y}" stroke="${EC.is}" stroke-width="0.4"/>`);
-      lines.push(`<line x1="${inn[i].x}" y1="${inn[i].y}" x2="${inn[(i+Math.floor(nI/2))%nI].x}" y2="${inn[(i+Math.floor(nI/2))%nI].y}" stroke="${EC.io}" stroke-width="0.3"/>`);
+      inner.push(`<line x1="${inn[i].x}" y1="${inn[i].y}" x2="${inn[(i+1)%nI].x}" y2="${inn[(i+1)%nI].y}" stroke="${EC.i}" stroke-width="1.1"/>`);
+      inner.push(`<line x1="${inn[i].x}" y1="${inn[i].y}" x2="${inn[(i+2)%nI].x}" y2="${inn[(i+2)%nI].y}" stroke="${EC.is}" stroke-width="0.7"/>`);
+      inner.push(`<line x1="${inn[i].x}" y1="${inn[i].y}" x2="${inn[(i+Math.floor(nI/2))%nI].x}" y2="${inn[(i+Math.floor(nI/2))%nI].y}" stroke="${EC.io}" stroke-width="0.5"/>`);
     }
+    /* Outer ring */
     for (let i = 0; i < nO; i++) {
-      lines.push(`<line x1="${out[i].x}" y1="${out[i].y}" x2="${out[(i+1)%nO].x}" y2="${out[(i+1)%nO].y}" stroke="${EC.o}" stroke-width="0.5"/>`);
-      lines.push(`<line x1="${out[i].x}" y1="${out[i].y}" x2="${out[(i+2)%nO].x}" y2="${out[(i+2)%nO].y}" stroke="${EC.os}" stroke-width="0.3"/>`);
+      outer.push(`<line x1="${out[i].x}" y1="${out[i].y}" x2="${out[(i+1)%nO].x}" y2="${out[(i+1)%nO].y}" stroke="${EC.o}" stroke-width="1.1"/>`);
+      outer.push(`<line x1="${out[i].x}" y1="${out[i].y}" x2="${out[(i+2)%nO].x}" y2="${out[(i+2)%nO].y}" stroke="${EC.os}" stroke-width="0.6"/>`);
     }
+    /* Cross: inner → outer */
     for (let i = 0; i < nO; i++) {
-      lines.push(`<line x1="${inn[i % nI].x}" y1="${inn[i % nI].y}" x2="${out[i].x}" y2="${out[i].y}" stroke="${EC.c}" stroke-width="0.4"/>`);
-      lines.push(`<line x1="${inn[(i+1) % nI].x}" y1="${inn[(i+1) % nI].y}" x2="${out[i].x}" y2="${out[i].y}" stroke="${EC.c}" stroke-width="0.4"/>`);
+      cross.push(`<line x1="${inn[i % nI].x}" y1="${inn[i % nI].y}" x2="${out[i].x}" y2="${out[i].y}" stroke="${EC.c}" stroke-width="0.9"/>`);
+      cross.push(`<line x1="${inn[(i+1) % nI].x}" y1="${inn[(i+1) % nI].y}" x2="${out[i].x}" y2="${out[i].y}" stroke="${EC.c}" stroke-width="0.9"/>`);
     }
-    inn.forEach(n => lines.push(`<line x1="${dep.x}" y1="${dep.y}" x2="${n.x}" y2="${n.y}" stroke="${EC.d}" stroke-width="0.4"/>`));
+    /* Depth → inner */
+    inn.forEach(n => depth.push(`<line x1="${dep.x}" y1="${dep.y}" x2="${n.x}" y2="${n.y}" stroke="${EC.d}" stroke-width="0.8"/>`));
+    /* Satellite tethers — pulse independently at slightly different phase */
+    const tethPulse = (0.5 + 0.35 * Math.sin(phase * 1.5 + 0.9)).toFixed(3);
     subNodes.forEach(s => {
       const parent = positions.find(p => p.div.id === s.parentId);
       if (!parent) return;
       const dimmed = selectedDivision && selectedDivision !== s.div.id && selectedDivision !== s.parentId;
-      lines.push(`<line x1="${parent.x}" y1="${parent.y}" x2="${s.x}" y2="${s.y}" stroke="${EC.s}" stroke-width="0.7" stroke-dasharray="3 2" opacity="${dimmed ? '0.08' : '0.35'}" pointer-events="none"/>`);
+      teth.push(`<line x1="${parent.x}" y1="${parent.y}" x2="${s.x}" y2="${s.y}" stroke="${EC.s}" stroke-width="1.3" stroke-dasharray="3 2" opacity="${dimmed ? '0.08' : tethPulse}" pointer-events="none"/>`);
     });
-    return lines.join('');
+
+    /* Wrap structural lines in a single pulsing group */
+    return `<g opacity="${edgePulse}">${[...inner, ...outer, ...cross, ...depth].join('')}</g>${teth.join('')}`;
   };
 
   const buildNodes = () => {
