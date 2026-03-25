@@ -42,7 +42,7 @@ const NODE_RADIUS: Record<CubeRing, number> = {
   inner:     8,
   outer:     7,
   depth:     9,
-  satellite: 5,
+  satellite: 10,
 };
 
 /* ── Edge config ── */

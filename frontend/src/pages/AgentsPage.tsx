@@ -188,7 +188,7 @@ export function AgentsPage() {
         <>
           {/* ── Desktop: Cube + Detail panel ── */}
           <div className="hidden lg:flex flex-1 min-h-0 overflow-hidden">
-            <div className="flex-[2] min-w-0">
+            <div className="flex-1 min-w-0">
               <MetatronCubeRoster
                 agents={agents}
                 selectedDivision={selectedDivision}
@@ -197,7 +197,7 @@ export function AgentsPage() {
                 onSelectAgent={setSelectedAgentIdx}
               />
             </div>
-            <div className="flex-1 max-w-[400px] border-l border-[var(--color-border-subtle)] bg-[var(--color-surface-secondary)]">
+            <div className="flex-[2] border-l border-[var(--color-border-subtle)] bg-[var(--color-surface-secondary)]">
               {selectedDivision ? (
                 <AgentDetailPanel
                   agents={agents}
