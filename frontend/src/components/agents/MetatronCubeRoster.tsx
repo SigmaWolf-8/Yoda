@@ -333,7 +333,7 @@ export function MetatronCubeRoster({
       const lblSize = isHov ? Math.round(18 + 24 * hp) : 18;
       const cntSize = isHov ? Math.round(13 + 8  * hp) : 13;
       const cntGap  = isHov ? Math.round(20 + 18 * hp) : 20;
-      parts.push(`<text x="${p.x}" y="${ly}" text-anchor="middle" fill="${lblCol}" font-size="${lblSize}" font-family="'Orbitron', sans-serif" font-weight="700" letter-spacing="0.08em" opacity="${lblOp}" pointer-events="none">${p.div.label}</text>`);
+      parts.push(`<text x="${p.x}" y="${ly}" text-anchor="middle" fill="${lblCol}" font-size="${lblSize}" font-family="'JetBrains Mono', monospace" font-weight="500" opacity="${lblOp}" pointer-events="none">${p.div.label}</text>`);
       if (!dimmed && !isDepth) {
         parts.push(`<text x="${p.x}" y="${ly + cntGap}" text-anchor="middle" fill="${P.fgMuted}" font-size="${cntSize}" font-family="'JetBrains Mono', monospace" opacity="${isHov ? 0.85 : 0.6}" pointer-events="none">${count} agent${count !== 1 ? 's' : ''}</text>`);
       }
@@ -399,7 +399,7 @@ export function MetatronCubeRoster({
       const sLblSize = isHov ? Math.round(15 + 21 * hp) : 15;
       const sCntSize = isHov ? Math.round(12 + 7  * hp) : 12;
       const sCntGap  = isHov ? Math.round(17 + 16 * hp) : 17;
-      parts.push(`<text x="${s.x}" y="${ly}" text-anchor="middle" fill="${isHov ? col : P.satellite}" font-size="${sLblSize}" font-family="'Orbitron', sans-serif" font-weight="700" letter-spacing="0.06em" opacity="${lblOp}" pointer-events="none">${s.div.label}</text>`);
+      parts.push(`<text x="${s.x}" y="${ly}" text-anchor="middle" fill="${isHov ? col : P.satellite}" font-size="${sLblSize}" font-family="'JetBrains Mono', monospace" font-weight="500" opacity="${lblOp}" pointer-events="none">${s.div.label}</text>`);
       if (!dimmed) {
         parts.push(`<text x="${s.x}" y="${ly + sCntGap}" text-anchor="middle" fill="${P.fgMuted}" font-size="${sCntSize}" font-family="'JetBrains Mono', monospace" opacity="${isHov ? 0.85 : 0.55}" pointer-events="none">${count} agent${count !== 1 ? 's' : ''}</text>`);
       }
@@ -462,7 +462,7 @@ export function MetatronCubeRoster({
 
   /* ── Hover agent panel — which side to show on ── */
   const hoveredPos = hoveredDivision ? allPositions.find(p => p.div.id === hoveredDivision) : null;
-  const panelOnLeft = hoveredPos ? hoveredPos.x > cx : false;
+  const panelOnLeft = hoveredPos ? hoveredPos.x <= cx : false;
   const hoveredRingCol = hoveredPos ? P[RING_COLOR_KEY[hoveredPos.ring]] : P.primary;
 
   return (
