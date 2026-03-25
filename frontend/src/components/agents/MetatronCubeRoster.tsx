@@ -329,10 +329,13 @@ export function MetatronCubeRoster({
 
       const ly    = isDepth ? p.y - displayR - 14 : p.y + displayR + 22;
       const lblOp = dimmed ? 0.08 : isHov ? 1 : 0.85;
-      const lblCol = isHov ? col : P.fgSoft;
-      parts.push(`<text x="${p.x}" y="${ly}" text-anchor="middle" fill="${lblCol}" font-size="18" font-family="'Orbitron', sans-serif" font-weight="700" letter-spacing="0.08em" opacity="${lblOp}" pointer-events="none">${p.div.label}</text>`);
+      const lblCol  = isHov ? col : P.fgSoft;
+      const lblSize = isHov ? Math.round(18 + 24 * hp) : 18;
+      const cntSize = isHov ? Math.round(13 + 8  * hp) : 13;
+      const cntGap  = isHov ? Math.round(20 + 18 * hp) : 20;
+      parts.push(`<text x="${p.x}" y="${ly}" text-anchor="middle" fill="${lblCol}" font-size="${lblSize}" font-family="'Orbitron', sans-serif" font-weight="700" letter-spacing="0.08em" opacity="${lblOp}" pointer-events="none">${p.div.label}</text>`);
       if (!dimmed && !isDepth) {
-        parts.push(`<text x="${p.x}" y="${ly + 20}" text-anchor="middle" fill="${P.fgMuted}" font-size="13" font-family="'JetBrains Mono', monospace" opacity="${isHov ? 0.85 : 0.6}" pointer-events="none">${count} agent${count !== 1 ? 's' : ''}</text>`);
+        parts.push(`<text x="${p.x}" y="${ly + cntGap}" text-anchor="middle" fill="${P.fgMuted}" font-size="${cntSize}" font-family="'JetBrains Mono', monospace" opacity="${isHov ? 0.85 : 0.6}" pointer-events="none">${count} agent${count !== 1 ? 's' : ''}</text>`);
       }
 
       /* Agent spray — selected (opaque) */
@@ -393,9 +396,12 @@ export function MetatronCubeRoster({
 
       const ly    = s.y + dr + 18;
       const lblOp = dimmed ? 0.08 : isHov ? 1 : 0.8;
-      parts.push(`<text x="${s.x}" y="${ly}" text-anchor="middle" fill="${isHov ? col : P.satellite}" font-size="15" font-family="'Orbitron', sans-serif" font-weight="700" letter-spacing="0.06em" opacity="${lblOp}" pointer-events="none">${s.div.label}</text>`);
+      const sLblSize = isHov ? Math.round(15 + 21 * hp) : 15;
+      const sCntSize = isHov ? Math.round(12 + 7  * hp) : 12;
+      const sCntGap  = isHov ? Math.round(17 + 16 * hp) : 17;
+      parts.push(`<text x="${s.x}" y="${ly}" text-anchor="middle" fill="${isHov ? col : P.satellite}" font-size="${sLblSize}" font-family="'Orbitron', sans-serif" font-weight="700" letter-spacing="0.06em" opacity="${lblOp}" pointer-events="none">${s.div.label}</text>`);
       if (!dimmed) {
-        parts.push(`<text x="${s.x}" y="${ly + 17}" text-anchor="middle" fill="${P.fgMuted}" font-size="12" font-family="'JetBrains Mono', monospace" opacity="${isHov ? 0.85 : 0.55}" pointer-events="none">${count} agent${count !== 1 ? 's' : ''}</text>`);
+        parts.push(`<text x="${s.x}" y="${ly + sCntGap}" text-anchor="middle" fill="${P.fgMuted}" font-size="${sCntSize}" font-family="'JetBrains Mono', monospace" opacity="${isHov ? 0.85 : 0.55}" pointer-events="none">${count} agent${count !== 1 ? 's' : ''}</text>`);
       }
 
       /* Agent spray — selected */
