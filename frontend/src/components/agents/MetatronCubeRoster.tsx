@@ -75,10 +75,16 @@ export function MetatronCubeRoster({
   agents, selectedDivision, selectedAgentIdx,
   onSelectDivision, onSelectAgent,
 }: Props) {
-  const containerRef = useRef<HTMLDivElement>(null);
+  const containerRef   = useRef<HTMLDivElement>(null);
   const [dims, setDims] = useState({ w: 800, h: 800 });
   const [phase, setPhase] = useState(0);
   const rafRef = useRef(0);
+
+  /* Hover tracking — ref for RAF loop, state for React render deps */
+  const [hoveredDivision, setHoveredDivision] = useState<AgentDivision | null>(null);
+  const hoveredDivRef   = useRef<AgentDivision | null>(null);
+  /* hoverProgress: 0 = idle, 1 = fully bloomed. Lerped in RAF, read during render. */
+  const hoverProgressRef = useRef(0);
 
   const dark = useMemo(() => {
     if (typeof window === 'undefined') return true;
@@ -100,7 +106,7 @@ export function MetatronCubeRoster({
     return () => ro.disconnect();
   }, []);
 
-  /* Animation */
+  /* Animation — rotates geometry AND lerps hoverProgress each frame */
   useEffect(() => {
     const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     if (reduced) return;
@@ -108,6 +114,11 @@ export function MetatronCubeRoster({
     const tick = () => {
       if (!on) return;
       setPhase(p => (p + 0.003) % (Math.PI * 2));
+      /* Smooth lerp: bloom in fast (~18 frames), decay out slower (~35 frames) */
+      const target = hoveredDivRef.current ? 1 : 0;
+      const cur    = hoverProgressRef.current;
+      const speed  = target > cur ? 0.055 : 0.028;
+      hoverProgressRef.current = cur + (target - cur) * speed;
       rafRef.current = requestAnimationFrame(tick);
     };
     rafRef.current = requestAnimationFrame(tick);
@@ -126,17 +137,33 @@ export function MetatronCubeRoster({
     [agents, selectedDivision],
   );
 
-  /* Geometry */
+  /* Hover agents — shown as spray on mouseover even without clicking */
+  const hoverAgents = useMemo(
+    () => (hoveredDivision && hoveredDivision !== selectedDivision)
+      ? agents.filter(a => a.division === hoveredDivision)
+      : [],
+    [agents, hoveredDivision, selectedDivision],
+  );
+
+  /* Geometry — orbit radii bloom outward while hovering */
   const { w, h } = dims;
   const sz  = Math.min(w, h) - 24;
   const cx  = w / 2;
   const cy  = h / 2;
-  const rI  = sz * 0.14;
-  const rO  = sz * 0.31;
-  const rD  = sz * 0.43;
-  const rS  = rI * 0.72;   // satellite orbit radius from parent
 
-  /* Main node positions — driven by INNER_DIVS / OUTER_DIVS counts, no hardcoding */
+  /* Base radii */
+  const rIBase = sz * 0.14;
+  const rOBase = sz * 0.31;
+  const rDBase = sz * 0.43;
+
+  /* Bloomed radii — expand toward page corners on hover (up to 1.55× outer) */
+  const hp   = hoverProgressRef.current;          // read live on every render
+  const rI   = rIBase * (1 + hp * 0.30);
+  const rO   = rOBase * (1 + hp * 0.55);
+  const rD   = rDBase * (1 + hp * 0.22);
+  const rS   = rI * 0.72;
+
+  /* Main node positions — driven by phase + bloomed radii */
   const positions: NodePos[] = useMemo(() => {
     const pos: NodePos[] = [];
     pos.push({ div: CENTRAL_DIV, x: cx, y: cy, ring: 'central' });
@@ -152,14 +179,14 @@ export function MetatronCubeRoster({
     return pos;
   }, [cx, cy, rI, rO, rD, phase]);
 
-  /* Satellite sub-node positions — derived from parent positions each frame */
+  /* Satellite sub-node positions */
   const subNodes: SubNodePos[] = useMemo(() => {
     return SAT_DIVS.map(div => {
       const parent = positions.find(p => p.div.id === div.satelliteParent);
       const parentId = div.satelliteParent!;
       if (!parent) return { div, x: cx, y: cy, ring: 'satellite' as CubeRing, parentId };
-      const baseAngle   = Math.atan2(parent.y - cy, parent.x - cx);
-      const finalAngle  = baseAngle + (div.satelliteAngleOffset ?? 0);
+      const baseAngle  = Math.atan2(parent.y - cy, parent.x - cx);
+      const finalAngle = baseAngle + (div.satelliteAngleOffset ?? 0);
       return {
         div,
         x: parent.x + rS * Math.cos(finalAngle),
@@ -170,10 +197,9 @@ export function MetatronCubeRoster({
     });
   }, [positions, cx, cy, rS]);
 
-  /* All clickable positions (main + sub) */
   const allPositions = useMemo(() => [...positions, ...subNodes], [positions, subNodes]);
 
-  /* Agent satellite click positions when a division is selected */
+  /* Agent satellites — for selected division (click) */
   const agentSatellites = useMemo(() => {
     if (!selectedDivision || divAgents.length === 0) return [];
     const selPos = allPositions.find(p => p.div.id === selectedDivision);
@@ -186,7 +212,20 @@ export function MetatronCubeRoster({
     });
   }, [allPositions, selectedDivision, divAgents]);
 
-  /* Division click handler */
+  /* Hover agent satellites — for hovered division (mouseover spray) */
+  const hoverSatellites = useMemo(() => {
+    if (!hoveredDivision || hoverAgents.length === 0) return [];
+    const pos = allPositions.find(p => p.div.id === hoveredDivision);
+    if (!pos) return [];
+    const r   = NODE_RADIUS[pos.ring];
+    const sat = r + 32 + Math.max(0, (hoverAgents.length - 5) * 3);
+    return hoverAgents.map((ag, ai) => {
+      const sa = (ai * Math.PI * 2) / hoverAgents.length - Math.PI / 2;
+      return { agent: ag, idx: ai, x: pos.x + sat * Math.cos(sa), y: pos.y + sat * Math.sin(sa), pos };
+    });
+  }, [allPositions, hoveredDivision, hoverAgents]);
+
+  /* Handlers */
   const handleDivClick = (e: React.MouseEvent, divId: AgentDivision) => {
     e.stopPropagation();
     if (selectedDivision === divId) {
@@ -198,7 +237,11 @@ export function MetatronCubeRoster({
     }
   };
 
-  /* Agent satellite click handler */
+  const handleDivHover = (divId: AgentDivision | null) => {
+    hoveredDivRef.current = divId;
+    setHoveredDivision(divId);
+  };
+
   const handleAgentClick = (e: React.MouseEvent, ai: number) => {
     e.stopPropagation();
     onSelectAgent(selectedAgentIdx === ai ? null : ai);
@@ -214,27 +257,21 @@ export function MetatronCubeRoster({
 
   const buildEdges = () => {
     const lines: string[] = [];
-    /* Central → inner */
     inn.forEach(n => lines.push(`<line x1="${cen.x}" y1="${cen.y}" x2="${n.x}" y2="${n.y}" stroke="${EC.f}" stroke-width="0.9"/>`));
-    /* Inner ring: adjacent + skip-1 + near-diameter */
     for (let i = 0; i < nI; i++) {
       lines.push(`<line x1="${inn[i].x}" y1="${inn[i].y}" x2="${inn[(i+1)%nI].x}" y2="${inn[(i+1)%nI].y}" stroke="${EC.i}" stroke-width="0.5"/>`);
       lines.push(`<line x1="${inn[i].x}" y1="${inn[i].y}" x2="${inn[(i+2)%nI].x}" y2="${inn[(i+2)%nI].y}" stroke="${EC.is}" stroke-width="0.4"/>`);
       lines.push(`<line x1="${inn[i].x}" y1="${inn[i].y}" x2="${inn[(i+Math.floor(nI/2))%nI].x}" y2="${inn[(i+Math.floor(nI/2))%nI].y}" stroke="${EC.io}" stroke-width="0.3"/>`);
     }
-    /* Outer ring: pentagon adjacent + skip-1 */
     for (let i = 0; i < nO; i++) {
       lines.push(`<line x1="${out[i].x}" y1="${out[i].y}" x2="${out[(i+1)%nO].x}" y2="${out[(i+1)%nO].y}" stroke="${EC.o}" stroke-width="0.5"/>`);
       lines.push(`<line x1="${out[i].x}" y1="${out[i].y}" x2="${out[(i+2)%nO].x}" y2="${out[(i+2)%nO].y}" stroke="${EC.os}" stroke-width="0.3"/>`);
     }
-    /* Cross: inner → outer (use nO pairs so we never go out of bounds) */
     for (let i = 0; i < nO; i++) {
       lines.push(`<line x1="${inn[i % nI].x}" y1="${inn[i % nI].y}" x2="${out[i].x}" y2="${out[i].y}" stroke="${EC.c}" stroke-width="0.4"/>`);
       lines.push(`<line x1="${inn[(i+1) % nI].x}" y1="${inn[(i+1) % nI].y}" x2="${out[i].x}" y2="${out[i].y}" stroke="${EC.c}" stroke-width="0.4"/>`);
     }
-    /* Depth → inner */
     inn.forEach(n => lines.push(`<line x1="${dep.x}" y1="${dep.y}" x2="${n.x}" y2="${n.y}" stroke="${EC.d}" stroke-width="0.4"/>`));
-    /* Satellite tethers */
     subNodes.forEach(s => {
       const parent = positions.find(p => p.div.id === s.parentId);
       if (!parent) return;
@@ -249,13 +286,16 @@ export function MetatronCubeRoster({
 
     /* ── Main ring nodes ── */
     positions.forEach(p => {
-      const col    = P[RING_COLOR_KEY[p.ring]];
-      const r      = NODE_RADIUS[p.ring];
-      const isSel  = selectedDivision === p.div.id;
-      const dimmed = selectedDivision && !isSel;
-      const op     = dimmed ? 0.12 : 1;
-      const count  = divCounts[p.div.id] || 0;
+      const col     = P[RING_COLOR_KEY[p.ring]];
+      const r       = NODE_RADIUS[p.ring];
+      const isSel   = selectedDivision === p.div.id;
+      const isHov   = hoveredDivision === p.div.id && !isSel;
+      const dimmed  = selectedDivision && !isSel;
+      const op      = dimmed ? 0.12 : 1;
+      const count   = divCounts[p.div.id] || 0;
       const isDepth = p.ring === 'depth';
+      /* Hovered node grows larger — lerp toward 2× */
+      const displayR = isHov ? r * (1 + hp * 1.0) : isSel ? r + 3 : r;
 
       if (p.ring === 'central' && !dimmed) {
         parts.push(`<circle cx="${p.x}" cy="${p.y}" r="${r+8}" fill="none" stroke="${col}" stroke-width="0.6" opacity="0.4" pointer-events="none"><animate attributeName="r" values="${r+6};${r+10};${r+6}" dur="4s" repeatCount="indefinite"/></circle>`);
@@ -264,17 +304,21 @@ export function MetatronCubeRoster({
         parts.push(`<circle cx="${p.x}" cy="${p.y}" r="${r+16}" fill="${col}" opacity="0.03" pointer-events="none"/>`);
         parts.push(`<circle cx="${p.x}" cy="${p.y}" r="${r+8}" fill="none" stroke="${col}" stroke-width="1.3" opacity="0.5" pointer-events="none"/>`);
       }
-      parts.push(`<circle cx="${p.x}" cy="${p.y}" r="${isSel ? r+3 : r}" fill="${col}" opacity="${op * (isSel ? 1 : 0.75)}" pointer-events="none"/>`);
+      if (isHov) {
+        parts.push(`<circle cx="${p.x}" cy="${p.y}" r="${displayR+10}" fill="${col}" opacity="${(0.06 * hp).toFixed(3)}" pointer-events="none"/>`);
+        parts.push(`<circle cx="${p.x}" cy="${p.y}" r="${displayR+5}" fill="none" stroke="${col}" stroke-width="1" opacity="${(0.4 * hp).toFixed(3)}" pointer-events="none"/>`);
+      }
+      parts.push(`<circle cx="${p.x}" cy="${p.y}" r="${displayR}" fill="${col}" opacity="${op * (isSel || isHov ? 1 : 0.75)}" pointer-events="none"/>`);
 
-      const ly     = isDepth ? p.y - r - 10 : p.y + r + 15;
-      const lblOp  = dimmed ? 0.15 : 0.85;
+      const ly    = isDepth ? p.y - displayR - 10 : p.y + displayR + 15;
+      const lblOp = dimmed ? 0.15 : 0.85;
       parts.push(`<text x="${p.x}" y="${ly}" text-anchor="middle" fill="${P.fgSoft}" font-size="13" font-family="'JetBrains Mono', monospace" font-weight="500" opacity="${lblOp}" pointer-events="none">${p.div.label}</text>`);
 
       if (!dimmed && !isDepth) {
         parts.push(`<text x="${p.x}" y="${ly + 14}" text-anchor="middle" fill="${P.fgMuted}" font-size="11" font-family="'JetBrains Mono', monospace" opacity="0.6" pointer-events="none">${count} agent${count !== 1 ? 's' : ''}</text>`);
       }
 
-      /* Agent satellites for a selected main-ring node */
+      /* Agent spray — selected (opaque) */
       if (isSel && divAgents.length > 0) {
         const n    = divAgents.length;
         const satR = r + 32 + Math.max(0, (n - 5) * 3);
@@ -292,6 +336,22 @@ export function MetatronCubeRoster({
           parts.push(`<circle cx="${sx}" cy="${sy}" r="${sr}" fill="${col}" opacity="${isSelA ? 0.95 : 0.45}" pointer-events="none"/>`);
         });
       }
+
+      /* Agent spray — hovered (faded, scales in with hoverProgress) */
+      if (isHov && hoverAgents.length > 0) {
+        const n    = hoverAgents.length;
+        const satR = (r + 32 + Math.max(0, (n - 5) * 3)) * (0.5 + hp * 0.5);
+        hoverAgents.forEach((ag, ai) => {
+          const sa  = (ai * Math.PI * 2) / n - Math.PI / 2;
+          const sx  = p.x + satR * Math.cos(sa);
+          const sy  = p.y + satR * Math.sin(sa);
+          const sr  = 3.5 * (0.5 + hp * 0.5);
+          const fop = (0.55 * hp).toFixed(3);
+          parts.push(`<line x1="${p.x}" y1="${p.y}" x2="${sx}" y2="${sy}" stroke="${col}" stroke-width="0.4" opacity="${(0.15 * hp).toFixed(3)}" pointer-events="none"/>`);
+          parts.push(`<circle cx="${sx}" cy="${sy}" r="${sr}" fill="${col}" opacity="${fop}" pointer-events="none"/>`);
+          parts.push(`<text x="${sx}" y="${sy - sr - 6}" text-anchor="middle" fill="${P.fgSoft}" font-size="10" font-family="'JetBrains Mono', monospace" opacity="${(0.7 * hp).toFixed(3)}" pointer-events="none">${ag.display_name}</text>`);
+        });
+      }
     });
 
     /* ── Satellite sub-nodes ── */
@@ -299,17 +359,21 @@ export function MetatronCubeRoster({
       const col    = P[RING_COLOR_KEY['satellite']];
       const r      = NODE_RADIUS['satellite'];
       const isSel  = selectedDivision === s.div.id;
-      /* dim when something else is selected and it's not the parent */
+      const isHov  = hoveredDivision === s.div.id && !isSel;
       const dimmed = selectedDivision && !isSel && selectedDivision !== s.parentId;
       const op     = dimmed ? 0.1 : 1;
       const count  = divCounts[s.div.id] || 0;
 
-      const dr = isSel ? r * 2 : r;  // display radius — doubles on click
+      const dr = isSel ? r * 2 : isHov ? r * (1 + hp * 1.0) : r;
       if (isSel) {
         parts.push(`<circle cx="${s.x}" cy="${s.y}" r="${dr+14}" fill="${col}" opacity="0.04" pointer-events="none"/>`);
         parts.push(`<circle cx="${s.x}" cy="${s.y}" r="${dr+7}" fill="none" stroke="${col}" stroke-width="1.1" opacity="0.45" pointer-events="none"/>`);
       }
-      parts.push(`<circle cx="${s.x}" cy="${s.y}" r="${dr}" fill="${col}" opacity="${op * (isSel ? 1 : 0.72)}" pointer-events="none"/>`);
+      if (isHov) {
+        parts.push(`<circle cx="${s.x}" cy="${s.y}" r="${dr+8}" fill="${col}" opacity="${(0.06 * hp).toFixed(3)}" pointer-events="none"/>`);
+        parts.push(`<circle cx="${s.x}" cy="${s.y}" r="${dr+4}" fill="none" stroke="${col}" stroke-width="0.9" opacity="${(0.4 * hp).toFixed(3)}" pointer-events="none"/>`);
+      }
+      parts.push(`<circle cx="${s.x}" cy="${s.y}" r="${dr}" fill="${col}" opacity="${op * (isSel || isHov ? 1 : 0.72)}" pointer-events="none"/>`);
 
       const ly    = s.y + dr + 13;
       const lblOp = dimmed ? 0.1 : 0.8;
@@ -318,7 +382,7 @@ export function MetatronCubeRoster({
         parts.push(`<text x="${s.x}" y="${ly + 13}" text-anchor="middle" fill="${P.fgMuted}" font-size="10" font-family="'JetBrains Mono', monospace" opacity="0.55" pointer-events="none">${count} agent${count !== 1 ? 's' : ''}</text>`);
       }
 
-      /* Agent satellites for a selected sub-node */
+      /* Agent spray — selected */
       if (isSel && divAgents.length > 0) {
         const n    = divAgents.length;
         const satR = r + 28 + Math.max(0, (n - 5) * 3);
@@ -334,6 +398,22 @@ export function MetatronCubeRoster({
             parts.push(`<text x="${sx}" y="${sy - sr - 8}" text-anchor="middle" fill="${P.fgSoft}" font-size="12" font-family="'JetBrains Mono', monospace" font-weight="500" pointer-events="none">${ag.display_name}</text>`);
           }
           parts.push(`<circle cx="${sx}" cy="${sy}" r="${sr}" fill="${col}" opacity="${isSelA ? 0.95 : 0.45}" pointer-events="none"/>`);
+        });
+      }
+
+      /* Agent spray — hovered */
+      if (isHov && hoverAgents.length > 0) {
+        const n    = hoverAgents.length;
+        const satR = (r + 28 + Math.max(0, (n - 5) * 3)) * (0.5 + hp * 0.5);
+        hoverAgents.forEach((ag, ai) => {
+          const sa  = (ai * Math.PI * 2) / n - Math.PI / 2;
+          const sx  = s.x + satR * Math.cos(sa);
+          const sy  = s.y + satR * Math.sin(sa);
+          const sr  = 3.5 * (0.5 + hp * 0.5);
+          const fop = (0.55 * hp).toFixed(3);
+          parts.push(`<line x1="${s.x}" y1="${s.y}" x2="${sx}" y2="${sy}" stroke="${col}" stroke-width="0.4" opacity="${(0.15 * hp).toFixed(3)}" pointer-events="none"/>`);
+          parts.push(`<circle cx="${sx}" cy="${sy}" r="${sr}" fill="${col}" opacity="${fop}" pointer-events="none"/>`);
+          parts.push(`<text x="${sx}" y="${sy - sr - 6}" text-anchor="middle" fill="${P.fgSoft}" font-size="10" font-family="'JetBrains Mono', monospace" opacity="${(0.7 * hp).toFixed(3)}" pointer-events="none">${ag.display_name}</text>`);
         });
       }
     });
@@ -357,7 +437,8 @@ export function MetatronCubeRoster({
     const shellDesc = SAT_DIVS.length > 0 ? `3 shells + ${SAT_DIVS.length} satellite` : '3 shells';
     const footer = `<text x="${cx}" y="${h - 24}" text-anchor="middle" fill="${P.fgFaint}" font-size="11" font-family="'JetBrains Mono', monospace" letter-spacing="0.5" pointer-events="none">${DIVISIONS.length} divisions · ${shellDesc} · ${agents.length} agent${agents.length !== 1 ? 's' : ''}</text>`;
     return `${defs}${glow}${orbits}${buildEdges()}${buildNodes()}${footer}`;
-  }, [positions, subNodes, P, EC, cx, cy, rI, rO, rD, h, agents.length, divCounts, divAgents, selectedDivision, selectedAgentIdx]);
+  }, [positions, subNodes, P, EC, cx, cy, rI, rO, rD, h, agents.length, divCounts,
+      divAgents, hoverAgents, selectedDivision, selectedAgentIdx, hoveredDivision, hp]);
 
   /* ── Render ── */
   return (
@@ -370,11 +451,12 @@ export function MetatronCubeRoster({
         dangerouslySetInnerHTML={{ __html: svgContent }}
       />
 
-      {/* Click-target overlay */}
+      {/* Click + hover target overlay */}
       <svg
         viewBox={`0 0 ${w} ${h}`}
         style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }}
         onClick={() => { onSelectDivision(null); onSelectAgent(null); }}
+        onMouseLeave={() => handleDivHover(null)}
       >
         {/* Main division hit-areas */}
         {positions.map(p => (
@@ -385,6 +467,8 @@ export function MetatronCubeRoster({
             fill="transparent"
             style={{ cursor: 'pointer' }}
             onClick={(e) => handleDivClick(e, p.div.id)}
+            onMouseEnter={(e) => { e.stopPropagation(); handleDivHover(p.div.id); }}
+            onMouseLeave={(e) => { e.stopPropagation(); handleDivHover(null); }}
           />
         ))}
 
@@ -397,6 +481,8 @@ export function MetatronCubeRoster({
             fill="transparent"
             style={{ cursor: 'pointer' }}
             onClick={(e) => handleDivClick(e, s.div.id)}
+            onMouseEnter={(e) => { e.stopPropagation(); handleDivHover(s.div.id); }}
+            onMouseLeave={(e) => { e.stopPropagation(); handleDivHover(null); }}
           />
         ))}
 
@@ -409,6 +495,18 @@ export function MetatronCubeRoster({
             fill="transparent"
             style={{ cursor: 'pointer' }}
             onClick={(e) => handleAgentClick(e, s.idx)}
+          />
+        ))}
+
+        {/* Hover spray hit-areas (so hovering over an agent dot keeps the hover live) */}
+        {hoverSatellites.map(s => (
+          <circle
+            key={`hsat-${s.idx}`}
+            cx={s.x} cy={s.y}
+            r={10}
+            fill="transparent"
+            style={{ cursor: 'default' }}
+            onMouseEnter={(e) => { e.stopPropagation(); handleDivHover(hoveredDivision); }}
           />
         ))}
       </svg>
