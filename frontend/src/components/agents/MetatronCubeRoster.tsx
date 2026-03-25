@@ -506,24 +506,36 @@ export function MetatronCubeRoster({
               margin: '0 0 18px 0', letterSpacing: '0.05em',
             }}>{hoverAgents.length} agent{hoverAgents.length !== 1 ? 's' : ''}</p>
 
-            {/* Agent list */}
+            {/* Agent list — items explode from the node and fly into position */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              {hoverAgents.map((ag, i) => (
-                <div key={ag.agent_id ?? i} style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                  <span style={{
-                    fontFamily: "'Inter', system-ui, sans-serif",
-                    fontSize: '13px', fontWeight: 700,
-                    letterSpacing: '0.08em', textTransform: 'uppercase',
-                    color: 'var(--color-text-primary)', lineHeight: 1.2,
-                  }}>{ag.display_name}</span>
-                  {ag.primary_role && (
+              {hoverAgents.map((ag, i) => {
+                /* Each item has its own staggered progress, faster snap-in */
+                const itemHp = Math.min(1, Math.max(0, (hp - i * 0.13) * 2.0));
+                /* Horizontal distance from panel centre to node */
+                const panelCX = panelOnLeft ? 110 : w - 110;
+                const xDist   = (hoveredPos?.x ?? cx) - panelCX;
+                const xOff    = ((1 - itemHp) * xDist).toFixed(1);
+                return (
+                  <div key={ag.agent_id ?? i} style={{
+                    display: 'flex', flexDirection: 'column', gap: '2px',
+                    opacity: itemHp,
+                    transform: `translateX(${xOff}px)`,
+                  }}>
                     <span style={{
                       fontFamily: "'Inter', system-ui, sans-serif",
-                      fontSize: '10px', color: P.fgMuted, letterSpacing: '0.04em',
-                    }}>{ag.primary_role}</span>
-                  )}
-                </div>
-              ))}
+                      fontSize: '13px', fontWeight: 700,
+                      letterSpacing: '0.08em', textTransform: 'uppercase',
+                      color: 'var(--color-text-primary)', lineHeight: 1.2,
+                    }}>{ag.display_name}</span>
+                    {ag.primary_role && (
+                      <span style={{
+                        fontFamily: "'Inter', system-ui, sans-serif",
+                        fontSize: '10px', color: P.fgMuted, letterSpacing: '0.04em',
+                      }}>{ag.primary_role}</span>
+                    )}
+                  </div>
+                );
+              })}
               {hoverAgents.length === 0 && (
                 <span style={{
                   fontFamily: "'Inter', system-ui, sans-serif",
