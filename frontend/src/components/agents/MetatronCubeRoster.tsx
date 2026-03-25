@@ -87,6 +87,10 @@ export function MetatronCubeRoster({
   const hoverProgressRef = useRef(0);
   /* Which row in the hover panel is currently moused-over (for highlight) */
   const hoveredRowIdxRef = useRef<number | null>(null);
+  /* True while the mouse is inside the hover panel — prevents SVG onMouseLeave from clearing hover */
+  const panelHoveredRef  = useRef(false);
+  /* Debounce timer for clearing hover — gives panelOnMouseEnter time to set the flag first */
+  const clearHoverTimer  = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const dark = useMemo(() => {
     if (typeof window === 'undefined') return true;
@@ -240,8 +244,20 @@ export function MetatronCubeRoster({
   };
 
   const handleDivHover = (divId: AgentDivision | null) => {
-    hoveredDivRef.current = divId;
-    setHoveredDivision(divId);
+    if (clearHoverTimer.current) { clearTimeout(clearHoverTimer.current); clearHoverTimer.current = null; }
+    if (divId) {
+      hoveredDivRef.current = divId;
+      setHoveredDivision(divId);
+    } else {
+      /* Small grace period — lets panel's onMouseEnter set panelHoveredRef before we commit the clear */
+      clearHoverTimer.current = setTimeout(() => {
+        if (!panelHoveredRef.current) {
+          hoveredDivRef.current = null;
+          setHoveredDivision(null);
+        }
+        clearHoverTimer.current = null;
+      }, 80);
+    }
   };
 
   const handleAgentClick = (e: React.MouseEvent, ai: number) => {
@@ -478,19 +494,32 @@ export function MetatronCubeRoster({
       />
 
       {/* ── Dynamic hover agent panel ── */}
-      <div style={{
-        position: 'absolute',
-        ...(panelOnLeft ? { left: 0 } : { right: 0 }),
-        top: 0, bottom: 0,
-        display: 'flex', flexDirection: 'column', justifyContent: 'center',
-        padding: panelOnLeft ? '24px 16px 24px 20px' : '24px 20px 24px 16px',
-        width: '220px',
-        pointerEvents: 'none', zIndex: 10,
-        opacity: hp,
-        transform: panelOnLeft
-          ? `translateX(${(1 - hp) * -24}px)`
-          : `translateX(${(1 - hp) * 24}px)`,
-      }}>
+      <div
+        onMouseEnter={() => {
+          panelHoveredRef.current = true;
+          /* Keep the hover alive — re-lock onto whichever division the panel belongs to */
+          if (hoveredDivRef.current) {
+            setHoveredDivision(hoveredDivRef.current);
+          }
+        }}
+        onMouseLeave={() => {
+          panelHoveredRef.current = false;
+          handleDivHover(null);
+        }}
+        style={{
+          position: 'absolute',
+          ...(panelOnLeft ? { left: 0 } : { right: 0 }),
+          top: 0, bottom: 0,
+          display: 'flex', flexDirection: 'column', justifyContent: 'center',
+          padding: panelOnLeft ? '24px 16px 24px 20px' : '24px 20px 24px 16px',
+          width: '220px',
+          pointerEvents: hp > 0.15 ? 'auto' : 'none', zIndex: 10,
+          opacity: hp,
+          transform: panelOnLeft
+            ? `translateX(${(1 - hp) * -24}px)`
+            : `translateX(${(1 - hp) * 24}px)`,
+        }}
+      >
         {hoveredPos && (
           <>
             {/* Division title */}
@@ -574,7 +603,7 @@ export function MetatronCubeRoster({
         viewBox={`0 0 ${w} ${h}`}
         style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }}
         onClick={() => { onSelectDivision(null); onSelectAgent(null); }}
-        onMouseLeave={() => handleDivHover(null)}
+        onMouseLeave={() => { if (!panelHoveredRef.current) handleDivHover(null); }}
       >
         {/* Main division hit-areas — large radius, no per-node leave (outer SVG handles clear) */}
         {positions.map(p => (
