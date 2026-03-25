@@ -456,9 +456,10 @@ export function MetatronCubeRoster({
   }, [positions, subNodes, P, EC, cx, cy, rI, rO, rD, h, agents.length, divCounts,
       divAgents, hoverAgents, selectedDivision, selectedAgentIdx, hoveredDivision, hp]);
 
-  /* ── Render ── */
-  const leftNodes  = allPositions.filter(p => p.x <= cx);
-  const rightNodes = allPositions.filter(p => p.x > cx);
+  /* ── Hover agent panel — which side to show on ── */
+  const hoveredPos = hoveredDivision ? allPositions.find(p => p.div.id === hoveredDivision) : null;
+  const panelOnLeft = hoveredPos ? hoveredPos.x > cx : false;
+  const hoveredRingCol = hoveredPos ? P[RING_COLOR_KEY[hoveredPos.ring]] : P.primary;
 
   return (
     <div ref={containerRef} style={{ position: 'relative', width: '100%', height: '100%', minHeight: 400 }}>
@@ -470,72 +471,64 @@ export function MetatronCubeRoster({
         dangerouslySetInnerHTML={{ __html: svgContent }}
       />
 
-      {/* ── Left label panel ── */}
+      {/* ── Dynamic hover agent panel ── */}
       <div style={{
-        position: 'absolute', left: 0, top: 0, bottom: 0,
+        position: 'absolute',
+        ...(panelOnLeft ? { left: 0 } : { right: 0 }),
+        top: 0, bottom: 0,
         display: 'flex', flexDirection: 'column', justifyContent: 'center',
-        gap: '10px', padding: '0 10px 0 14px', width: '138px',
-        pointerEvents: 'none', zIndex: 5,
+        padding: panelOnLeft ? '24px 16px 24px 20px' : '24px 20px 24px 16px',
+        width: '220px',
+        pointerEvents: 'none', zIndex: 10,
+        opacity: hp,
+        transform: panelOnLeft
+          ? `translateX(${(1 - hp) * -24}px)`
+          : `translateX(${(1 - hp) * 24}px)`,
       }}>
-        {leftNodes.map(p => {
-          const isHov  = hoveredDivision === p.div.id;
-          const isSel  = selectedDivision === p.div.id;
-          const dimmed = !!selectedDivision && !isSel;
-          const ringCol = P[RING_COLOR_KEY[p.ring]];
-          return (
-            <div key={p.div.id} style={{
-              display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '1px',
-              opacity:   dimmed ? 0.15 : isHov || isSel ? 1 : 0.45,
-              transform: isHov || isSel ? 'translateX(6px)' : 'translateX(0)',
-              transition: 'opacity 0.7s ease, transform 0.7s ease',
-            }}>
-              <span style={{
-                fontSize: '12px', fontFamily: "'JetBrains Mono', monospace",
-                fontWeight: isSel ? 600 : 400, letterSpacing: '0.2px', lineHeight: 1.3,
-                color: isHov || isSel ? ringCol : P.fgSoft,
-                transition: 'color 0.5s ease',
-              }}>{p.div.label}</span>
-              <span style={{
-                fontSize: '10px', fontFamily: "'JetBrains Mono', monospace",
-                color: P.fgMuted, lineHeight: 1.2,
-              }}>{divCounts[p.div.id] || 0} agents</span>
-            </div>
-          );
-        })}
-      </div>
+        {hoveredPos && (
+          <>
+            {/* Division title */}
+            <p style={{
+              fontFamily: "'Orbitron', sans-serif",
+              fontSize: '18px', fontWeight: 800,
+              letterSpacing: '0.12em', textTransform: 'uppercase',
+              lineHeight: 1.15, margin: '0 0 4px 0',
+              color: hoveredRingCol,
+              textShadow: `0 0 24px ${hoveredRingCol}55`,
+            }}>{hoveredPos.div.label}</p>
+            <p style={{
+              fontFamily: "'JetBrains Mono', monospace",
+              fontSize: '11px', color: P.fgMuted,
+              margin: '0 0 18px 0', letterSpacing: '0.05em',
+            }}>{hoverAgents.length} agent{hoverAgents.length !== 1 ? 's' : ''}</p>
 
-      {/* ── Right label panel ── */}
-      <div style={{
-        position: 'absolute', right: 0, top: 0, bottom: 0,
-        display: 'flex', flexDirection: 'column', justifyContent: 'center',
-        gap: '10px', padding: '0 14px 0 10px', width: '138px',
-        pointerEvents: 'none', zIndex: 5,
-      }}>
-        {rightNodes.map(p => {
-          const isHov  = hoveredDivision === p.div.id;
-          const isSel  = selectedDivision === p.div.id;
-          const dimmed = !!selectedDivision && !isSel;
-          const ringCol = P[RING_COLOR_KEY[p.ring]];
-          return (
-            <div key={p.div.id} style={{
-              display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '1px',
-              opacity:   dimmed ? 0.15 : isHov || isSel ? 1 : 0.45,
-              transform: isHov || isSel ? 'translateX(-6px)' : 'translateX(0)',
-              transition: 'opacity 0.7s ease, transform 0.7s ease',
-            }}>
-              <span style={{
-                fontSize: '12px', fontFamily: "'JetBrains Mono', monospace",
-                fontWeight: isSel ? 600 : 400, letterSpacing: '0.2px', lineHeight: 1.3,
-                color: isHov || isSel ? ringCol : P.fgSoft,
-                transition: 'color 0.5s ease',
-              }}>{p.div.label}</span>
-              <span style={{
-                fontSize: '10px', fontFamily: "'JetBrains Mono', monospace",
-                color: P.fgMuted, lineHeight: 1.2,
-              }}>{divCounts[p.div.id] || 0} agents</span>
+            {/* Agent list */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              {hoverAgents.map((ag, i) => (
+                <div key={ag.agent_id ?? i} style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                  <span style={{
+                    fontFamily: "'Orbitron', sans-serif",
+                    fontSize: '13px', fontWeight: 700,
+                    letterSpacing: '0.08em', textTransform: 'uppercase',
+                    color: 'var(--color-text-primary)', lineHeight: 1.2,
+                  }}>{ag.display_name}</span>
+                  {ag.primary_role && (
+                    <span style={{
+                      fontFamily: "'JetBrains Mono', monospace",
+                      fontSize: '10px', color: P.fgMuted, letterSpacing: '0.04em',
+                    }}>{ag.primary_role}</span>
+                  )}
+                </div>
+              ))}
+              {hoverAgents.length === 0 && (
+                <span style={{
+                  fontFamily: "'JetBrains Mono', monospace",
+                  fontSize: '11px', color: P.fgFaint, fontStyle: 'italic',
+                }}>no agents assigned</span>
+              )}
             </div>
-          );
-        })}
+          </>
+        )}
       </div>
 
       {/* Click + hover target overlay */}
