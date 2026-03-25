@@ -42,7 +42,7 @@ const NODE_RADIUS: Record<CubeRing, number> = {
   inner:     8,
   outer:     7,
   depth:     9,
-  satellite: 10,
+  satellite: 5,
 };
 
 /* ── Edge config ── */
@@ -303,13 +303,14 @@ export function MetatronCubeRoster({
       const op     = dimmed ? 0.1 : 1;
       const count  = divCounts[s.div.id] || 0;
 
+      const dr = isSel ? r * 2 : r;  // display radius — doubles on click
       if (isSel) {
-        parts.push(`<circle cx="${s.x}" cy="${s.y}" r="${r+14}" fill="${col}" opacity="0.04" pointer-events="none"/>`);
-        parts.push(`<circle cx="${s.x}" cy="${s.y}" r="${r+7}" fill="none" stroke="${col}" stroke-width="1.1" opacity="0.45" pointer-events="none"/>`);
+        parts.push(`<circle cx="${s.x}" cy="${s.y}" r="${dr+14}" fill="${col}" opacity="0.04" pointer-events="none"/>`);
+        parts.push(`<circle cx="${s.x}" cy="${s.y}" r="${dr+7}" fill="none" stroke="${col}" stroke-width="1.1" opacity="0.45" pointer-events="none"/>`);
       }
-      parts.push(`<circle cx="${s.x}" cy="${s.y}" r="${isSel ? r+2 : r}" fill="${col}" opacity="${op * (isSel ? 1 : 0.72)}" pointer-events="none"/>`);
+      parts.push(`<circle cx="${s.x}" cy="${s.y}" r="${dr}" fill="${col}" opacity="${op * (isSel ? 1 : 0.72)}" pointer-events="none"/>`);
 
-      const ly    = s.y + r + 13;
+      const ly    = s.y + dr + 13;
       const lblOp = dimmed ? 0.1 : 0.8;
       parts.push(`<text x="${s.x}" y="${ly}" text-anchor="middle" fill="${P.satellite}" font-size="11" font-family="'JetBrains Mono', monospace" font-weight="500" opacity="${lblOp}" pointer-events="none">${s.div.label}</text>`);
       if (!dimmed) {
