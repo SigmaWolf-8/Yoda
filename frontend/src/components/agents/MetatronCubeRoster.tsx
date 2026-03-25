@@ -38,11 +38,11 @@ const RING_COLOR_KEY: Record<CubeRing, keyof ReturnType<typeof palette>> = {
 };
 
 const NODE_RADIUS: Record<CubeRing, number> = {
-  central:   14,
-  inner:     8,
-  outer:     7,
-  depth:     9,
-  satellite: 5,
+  central:   22,
+  inner:     14,
+  outer:     12,
+  depth:     15,
+  satellite: 9,
 };
 
 /* ── Edge config — boosted for visibility, pulse applied per-frame ── */
@@ -307,7 +307,7 @@ export function MetatronCubeRoster({
       const r       = NODE_RADIUS[p.ring];
       const isSel   = selectedDivision === p.div.id;
       const isHov   = hoveredDivision === p.div.id && !isSel;
-      const dimmed  = selectedDivision && !isSel;
+      const dimmed  = (selectedDivision && !isSel) || (!!hoveredDivision && !isHov && !isSel);
       const op      = dimmed ? 0.12 : 1;
       const count   = divCounts[p.div.id] || 0;
       const isDepth = p.ring === 'depth';
@@ -327,11 +327,12 @@ export function MetatronCubeRoster({
       }
       parts.push(`<circle cx="${p.x}" cy="${p.y}" r="${displayR}" fill="${col}" opacity="${op * (isSel || isHov ? 1 : 0.75)}" pointer-events="none"/>`);
 
-      const ly    = isDepth ? p.y - displayR - 10 : p.y + displayR + 15;
-      const lblOp = dimmed ? 0.15 : 0.85;
-      parts.push(`<text x="${p.x}" y="${ly}" text-anchor="middle" fill="${P.fgSoft}" font-size="13" font-family="'JetBrains Mono', monospace" font-weight="500" opacity="${lblOp}" pointer-events="none">${p.div.label}</text>`);
+      const ly    = isDepth ? p.y - displayR - 14 : p.y + displayR + 22;
+      const lblOp = dimmed ? 0.08 : isHov ? 1 : 0.85;
+      const lblCol = isHov ? col : P.fgSoft;
+      parts.push(`<text x="${p.x}" y="${ly}" text-anchor="middle" fill="${lblCol}" font-size="18" font-family="'Orbitron', sans-serif" font-weight="700" letter-spacing="0.08em" opacity="${lblOp}" pointer-events="none">${p.div.label}</text>`);
       if (!dimmed && !isDepth) {
-        parts.push(`<text x="${p.x}" y="${ly + 14}" text-anchor="middle" fill="${P.fgMuted}" font-size="11" font-family="'JetBrains Mono', monospace" opacity="0.6" pointer-events="none">${count} agent${count !== 1 ? 's' : ''}</text>`);
+        parts.push(`<text x="${p.x}" y="${ly + 20}" text-anchor="middle" fill="${P.fgMuted}" font-size="13" font-family="'JetBrains Mono', monospace" opacity="${isHov ? 0.85 : 0.6}" pointer-events="none">${count} agent${count !== 1 ? 's' : ''}</text>`);
       }
 
       /* Agent spray — selected (opaque) */
@@ -353,19 +354,17 @@ export function MetatronCubeRoster({
         });
       }
 
-      /* Agent spray — hovered (faded, scales in with hoverProgress) */
+      /* Agent spray — hovered (dots only, no text — side panel carries the list) */
       if (isHov && hoverAgents.length > 0) {
         const n    = hoverAgents.length;
         const satR = (r + 32 + Math.max(0, (n - 5) * 3)) * (0.5 + hp * 0.5);
-        hoverAgents.forEach((ag, ai) => {
+        hoverAgents.forEach((_ag, ai) => {
           const sa  = (ai * Math.PI * 2) / n - Math.PI / 2;
           const sx  = p.x + satR * Math.cos(sa);
           const sy  = p.y + satR * Math.sin(sa);
           const sr  = 3.5 * (0.5 + hp * 0.5);
-          const fop = (0.55 * hp).toFixed(3);
           parts.push(`<line x1="${p.x}" y1="${p.y}" x2="${sx}" y2="${sy}" stroke="${col}" stroke-width="0.4" opacity="${(0.15 * hp).toFixed(3)}" pointer-events="none"/>`);
-          parts.push(`<circle cx="${sx}" cy="${sy}" r="${sr}" fill="${col}" opacity="${fop}" pointer-events="none"/>`);
-          parts.push(`<text x="${sx}" y="${sy - sr - 6}" text-anchor="middle" fill="${P.fgSoft}" font-size="10" font-family="'JetBrains Mono', monospace" opacity="${(0.7 * hp).toFixed(3)}" pointer-events="none">${ag.display_name}</text>`);
+          parts.push(`<circle cx="${sx}" cy="${sy}" r="${sr}" fill="${col}" opacity="${(0.55 * hp).toFixed(3)}" pointer-events="none"/>`);
         });
       }
     });
@@ -376,7 +375,8 @@ export function MetatronCubeRoster({
       const r      = NODE_RADIUS['satellite'];
       const isSel  = selectedDivision === s.div.id;
       const isHov  = hoveredDivision === s.div.id && !isSel;
-      const dimmed = selectedDivision && !isSel && selectedDivision !== s.parentId;
+      const dimmed = (selectedDivision && !isSel && selectedDivision !== s.parentId)
+                  || (!!hoveredDivision && !isHov && !isSel);
       const op     = dimmed ? 0.1 : 1;
       const count  = divCounts[s.div.id] || 0;
 
@@ -391,11 +391,11 @@ export function MetatronCubeRoster({
       }
       parts.push(`<circle cx="${s.x}" cy="${s.y}" r="${dr}" fill="${col}" opacity="${op * (isSel || isHov ? 1 : 0.72)}" pointer-events="none"/>`);
 
-      const ly    = s.y + dr + 13;
-      const lblOp = dimmed ? 0.1 : 0.8;
-      parts.push(`<text x="${s.x}" y="${ly}" text-anchor="middle" fill="${P.satellite}" font-size="11" font-family="'JetBrains Mono', monospace" font-weight="500" opacity="${lblOp}" pointer-events="none">${s.div.label}</text>`);
+      const ly    = s.y + dr + 18;
+      const lblOp = dimmed ? 0.08 : isHov ? 1 : 0.8;
+      parts.push(`<text x="${s.x}" y="${ly}" text-anchor="middle" fill="${isHov ? col : P.satellite}" font-size="15" font-family="'Orbitron', sans-serif" font-weight="700" letter-spacing="0.06em" opacity="${lblOp}" pointer-events="none">${s.div.label}</text>`);
       if (!dimmed) {
-        parts.push(`<text x="${s.x}" y="${ly + 13}" text-anchor="middle" fill="${P.fgMuted}" font-size="10" font-family="'JetBrains Mono', monospace" opacity="0.55" pointer-events="none">${count} agent${count !== 1 ? 's' : ''}</text>`);
+        parts.push(`<text x="${s.x}" y="${ly + 17}" text-anchor="middle" fill="${P.fgMuted}" font-size="12" font-family="'JetBrains Mono', monospace" opacity="${isHov ? 0.85 : 0.55}" pointer-events="none">${count} agent${count !== 1 ? 's' : ''}</text>`);
       }
 
       /* Agent spray — selected */
@@ -417,19 +417,17 @@ export function MetatronCubeRoster({
         });
       }
 
-      /* Agent spray — hovered */
+      /* Agent spray — hovered (dots only) */
       if (isHov && hoverAgents.length > 0) {
         const n    = hoverAgents.length;
         const satR = (r + 28 + Math.max(0, (n - 5) * 3)) * (0.5 + hp * 0.5);
-        hoverAgents.forEach((ag, ai) => {
+        hoverAgents.forEach((_ag, ai) => {
           const sa  = (ai * Math.PI * 2) / n - Math.PI / 2;
           const sx  = s.x + satR * Math.cos(sa);
           const sy  = s.y + satR * Math.sin(sa);
           const sr  = 3.5 * (0.5 + hp * 0.5);
-          const fop = (0.55 * hp).toFixed(3);
           parts.push(`<line x1="${s.x}" y1="${s.y}" x2="${sx}" y2="${sy}" stroke="${col}" stroke-width="0.4" opacity="${(0.15 * hp).toFixed(3)}" pointer-events="none"/>`);
-          parts.push(`<circle cx="${sx}" cy="${sy}" r="${sr}" fill="${col}" opacity="${fop}" pointer-events="none"/>`);
-          parts.push(`<text x="${sx}" y="${sy - sr - 6}" text-anchor="middle" fill="${P.fgSoft}" font-size="10" font-family="'JetBrains Mono', monospace" opacity="${(0.7 * hp).toFixed(3)}" pointer-events="none">${ag.display_name}</text>`);
+          parts.push(`<circle cx="${sx}" cy="${sy}" r="${sr}" fill="${col}" opacity="${(0.55 * hp).toFixed(3)}" pointer-events="none"/>`);
         });
       }
     });
