@@ -188,7 +188,8 @@ export function AgentsPage() {
         <>
           {/* ── Desktop: Cube + Detail panel ── */}
           <div className="hidden lg:flex flex-1 min-h-0 overflow-hidden">
-            <div className="flex-1 min-w-0">
+            {/* Cube viewer — full width when nothing selected, shrinks when panel opens */}
+            <div className={`min-w-0 transition-all duration-300 ${selectedDivision ? 'flex-1' : 'flex-[1]'}`}>
               <MetatronCubeRoster
                 agents={agents}
                 selectedDivision={selectedDivision}
@@ -197,8 +198,9 @@ export function AgentsPage() {
                 onSelectAgent={setSelectedAgentIdx}
               />
             </div>
-            <div className="flex-[2] border-l border-[var(--color-border-subtle)] bg-[var(--color-surface-secondary)]">
-              {selectedDivision ? (
+            {/* Detail panel — only mounted and visible when a division is selected */}
+            {selectedDivision && (
+              <div className="flex-[2] border-l border-[var(--color-border-subtle)] bg-[var(--color-surface-secondary)] overflow-hidden">
                 <AgentDetailPanel
                   agents={agents}
                   division={selectedDivision}
@@ -207,20 +209,8 @@ export function AgentsPage() {
                   onEdit={(agent) => setEditorMode({ type: 'edit', agent })}
                   onCopyTemplate={(agent) => setEditorMode({ type: 'template', from: agent })}
                 />
-              ) : (
-                <div className="flex flex-col items-center justify-center h-full text-center px-8">
-                  <div className="text-4xl opacity-10 mb-4">⬡</div>
-                  <p className="text-sm font-medium text-[var(--color-text-secondary)] mb-2">Select a division</p>
-                  <p className="text-sm text-[var(--color-text-muted)] leading-relaxed">
-                    Click any node on the geometry to browse its agents.
-                    Each node is a division. Satellites are individual agents.
-                  </p>
-                  <p className="text-sm text-[var(--color-text-muted)] mt-4 opacity-50">
-                    Node size = usage intensity · Pulse = active this week
-                  </p>
-                </div>
-              )}
-            </div>
+              </div>
+            )}
           </div>
 
           {/* ── Mobile: Division accordion dropdowns ── */}
