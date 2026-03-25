@@ -327,6 +327,13 @@ export function MetatronCubeRoster({
       }
       parts.push(`<circle cx="${p.x}" cy="${p.y}" r="${displayR}" fill="${col}" opacity="${op * (isSel || isHov ? 1 : 0.75)}" pointer-events="none"/>`);
 
+      const ly    = isDepth ? p.y - displayR - 10 : p.y + displayR + 15;
+      const lblOp = dimmed ? 0.15 : 0.85;
+      parts.push(`<text x="${p.x}" y="${ly}" text-anchor="middle" fill="${P.fgSoft}" font-size="13" font-family="'JetBrains Mono', monospace" font-weight="500" opacity="${lblOp}" pointer-events="none">${p.div.label}</text>`);
+      if (!dimmed && !isDepth) {
+        parts.push(`<text x="${p.x}" y="${ly + 14}" text-anchor="middle" fill="${P.fgMuted}" font-size="11" font-family="'JetBrains Mono', monospace" opacity="0.6" pointer-events="none">${count} agent${count !== 1 ? 's' : ''}</text>`);
+      }
+
       /* Agent spray — selected (opaque) */
       if (isSel && divAgents.length > 0) {
         const n    = divAgents.length;
@@ -383,6 +390,13 @@ export function MetatronCubeRoster({
         parts.push(`<circle cx="${s.x}" cy="${s.y}" r="${dr+4}" fill="none" stroke="${col}" stroke-width="0.9" opacity="${(0.4 * hp).toFixed(3)}" pointer-events="none"/>`);
       }
       parts.push(`<circle cx="${s.x}" cy="${s.y}" r="${dr}" fill="${col}" opacity="${op * (isSel || isHov ? 1 : 0.72)}" pointer-events="none"/>`);
+
+      const ly    = s.y + dr + 13;
+      const lblOp = dimmed ? 0.1 : 0.8;
+      parts.push(`<text x="${s.x}" y="${ly}" text-anchor="middle" fill="${P.satellite}" font-size="11" font-family="'JetBrains Mono', monospace" font-weight="500" opacity="${lblOp}" pointer-events="none">${s.div.label}</text>`);
+      if (!dimmed) {
+        parts.push(`<text x="${s.x}" y="${ly + 13}" text-anchor="middle" fill="${P.fgMuted}" font-size="10" font-family="'JetBrains Mono', monospace" opacity="0.55" pointer-events="none">${count} agent${count !== 1 ? 's' : ''}</text>`);
+      }
 
       /* Agent spray — selected */
       if (isSel && divAgents.length > 0) {
@@ -531,17 +545,16 @@ export function MetatronCubeRoster({
         onClick={() => { onSelectDivision(null); onSelectAgent(null); }}
         onMouseLeave={() => handleDivHover(null)}
       >
-        {/* Main division hit-areas */}
+        {/* Main division hit-areas — large radius, no per-node leave (outer SVG handles clear) */}
         {positions.map(p => (
           <circle
             key={p.div.id}
             cx={p.x} cy={p.y}
-            r={NODE_RADIUS[p.ring] + 14}
+            r={NODE_RADIUS[p.ring] + 36}
             fill="transparent"
             style={{ cursor: 'pointer' }}
             onClick={(e) => handleDivClick(e, p.div.id)}
             onMouseEnter={(e) => { e.stopPropagation(); handleDivHover(p.div.id); }}
-            onMouseLeave={(e) => { e.stopPropagation(); handleDivHover(null); }}
           />
         ))}
 
@@ -550,12 +563,11 @@ export function MetatronCubeRoster({
           <circle
             key={s.div.id}
             cx={s.x} cy={s.y}
-            r={NODE_RADIUS['satellite'] + 12}
+            r={NODE_RADIUS['satellite'] + 30}
             fill="transparent"
             style={{ cursor: 'pointer' }}
             onClick={(e) => handleDivClick(e, s.div.id)}
             onMouseEnter={(e) => { e.stopPropagation(); handleDivHover(s.div.id); }}
-            onMouseLeave={(e) => { e.stopPropagation(); handleDivHover(null); }}
           />
         ))}
 
@@ -564,19 +576,19 @@ export function MetatronCubeRoster({
           <circle
             key={`sat-${s.idx}`}
             cx={s.x} cy={s.y}
-            r={12}
+            r={20}
             fill="transparent"
             style={{ cursor: 'pointer' }}
             onClick={(e) => handleAgentClick(e, s.idx)}
           />
         ))}
 
-        {/* Hover spray hit-areas (so hovering over an agent dot keeps the hover live) */}
+        {/* Hover spray hit-areas (keeps hover live while cursor is over an agent dot) */}
         {hoverSatellites.map(s => (
           <circle
             key={`hsat-${s.idx}`}
             cx={s.x} cy={s.y}
-            r={10}
+            r={18}
             fill="transparent"
             style={{ cursor: 'default' }}
             onMouseEnter={(e) => { e.stopPropagation(); handleDivHover(hoveredDivision); }}
