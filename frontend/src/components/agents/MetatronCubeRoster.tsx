@@ -293,7 +293,7 @@ export function MetatronCubeRoster({
       const parent = positions.find(p => p.div.id === s.parentId);
       if (!parent) return;
       const dimmed = selectedDivision && selectedDivision !== s.div.id && selectedDivision !== s.parentId;
-      teth.push(`<line x1="${parent.x}" y1="${parent.y}" x2="${s.x}" y2="${s.y}" stroke="${EC.s}" stroke-width="1.3" stroke-dasharray="3 2" opacity="${dimmed ? '0.08' : tethPulse}" pointer-events="none"/>`);
+      teth.push(`<line x1="${parent.x}" y1="${parent.y}" x2="${s.x}" y2="${s.y}" stroke="${EC.s}" stroke-width="1.3" stroke-dasharray="3 2" opacity="${dimmed ? '0.28' : tethPulse}" pointer-events="none"/>`);
     });
 
     /* Wrap structural lines in a single pulsing group */
@@ -310,7 +310,7 @@ export function MetatronCubeRoster({
       const isSel   = selectedDivision === p.div.id;
       const isHov   = hoveredDivision === p.div.id && !isSel;
       const dimmed  = (selectedDivision && !isSel) || (!!hoveredDivision && !isHov && !isSel);
-      const op      = dimmed ? 0.12 : 1;
+      const op      = dimmed ? 0.38 : 1;
       const count   = divCounts[p.div.id] || 0;
       const isDepth = p.ring === 'depth';
       /* Hovered node grows larger — lerp toward 2× */
@@ -330,7 +330,7 @@ export function MetatronCubeRoster({
       parts.push(`<circle cx="${p.x}" cy="${p.y}" r="${displayR}" fill="${col}" opacity="${op * (isSel || isHov ? 1 : 0.75)}" pointer-events="none"/>`);
 
       const ly    = isDepth ? p.y - displayR - 14 : p.y + displayR + 22;
-      const lblOp = dimmed ? 0.08 : isHov ? 1 : 0.85;
+      const lblOp = dimmed ? 0.45 : isHov ? 1 : 0.85;
       const lblCol  = isHov ? col : P.fgSoft;
       const lblSize = isHov ? Math.round(18 + 24 * hp) : 18;
       const cntSize = isHov ? Math.round(13 + 8  * hp) : 13;
@@ -382,7 +382,7 @@ export function MetatronCubeRoster({
       const isHov  = hoveredDivision === s.div.id && !isSel;
       const dimmed = (selectedDivision && !isSel && selectedDivision !== s.parentId)
                   || (!!hoveredDivision && !isHov && !isSel);
-      const op     = dimmed ? 0.1 : 1;
+      const op     = dimmed ? 0.38 : 1;
       const count  = divCounts[s.div.id] || 0;
 
       const dr = isSel ? r * 2 : isHov ? r * (1 + hp * 1.0) : r;
@@ -397,7 +397,7 @@ export function MetatronCubeRoster({
       parts.push(`<circle cx="${s.x}" cy="${s.y}" r="${dr}" fill="${col}" opacity="${op * (isSel || isHov ? 1 : 0.72)}" pointer-events="none"/>`);
 
       const ly    = s.y + dr + 18;
-      const lblOp = dimmed ? 0.08 : isHov ? 1 : 0.8;
+      const lblOp = dimmed ? 0.45 : isHov ? 1 : 0.8;
       const sLblSize = isHov ? Math.round(15 + 21 * hp) : 15;
       const sCntSize = isHov ? Math.round(12 + 7  * hp) : 12;
       const sCntGap  = isHov ? Math.round(17 + 16 * hp) : 17;
