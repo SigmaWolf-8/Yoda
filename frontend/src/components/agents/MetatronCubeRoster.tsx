@@ -333,9 +333,9 @@ export function MetatronCubeRoster({
       const lblSize = isHov ? Math.round(18 + 24 * hp) : 18;
       const cntSize = isHov ? Math.round(13 + 8  * hp) : 13;
       const cntGap  = isHov ? Math.round(20 + 18 * hp) : 20;
-      parts.push(`<text x="${p.x}" y="${ly}" text-anchor="middle" fill="${lblCol}" font-size="${lblSize}" font-family="'JetBrains Mono', monospace" font-weight="500" opacity="${lblOp}" pointer-events="none">${p.div.label}</text>`);
+      parts.push(`<text x="${p.x}" y="${ly}" text-anchor="middle" fill="${lblCol}" font-size="${lblSize}" font-family="'Inter', system-ui, sans-serif" font-weight="500" opacity="${lblOp}" pointer-events="none">${p.div.label}</text>`);
       if (!dimmed && !isDepth) {
-        parts.push(`<text x="${p.x}" y="${ly + cntGap}" text-anchor="middle" fill="${P.fgMuted}" font-size="${cntSize}" font-family="'JetBrains Mono', monospace" opacity="${isHov ? 0.85 : 0.6}" pointer-events="none">${count} agent${count !== 1 ? 's' : ''}</text>`);
+        parts.push(`<text x="${p.x}" y="${ly + cntGap}" text-anchor="middle" fill="${P.fgMuted}" font-size="${cntSize}" font-family="'Inter', system-ui, sans-serif" opacity="${isHov ? 0.85 : 0.6}" pointer-events="none">${count} agent${count !== 1 ? 's' : ''}</text>`);
       }
 
       /* Agent spray — selected (opaque) */
@@ -351,7 +351,7 @@ export function MetatronCubeRoster({
           parts.push(`<line x1="${p.x}" y1="${p.y}" x2="${sx}" y2="${sy}" stroke="${col}" stroke-width="0.25" opacity="0.2" pointer-events="none"/>`);
           if (isSelA) {
             parts.push(`<circle cx="${sx}" cy="${sy}" r="${sr+3.5}" fill="none" stroke="${col}" stroke-width="0.8" opacity="0.4" pointer-events="none"/>`);
-            parts.push(`<text x="${sx}" y="${sy - sr - 8}" text-anchor="middle" fill="${P.fgSoft}" font-size="12" font-family="'JetBrains Mono', monospace" font-weight="500" pointer-events="none">${ag.display_name}</text>`);
+            parts.push(`<text x="${sx}" y="${sy - sr - 8}" text-anchor="middle" fill="${P.fgSoft}" font-size="12" font-family="'Inter', system-ui, sans-serif" font-weight="500" pointer-events="none">${ag.display_name}</text>`);
           }
           parts.push(`<circle cx="${sx}" cy="${sy}" r="${sr}" fill="${col}" opacity="${isSelA ? 0.95 : 0.45}" pointer-events="none"/>`);
         });
@@ -399,9 +399,9 @@ export function MetatronCubeRoster({
       const sLblSize = isHov ? Math.round(15 + 21 * hp) : 15;
       const sCntSize = isHov ? Math.round(12 + 7  * hp) : 12;
       const sCntGap  = isHov ? Math.round(17 + 16 * hp) : 17;
-      parts.push(`<text x="${s.x}" y="${ly}" text-anchor="middle" fill="${isHov ? col : P.satellite}" font-size="${sLblSize}" font-family="'JetBrains Mono', monospace" font-weight="500" opacity="${lblOp}" pointer-events="none">${s.div.label}</text>`);
+      parts.push(`<text x="${s.x}" y="${ly}" text-anchor="middle" fill="${isHov ? col : P.satellite}" font-size="${sLblSize}" font-family="'Inter', system-ui, sans-serif" font-weight="500" opacity="${lblOp}" pointer-events="none">${s.div.label}</text>`);
       if (!dimmed) {
-        parts.push(`<text x="${s.x}" y="${ly + sCntGap}" text-anchor="middle" fill="${P.fgMuted}" font-size="${sCntSize}" font-family="'JetBrains Mono', monospace" opacity="${isHov ? 0.85 : 0.55}" pointer-events="none">${count} agent${count !== 1 ? 's' : ''}</text>`);
+        parts.push(`<text x="${s.x}" y="${ly + sCntGap}" text-anchor="middle" fill="${P.fgMuted}" font-size="${sCntSize}" font-family="'Inter', system-ui, sans-serif" opacity="${isHov ? 0.85 : 0.55}" pointer-events="none">${count} agent${count !== 1 ? 's' : ''}</text>`);
       }
 
       /* Agent spray — selected */
@@ -417,7 +417,7 @@ export function MetatronCubeRoster({
           parts.push(`<line x1="${s.x}" y1="${s.y}" x2="${sx}" y2="${sy}" stroke="${col}" stroke-width="0.25" opacity="0.2" pointer-events="none"/>`);
           if (isSelA) {
             parts.push(`<circle cx="${sx}" cy="${sy}" r="${sr+3.5}" fill="none" stroke="${col}" stroke-width="0.8" opacity="0.4" pointer-events="none"/>`);
-            parts.push(`<text x="${sx}" y="${sy - sr - 8}" text-anchor="middle" fill="${P.fgSoft}" font-size="12" font-family="'JetBrains Mono', monospace" font-weight="500" pointer-events="none">${ag.display_name}</text>`);
+            parts.push(`<text x="${sx}" y="${sy - sr - 8}" text-anchor="middle" fill="${P.fgSoft}" font-size="12" font-family="'Inter', system-ui, sans-serif" font-weight="500" pointer-events="none">${ag.display_name}</text>`);
           }
           parts.push(`<circle cx="${sx}" cy="${sy}" r="${sr}" fill="${col}" opacity="${isSelA ? 0.95 : 0.45}" pointer-events="none"/>`);
         });
@@ -455,7 +455,7 @@ export function MetatronCubeRoster({
       `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${P.orb}" stroke-width="0.6" ${i === 2 ? 'stroke-dasharray="3 5"' : ''} pointer-events="none"/>`,
     ).join('');
     const shellDesc = SAT_DIVS.length > 0 ? `3 shells + ${SAT_DIVS.length} satellite` : '3 shells';
-    const footer = `<text x="${cx}" y="${h - 24}" text-anchor="middle" fill="${P.fgFaint}" font-size="11" font-family="'JetBrains Mono', monospace" letter-spacing="0.5" pointer-events="none">${DIVISIONS.length} divisions · ${shellDesc} · ${agents.length} agent${agents.length !== 1 ? 's' : ''}</text>`;
+    const footer = `<text x="${cx}" y="${h - 24}" text-anchor="middle" fill="${P.fgFaint}" font-size="11" font-family="'Inter', system-ui, sans-serif" letter-spacing="0.5" pointer-events="none">${DIVISIONS.length} divisions · ${shellDesc} · ${agents.length} agent${agents.length !== 1 ? 's' : ''}</text>`;
     return `${defs}${glow}${orbits}${buildEdges()}${buildNodes()}${footer}`;
   }, [positions, subNodes, P, EC, cx, cy, rI, rO, rD, h, agents.length, divCounts,
       divAgents, hoverAgents, selectedDivision, selectedAgentIdx, hoveredDivision, hp]);
@@ -493,7 +493,7 @@ export function MetatronCubeRoster({
           <>
             {/* Division title */}
             <p style={{
-              fontFamily: "'Orbitron', sans-serif",
+              fontFamily: "'Inter', system-ui, sans-serif",
               fontSize: '18px', fontWeight: 800,
               letterSpacing: '0.12em', textTransform: 'uppercase',
               lineHeight: 1.15, margin: '0 0 4px 0',
@@ -501,7 +501,7 @@ export function MetatronCubeRoster({
               textShadow: `0 0 24px ${hoveredRingCol}55`,
             }}>{hoveredPos.div.label}</p>
             <p style={{
-              fontFamily: "'JetBrains Mono', monospace",
+              fontFamily: "'Inter', system-ui, sans-serif",
               fontSize: '11px', color: P.fgMuted,
               margin: '0 0 18px 0', letterSpacing: '0.05em',
             }}>{hoverAgents.length} agent{hoverAgents.length !== 1 ? 's' : ''}</p>
@@ -511,14 +511,14 @@ export function MetatronCubeRoster({
               {hoverAgents.map((ag, i) => (
                 <div key={ag.agent_id ?? i} style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
                   <span style={{
-                    fontFamily: "'Orbitron', sans-serif",
+                    fontFamily: "'Inter', system-ui, sans-serif",
                     fontSize: '13px', fontWeight: 700,
                     letterSpacing: '0.08em', textTransform: 'uppercase',
                     color: 'var(--color-text-primary)', lineHeight: 1.2,
                   }}>{ag.display_name}</span>
                   {ag.primary_role && (
                     <span style={{
-                      fontFamily: "'JetBrains Mono', monospace",
+                      fontFamily: "'Inter', system-ui, sans-serif",
                       fontSize: '10px', color: P.fgMuted, letterSpacing: '0.04em',
                     }}>{ag.primary_role}</span>
                   )}
@@ -526,7 +526,7 @@ export function MetatronCubeRoster({
               ))}
               {hoverAgents.length === 0 && (
                 <span style={{
-                  fontFamily: "'JetBrains Mono', monospace",
+                  fontFamily: "'Inter', system-ui, sans-serif",
                   fontSize: '11px', color: P.fgFaint, fontStyle: 'italic',
                 }}>no agents assigned</span>
               )}
