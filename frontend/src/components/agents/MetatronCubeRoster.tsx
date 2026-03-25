@@ -120,10 +120,10 @@ export function MetatronCubeRoster({
     const tick = () => {
       if (!on) return;
       setPhase(p => (p + 0.003) % (Math.PI * 2));
-      /* Smooth lerp: bloom in slowly (~55 frames ≈ 0.9s), decay out even slower */
+      /* Smooth lerp: bloom in (~2s), decay out even slower (~3s) */
       const target = hoveredDivRef.current ? 1 : 0;
       const cur    = hoverProgressRef.current;
-      const speed  = target > cur ? 0.018 : 0.011;
+      const speed  = target > cur ? 0.009 : 0.006;
       hoverProgressRef.current = cur + (target - cur) * speed;
       rafRef.current = requestAnimationFrame(tick);
     };
