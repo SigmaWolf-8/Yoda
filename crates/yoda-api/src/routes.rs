@@ -504,7 +504,8 @@ async fn update_engine(
 }
 
 /// DELETE /api/settings/engines/{slot}
-/// Clears a slot — resets model_name to empty and restores the default endpoint.
+/// Clears a slot — resets model_name, family and credentials to empty.
+/// The endpoint URLs are left untouched so the user's configured ports are preserved.
 async fn clear_engine(
     State(state): State<AppState>,
     user: axum::Extension<auth::AuthenticatedUser>,
@@ -513,16 +514,14 @@ async fn clear_engine(
     if !["a","b","c"].contains(&slot.as_str()) {
         return Err(AppError::Validation("Slot must be 'a', 'b', or 'c'".into()));
     }
-    let default_port: u16 = match slot.as_str() { "a" => 8080, "b" => 8082, _ => 8084 };
     sqlx::query(
         "UPDATE engine_configs \
          SET model_name='', model_family='', family_override=NULL, \
-             endpoint_url=$3, credentials_encrypted=NULL \
+             endpoint_url='', credentials_encrypted=NULL \
          WHERE org_id=$1 AND slot=$2"
     )
     .bind(user.org_id)
     .bind(&slot)
-    .bind(format!("http://localhost:{}", default_port))
     .execute(&state.db)
     .await
     .map_err(AppError::Database)?;
@@ -890,10 +889,27 @@ async fn get_capabilities(
 // ─── CRS Proxy ───────────────────────────────────────────────────────
 //
 // These handlers forward CRS traffic from port 3000 (publicly exposed) to
-// yoda-crs on 127.0.0.1:8081 (internal only). Install scripts and the
-// frontend polling both hit port 3000; they never speak to 8081 directly.
+// the local yoda-crs daemon. The daemon URL is read at runtime from the
+// cube_endpoint_url of engine slot 'a' — never hardcoded here.
 
-const CRS_BASE: &str = "http://127.0.0.1:8081";
+/// Fetch the local CRS daemon base URL from the slot-'a' cube_endpoint_url in
+/// engine_configs. Returns an error the user can act on if it is not yet set.
+async fn get_local_crs_base(db: &sqlx::PgPool) -> Result<String, AppError> {
+    let url: Option<String> = sqlx::query_scalar(
+        "SELECT cube_endpoint_url FROM engine_configs \
+         WHERE slot = 'a' \
+           AND cube_endpoint_url IS NOT NULL \
+           AND cube_endpoint_url != '' \
+         LIMIT 1",
+    )
+    .fetch_optional(db)
+    .await
+    .map_err(AppError::Database)?;
+
+    url.ok_or_else(|| AppError::Validation(
+        "Slot A cube endpoint not configured — set it on the AI Engines page".into()
+    ))
+}
 
 /// Helper: build a one-shot reqwest client (no connection pooling needed).
 fn crs_client() -> Result<reqwest::Client, AppError> {
@@ -913,9 +929,10 @@ async fn crs_register(
     // Extract the wire endpoint IP before consuming body
     let endpoint_ip = extract_endpoint_ip(&body);
 
+    let crs_base = get_local_crs_base(&state.db).await?;
     let client = crs_client()?;
     let resp = client
-        .post(format!("{CRS_BASE}/api/salvi/inter-cube/crs/register"))
+        .post(format!("{crs_base}/api/salvi/inter-cube/crs/register"))
         .header("Content-Type", "application/json")
         .body(body)
         .send()
@@ -1000,9 +1017,9 @@ async fn crs_heartbeat(
 
     // ── Forward to internal CRS (best-effort) ────────────────────────────
     // We don't care if the internal CRS returns 404/422 — always ACK the daemon.
-    if let Ok(client) = crs_client() {
+    if let (Ok(crs_base), Ok(client)) = (get_local_crs_base(&state.db).await, crs_client()) {
         let _ = client
-            .post(format!("{CRS_BASE}/api/salvi/inter-cube/crs/heartbeat"))
+            .post(format!("{crs_base}/api/salvi/inter-cube/crs/heartbeat"))
             .header("Content-Type", "application/json")
             .body(body)
             .send()
@@ -1082,10 +1099,13 @@ async fn mark_engines_online_by_ip(db: &sqlx::PgPool, ip: &str) {
 }
 
 /// GET /api/salvi/inter-cube/crs/stats → CRS stats
-async fn crs_stats() -> Result<(StatusCode, Json<serde_json::Value>), AppError> {
+async fn crs_stats(
+    State(state): State<AppState>,
+) -> Result<(StatusCode, Json<serde_json::Value>), AppError> {
+    let crs_base = get_local_crs_base(&state.db).await?;
     let client = crs_client()?;
     let resp = client
-        .get(format!("{CRS_BASE}/api/salvi/inter-cube/crs/stats"))
+        .get(format!("{crs_base}/api/salvi/inter-cube/crs/stats"))
         .send()
         .await
         .map_err(|e| AppError::Internal(format!("CRS unreachable: {e}")))?;
@@ -1100,10 +1120,13 @@ async fn crs_stats() -> Result<(StatusCode, Json<serde_json::Value>), AppError> 
 }
 
 /// GET /api/salvi/inter-cube/topology → topology proxy
-async fn crs_topology() -> Result<(StatusCode, Json<serde_json::Value>), AppError> {
+async fn crs_topology(
+    State(state): State<AppState>,
+) -> Result<(StatusCode, Json<serde_json::Value>), AppError> {
+    let crs_base = get_local_crs_base(&state.db).await?;
     let client = crs_client()?;
     let resp = client
-        .get(format!("{CRS_BASE}/api/salvi/inter-cube/topology"))
+        .get(format!("{crs_base}/api/salvi/inter-cube/topology"))
         .send()
         .await
         .map_err(|e| AppError::Internal(format!("CRS unreachable: {e}")))?;
@@ -1117,10 +1140,13 @@ async fn crs_topology() -> Result<(StatusCode, Json<serde_json::Value>), AppErro
 }
 
 /// GET /api/salvi/inter-cube/fts/status → FTS status proxy
-async fn crs_fts_status() -> Result<(StatusCode, Json<serde_json::Value>), AppError> {
+async fn crs_fts_status(
+    State(state): State<AppState>,
+) -> Result<(StatusCode, Json<serde_json::Value>), AppError> {
+    let crs_base = get_local_crs_base(&state.db).await?;
     let client = crs_client()?;
     let resp = client
-        .get(format!("{CRS_BASE}/api/salvi/inter-cube/fts/status"))
+        .get(format!("{crs_base}/api/salvi/inter-cube/fts/status"))
         .send()
         .await
         .map_err(|e| AppError::Internal(format!("CRS unreachable: {e}")))?;
@@ -1158,16 +1184,30 @@ async fn node_info(
                 .collect::<Vec<_>>()
                 .join(".");
 
-            // Parse engine port from stored endpoint (e.g., "10.0.0.35:8080" → "8080")
+            // Engine port — parsed from the registered endpoint URL.
             let engine_port_str = endpoint
                 .rsplit(':')
                 .next()
-                .unwrap_or("8080")
+                .unwrap_or("")
                 .to_string();
-            // Node (daemon) port = engine port + 1 per relay reference (8080→8081, 8082→8083, 8084→8085)
-            let node_port_str = engine_port_str.parse::<u16>()
-                .map(|p| (p + 1).to_string())
-                .unwrap_or_else(|_| "8081".to_string());
+
+            // Daemon (cube) port — read from the user-configured cube_endpoint_url
+            // for the matching engine slot instead of deriving via engine_port + 1.
+            let node_port_str: String = sqlx::query_scalar::<_, Option<String>>(
+                "SELECT cube_endpoint_url FROM engine_configs \
+                 WHERE endpoint_url = $1 \
+                   AND cube_endpoint_url IS NOT NULL \
+                   AND cube_endpoint_url != '' \
+                 LIMIT 1",
+            )
+            .bind(&endpoint)
+            .fetch_optional(&state.db)
+            .await
+            .ok()
+            .flatten()
+            .flatten()
+            .and_then(|url| url.rsplit(':').next().map(|s| s.to_string()))
+            .unwrap_or_else(|| "(not configured)".to_string());
 
             let crs_url = std::env::var("REPLIT_URL")
                 .or_else(|_| std::env::var("CRS_URL"))
@@ -1219,11 +1259,13 @@ async fn monitoring_registered_nodes(
 /// GET /api/yoda/crs/session/{token} → CRS session poll
 /// Used by ModelInstallModal to track connection status.
 async fn crs_session(
+    State(state): State<AppState>,
     Path(token): Path<String>,
 ) -> Result<(StatusCode, Json<serde_json::Value>), AppError> {
+    let crs_base = get_local_crs_base(&state.db).await?;
     let client = crs_client()?;
     let resp = client
-        .get(format!("{CRS_BASE}/api/yoda/crs/session/{token}"))
+        .get(format!("{crs_base}/api/yoda/crs/session/{token}"))
         .send()
         .await
         .map_err(|e| AppError::Internal(format!("CRS unreachable: {e}")))?;

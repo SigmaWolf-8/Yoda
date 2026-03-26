@@ -314,12 +314,23 @@ const ALL_SELF_HOSTED_SET = new Set(
 );
 
 // ── llama.cpp (llama-server) config ──────────────────────────────────────────
-// Each engine slot gets its own port so instances can run truly in parallel.
-export const SLOT_PORT: Record<Slot, number>      = { a: 8080,  b: 8082,  c: 8084  };
-export const CUBE_PORT: Record<Slot, number>      = { a: 8081,  b: 8083,  c: 8085  };
+// Ports are NOT hardcoded — they come from whatever URL the user enters on the
+// AI Engines settings page (endpoint_url / cube_endpoint_url in the DB).
+
+/** Parse the port number out of a URL string entered by the user.
+ *  Returns undefined when the URL is absent or has no explicit port. */
+export function portFromUrl(url: string | null | undefined): number | undefined {
+  if (!url) return undefined;
+  try {
+    const u = new URL(url);
+    const p = parseInt(u.port, 10);
+    return isNaN(p) ? undefined : p;
+  } catch { return undefined; }
+}
 
 // HuggingFace GGUF source for every self-hosted model.
-// llama-server downloads the file on first run, then serves on SLOT_PORT.
+// llama-server downloads the file on first run, then serves on the port
+// from the user-configured endpoint_url.
 export const GGUF_INFO: Record<string, { repo: string; file: string }> = {
   // ── Shared (multi-section) ───────────────────────────────────────────────
   'GLM-5':                          { repo: 'THUDM/GLM-5-GGUF',                                        file: 'GLM-5-Q4_K_M.gguf'                                 },
@@ -536,7 +547,7 @@ export function EngineSlotCard({
   const [credentials, setCredentials] = useState('');
   const [modelName, setModelName] = useState(config?.model_name ?? '');
   const [cubeEndpoint, setCubeEndpoint] = useState(
-    config?.cube_endpoint_url ?? `http://localhost:${CUBE_PORT[slot]}`
+    config?.cube_endpoint_url ?? ''
   );
   const [provider, setProvider] = useState('');
   const [familyOverride, setFamilyOverride] = useState(config?.family_override ?? '');
@@ -579,7 +590,7 @@ export function EngineSlotCard({
     hasMountedRef.current = false;
     const hostingMode = (config.hosting_mode as HostingMode) ?? 'self_hosted';
     setMode(hostingMode);
-    setCubeEndpoint(config.cube_endpoint_url ?? `http://localhost:${CUBE_PORT[slot]}`);
+    setCubeEndpoint(config.cube_endpoint_url ?? '');
     setFamilyOverride(config.family_override ?? '');
     setModelName(config.model_name ?? '');
     onModelChange(config.model_name ?? '');
@@ -598,8 +609,7 @@ export function EngineSlotCard({
     // the engine is actually a cloud provider, replace it with the correct URL
     // and immediately persist it so the server probe uses the right address.
     const storedEndpoint = config.endpoint_url ?? '';
-    const defaultLocalUrl = `http://localhost:${SLOT_PORT[slot]}`;
-    const isStaleLocal = storedEndpoint === defaultLocalUrl || storedEndpoint === '';
+    const isStaleLocal = storedEndpoint === '';
     if (isStaleLocal && detectedProvider && PROVIDER_URLS[detectedProvider]) {
       const fixedEndpoint = PROVIDER_URLS[detectedProvider];
       const fixedAuthType = PROVIDERS[detectedProvider]?.authType ?? 'none';
@@ -614,7 +624,7 @@ export function EngineSlotCard({
         slot,
         hosting_mode: hostingMode,
         endpoint_url: fixedEndpoint,
-        cube_endpoint_url: config.cube_endpoint_url ?? `http://localhost:${CUBE_PORT[slot]}`,
+        cube_endpoint_url: config.cube_endpoint_url ?? '',
         auth_type: fixedAuthType,
         credentials: undefined,
         model_name: config.model_name ?? '',
@@ -628,9 +638,8 @@ export function EngineSlotCard({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [config]);
 
-  function defaultEndpointFor(name: string): string {
-    if (GGUF_INFO[name]) return `http://localhost:${SLOT_PORT[slot]}`;
-    return `http://localhost:${SLOT_PORT[slot]}`;
+  function defaultEndpointFor(_name: string): string {
+    return '';
   }
 
   function applyAutoEndpoint(name: string) {
@@ -702,17 +711,18 @@ export function EngineSlotCard({
   }
 
   async function openNewNode() {
+    const configuredPort = portFromUrl(endpoint);
     try {
       const res = await fetch('/api/salvi/inter-cube/node/info');
       if (res.ok) {
         const info = await res.json();
-        const port = info?.ports?.engine ?? '8080';
-        window.open(`http://localhost:${port}`, '_blank', 'noopener,noreferrer');
-      } else {
-        window.open('http://localhost:8080', '_blank', 'noopener,noreferrer');
+        const port = info?.ports?.engine || configuredPort;
+        if (port) window.open(`http://localhost:${port}`, '_blank', 'noopener,noreferrer');
+      } else if (configuredPort) {
+        window.open(`http://localhost:${configuredPort}`, '_blank', 'noopener,noreferrer');
       }
     } catch {
-      window.open('http://localhost:8080', '_blank', 'noopener,noreferrer');
+      if (configuredPort) window.open(`http://localhost:${configuredPort}`, '_blank', 'noopener,noreferrer');
     }
   }
 
@@ -790,16 +800,21 @@ export function EngineSlotCard({
     const os    = detectOS();
     const token = crypto.randomUUID();
 
+    const enginePort = portFromUrl(endpoint);
+    if (enginePort === undefined) {
+      toast('error', 'Enter your engine endpoint URL before downloading an install script.');
+      return;
+    }
     if (os === 'windows') {
       // Step 1: PlenumNET tunnel setup only
-      const ps  = makePsStep1Script(modelName, SLOT_PORT[slot], token, crsUrl);
+      const ps  = makePsStep1Script(modelName, enginePort, token, crsUrl);
       const bat = makeBatWrapper(ps, modelName);
       triggerDownload(bat, 'yoda-step1-tunnel.bat', 'application/octet-stream');
     } else if (os === 'mac') {
-      const sh = makeBashInstallScript(modelName, info.repo, info.file, SLOT_PORT[slot], token, crsUrl);
+      const sh = makeBashInstallScript(modelName, info.repo, info.file, enginePort, token, crsUrl);
       triggerDownload(sh, 'yoda-setup.command', 'text/x-shellscript');
     } else {
-      const sh = makeBashInstallScript(modelName, info.repo, info.file, SLOT_PORT[slot], token, crsUrl);
+      const sh = makeBashInstallScript(modelName, info.repo, info.file, enginePort, token, crsUrl);
       triggerDownload(sh, 'yoda-setup.sh', 'text/x-shellscript');
     }
 
@@ -843,9 +858,14 @@ export function EngineSlotCard({
   function handleStep2Install() {
     const info = GGUF_INFO[modelName];
     if (!info) return;
+    const enginePort = portFromUrl(endpoint);
+    if (enginePort === undefined) {
+      toast('error', 'Enter your engine endpoint URL before downloading an install script.');
+      return;
+    }
     const token   = getStoredToken() ?? '';
     const yodaUrl = window.location.origin;
-    const ps  = makePsStep2Script(modelName, info.repo, info.file, SLOT_PORT[slot], slot, token, yodaUrl);
+    const ps  = makePsStep2Script(modelName, info.repo, info.file, enginePort, slot, token, yodaUrl);
     const bat = makeBatWrapper(ps, modelName);
     triggerDownload(bat, 'yoda-step2-model.bat', 'application/octet-stream');
     setInstallPhase('step2_ready');
@@ -861,8 +881,8 @@ export function EngineSlotCard({
     return {
       slot,
       hosting_mode: mode,
-      endpoint_url: endpoint || `http://localhost:${SLOT_PORT[slot]}`,
-      cube_endpoint_url: cubeEndpoint || `http://localhost:${CUBE_PORT[slot]}`,
+      endpoint_url: endpoint || '',
+      cube_endpoint_url: cubeEndpoint || '',
       auth_type: authType,
       credentials: credentials || undefined,
       model_name: modelName,
@@ -891,8 +911,8 @@ export function EngineSlotCard({
       onSuccess: () => {
         setModelName('');
         setFamilyOverride('');
-        setEndpoint(`http://localhost:${SLOT_PORT[slot]}`);
-        setCubeEndpoint(`http://localhost:${CUBE_PORT[slot]}`);
+        setEndpoint('');
+        setCubeEndpoint('');
         setCredentials('');
         setConfirmClear(false);
         onModelChange('');
@@ -1335,15 +1355,12 @@ export function EngineSlotCard({
                 <label className="text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wide">
                   Cube Node Endpoint
                 </label>
-                <span className="text-[10px] text-[var(--color-text-muted)]/70 font-mono">
-                  default :{CUBE_PORT[slot]}
-                </span>
               </div>
               <input
                 type="text"
                 value={cubeEndpoint}
                 onChange={(e) => setCubeEndpoint(e.target.value)}
-                placeholder={`http://localhost:${CUBE_PORT[slot]}`}
+                placeholder="http://your-host:port"
                 className="w-full px-3 py-1.5 rounded-lg bg-[var(--color-surface-secondary)] border border-[var(--color-border-default)] text-sm text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-gold-500)] focus:ring-1 focus:ring-[var(--color-gold-500)]/30 transition-colors"
               />
               <p className="text-[11px] text-[var(--color-text-muted)]/80 leading-snug">
@@ -1385,8 +1402,10 @@ export function EngineSlotCard({
                 onClick={() => {
                   const info = GGUF_INFO[modelName];
                   if (!info) return;
+                  const ep = portFromUrl(endpoint);
+                  if (ep === undefined) { toast('error', 'Enter your engine endpoint URL before downloading an install script.'); return; }
                   const token = crypto.randomUUID();
-                  const ps  = makePsInstallScript(modelName, info.repo, info.file, SLOT_PORT[slot], token, crsUrl);
+                  const ps  = makePsInstallScript(modelName, info.repo, info.file, ep, token, crsUrl);
                   const bat = makeBatWrapper(ps, modelName);
                   triggerDownload(bat, 'yoda-setup.bat', 'application/octet-stream');
                 }}
@@ -1459,9 +1478,11 @@ export function EngineSlotCard({
                         } else {
                           const info = GGUF_INFO[modelName];
                           if (!info) return;
+                          const ep = portFromUrl(endpoint);
+                          if (ep === undefined) { toast('error', 'Enter your engine endpoint URL before downloading an install script.'); return; }
                           const token = getStoredToken() ?? '';
                           const crsUrl = 'https://plenumnet.replit.app';
-                          const sh = makeBashInstallScript(modelName, info.repo, info.file, SLOT_PORT[slot], token, crsUrl);
+                          const sh = makeBashInstallScript(modelName, info.repo, info.file, ep, token, crsUrl);
                           triggerDownload(sh, 'yoda-install.sh', 'text/plain');
                         }
                       }}
@@ -1626,7 +1647,7 @@ export function EngineSlotCard({
         <ModelInstallModal
           modelName={modelName}
           slot={slot}
-          port={SLOT_PORT[slot]}
+          port={portFromUrl(endpoint)}
           mode="connect"
           onClose={() => setInstallModalMode(null)}
           isDownloaded={downloaded.has(modelName)}
