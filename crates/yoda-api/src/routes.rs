@@ -26,6 +26,7 @@ use crate::auth;
 use crate::audit;
 use crate::bible;
 use crate::capability;
+use crate::cube_relay::{RelayInferRequest, slot_to_cube_address};
 use crate::error::AppError;
 use crate::kb;
 use crate::modes;
@@ -857,21 +858,102 @@ async fn probe_engine(
 }
 
 /// POST /api/settings/engines/{slot}/mark-online
-/// Called by the frontend when the CRS session confirms the local node is registered.
+/// Sends a real test inference through the PlenumLAN relay to confirm the model
+/// is responding end-to-end, then marks the engine online.
 async fn mark_engine_online(
     State(state): State<AppState>,
     user: axum::Extension<auth::AuthenticatedUser>,
     Path(slot): Path<String>,
 ) -> Result<Json<serde_json::Value>, AppError> {
-    sqlx::query(
-        "UPDATE engine_configs SET health_status='online' WHERE org_id=$1 AND slot=$2",
-    )
-    .bind(user.org_id)
-    .bind(&slot)
-    .execute(&state.db)
-    .await
-    .map_err(AppError::Database)?;
-    Ok(Json(serde_json::json!({"status": "online", "slot": slot})))
+    let relay_armed = state.relay_tx.read().await.is_some();
+    let peer_count  = state.live_cube_peer.read().await.len();
+
+    // If the relay isn't live we can't test inference — reject with explanation.
+    if !relay_armed || peer_count == 0 {
+        return Err(AppError::Validation(
+            "Relay is not connected. Make sure your PlenumLAN daemon is running and at least one cube peer is live before marking online.".into()
+        ));
+    }
+
+    // Pick the cube address for this slot (falls back to any live peer if the
+    // preferred one isn't online yet).
+    let preferred = slot_to_cube_address(&slot).to_string();
+    let cube_address = {
+        let peers = state.live_cube_peer.read().await;
+        if peers.contains(&preferred) {
+            preferred.clone()
+        } else {
+            peers.iter().next().cloned().unwrap_or(preferred)
+        }
+    };
+
+    // Send a minimal smoke-test prompt through the relay.
+    let request_id = Uuid::new_v4();
+    let task_id    = Uuid::new_v4();
+    let relay_req  = RelayInferRequest {
+        request_id,
+        task_id,
+        cube_address,
+        messages: serde_json::json!([{"role": "user", "content": "Reply with the single word: ready"}]),
+        model: "local".to_string(),
+        max_tokens: 16,
+        temperature: 0.0,
+    };
+
+    let (tx, rx) = tokio::sync::oneshot::channel();
+    state.pending_relays.write().await.insert(request_id, tx);
+
+    let relay_tx_guard = state.relay_tx.read().await;
+    if let Some(sender) = relay_tx_guard.as_ref() {
+        sender.send(relay_req).await.map_err(|_| {
+            AppError::Validation("Failed to dispatch test inference — relay channel closed.".into())
+        })?;
+    } else {
+        state.pending_relays.write().await.remove(&request_id);
+        return Err(AppError::Validation("Relay disconnected before test inference could be sent.".into()));
+    }
+    drop(relay_tx_guard);
+
+    // Wait up to 90 s for the model to respond.
+    match tokio::time::timeout(std::time::Duration::from_secs(90), rx).await {
+        Ok(Ok(Ok(_result))) => {
+            // Inference round-tripped successfully — mark engine online.
+            sqlx::query(
+                "UPDATE engine_configs SET health_status='online' WHERE org_id=$1 AND slot=$2",
+            )
+            .bind(user.org_id)
+            .bind(&slot)
+            .execute(&state.db)
+            .await
+            .map_err(AppError::Database)?;
+
+            tracing::info!(slot = %slot, "Engine marked online after successful relay inference test");
+            Ok(Json(serde_json::json!({
+                "status": "online",
+                "slot": slot,
+                "verified": true,
+                "note": "Test inference completed successfully through the PlenumLAN relay.",
+            })))
+        }
+        Ok(Ok(Err(e))) => {
+            state.pending_relays.write().await.remove(&request_id);
+            Err(AppError::Validation(format!(
+                "Test inference failed: {e}. Check that llama-server is running on your machine."
+            )))
+        }
+        Ok(Err(_)) => {
+            state.pending_relays.write().await.remove(&request_id);
+            Err(AppError::Validation(
+                "Test inference channel dropped unexpectedly. Try again.".into()
+            ))
+        }
+        Err(_) => {
+            state.pending_relays.write().await.remove(&request_id);
+            Err(AppError::Validation(
+                "Test inference timed out after 90 s. Make sure llama-server finished loading and your cube daemon is forwarding requests.".into()
+            ))
+        }
+    }
 }
 
 /// POST /api/settings/engines/{slot}/mark-offline
