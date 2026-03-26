@@ -32,7 +32,7 @@ import {
   makePsStep2Script,
   triggerDownload,
 } from './installScripts';
-import { useUpdateEngine, useDeleteEngine, useMarkEngineOnline, useMarkEngineOffline, useDisableEngine, useEnableEngine } from '../../api/hooks';
+import { useUpdateEngine, useDeleteEngine, useMarkEngineOffline, useDisableEngine, useEnableEngine } from '../../api/hooks';
 import { getStoredToken } from '../../api/client';
 import { useToast } from '../common/Toast';
 import type {
@@ -533,7 +533,6 @@ export function EngineSlotCard({
 }: EngineSlotCardProps) {
   const update = useUpdateEngine();
   const clearSlot = useDeleteEngine();
-  const markOnline = useMarkEngineOnline();
   const markOffline = useMarkEngineOffline();
   const disableEngine = useDisableEngine();
   const enableEngine = useEnableEngine();
@@ -559,8 +558,6 @@ export function EngineSlotCard({
   const [probeState, setProbeState] = useState<null | 'loading' | ProbeResult>(null);
   const [syncing,    setSyncing]    = useState(false);
   const [syncResult, setSyncResult] = useState<'ok' | 'fail' | null>(null);
-  const [markOnlineError, setMarkOnlineError] = useState<string | null>(null);
-  const [verifying,  setVerifying]  = useState(false);
 
   type InstallPhase = 'idle' | 'downloaded' | 'polling' | 'tunnel_ready' | 'step2_ready' | 'connected' | 'timeout';
   const PHASE_KEY = `yoda_install_phase_slot${slot}`;
@@ -772,38 +769,13 @@ export function EngineSlotCard({
     return res.json();
   }
 
-  async function verifyAndMarkOnline() {
-    setMarkOnlineError(null);
-    setVerifying(true);
-    try {
-      const data = await probeViaRelay();
-      // Probe already wrote the correct health_status to DB via PlenumNET relay check.
-      qc.invalidateQueries({ queryKey: ['engines'] });
-      if (!data.reachable) {
-        setMarkOnlineError(data.note ?? 'PlenumNET relay is not connected — make sure your daemon is running.');
-      }
-    } catch {
-      // Network error talking to our own backend — fall back to manual mark.
-      markOnline.mutate(slot, {
-        onSuccess: () => { setMarkOnlineError(null); qc.invalidateQueries({ queryKey: ['engines'] }); },
-      });
-    } finally {
-      setVerifying(false);
-    }
-  }
-
   async function syncNode() {
     setSyncing(true);
     setSyncResult(null);
-    setMarkOnlineError(null);
     try {
       const data = await probeViaRelay();
-      // Probe already wrote health_status to DB — just refresh UI.
       qc.invalidateQueries({ queryKey: ['engines'] });
       setSyncResult(data.reachable ? 'ok' : 'fail');
-      if (!data.reachable && data.note) {
-        setMarkOnlineError(data.note);
-      }
     } catch {
       setSyncResult('fail');
     } finally {
@@ -866,7 +838,7 @@ export function EngineSlotCard({
             setInstallPhase('connected');
             setInstallAddress(data.address);
             markDownloaded(modelName);
-            markOnline.mutate(slot);
+            qc.invalidateQueries({ queryKey: ['engines'] });
           }
         }
       } catch { /* keep polling */ }
@@ -1011,22 +983,6 @@ export function EngineSlotCard({
                     {healthLabel[config.health_status ?? ''] ?? config.health_status ?? 'unknown'}
                     {config.latency_ms && config.health_status === 'online' ? ` · ${config.latency_ms}ms` : ''}
                   </span>
-                  {/* Manual override: server-side probe can't reach local engines
-                      or validate cloud API keys — let the user confirm. */}
-                  {config.health_status !== 'online' && modelName && (
-                    <button
-                      onClick={verifyAndMarkOnline}
-                      disabled={verifying || markOnline.isPending}
-                      title="Check PlenumNET relay health and update status"
-                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium border border-[var(--color-plex-500)]/40 text-[var(--color-plex-400)] hover:bg-[var(--color-plex-500)]/10 disabled:opacity-50 transition-colors"
-                    >
-                      {(verifying || markOnline.isPending)
-                        ? <Loader2 className="w-3 h-3 animate-spin" />
-                        : <Wifi className="w-3 h-3" />
-                      }
-                      {verifying ? 'Checking relay…' : 'Mark online'}
-                    </button>
-                  )}
                 </>
               )}
               {isDisabled && (
@@ -1269,7 +1225,7 @@ export function EngineSlotCard({
                   {installPhase === 'downloaded' && (
                     <div className="flex items-start gap-2 px-2.5 py-1.5 rounded-lg bg-[var(--color-gold-500)]/8 border border-[var(--color-gold-500)]/25 text-xs text-[var(--color-gold-300)]">
                       <HardDriveDownload className="w-3 h-3 flex-shrink-0 mt-0.5" />
-                      <span>Installer downloaded — double-click to run, then click <strong>Mark Online</strong> when ready.</span>
+                      <span>Installer downloaded — double-click to run. YODA will confirm the engine online automatically.</span>
                     </div>
                   )}
                   {installPhase === 'tunnel_ready' && (
@@ -1284,7 +1240,7 @@ export function EngineSlotCard({
                     <div className="flex items-start gap-2 px-3 py-2 rounded-lg bg-[var(--color-gold-500)]/8 border border-[var(--color-gold-500)]/25 text-xs text-[var(--color-gold-300)]">
                       <Loader2 className="w-3 h-3 flex-shrink-0 mt-0.5" />
                       <span>
-                        <strong>yoda-step2-model.bat</strong> downloaded — double-click it to download and start the model (4–8 GB, takes a while). When the script says "Step 2 Complete", click <strong>Mark Online</strong> below.
+                        <strong>yoda-step2-model.bat</strong> downloaded — double-click it to download and start the model (4–8 GB, takes a while). When the script says "Step 2 Complete", YODA will confirm the engine online automatically.
                       </span>
                     </div>
                   )}
@@ -1308,21 +1264,6 @@ export function EngineSlotCard({
               <div className="flex items-center justify-between mb-1">
                 <label className="text-sm font-medium text-[var(--color-text-secondary)]">Endpoint URL</label>
                 <div className="flex items-center gap-1">
-                  {config?.health_status !== 'online' && endpoint && (
-                    <button
-                      onClick={verifyAndMarkOnline}
-                      disabled={verifying || markOnline.isPending}
-                      title="Check PlenumNET relay health and update engine status"
-                      className="flex items-center gap-1 text-sm px-2 py-0.5 rounded-md border border-[var(--color-plex-500)]/40 text-[var(--color-plex-400)] hover:border-[var(--color-plex-400)] hover:text-[var(--color-plex-300)] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                    >
-                      {(verifying || markOnline.isPending) ? (
-                        <Loader2 className="w-3 h-3 animate-spin" />
-                      ) : (
-                        <Wifi className="w-3 h-3" />
-                      )}
-                      {verifying ? 'Checking relay…' : 'Mark Online'}
-                    </button>
-                  )}
                   <button
                     onClick={probeEndpoint}
                     disabled={probeState === 'loading' || !endpoint}
@@ -1339,7 +1280,7 @@ export function EngineSlotCard({
               <input
                 type="text"
                 value={endpoint}
-                onChange={(e) => { setEndpoint(e.target.value); setProbeState(null); setMarkOnlineError(null); }}
+                onChange={(e) => { setEndpoint(e.target.value); setProbeState(null); }}
                 placeholder="http://localhost:11434"
                 className="w-full px-3 py-1.5 rounded-lg bg-[var(--color-surface-secondary)] border border-[var(--color-border-default)] text-sm text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-gold-500)] focus:ring-1 focus:ring-[var(--color-gold-500)]/30 transition-colors"
               />
@@ -1447,7 +1388,7 @@ export function EngineSlotCard({
               </div>
             )}
             {/* Sync result feedback */}
-            {syncResult && !markOnlineError && (
+            {syncResult && (
               <div className={`flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-md ${
                 syncResult === 'ok'
                   ? 'bg-sky-400/8 border border-sky-400/20 text-sky-300'
@@ -1457,80 +1398,6 @@ export function EngineSlotCard({
                   ? <><CheckCircle2 className="w-3 h-3 flex-shrink-0" /> Node synced — connection confirmed</>
                   : <><XCircle className="w-3 h-3 flex-shrink-0" /> Sync failed — is the daemon running?</>
                 }
-              </div>
-            )}
-            {/* Mark-online verification error — shown when the model server isn't reachable */}
-            {markOnlineError && (
-              <div className="flex flex-col gap-2.5 px-2.5 py-2.5 rounded-md bg-[var(--color-surface-secondary)] border border-[var(--color-border-subtle)] text-xs">
-                <div className="flex items-start gap-2 text-[var(--color-text-secondary)]">
-                  <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0 mt-0.5 text-[var(--color-gold-500)]" />
-                  <div className="flex flex-col gap-0.5">
-                    <span className="font-medium text-[var(--color-text-primary)]">Model server not responding yet</span>
-                    <span className="text-[var(--color-text-muted)]">
-                      llama-server takes 30–60 sec to load the model before it accepts connections.
-                      If you just ran Step 2, wait a moment then retry — or mark it online anyway if you know it&apos;s running.
-                    </span>
-                  </div>
-                </div>
-                <div className="flex flex-wrap items-center gap-2 pl-5">
-                  {/* Retry — re-probes the local server */}
-                  <button
-                    type="button"
-                    onClick={() => syncNode()}
-                    disabled={syncing}
-                    className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-sky-400/10 border border-sky-400/25 text-sky-300 hover:bg-sky-400/20 transition-colors font-medium disabled:opacity-50"
-                  >
-                    {syncing ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCcw className="w-3 h-3" />}
-                    Retry
-                  </button>
-                  {/* Mark online anyway — bypasses the probe */}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setMarkOnlineError(null);
-                      markOnline.mutate(slot, {
-                        onSuccess: () => { setSyncResult('ok'); qc.invalidateQueries({ queryKey: ['engines'] }); },
-                        onError:   () => setSyncResult('fail'),
-                      });
-                    }}
-                    disabled={markOnline.isPending}
-                    className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-[var(--color-gold-500)]/10 border border-[var(--color-gold-500)]/30 text-[var(--color-gold-400)] hover:bg-[var(--color-gold-500)]/20 transition-colors font-medium disabled:opacity-50"
-                  >
-                    {markOnline.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <CheckCircle2 className="w-3 h-3" />}
-                    Mark Online Anyway
-                  </button>
-                  {/* Step 2 download — only shown if model info is known (they may not have run it) */}
-                  {GGUF_INFO[modelName] && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (detectOS() === 'windows') {
-                          handleStep2Install();
-                        } else {
-                          const info = GGUF_INFO[modelName];
-                          if (!info) return;
-                          const ep = portFromUrl(endpoint);
-                          if (ep === undefined) { toast('error', 'Enter your engine endpoint URL before downloading an install script.'); return; }
-                          const token = getStoredToken() ?? '';
-                          const crsUrl = 'https://plenumnet.replit.app';
-                          const sh = makeBashInstallScript(modelName, info.repo, info.file, ep, token, crsUrl);
-                          triggerDownload(sh, 'yoda-install.sh', 'text/plain');
-                        }
-                      }}
-                      className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-[var(--color-surface-tertiary)] border border-[var(--color-border-subtle)] text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)] transition-colors"
-                    >
-                      <Download className="w-3 h-3" />
-                      {detectOS() === 'windows' ? 'Re-download Step 2' : 'Download Script'}
-                    </button>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => setMarkOnlineError(null)}
-                    className="px-2 py-1 rounded text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)] transition-colors"
-                  >
-                    Dismiss
-                  </button>
-                </div>
               </div>
             )}
           </>
@@ -1683,7 +1550,7 @@ export function EngineSlotCard({
           onClose={() => setInstallModalMode(null)}
           isDownloaded={downloaded.has(modelName)}
           onMarkDownloaded={() => markDownloaded(modelName)}
-          onConnected={() => markOnline.mutate(slot)}
+          onConnected={() => qc.invalidateQueries({ queryKey: ['engines'] })}
         />
       )}
     </BevelBox>
