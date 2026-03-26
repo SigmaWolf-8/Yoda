@@ -1022,6 +1022,7 @@ $MODELS_DIR  = Join-Path $env:USERPROFILE "yoda-models"
 $MODEL_PATH  = Join-Path $MODELS_DIR $GGUF_FILE
 $LOG_DIR     = Join-Path $MODELS_DIR "logs"
 $LLAMA_DIR   = Join-Path $env:USERPROFILE "llama.cpp"
+$cpuArch     = [System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString()
 
 New-Item -ItemType Directory -Force -Path $MODELS_DIR | Out-Null
 New-Item -ItemType Directory -Force -Path $LOG_DIR    | Out-Null
@@ -1089,8 +1090,10 @@ Write-Host ""
 Write-Host "Starting llama-server on port $SERVER_PORT..."
 $serverOutLog = Join-Path $LOG_DIR "llama-server-$SERVER_PORT-out.log"
 $serverErrLog = Join-Path $LOG_DIR "llama-server-$SERVER_PORT-err.log"
+$nglArgs = if ($cpuArch -eq "Arm64") { "" } else { "-ngl 99" }
+Write-Host "  -> Architecture: $cpuArch  GPU offload: $(if ($nglArgs) { 'yes' } else { 'no (CPU only)' })"
 $serverProc = Start-Process -FilePath $LLAMA_SERVER \`
-  -ArgumentList "--model \`"$MODEL_PATH\`" --port $SERVER_PORT --host 0.0.0.0 -c 4096 --parallel 4 -ngl 99 --log-disable" \`
+  -ArgumentList "--model \`"$MODEL_PATH\`" --port $SERVER_PORT --host 0.0.0.0 -c 4096 --parallel 2 $nglArgs --log-disable" \`
   -NoNewWindow -PassThru \`
   -RedirectStandardOutput $serverOutLog \`
   -RedirectStandardError  $serverErrLog
@@ -1354,10 +1357,14 @@ if (Test-Path $PASSPHRASE_FILE) {
 
 # -- Restart llama-server -------------------------------------------------
 New-Item -ItemType Directory -Force -Path $LOG_DIR | Out-Null
-Get-Process -Name "llama-server" -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+$cpuArch = [System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString()
+$nglArgs = if ($cpuArch -eq "Arm64") { "" } else { "-ngl 99" }
+Write-Host "  -> Architecture: $cpuArch  GPU offload: $(if ($nglArgs) { 'yes' } else { 'no (CPU only)' })"
+$portOwner = (Get-NetTCPConnection -LocalPort $SERVER_PORT -EA SilentlyContinue | Select-Object -First 1 -ExpandProperty OwningProcess)
+if ($portOwner) { Stop-Process -Id $portOwner -Force -EA SilentlyContinue }
 Start-Sleep -Milliseconds 800
 $serverLog  = Join-Path $LOG_DIR "llama-server-$SERVER_PORT.log"
-$serverProc = Start-Process -FilePath $LLAMA_SERVER -ArgumentList "--model \`"$MODEL_PATH\`" --port $SERVER_PORT --host 0.0.0.0 -c 4096 --parallel 4 -ngl 99 --log-disable" -NoNewWindow -PassThru -RedirectStandardOutput $serverLog -RedirectStandardError $serverLog
+$serverProc = Start-Process -FilePath $LLAMA_SERVER -ArgumentList "--model \`"$MODEL_PATH\`" --port $SERVER_PORT --host 0.0.0.0 -c 4096 --parallel 2 $nglArgs --log-disable" -NoNewWindow -PassThru -RedirectStandardOutput $serverLog -RedirectStandardError $serverLog
 Write-Host "  OK llama-server started (PID $($serverProc.Id)) -- log: $serverLog"
 Start-Sleep -Seconds 2
 
