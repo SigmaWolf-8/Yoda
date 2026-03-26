@@ -317,8 +317,8 @@ pub async fn submit_query(
     // ── Browser relay fallback ────────────────────────────────────────────────
     // Replit's server can't reach local/LAN addresses so health checks mark them
     // offline — but the browser running on the user's machine CAN.
-    // If no explicit endpoint_url is saved, derive a default localhost URL from
-    // the slot (A → :8080, B → :8082, C → :8084) for self-hosted engines.
+    // The relay_endpoint is taken verbatim from the user-configured endpoint_url;
+    // no default ports are guessed. If none is set, relay_endpoint stays None.
     // Browser relay only makes sense for self-hosted local engines.
     // The browser has no credentials to call commercial/free_tier APIs directly,
     // and those should have been handled server-side in decomposition above.
@@ -332,16 +332,9 @@ pub async fn submit_query(
     .await
     .unwrap_or(None);
 
-    let relay_endpoint: Option<String> = relay_info.and_then(|(slot, hosting_mode, endpoint_url)| {
-        if let Some(url) = endpoint_url.filter(|u| !u.is_empty()) {
-            return Some(url);
-        }
-        if hosting_mode == "self_hosted" {
-            let port = match slot.as_str() { "b" => 8082u16, "c" => 8084, _ => 8080 };
-            Some(format!("http://localhost:{port}"))
-        } else {
-            None
-        }
+    let relay_endpoint: Option<String> = relay_info.and_then(|(_slot, _hosting_mode, endpoint_url)| {
+        // Only relay to URLs the user has explicitly configured — no hardcoded port guessing.
+        endpoint_url.filter(|u| !u.is_empty())
     });
 
     Ok((StatusCode::CREATED, Json(QueryResponse {

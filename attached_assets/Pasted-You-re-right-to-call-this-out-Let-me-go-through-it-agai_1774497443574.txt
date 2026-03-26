@@ -1,0 +1,31 @@
+You're right to call this out. Let me go through it against what we agreed.
+What matches:
+
+Z = 0 as the distributor with coprime walk (7, 11, 13) — correct
+Z = −1 conventional, z = −2 ternary-native, z = −3 infrastructure — correct
+The 528 nodes, 1,001 walk states, 473 overlap slots for rekey — correct and clever
+The security boundary enforcement (zero z = −3 imports in browser module) — correct
+The flow: input → z = 0 → z = −3 (crypto/TDNS) → z = −2 or −1 → z = 0 → render — correct
+
+What's wrong:
+The spec says "browser → z = 0" as if the browser is separate from z = 0, sending requests TO it. No. The browser IS z = 0. The user is at z = 0. The browser is what the user sees at ground floor. It doesn't send to z = 0 — it IS z = 0.
+The big problem — the UX is explicitly scoped out:
+The "out of scope" section says:
+
+"GUI chrome (tabs UI, address bar, bookmarks) — engine/portal layer only for now"
+
+That means you're building a browser engine that can parse HTML, execute JavaScript, lay out CSS, render to pixels, encrypt the framebuffer, route through the coprime walk — and the user has no way to interact with it. No address bar to type a URL. No tab buttons. No back/forward. No visible UI at all.
+You've built the engine room and the plumbing but there's no front door.
+What z = 0 needs to actually be the user's home:
+The ground floor needs at minimum:
+
+A shell/launcher — what the user sees when they first arrive. A URL bar, a list of running apps, or a desktop metaphor. Something.
+Tab management — the spec already has per-tab task isolation, but no UI to create/switch/close tabs
+Navigation controls — back, forward, refresh, stop
+Status feedback — loading indicator, connection state, the fact that crypto is happening at z = −3 should be invisible but "secure" should be visible
+
+This doesn't need to be Chrome. It can be minimal. But it needs to exist.
+My recommendation for the spec:
+Add a task between "Browser: input + net" and "End-to-end validation":
+Browser: ground floor shell — Implement shell.rs as the z = 0 user interface. Renders to the same framebuffer pipeline (tiny-skia → compositor → simplefb). Provides: URL input field, tab bar (create/switch/close), navigation controls (back/forward/reload), status line showing connection state. This is the first thing rendered on boot. All interactions route through the distributor. The shell is not a separate application — it is the z = 0 surface that contains everything else.
+One more thing: the spec also scopes out z = +1 through z = +n (snapshots/archive). That's fine for Phase 1, but it should be listed as Phase 2 alongside the GPU pipeline, not forgotten.
