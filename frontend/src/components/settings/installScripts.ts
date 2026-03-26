@@ -1031,12 +1031,21 @@ Write-Host "Model : ${modelName}"
 Write-Host "Port  : $SERVER_PORT"
 Write-Host ""
 
-# -- 1. Find llama-server.exe (installed in Step 1) -----------------------
-$llamaServer = Get-ChildItem -Path $LLAMA_DIR -Recurse -Filter "llama-server.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
-if (-not $llamaServer) {
-  throw "llama-server.exe not found in $LLAMA_DIR -- please run Step 1 first."
+# -- 1. Find llama-server.exe (Step 1 install dir, Downloads, or PATH) ----
+function Find-LlamaServer {
+  $hit = Get-ChildItem -Path $LLAMA_DIR -Recurse -Filter "llama-server.exe" -EA SilentlyContinue | Select-Object -First 1
+  if ($hit) { return $hit.FullName }
+  $dl = Join-Path $env:USERPROFILE "Downloads"
+  $hit = Get-ChildItem -Path $dl -Recurse -Filter "llama-server.exe" -EA SilentlyContinue | Select-Object -First 1
+  if ($hit) { return $hit.FullName }
+  $cmd = Get-Command "llama-server" -EA SilentlyContinue
+  if ($cmd) { return $cmd.Source }
+  return $null
 }
-$LLAMA_SERVER = $llamaServer.FullName
+$LLAMA_SERVER = Find-LlamaServer
+if (-not $LLAMA_SERVER) {
+  throw "llama-server.exe not found in $LLAMA_DIR, Downloads, or PATH -- please run Step 1 first."
+}
 Write-Host "  OK llama-server: $LLAMA_SERVER"
 
 # -- 2. Download GGUF model -----------------------------------------------
@@ -1308,11 +1317,20 @@ if (-not $DAEMON_PATH -or -not (Test-Path $DAEMON_PATH)) {
 if (-not (Test-Path $MODEL_PATH) -or (Get-Item $MODEL_PATH).Length -eq 0) {
   throw "Model not found or empty at $MODEL_PATH -- run the Install script first."
 }
-$llamaServer = Get-ChildItem -Path $LLAMA_DIR -Recurse -Filter "llama-server.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
-if (-not $llamaServer) {
-  throw "llama-server.exe not found in $LLAMA_DIR -- run the Install script first."
+function Find-LlamaServer {
+  $hit = Get-ChildItem -Path $LLAMA_DIR -Recurse -Filter "llama-server.exe" -EA SilentlyContinue | Select-Object -First 1
+  if ($hit) { return $hit.FullName }
+  $dl = Join-Path $env:USERPROFILE "Downloads"
+  $hit = Get-ChildItem -Path $dl -Recurse -Filter "llama-server.exe" -EA SilentlyContinue | Select-Object -First 1
+  if ($hit) { return $hit.FullName }
+  $cmd = Get-Command "llama-server" -EA SilentlyContinue
+  if ($cmd) { return $cmd.Source }
+  return $null
 }
-$LLAMA_SERVER = $llamaServer.FullName
+$LLAMA_SERVER = Find-LlamaServer
+if (-not $LLAMA_SERVER) {
+  throw "llama-server.exe not found in $LLAMA_DIR, Downloads, or PATH -- run the Install script first."
+}
 Write-Host "  OK llama-server: $LLAMA_SERVER"
 
 # ── Detect IP ─────────────────────────────────────────────────────────
