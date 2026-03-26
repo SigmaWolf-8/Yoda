@@ -1290,10 +1290,10 @@ export function EngineSlotCard({
                   try {
                     const u = new URL(v);
                     const p = parseInt(u.port, 10);
-                    if (!isNaN(p)) setCubeEndpoint(`${u.protocol}//${u.hostname}:${p + 1}`);
+                    if (!isNaN(p)) setCubeEndpoint(`${u.protocol}//${u.hostname}:${p - 1}`);
                   } catch { /* ignore invalid URL */ }
                 }}
-                placeholder="http://localhost:8080"
+                placeholder="http://localhost:11125"
                 className="w-full px-3 py-1.5 rounded-lg bg-[var(--color-surface-secondary)] border border-[var(--color-border-default)] text-sm text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-gold-500)] focus:ring-1 focus:ring-[var(--color-gold-500)]/30 transition-colors"
               />
               {probeState !== null && probeState !== 'loading' && (
@@ -1332,12 +1332,12 @@ export function EngineSlotCard({
                 type="text"
                 value={cubeEndpoint}
                 onChange={(e) => setCubeEndpoint(e.target.value)}
-                placeholder="http://localhost:8081"
+                placeholder="http://localhost:11124"
                 className="w-full px-3 py-1.5 rounded-lg bg-[var(--color-surface-secondary)] border border-[var(--color-border-default)] text-sm text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-gold-500)] focus:ring-1 focus:ring-[var(--color-gold-500)]/30 transition-colors"
               />
               <p className="text-[11px] text-[var(--color-text-muted)]/80 leading-snug">
-                The cube network daemon that runs beside your model server — always model port + 1
-                (e.g. model on 8080 → daemon on 8081). Auto-filled when you set the Model Server URL.
+                The cube network daemon that runs beside your model server — always model port − 1
+                (e.g. model on 11125 → daemon on 11124). Auto-filled when you set the Model Server URL.
               </p>
             </div>
 
