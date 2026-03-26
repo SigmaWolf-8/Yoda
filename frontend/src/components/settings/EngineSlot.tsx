@@ -576,21 +576,21 @@ export function EngineSlotCard({
   const installPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const crsUrl = (import.meta.env.VITE_CRS_URL as string | undefined) ?? '';
 
-  // On mount: check if cube daemons are already connected via the relay.
-  // If so, skip directly to tunnel_ready so the user sees Step 2 immediately
-  // without having to run the Step 1 download again.
+  // Authoritative tunnel-ready gate: if the DB says 'tunnel_open' (relay live,
+  // model not yet confirmed), always jump to tunnel_ready — regardless of any
+  // stale localStorage phase (polling, downloaded, timeout, idle, etc.).
+  // Only skip if we're already at a later step (step2_ready, connected) or
+  // the engine is fully online (mark-online has run).
   useEffect(() => {
-    if (installPhase !== 'idle') return;
-    fetch('/api/relay/status')
-      .then(r => r.ok ? r.json() : null)
-      .then((data: { livePeerCount?: number } | null) => {
-        if (data && typeof data.livePeerCount === 'number' && data.livePeerCount > 0) {
-          setInstallPhase('tunnel_ready');
-        }
-      })
-      .catch(() => {});
+    const alreadyAdvanced =
+      installPhase === 'tunnel_ready' ||
+      installPhase === 'step2_ready'  ||
+      installPhase === 'connected';
+    if (config?.health_status === 'tunnel_open' && !alreadyAdvanced) {
+      setInstallPhase('tunnel_ready');
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [config?.health_status]);
 
   const hasMountedRef    = useRef(false);
   const autoSaveTimer    = useRef<ReturnType<typeof setTimeout> | null>(null);
