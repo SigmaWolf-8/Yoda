@@ -1262,26 +1262,38 @@ export function EngineSlotCard({
 
             <div>
               <div className="flex items-center justify-between mb-1">
-                <label className="text-sm font-medium text-[var(--color-text-secondary)]">Endpoint URL</label>
-                <div className="flex items-center gap-1">
-                  <button
-                    onClick={probeEndpoint}
-                    disabled={probeState === 'loading' || !endpoint}
-                    className="flex items-center gap-1 text-sm px-2 py-0.5 rounded-md border border-[var(--color-border-default)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:border-[var(--color-border-hover)] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                  >
-                    {probeState === 'loading' ? (
-                      <><Loader2 className="w-3 h-3 animate-spin" /> Testing…</>
-                    ) : (
-                      <><Radio className="w-3 h-3" /> Test</>
-                    )}
-                  </button>
+                <div>
+                  <label className="text-sm font-medium text-[var(--color-text-secondary)]">Model Server URL</label>
+                  <p className="text-[11px] text-[var(--color-text-muted)]/80 mt-0.5">
+                    Where llama-server listens on your machine — this port is baked into the install scripts.
+                  </p>
                 </div>
+                <button
+                  onClick={probeEndpoint}
+                  disabled={probeState === 'loading' || !endpoint}
+                  className="flex items-center gap-1 text-sm px-2 py-0.5 rounded-md border border-[var(--color-border-default)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:border-[var(--color-border-hover)] transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex-shrink-0 ml-2"
+                >
+                  {probeState === 'loading' ? (
+                    <><Loader2 className="w-3 h-3 animate-spin" /> Testing…</>
+                  ) : (
+                    <><Radio className="w-3 h-3" /> Test</>
+                  )}
+                </button>
               </div>
               <input
                 type="text"
                 value={endpoint}
-                onChange={(e) => { setEndpoint(e.target.value); setProbeState(null); }}
-                placeholder="http://localhost:11434"
+                onChange={(e) => {
+                  const v = e.target.value;
+                  setEndpoint(v);
+                  setProbeState(null);
+                  try {
+                    const u = new URL(v);
+                    const p = parseInt(u.port, 10);
+                    if (!isNaN(p)) setCubeEndpoint(`${u.protocol}//${u.hostname}:${p + 1}`);
+                  } catch { /* ignore invalid URL */ }
+                }}
+                placeholder="http://localhost:8080"
                 className="w-full px-3 py-1.5 rounded-lg bg-[var(--color-surface-secondary)] border border-[var(--color-border-default)] text-sm text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-gold-500)] focus:ring-1 focus:ring-[var(--color-gold-500)]/30 transition-colors"
               />
               {probeState !== null && probeState !== 'loading' && (
@@ -1311,23 +1323,21 @@ export function EngineSlotCard({
               )}
             </div>
 
-            {/* ── Cube (PlenumNET) endpoint ── */}
+            {/* ── Cube (PlenumNET) daemon URL ── */}
             <div className="space-y-1.5">
-              <div className="flex items-center justify-between">
-                <label className="text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wide">
-                  Cube Node Endpoint
-                </label>
-              </div>
+              <label className="text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wide">
+                PlenumNET Daemon URL
+              </label>
               <input
                 type="text"
                 value={cubeEndpoint}
                 onChange={(e) => setCubeEndpoint(e.target.value)}
-                placeholder="http://your-host:port"
+                placeholder="http://localhost:8081"
                 className="w-full px-3 py-1.5 rounded-lg bg-[var(--color-surface-secondary)] border border-[var(--color-border-default)] text-sm text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-gold-500)] focus:ring-1 focus:ring-[var(--color-gold-500)]/30 transition-colors"
               />
               <p className="text-[11px] text-[var(--color-text-muted)]/80 leading-snug">
-                PlenumNET Cube daemon port paired with this engine slot.
-                Runs alongside the LLM inference server for network mesh participation.
+                The cube network daemon that runs beside your model server — always model port + 1
+                (e.g. model on 8080 → daemon on 8081). Auto-filled when you set the Model Server URL.
               </p>
             </div>
 
