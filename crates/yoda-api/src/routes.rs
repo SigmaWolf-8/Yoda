@@ -52,7 +52,8 @@ pub fn build_router(state: AppState) -> Router {
         .route("/api/salvi/inter-cube/fts/status", get(crs_fts_status))
         .route("/api/salvi/inter-cube/node/info", get(node_info))
         .route("/api/monitoring/registered-nodes", get(monitoring_registered_nodes))
-        .route("/api/yoda/crs/session/{token}", get(crs_session));
+        .route("/api/yoda/crs/session/{token}", get(crs_session))
+        .route("/api/relay/status", get(relay_status));
 
     // ── Protected routes (JWT or API key) ────────────────────────────
     let protected = Router::new()
@@ -1277,4 +1278,18 @@ async fn crs_session(
         .await
         .map_err(|e| AppError::Internal(format!("CRS response: {e}")))?;
     Ok((status, Json(json)))
+}
+
+/// GET /api/relay/status
+/// Returns PlenumLAN relay state: armed flag and live cube peer count.
+/// Public — no auth required. Used by the frontend to detect when cube
+/// daemons are already connected so the install UI can skip Step 1.
+async fn relay_status(State(state): State<AppState>) -> Json<serde_json::Value> {
+    let armed = state.relay_tx.read().await.is_some();
+    let peers: Vec<String> = state.live_cube_peer.read().await.iter().cloned().collect();
+    Json(serde_json::json!({
+        "armed": armed,
+        "livePeerCount": peers.len(),
+        "livePeers": peers,
+    }))
 }

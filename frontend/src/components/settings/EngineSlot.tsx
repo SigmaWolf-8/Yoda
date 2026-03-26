@@ -575,6 +575,22 @@ export function EngineSlotCard({
   const installPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const crsUrl = (import.meta.env.VITE_CRS_URL as string | undefined) ?? '';
 
+  // On mount: check if cube daemons are already connected via the relay.
+  // If so, skip directly to tunnel_ready so the user sees Step 2 immediately
+  // without having to run the Step 1 download again.
+  useEffect(() => {
+    if (installPhase !== 'idle') return;
+    fetch('/api/relay/status')
+      .then(r => r.ok ? r.json() : null)
+      .then((data: { livePeerCount?: number } | null) => {
+        if (data && typeof data.livePeerCount === 'number' && data.livePeerCount > 0) {
+          setInstallPhase('tunnel_ready');
+        }
+      })
+      .catch(() => {});
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const hasMountedRef    = useRef(false);
   const autoSaveTimer    = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastAutoFill     = useRef<string>('');

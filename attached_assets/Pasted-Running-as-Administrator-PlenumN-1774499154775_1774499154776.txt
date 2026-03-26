@@ -1,0 +1,121 @@
+Running as Administrator...
+
+==========================================================
+  PlenumNET Array3 Deployer
+  PlenumNET Inter-Cube Infrastructure
+  Applied Physics Division -- Capomastro Holdings Ltd.
+==========================================================
+
+  Nodes        : 3 instances (27 slots each)
+  Coordinator  : Node #1 (gateway 11124)
+  Gateway Ports: 11124, 11151, 11178
+  Port Ranges  : 11111-11137, 11138-11164, 11165-11191
+  Relay        : https://plenumnet.replit.app (WebSocket NAT traversal)
+  Registry     : https://plenumnet.replit.app (monitoring only)
+
+STEP 1/8: Checking prerequisites
+---
+  [OK] git
+  [OK] cargo
+
+STEP 2/8: Build environment
+---
+  Architecture: Arm64
+  [OK] clang
+
+STEP 3/8: Source code + build
+---
+  Updating source...
+  [OK] Source ready
+  Stopping running node(s)...
+  Building inter-cube daemon (CARGO_BUILD_JOBS=1)...
+     Compiling libc v0.2.182
+     Compiling winapi v0.3.9
+     Compiling memoffset v0.6.5
+     Compiling serial-core v0.4.0
+     Compiling winreg v0.10.1
+     Compiling anyhow v1.0.102
+     Compiling hyper-util v0.1.20
+     Compiling serial-windows v0.4.0
+     Compiling bitflags v1.3.2
+     Compiling lazy_static v1.5.0
+     Compiling shared_library v0.1.9
+     Compiling nix v0.25.1
+     Compiling serial v0.4.0
+     Compiling filedescriptor v0.8.3
+     Compiling downcast-rs v1.2.1
+     Compiling shell-words v1.1.1
+     Compiling portable-pty v0.8.1
+     Compiling hyper-tls v0.6.0
+     Compiling axum v0.7.9
+     Compiling reqwest v0.12.28
+     Compiling pty-mux v0.2.0 (C:\PlenumNET\services\pty-mux)
+     Compiling inter-cube v2.4.1 (C:\PlenumNET\services\inter-cube)
+      Finished `release` profile [optimized] target(s) in 1m 00s
+  [OK] Build successful (3.6 MB)
+
+STEP 4/8: Version check
+---
+  Local node    : v2.4.1
+  CRS reference : v2.4.1
+  [OK] Version aligned
+
+STEP 5/8: Network detection
+---
+  Local IP: 10.0.0.42
+
+STEP 6/8: Generating 3 node identities
+---
+  Migrating identities from C:\Users\Sigma\.plenumnet to C:\PlenumNET\plenumnet-data...
+  [OK] Node #1 identity exists
+  [OK] Node #2 identity exists
+  [OK] Node #3 identity exists
+
+STEP 7/8: Registering Array3 as Windows Services
+---
+  [OK] Node #1 registered as service 'PlenumNET-Array3-1'
+  [OK] Node #2 registered as service 'PlenumNET-Array3-2'
+  [OK] Node #3 registered as service 'PlenumNET-Array3-3'
+
+  Starting Node #1 (coordinator) first...
+  Waiting for coordinator to be ready...
+  [OK] Coordinator ready at http://localhost:11124
+  [OK] Node #2 service started
+  [OK] Node #3 service started
+  [OK] Watchdog scheduled task registered: PlenumNET-Array3-Watchdog
+       Checks every 5 minutes + on boot - restarts any stopped nodes
+  [OK] Node #1 (coordinator) address: 1111111111111
+  [OK] Node #2 registered -> address: 1211111111111
+  [OK] Node #3 registered -> address: 2211111111111
+
+STEP 8/8: Deployment summary + desktop launcher
+---
+  [OK] Deployment summary posted to PlenumNET Node Registry
+       Query: https://plenumnet.replit.app/api/salvi/inter-cube/relay/deployments
+
+  [OK] Desktop launcher created: C:\Users\Sigma\OneDrive\Desktop\Start PlenumNET Array3.bat
+  [OK] Stop launcher created: C:\Users\Sigma\OneDrive\Desktop\Stop PlenumNET Array3.bat
+
+==========================================================
+  PlenumNET Array3 Deployment Complete
+==========================================================
+
+  Node #1 (coordinator): port , address 1111111111111
+  Node #2 (worker)     : port , address 1211111111111
+  Node #3 (worker)     : port , address 2211111111111
+
+  Services       : PlenumNET-Array3-1, PlenumNET-Array3-2, PlenumNET-Array3-3
+  Startup        : Automatic (survives reboots + terminal close)
+  Watchdog       : PlenumNET-Array3-Watchdog (every 5 min + on boot)
+  Coordinator    : http://localhost:11124 (Node #1)
+  Relay          : https://plenumnet.replit.app (WebSocket NAT traversal)
+  Registry       : https://plenumnet.replit.app (monitoring dashboard)
+  Node Registry  : https://plenumnet.replit.app/api/salvi/inter-cube/relay/deployments
+  Start Launcher : C:\Users\Sigma\OneDrive\Desktop\Start PlenumNET Array3.bat
+  Stop Launcher  : C:\Users\Sigma\OneDrive\Desktop\Stop PlenumNET Array3.bat
+  Logs           : C:\PlenumNET\plenumnet-data\logs
+
+  Closing this window will NOT stop the nodes -- they run as services.
+  Applications (e.g. YODA) connect via the relay to reach these nodes.
+
+Press Enter to close:
