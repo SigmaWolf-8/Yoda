@@ -58,14 +58,24 @@ function Indicator({
 
 export function NodeHealthStrip({ engines, crsReachable, crsHasNode }: Props) {
   const configuredEngines = engines.filter((e) => e.model_name?.trim());
-  const anyOnline = configuredEngines.some((e) => e.health_status === 'online');
+  const anyOnline      = configuredEngines.some((e) => e.health_status === 'online');
+  const anyTunnelOpen  = configuredEngines.some((e) => e.health_status === 'tunnel_open');
+  const onlineCount    = configuredEngines.filter((e) => e.health_status === 'online').length;
+  const tunnelCount    = configuredEngines.filter((e) => e.health_status === 'tunnel_open').length;
 
-  const llmLevel: Level = anyOnline ? 'live' : configuredEngines.length > 0 ? 'trouble' : 'down';
+  const llmLevel: Level = anyOnline
+    ? 'live'
+    : anyTunnelOpen || configuredEngines.length > 0
+      ? 'trouble'
+      : 'down';
+
   const llmStatus = anyOnline
-    ? `${configuredEngines.filter((e) => e.health_status === 'online').length} / ${configuredEngines.length} online`
-    : configuredEngines.length > 0
-    ? 'No engines responding'
-    : 'Not configured';
+    ? `${onlineCount} / ${configuredEngines.length} online`
+    : anyTunnelOpen
+      ? `${tunnelCount} tunnel${tunnelCount !== 1 ? 's' : ''} open — run Step 2`
+      : configuredEngines.length > 0
+        ? 'No engines responding'
+        : 'Not configured';
 
   const cubeLevel: Level = crsHasNode ? 'live' : crsReachable ? 'trouble' : 'down';
   const cubeStatus = crsHasNode ? 'Registered' : crsReachable ? 'Not registered' : 'Daemon offline';

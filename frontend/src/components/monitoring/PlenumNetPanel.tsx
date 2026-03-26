@@ -45,8 +45,10 @@ export function PlenumNetPanel({ engines }: Props) {
   const selfHostedEngines = configuredEngines.filter((e) => e.hosting_mode === 'self_hosted');
   // Tunnel is active if CRS reports registrations OR any self-hosted engine is already online
   const crsActive = !error && stats !== null && stats.registeredCount > 0;
-  const anySelfHostedOnline = selfHostedEngines.some((e) => e.health_status === 'online');
-  const hasActiveTunnel = crsActive || anySelfHostedOnline;
+  const anySelfHostedActive = selfHostedEngines.some(
+    (e) => e.health_status === 'online' || e.health_status === 'tunnel_open',
+  );
+  const hasActiveTunnel = crsActive || anySelfHostedActive;
   const needsReconnect = selfHostedEngines.length > 0 && !hasActiveTunnel && !error;
 
   function resolveModelName(eng: EngineConfig): string {

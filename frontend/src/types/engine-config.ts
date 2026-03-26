@@ -1,7 +1,7 @@
 export type HostingMode = 'self_hosted' | 'commercial' | 'free_tier';
 export type AuthType = 'bearer' | 'api_key' | 'none';
 export type EngineSlot = 'a' | 'b' | 'c';
-export type HealthStatus = 'online' | 'offline' | 'suspect';
+export type HealthStatus = 'online' | 'offline' | 'suspect' | 'tunnel_open';
 
 export interface EngineConfig {
   id: string;

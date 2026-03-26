@@ -957,15 +957,18 @@ export function EngineSlotCard({
 
   const healthDot = config?.health_status === 'online'
     ? 'bg-sky-400'
-    : config?.health_status === 'suspect'
+    : config?.health_status === 'tunnel_open'
       ? 'bg-[var(--color-gold-400)]'
-      : 'bg-[var(--color-text-muted)]';
+      : config?.health_status === 'suspect'
+        ? 'bg-[var(--color-text-muted)]'
+        : 'bg-[var(--color-text-primary)]/30';
 
   const healthLabel: Record<string, string> = {
-    online:  'online',
-    offline: 'offline',
-    suspect: 'reachable — verify key',
-    unknown: 'unknown',
+    online:      'online',
+    offline:     'offline',
+    tunnel_open: 'tunnel open',
+    suspect:     'reachable — verify key',
+    unknown:     'unknown',
   };
 
   const grouped = groupedModels(searchQuery, usedModels);

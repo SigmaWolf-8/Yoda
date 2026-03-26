@@ -736,7 +736,27 @@ async fn probe_engine_inner(
             let peer_count  = live_cube_peer.read().await.len();
             let relay_live  = relay_armed && peer_count > 0;
 
-            let new_status = if relay_live { "online" } else { "offline" };
+            // relay_live → tunnel_open (relay works, but llama-server not yet confirmed).
+            // relay down  → offline.
+            // Never downgrade from 'online' here — only mark-online can grant that.
+            let current_status: Option<String> = sqlx::query_scalar(
+                "SELECT health_status FROM engine_configs WHERE org_id=$1 AND slot=$2",
+            )
+            .bind(org_id)
+            .bind(&slot)
+            .fetch_optional(&db)
+            .await
+            .ok()
+            .flatten();
+            let already_online = current_status.as_deref() == Some("online");
+
+            let new_status = if relay_live && !already_online {
+                "tunnel_open"
+            } else if relay_live {
+                "online" // keep existing online status intact
+            } else {
+                "offline"
+            };
             let _ = sqlx::query(
                 "UPDATE engine_configs SET health_status=$1 WHERE org_id=$2 AND slot=$3",
             )
@@ -756,10 +776,12 @@ async fn probe_engine_inner(
                 "health_status": new_status,
                 "endpoint_url": endpoint_url,
                 "source": "plenumnet_relay",
-                "note": if relay_live {
-                    format!("PlenumLAN relay active — {} cube peer(s) connected. Engine marked online.", peer_count)
+                "note": if relay_live && !already_online {
+                    format!("PlenumLAN relay active — {} cube peer(s) connected. Tunnel is open. Run Step 2 to install the model.", peer_count)
+                } else if relay_live {
+                    format!("PlenumLAN relay active — {} cube peer(s) connected. Engine is online.", peer_count)
                 } else if relay_armed {
-                    "PlenumLAN relay connected but no cube peers are heartbeating. Run your daemon on your local machine.".to_string()
+                    "PlenumLAN relay connected but no cube peers are heartbeating. Make sure your daemon is running.".to_string()
                 } else {
                     "PlenumLAN relay not connected. Check that the YODA server can reach plenumnet.replit.app.".to_string()
                 },

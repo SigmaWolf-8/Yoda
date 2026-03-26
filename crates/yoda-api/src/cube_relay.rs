@@ -693,29 +693,53 @@ pub fn spawn_relay_health_monitor(state: crate::state::AppState) {
             let relay_armed = state.relay_tx.read().await.is_some();
             let peer_count  = state.live_cube_peer.read().await.len();
             let relay_live  = relay_armed && peer_count > 0;
-            let new_status  = if relay_live { "online" } else { "offline" };
 
-            // Update every self-hosted engine slot in the DB.
-            match sqlx::query(
-                "UPDATE engine_configs SET health_status=$1 WHERE hosting_mode='self_hosted'",
-            )
-            .bind(new_status)
-            .execute(&state.db)
-            .await
-            {
-                Ok(r) => {
-                    if r.rows_affected() > 0 {
-                        tracing::debug!(
-                            relay_armed,
+            // State machine for self-hosted engine health:
+            //   relay_live  + current is 'offline'      → 'tunnel_open'  (relay just connected)
+            //   relay_live  + current is 'tunnel_open'  → keep 'tunnel_open'
+            //   relay_live  + current is 'online'       → keep 'online'  (model confirmed; never downgrade)
+            //   relay down  + current is 'tunnel_open'  → 'offline'
+            //   relay down  + current is 'online'       → 'offline'      (inference cannot flow)
+            //   relay down  + current is 'offline'      → keep 'offline'
+            if relay_live {
+                // Promote offline → tunnel_open only. Don't touch online.
+                match sqlx::query(
+                    "UPDATE engine_configs \
+                     SET health_status='tunnel_open' \
+                     WHERE hosting_mode='self_hosted' AND health_status='offline'",
+                )
+                .execute(&state.db)
+                .await
+                {
+                    Ok(r) if r.rows_affected() > 0 => {
+                        tracing::info!(
                             peer_count,
-                            new_status,
-                            slots_updated = r.rows_affected(),
-                            "Relay health monitor: engine statuses updated"
+                            rows = r.rows_affected(),
+                            "Relay health monitor: promoted offline→tunnel_open"
                         );
                     }
+                    Ok(_) => {}
+                    Err(e) => tracing::warn!(error = %e, "Relay health monitor: promote failed"),
                 }
-                Err(e) => {
-                    tracing::warn!(error = %e, "Relay health monitor: DB update failed");
+            } else {
+                // Relay down — mark tunnel_open and online engines as offline.
+                match sqlx::query(
+                    "UPDATE engine_configs \
+                     SET health_status='offline' \
+                     WHERE hosting_mode='self_hosted' \
+                     AND health_status IN ('tunnel_open', 'online')",
+                )
+                .execute(&state.db)
+                .await
+                {
+                    Ok(r) if r.rows_affected() > 0 => {
+                        tracing::info!(
+                            rows = r.rows_affected(),
+                            "Relay health monitor: relay down — demoted to offline"
+                        );
+                    }
+                    Ok(_) => {}
+                    Err(e) => tracing::warn!(error = %e, "Relay health monitor: demote failed"),
                 }
             }
         }

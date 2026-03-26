@@ -225,11 +225,14 @@ export function EngineSettingsPage() {
         <div className="flex border-b border-[var(--color-border-subtle)] mb-0">
           {SLOTS.map((slot) => {
             const model = liveModels[slot];
-            const dot   = engineMap.get(slot)?.health_status === 'online'
+            const hs = engineMap.get(slot)?.health_status;
+            const dot = hs === 'online'
               ? 'bg-[var(--color-plex-400)]'
-              : engineMap.get(slot)?.health_status === 'suspect'
-                ? 'bg-blue-300'
-                : 'bg-[var(--color-text-muted)]/40';
+              : hs === 'tunnel_open'
+                ? 'bg-[var(--color-gold-400)]'
+                : hs === 'suspect'
+                  ? 'bg-[var(--color-text-muted)]'
+                  : 'bg-[var(--color-text-muted)]/40';
             return (
               <button
                 key={slot}

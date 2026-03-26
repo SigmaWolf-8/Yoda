@@ -22,9 +22,10 @@ const MODE_LABEL: Record<string, string> = {
 };
 
 const HEALTH_STYLES: Record<string, { dot: string; bg: string; text: string }> = {
-  online:  { dot: 'bg-[var(--color-plex-400)]',  bg: 'bg-[var(--color-plex-500)]/8',  text: 'text-[var(--color-plex-400)]' },
-  suspect: { dot: 'bg-blue-300',                  bg: 'bg-blue-500/8',                  text: 'text-blue-300' },
-  offline: { dot: 'bg-[var(--color-text-muted)]', bg: 'bg-[var(--color-surface-tertiary)]', text: 'text-[var(--color-text-muted)]' },
+  online:      { dot: 'bg-[var(--color-plex-400)]',      bg: 'bg-[var(--color-plex-500)]/8',       text: 'text-[var(--color-plex-400)]' },
+  tunnel_open: { dot: 'bg-[var(--color-gold-400)]',      bg: 'bg-[var(--color-gold-500)]/8',       text: 'text-[var(--color-gold-400)]' },
+  suspect:     { dot: 'bg-[var(--color-text-muted)]',    bg: 'bg-[var(--color-surface-tertiary)]', text: 'text-[var(--color-text-muted)]' },
+  offline:     { dot: 'bg-[var(--color-text-primary)]/20', bg: 'bg-[var(--color-surface-tertiary)]', text: 'text-[var(--color-text-muted)]' },
 };
 
 export function EngineHealthDashboard({ engines }: Props) {
@@ -49,7 +50,10 @@ export function EngineHealthDashboard({ engines }: Props) {
     <div className="grid gap-4 sm:grid-cols-3">
       {configured.map((eng) => {
         const style = HEALTH_STYLES[eng.health_status] ?? HEALTH_STYLES.offline;
-        const HealthIcon = eng.health_status === 'online' ? Wifi : eng.health_status === 'suspect' ? AlertCircle : WifiOff;
+        const HealthIcon = eng.health_status === 'online' ? Wifi
+          : eng.health_status === 'tunnel_open' ? Gauge
+          : eng.health_status === 'suspect' ? AlertCircle
+          : WifiOff;
         const isOffline = eng.health_status !== 'online';
 
         return (
