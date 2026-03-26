@@ -707,11 +707,9 @@ Write-Host ""
 Write-Host "Starting llama-server on port $SERVER_PORT..."
 Get-Process -Name "llama-server" -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
 Start-Sleep -Milliseconds 800
-$serverOutLog = Join-Path $LOG_DIR "llama-server-$SERVER_PORT-out.log"
-$serverErrLog = Join-Path $LOG_DIR "llama-server-$SERVER_PORT-err.log"
 $nglArgs = if ($cpuArch -eq "Arm64") { "" } else { "-ngl 99" }
-$serverProc = Start-Process -FilePath $LLAMA_SERVER -ArgumentList "--model \`"$MODEL_PATH\`" --port $SERVER_PORT --host 0.0.0.0 -c 4096 --parallel 4 $nglArgs --log-disable" -NoNewWindow -PassThru -RedirectStandardOutput $serverOutLog -RedirectStandardError $serverErrLog
-Write-Host "  OK llama-server started (PID $($serverProc.Id)) -- log: $serverOutLog"
+$serverProc = Start-Process -FilePath $LLAMA_SERVER -ArgumentList "--model \`"$MODEL_PATH\`" --port $SERVER_PORT --host 0.0.0.0 -c 4096 --parallel 2 $nglArgs --log-disable" -WindowStyle Hidden -PassThru
+Write-Host "  OK llama-server started (PID $($serverProc.Id))"
 Start-Sleep -Seconds 2
 
 # -- 10. Start PlenumNET tunnel daemon ------------------------------------
@@ -728,10 +726,8 @@ $env:CUBE_CRS_URL       = $CRS_URL
 $env:CUBE_ENDPOINT      = $CUBE_ENDPOINT
 $env:CUBE_SESSION_TOKEN = $SESSION_TOKEN
 $env:CUBE_ROLE          = "inference"
-$daemonOutLog = Join-Path $LOG_DIR "intercube-out.log"
-$daemonErrLog = Join-Path $LOG_DIR "intercube-err.log"
-$daemonProc = Start-Process -FilePath $DAEMON_PATH -NoNewWindow -PassThru -RedirectStandardOutput $daemonOutLog -RedirectStandardError $daemonErrLog
-Write-Host "  OK Daemon started (PID $($daemonProc.Id)) -- log: $daemonOutLog"
+$daemonProc = Start-Process -FilePath $DAEMON_PATH -WindowStyle Hidden -PassThru
+Write-Host "  OK Daemon started (PID $($daemonProc.Id))"
 
 Write-Host ""
 Write-Host "==============================" -ForegroundColor Green
@@ -1088,16 +1084,12 @@ if ($existing) {
 # -- 4. Start llama-server ------------------------------------------------
 Write-Host ""
 Write-Host "Starting llama-server on port $SERVER_PORT..."
-$serverOutLog = Join-Path $LOG_DIR "llama-server-$SERVER_PORT-out.log"
-$serverErrLog = Join-Path $LOG_DIR "llama-server-$SERVER_PORT-err.log"
 $nglArgs = if ($cpuArch -eq "Arm64") { "" } else { "-ngl 99" }
 Write-Host "  -> Architecture: $cpuArch  GPU offload: $(if ($nglArgs) { 'yes' } else { 'no (CPU only)' })"
 $serverProc = Start-Process -FilePath $LLAMA_SERVER \`
   -ArgumentList "--model \`"$MODEL_PATH\`" --port $SERVER_PORT --host 0.0.0.0 -c 4096 --parallel 2 $nglArgs --log-disable" \`
-  -NoNewWindow -PassThru \`
-  -RedirectStandardOutput $serverOutLog \`
-  -RedirectStandardError  $serverErrLog
-Write-Host "  OK PID $($serverProc.Id) -- log: $serverOutLog"
+  -WindowStyle Hidden -PassThru
+Write-Host "  OK PID $($serverProc.Id)"
 Write-Host ""
 Write-Host "Waiting for model to finish loading (can take 1-3 min)..."
 $maxWait  = 300
@@ -1363,15 +1355,13 @@ Write-Host "  -> Architecture: $cpuArch  GPU offload: $(if ($nglArgs) { 'yes' } 
 $portOwner = (Get-NetTCPConnection -LocalPort $SERVER_PORT -EA SilentlyContinue | Select-Object -First 1 -ExpandProperty OwningProcess)
 if ($portOwner) { Stop-Process -Id $portOwner -Force -EA SilentlyContinue }
 Start-Sleep -Milliseconds 800
-$serverLog  = Join-Path $LOG_DIR "llama-server-$SERVER_PORT.log"
-$serverProc = Start-Process -FilePath $LLAMA_SERVER -ArgumentList "--model \`"$MODEL_PATH\`" --port $SERVER_PORT --host 0.0.0.0 -c 4096 --parallel 2 $nglArgs --log-disable" -NoNewWindow -PassThru -RedirectStandardOutput $serverLog -RedirectStandardError $serverLog
-Write-Host "  OK llama-server started (PID $($serverProc.Id)) -- log: $serverLog"
+$serverProc = Start-Process -FilePath $LLAMA_SERVER -ArgumentList "--model \`"$MODEL_PATH\`" --port $SERVER_PORT --host 0.0.0.0 -c 4096 --parallel 2 $nglArgs --log-disable" -WindowStyle Hidden -PassThru
+Write-Host "  OK llama-server started (PID $($serverProc.Id))"
 Start-Sleep -Seconds 2
 
 # -- Restart PlenumNET daemon ---------------------------------------------
 # The daemon self-registers with the CRS on startup using CUBE_CRS_URL +
 # CUBE_SESSION_TOKEN, so no explicit registration call is needed here.
-Get-Process | Where-Object { $_.Name -like "inter-cube*" } | Stop-Process -Force -ErrorAction SilentlyContinue
 $daemonPort = $SERVER_PORT - 1
 $portOwner = (Get-NetTCPConnection -LocalPort $daemonPort -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty OwningProcess)
 if ($portOwner) { Stop-Process -Id $portOwner -Force -ErrorAction SilentlyContinue }
@@ -1382,10 +1372,8 @@ $env:CUBE_CRS_URL       = $CRS_URL
 $env:CUBE_ENDPOINT      = $CUBE_ENDPOINT
 $env:CUBE_SESSION_TOKEN = $SESSION_TOKEN
 $env:CUBE_ROLE          = "inference"
-$daemonOutLog = Join-Path $LOG_DIR "intercube-out.log"
-$daemonErrLog = Join-Path $LOG_DIR "intercube-err.log"
-$daemonProc = Start-Process -FilePath $DAEMON_PATH -NoNewWindow -PassThru -RedirectStandardOutput $daemonOutLog -RedirectStandardError $daemonErrLog
-Write-Host "  OK Daemon started (PID $($daemonProc.Id)) -- log: $daemonOutLog"
+$daemonProc = Start-Process -FilePath $DAEMON_PATH -WindowStyle Hidden -PassThru
+Write-Host "  OK Daemon started (PID $($daemonProc.Id))"
 
 Write-Host ""
 Write-Host "  Both processes running in background. YODA will update within 10s." -ForegroundColor Green
