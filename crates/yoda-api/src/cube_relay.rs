@@ -679,3 +679,45 @@ async fn handle_inbound(state: &AppState, text: &str, own_address: &str) {
         }
     }
 }
+
+/// Spawn a background task that checks PlenumLAN relay state every 30 seconds
+/// and updates `health_status` for all self-hosted engines in the database.
+/// This ensures engine health reflects real relay connectivity without any
+/// manual "Mark online" clicks from the user.
+pub fn spawn_relay_health_monitor(state: crate::state::AppState) {
+    tokio::spawn(async move {
+        let mut interval = tokio::time::interval(Duration::from_secs(30));
+        loop {
+            interval.tick().await;
+
+            let relay_armed = state.relay_tx.read().await.is_some();
+            let peer_count  = state.live_cube_peer.read().await.len();
+            let relay_live  = relay_armed && peer_count > 0;
+            let new_status  = if relay_live { "online" } else { "offline" };
+
+            // Update every self-hosted engine slot in the DB.
+            match sqlx::query(
+                "UPDATE engine_configs SET health_status=$1 WHERE hosting_mode='self_hosted'",
+            )
+            .bind(new_status)
+            .execute(&state.db)
+            .await
+            {
+                Ok(r) => {
+                    if r.rows_affected() > 0 {
+                        tracing::debug!(
+                            relay_armed,
+                            peer_count,
+                            new_status,
+                            slots_updated = r.rows_affected(),
+                            "Relay health monitor: engine statuses updated"
+                        );
+                    }
+                }
+                Err(e) => {
+                    tracing::warn!(error = %e, "Relay health monitor: DB update failed");
+                }
+            }
+        }
+    });
+}

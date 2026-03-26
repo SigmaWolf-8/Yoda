@@ -560,6 +560,7 @@ export function EngineSlotCard({
   const [syncing,    setSyncing]    = useState(false);
   const [syncResult, setSyncResult] = useState<'ok' | 'fail' | null>(null);
   const [markOnlineError, setMarkOnlineError] = useState<string | null>(null);
+  const [verifying,  setVerifying]  = useState(false);
 
   type InstallPhase = 'idle' | 'downloaded' | 'polling' | 'tunnel_ready' | 'step2_ready' | 'connected' | 'timeout';
   const PHASE_KEY = `yoda_install_phase_slot${slot}`;
@@ -762,14 +763,33 @@ export function EngineSlotCard({
 
   /** Mark online — but verify the model server is actually responding first
    *  for local self-hosted endpoints. */
+  async function probeViaRelay(): Promise<{ reachable: boolean; note?: string; relay_peer_count?: number }> {
+    const token = getStoredToken() ?? '';
+    const res = await fetch(`/api/settings/engines/${slot}/probe`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) throw new Error('Probe request failed');
+    return res.json();
+  }
+
   async function verifyAndMarkOnline() {
     setMarkOnlineError(null);
-    // For local endpoints the cloud server can never probe localhost — skip browser
-    // probe entirely (llama-server won't respond until model loads anyway) and just
-    // mark online.  The daemon relay validates real connectivity at inference time.
-    markOnline.mutate(slot, {
-      onSuccess: () => { setMarkOnlineError(null); qc.invalidateQueries({ queryKey: ['engines'] }); },
-    });
+    setVerifying(true);
+    try {
+      const data = await probeViaRelay();
+      // Probe already wrote the correct health_status to DB via PlenumNET relay check.
+      qc.invalidateQueries({ queryKey: ['engines'] });
+      if (!data.reachable) {
+        setMarkOnlineError(data.note ?? 'PlenumNET relay is not connected — make sure your daemon is running.');
+      }
+    } catch {
+      // Network error talking to our own backend — fall back to manual mark.
+      markOnline.mutate(slot, {
+        onSuccess: () => { setMarkOnlineError(null); qc.invalidateQueries({ queryKey: ['engines'] }); },
+      });
+    } finally {
+      setVerifying(false);
+    }
   }
 
   async function syncNode() {
@@ -777,31 +797,13 @@ export function EngineSlotCard({
     setSyncResult(null);
     setMarkOnlineError(null);
     try {
-      const token = getStoredToken() ?? '';
-      const res = await fetch(`/api/settings/engines/${slot}/probe`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (res.ok) {
-        const data = await res.json();
-        if (data.reachable) {
-          // Cloud/remote engine confirmed reachable.
-          qc.invalidateQueries({ queryKey: ['engines'] });
-          setSyncResult('ok');
-          return;
-        }
-        if (data.local_endpoint) {
-          // Cloud server can never reach localhost. Browser fetch to http://localhost
-          // from an https:// origin is blocked by mixed-content policy in practice.
-          // Just mark online — the new Step 2 bat already confirmed readiness locally.
-          markOnline.mutate(slot, {
-            onSuccess: () => { setSyncResult('ok'); qc.invalidateQueries({ queryKey: ['engines'] }); },
-            onError:   () => setSyncResult('fail'),
-          });
-          return;
-        }
+      const data = await probeViaRelay();
+      // Probe already wrote health_status to DB — just refresh UI.
+      qc.invalidateQueries({ queryKey: ['engines'] });
+      setSyncResult(data.reachable ? 'ok' : 'fail');
+      if (!data.reachable && data.note) {
+        setMarkOnlineError(data.note);
       }
-      // Non-local engine that couldn't be reached.
-      setSyncResult('fail');
     } catch {
       setSyncResult('fail');
     } finally {
@@ -1011,15 +1013,15 @@ export function EngineSlotCard({
                   {config.health_status !== 'online' && modelName && (
                     <button
                       onClick={verifyAndMarkOnline}
-                      disabled={markOnline.isPending}
-                      title="Mark this engine online — verifies model server is reachable first"
+                      disabled={verifying || markOnline.isPending}
+                      title="Check PlenumNET relay health and update status"
                       className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium border border-[var(--color-plex-500)]/40 text-[var(--color-plex-400)] hover:bg-[var(--color-plex-500)]/10 disabled:opacity-50 transition-colors"
                     >
-                      {markOnline.isPending
+                      {(verifying || markOnline.isPending)
                         ? <Loader2 className="w-3 h-3 animate-spin" />
                         : <Wifi className="w-3 h-3" />
                       }
-                      Mark online
+                      {verifying ? 'Checking relay…' : 'Mark online'}
                     </button>
                   )}
                 </>
@@ -1306,16 +1308,16 @@ export function EngineSlotCard({
                   {config?.health_status !== 'online' && endpoint && (
                     <button
                       onClick={verifyAndMarkOnline}
-                      disabled={markOnline.isPending}
-                      title="Mark online — verifies model server is reachable from your browser first"
+                      disabled={verifying || markOnline.isPending}
+                      title="Check PlenumNET relay health and update engine status"
                       className="flex items-center gap-1 text-sm px-2 py-0.5 rounded-md border border-[var(--color-plex-500)]/40 text-[var(--color-plex-400)] hover:border-[var(--color-plex-400)] hover:text-[var(--color-plex-300)] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                     >
-                      {markOnline.isPending ? (
+                      {(verifying || markOnline.isPending) ? (
                         <Loader2 className="w-3 h-3 animate-spin" />
                       ) : (
                         <Wifi className="w-3 h-3" />
                       )}
-                      Mark Online
+                      {verifying ? 'Checking relay…' : 'Mark Online'}
                     </button>
                   )}
                   <button
@@ -1399,15 +1401,15 @@ export function EngineSlotCard({
                 <button
                   type="button"
                   onClick={syncNode}
-                  disabled={syncing || markOnline.isPending}
+                  disabled={syncing}
                   className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg border border-[var(--color-plex-500)]/40 bg-[var(--color-plex-500)]/6 text-[var(--color-plex-400)] text-sm font-medium hover:bg-[var(--color-plex-500)]/12 hover:border-[var(--color-plex-500)]/70 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {syncing || markOnline.isPending ? (
+                  {syncing ? (
                     <Loader2 className="w-3.5 h-3.5 animate-spin" />
                   ) : (
                     <RefreshCcw className="w-3.5 h-3.5" />
                   )}
-                  Sync Node
+                  {syncing ? 'Checking relay…' : 'Sync Node'}
                 </button>
               </div>
             )}

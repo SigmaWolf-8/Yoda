@@ -112,6 +112,9 @@ async fn main() -> anyhow::Result<()> {
     // ── Spawn PlenumLAN relay background task ────────────────────────
     cube_relay::spawn_relay_task(state.clone());
 
+    // ── Spawn relay health monitor (updates engine DB every 30 s) ───
+    cube_relay::spawn_relay_health_monitor(state.clone());
+
     // ── Build router ─────────────────────────────────────────────────
     let cors = CorsLayer::new()
         .allow_origin(Any)

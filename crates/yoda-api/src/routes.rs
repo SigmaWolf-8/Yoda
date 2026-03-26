@@ -493,11 +493,13 @@ async fn update_engine(
     // immediately after save. Skip self-hosted — the server can't reach
     // localhost/LAN addresses, so a probe would always return offline.
     if req.hosting_mode == "commercial" || req.hosting_mode == "free_tier" {
-        let db_clone   = state.db.clone();
-        let org_clone  = user.org_id;
-        let slot_clone = slot.clone();
+        let db_clone         = state.db.clone();
+        let relay_tx_clone   = state.relay_tx.clone();
+        let live_peer_clone  = state.live_cube_peer.clone();
+        let org_clone        = user.org_id;
+        let slot_clone       = slot.clone();
         tokio::spawn(async move {
-            probe_engine_inner(db_clone, org_clone, slot_clone).await;
+            probe_engine_inner(db_clone, relay_tx_clone, live_peer_clone, org_clone, slot_clone).await;
         });
     }
 
@@ -575,6 +577,8 @@ fn extract_origin(url: &str) -> String {
 /// post-save background task can share it.
 async fn probe_engine_inner(
     db: sqlx::PgPool,
+    relay_tx: crate::cube_relay::RelayTx,
+    live_cube_peer: crate::cube_relay::LiveCubePeer,
     org_id: Uuid,
     slot: String,
 ) -> serde_json::Value {
@@ -724,13 +728,41 @@ async fn probe_engine_inner(
           };
 
         if is_local {
-            // Do NOT write to the DB — health_status is managed exclusively
-            // via mark-online / mark-offline for local endpoints.
+            // Local/LAN addresses are unreachable from the cloud server directly.
+            // Instead, check the PlenumLAN relay: if the relay is armed and at
+            // least one cube peer is heartbeating, inference WILL work through
+            // the relay → mark online.  If the relay is down, mark offline.
+            let relay_armed = relay_tx.read().await.is_some();
+            let peer_count  = live_cube_peer.read().await.len();
+            let relay_live  = relay_armed && peer_count > 0;
+
+            let new_status = if relay_live { "online" } else { "offline" };
+            let _ = sqlx::query(
+                "UPDATE engine_configs SET health_status=$1 WHERE org_id=$2 AND slot=$3",
+            )
+            .bind(new_status)
+            .bind(org_id)
+            .bind(&slot)
+            .execute(&db)
+            .await;
+
+            let peers: Vec<String> = live_cube_peer.read().await.iter().cloned().collect();
             return serde_json::json!({
-                "reachable": false,
+                "reachable": relay_live,
                 "local_endpoint": true,
+                "relay_armed": relay_armed,
+                "relay_peer_count": peer_count,
+                "relay_peers": peers,
+                "health_status": new_status,
                 "endpoint_url": endpoint_url,
-                "note": "Local/LAN address — the cloud server cannot reach it. Your browser will relay inference calls directly. This is expected.",
+                "source": "plenumnet_relay",
+                "note": if relay_live {
+                    format!("PlenumLAN relay active — {} cube peer(s) connected. Engine marked online.", peer_count)
+                } else if relay_armed {
+                    "PlenumLAN relay connected but no cube peers are heartbeating. Run your daemon on your local machine.".to_string()
+                } else {
+                    "PlenumLAN relay not connected. Check that the YODA server can reach plenumnet.replit.app.".to_string()
+                },
             });
         }
 
@@ -793,7 +825,13 @@ async fn probe_engine(
     user: axum::Extension<auth::AuthenticatedUser>,
     Path(slot): Path<String>,
 ) -> Result<Json<serde_json::Value>, AppError> {
-    Ok(Json(probe_engine_inner(state.db.clone(), user.org_id, slot).await))
+    Ok(Json(probe_engine_inner(
+        state.db.clone(),
+        state.relay_tx.clone(),
+        state.live_cube_peer.clone(),
+        user.org_id,
+        slot,
+    ).await))
 }
 
 /// POST /api/settings/engines/{slot}/mark-online
