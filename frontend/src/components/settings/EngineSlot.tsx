@@ -1416,25 +1416,35 @@ export function EngineSlotCard({
                 </button>
               </div>
             )}
-            {/* Always-visible installer download for Windows self-hosted engines */}
-            {modelName && GGUF_INFO[modelName] && detectOS() === 'windows' && (
-              <button
-                type="button"
-                onClick={() => {
-                  const info = GGUF_INFO[modelName];
-                  if (!info) return;
-                  const ep = portFromUrl(endpoint);
-                  if (ep === undefined) { toast('error', 'Enter your engine endpoint URL before downloading an install script.'); return; }
-                  const token = crypto.randomUUID();
-                  const ps  = makePsInstallScript(modelName, info.repo, info.file, ep, token, crsUrl);
-                  const bat = makeBatWrapper(ps, modelName);
-                  triggerDownload(bat, 'yoda-setup.bat', 'application/octet-stream');
-                }}
-                className="w-full flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg border border-[var(--color-gold-500)]/40 bg-[var(--color-gold-500)]/8 text-[var(--color-gold-400)] text-sm font-medium hover:bg-[var(--color-gold-500)]/15 hover:border-[var(--color-gold-500)]/60 transition-colors"
-              >
-                <Download className="w-3.5 h-3.5" />
-                Download Installer — yoda-setup.bat
-              </button>
+            {/* Always-visible installer buttons for self-hosted engines that aren't online yet */}
+            {modelName && GGUF_INFO[modelName] && mode === 'self_hosted' && config?.health_status !== 'online' && (
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const info = GGUF_INFO[modelName];
+                    if (!info) return;
+                    const ep = portFromUrl(endpoint);
+                    if (ep === undefined) { toast('error', 'Enter your engine endpoint URL before downloading an install script.'); return; }
+                    const token = crypto.randomUUID();
+                    const ps  = makePsInstallScript(modelName, info.repo, info.file, ep, token, crsUrl);
+                    const bat = makeBatWrapper(ps, modelName);
+                    triggerDownload(bat, 'yoda-setup.bat', 'application/octet-stream');
+                  }}
+                  className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg border border-[var(--color-gold-500)]/40 bg-[var(--color-gold-500)]/8 text-[var(--color-gold-400)] text-sm font-medium hover:bg-[var(--color-gold-500)]/15 hover:border-[var(--color-gold-500)]/60 transition-colors"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  Step 1: Network Setup
+                </button>
+                <button
+                  type="button"
+                  onClick={handleStep2Install}
+                  className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg border border-[var(--color-gold-500)]/60 bg-[var(--color-gold-500)]/12 text-[var(--color-gold-300)] text-sm font-semibold hover:bg-[var(--color-gold-500)]/20 hover:border-[var(--color-gold-500)]/80 transition-colors"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  Step 2: Install Model
+                </button>
+              </div>
             )}
             {/* Sync result feedback */}
             {syncResult && !markOnlineError && (
