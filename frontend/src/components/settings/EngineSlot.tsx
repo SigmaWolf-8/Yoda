@@ -1244,8 +1244,8 @@ export function EngineSlotCard({
                       </button>
                     )}
 
-                    {/* Step 2 button — tunnel confirmed, model not yet installed */}
-                    {installPhase === 'tunnel_ready' && (
+                    {/* Step 2 button — shown whenever tunnel is open (relay live, model not confirmed) */}
+                    {(installPhase === 'tunnel_ready' || config?.health_status === 'tunnel_open') && (
                       <button
                         onClick={handleStep2Install}
                         className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border border-[var(--color-gold-500)]/60 bg-[var(--color-gold-500)]/12 text-[var(--color-gold-300)] text-sm font-semibold hover:bg-[var(--color-gold-500)]/20 hover:border-[var(--color-gold-500)]/80 transition-colors"
