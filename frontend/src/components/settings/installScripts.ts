@@ -1141,6 +1141,36 @@ if ($ready -and $YODA_TOKEN -ne "" -and $YODA_URL -ne "") {
   }
 }
 
+# -- 6. Register watchdog as Scheduled Task -----------------------------------
+Write-Host ""
+Write-Host "Registering watchdog (auto-restart on crash)..."
+$watchdogScript = Join-Path $MODELS_DIR "watchdog-$SERVER_PORT.ps1"
+$watchdogContent = @"
+\$ErrorActionPreference = 'SilentlyContinue'
+\$LLAMA_EXE  = '$($LLAMA_SERVER -replace "'","''")'
+\$MODEL_PATH = '$($MODEL_PATH   -replace "'","''")'
+\$PORT       = $SERVER_PORT
+\$NGL        = '$nglArgs'
+while (\$true) {
+  Start-Sleep -Seconds 30
+  if (-not (Get-NetTCPConnection -LocalPort \$PORT -State Listen -EA SilentlyContinue)) {
+    Start-Process -FilePath \$LLAMA_EXE \`
+      -ArgumentList "--model \`"\$MODEL_PATH\`" --port \$PORT --host 0.0.0.0 -c 4096 --parallel 2 \$NGL --log-disable" \`
+      -WindowStyle Hidden
+  }
+}
+"@
+Set-Content -Path $watchdogScript -Value $watchdogContent -Encoding UTF8
+$taskName = "YODA-Watchdog-$SERVER_PORT"
+$action   = New-ScheduledTaskAction -Execute "powershell.exe" \`
+              -Argument "-NonInteractive -WindowStyle Hidden -File \`"$watchdogScript\`""
+$trigger  = New-ScheduledTaskTrigger -AtLogOn
+$settings = New-ScheduledTaskSettingsSet -MultipleInstances IgnoreNew -ExecutionTimeLimit 0
+Register-ScheduledTask -TaskName $taskName -Action $action -Trigger $trigger \`
+  -Settings $settings -RunLevel Highest -Force | Out-Null
+Start-ScheduledTask -TaskName $taskName -EA SilentlyContinue
+Write-Host "  OK Watchdog registered as '$taskName' -- runs at logon, restarts on crash" -ForegroundColor Green
+
 Write-Host ""
 Write-Host "======================================" -ForegroundColor Green
 Write-Host "  Step 2 Complete!" -ForegroundColor Green
@@ -1156,7 +1186,7 @@ if ($ready -and $marked) {
 }
 Write-Host "======================================" -ForegroundColor Green
 Write-Host ""
-Read-Host "Press Enter to close (server keeps running)"
+Read-Host "Press Enter to close (server and watchdog keep running)"
 `;
 }
 
@@ -1375,8 +1405,58 @@ $env:CUBE_ROLE          = "inference"
 $daemonProc = Start-Process -FilePath $DAEMON_PATH -WindowStyle Hidden -PassThru
 Write-Host "  OK Daemon started (PID $($daemonProc.Id))"
 
+# -- Register full dual watchdog (llama-server + daemon) ----------------------
 Write-Host ""
-Write-Host "  Both processes running in background. YODA will update within 10s." -ForegroundColor Green
-Write-Host "  Logs: $LOG_DIR" -ForegroundColor Yellow
+Write-Host "Registering watchdog (auto-restart on crash)..."
+$watchdogScript = Join-Path $MODELS_DIR "watchdog-$SERVER_PORT.ps1"
+$watchdogContent = @"
+\$ErrorActionPreference = 'SilentlyContinue'
+\$LLAMA_EXE   = '$($LLAMA_SERVER  -replace "'","''")'
+\$MODEL_PATH  = '$($MODEL_PATH    -replace "'","''")'
+\$DAEMON_EXE  = '$($DAEMON_PATH   -replace "'","''")'
+\$SERVER_PORT = $SERVER_PORT
+\$DAEMON_PORT = $daemonPort
+\$NGL         = '$nglArgs'
+\$CUBE_ENDPOINT_VAL     = '$CUBE_ENDPOINT'
+\$CUBE_CRS_URL_VAL      = '$CRS_URL'
+\$CUBE_SESSION_TOKEN_VAL= '$SESSION_TOKEN'
+\$PASSPHRASE  = if (Test-Path '$PASSPHRASE_FILE') { (Get-Content '$PASSPHRASE_FILE' -Raw).Trim() } else { '' }
+
+while (\$true) {
+  Start-Sleep -Seconds 30
+  # Watchdog: llama-server
+  if (-not (Get-NetTCPConnection -LocalPort \$SERVER_PORT -State Listen -EA SilentlyContinue)) {
+    Start-Process -FilePath \$LLAMA_EXE \`
+      -ArgumentList "--model \`"\$MODEL_PATH\`" --port \$SERVER_PORT --host 0.0.0.0 -c 4096 --parallel 2 \$NGL --log-disable" \`
+      -WindowStyle Hidden
+    Start-Sleep -Seconds 3
+  }
+  # Watchdog: PlenumNET daemon
+  if (-not (Get-NetTCPConnection -LocalPort \$DAEMON_PORT -State Listen -EA SilentlyContinue)) {
+    \$env:CUBE_MODE          = 'cube'
+    \$env:CUBE_API_PORT      = \$DAEMON_PORT
+    \$env:CUBE_CRS_URL       = \$CUBE_CRS_URL_VAL
+    \$env:CUBE_ENDPOINT      = \$CUBE_ENDPOINT_VAL
+    \$env:CUBE_SESSION_TOKEN = \$CUBE_SESSION_TOKEN_VAL
+    \$env:CUBE_ROLE          = 'inference'
+    \$env:CUBE_IDENTITY_PASSPHRASE = \$PASSPHRASE
+    Start-Process -FilePath \$DAEMON_EXE -WindowStyle Hidden
+    Start-Sleep -Seconds 3
+  }
+}
+"@
+Set-Content -Path $watchdogScript -Value $watchdogContent -Encoding UTF8
+$taskName = "YODA-Watchdog-$SERVER_PORT"
+$action   = New-ScheduledTaskAction -Execute "powershell.exe" \`
+              -Argument "-NonInteractive -WindowStyle Hidden -File \`"$watchdogScript\`""
+$trigger  = New-ScheduledTaskTrigger -AtLogOn
+$settings = New-ScheduledTaskSettingsSet -MultipleInstances IgnoreNew -ExecutionTimeLimit 0
+Register-ScheduledTask -TaskName $taskName -Action $action -Trigger $trigger \`
+  -Settings $settings -RunLevel Highest -Force | Out-Null
+Start-ScheduledTask -TaskName $taskName -EA SilentlyContinue
+Write-Host "  OK Watchdog registered as '$taskName' -- monitors both processes, restarts on crash" -ForegroundColor Green
+
+Write-Host ""
+Write-Host "  Both processes running + watchdog active. YODA will update within 10s." -ForegroundColor Green
 `;
 }
