@@ -431,7 +431,7 @@ if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
 #   2. clang.exe on PATH for ARM64 assembly compilation
 Write-Host ""
 Write-Host "Setting up build environment for the ring crypto crate..."
-$cpuArch = [System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString()
+$cpuArch = $env:PROCESSOR_ARCHITECTURE
 Write-Host "  -> Architecture: $cpuArch"
 
 # Step A -- find and activate MSVC via vswhere (sets VCINSTALLDIR etc.)
@@ -443,7 +443,7 @@ if ($vswhere) {
                     Where-Object { $_ -ne '' } | Select-Object -First 1
   if ($vsInstallPath) { $vsInstallPath = $vsInstallPath.Trim() }
   if ($vsInstallPath) {
-    $vcvarsName = if ($cpuArch -eq "Arm64") { "vcvarsarm64.bat" } else { "vcvars64.bat" }
+    $vcvarsName = if ($cpuArch -eq "ARM64") { "vcvarsarm64.bat" } else { "vcvars64.bat" }
     $vcvars = Join-Path (Join-Path $vsInstallPath "VC\Auxiliary\Build") $vcvarsName
     if (Test-Path -LiteralPath $vcvars) {
       Write-Host "  -> Activating MSVC environment ($vcvarsName)..."
@@ -626,7 +626,7 @@ if ($llamaServer) {
 if (-not $llamaServer) {
   New-Item -ItemType Directory -Force -Path $LLAMA_DIR | Out-Null
   $release = (Invoke-RestMethod "https://api.github.com/repos/ggerganov/llama.cpp/releases/latest").tag_name
-  if ($cpuArch -eq "Arm64") {
+  if ($cpuArch -eq "ARM64") {
     $zipName = "llama-$release-bin-win-arm64.zip"
     $zipUrl  = "https://github.com/ggerganov/llama.cpp/releases/download/$release/$zipName"
     Write-Host "  -> ARM64 detected -- checking for native build..."
@@ -707,7 +707,7 @@ Write-Host ""
 Write-Host "Starting llama-server on port $SERVER_PORT..."
 Get-Process -Name "llama-server" -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
 Start-Sleep -Milliseconds 800
-$nglArgs = if ($cpuArch -eq "Arm64") { "" } else { "-ngl 99" }
+$nglArgs = if ($cpuArch -eq "ARM64") { "" } else { "-ngl 99" }
 $serverProc = Start-Process -FilePath $LLAMA_SERVER -ArgumentList "--model \`"$MODEL_PATH\`" --port $SERVER_PORT --host 0.0.0.0 -c 4096 --parallel 2 $nglArgs --log-disable" -WindowStyle Hidden -PassThru
 Write-Host "  OK llama-server started (PID $($serverProc.Id))"
 Start-Sleep -Seconds 2
@@ -817,14 +817,14 @@ if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
 # -- 4. MSVC + clang for ARM64 ring crate ---------------------------------
 Write-Host ""
 Write-Host "Setting up ARM64 build environment..."
-$cpuArch = [System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString()
+$cpuArch = $env:PROCESSOR_ARCHITECTURE
 $vswhereX86 = "C:\\Program Files (x86)\\Microsoft Visual Studio\\Installer\\vswhere.exe"
 $vswhereNat = "C:\\Program Files\\Microsoft Visual Studio\\Installer\\vswhere.exe"
 $vswhere = if (Test-Path -LiteralPath $vswhereX86) { $vswhereX86 } elseif (Test-Path -LiteralPath $vswhereNat) { $vswhereNat } else { "" }
 if ($vswhere) {
   $vsInstallPath = & $vswhere -latest -products * -property installationPath 2>$null
   if ($vsInstallPath) {
-    $vcvarsName = if ($cpuArch -eq "Arm64") { "vcvarsarm64.bat" } else { "vcvars64.bat" }
+    $vcvarsName = if ($cpuArch -eq "ARM64") { "vcvarsarm64.bat" } else { "vcvars64.bat" }
     $vcvars = Join-Path (Join-Path (Join-Path $vsInstallPath "VC") "Auxiliary\\Build") $vcvarsName
     if (Test-Path -LiteralPath $vcvars) {
       $envLines = cmd.exe /c ('"' + $vcvars + '" > nul 2>&1 && set')
@@ -920,8 +920,8 @@ if ($llamaServer) {
 } else {
   New-Item -ItemType Directory -Force -Path $LLAMA_DIR | Out-Null
   $release = (Invoke-RestMethod "https://api.github.com/repos/ggerganov/llama.cpp/releases/latest").tag_name
-  $arch    = [System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString()
-  $suffix  = if ($arch -eq "Arm64") { "arm64" } else { "avx2-x64" }
+  $arch    = $env:PROCESSOR_ARCHITECTURE
+  $suffix  = if ($arch -eq "ARM64") { "arm64" } else { "avx2-x64" }
   $zipUrl  = "https://github.com/ggerganov/llama.cpp/releases/download/$release/llama-$release-bin-win-$suffix.zip"
   Write-Host "  -> Downloading $zipUrl..."
   $zipPath = Join-Path $env:TEMP "llamacpp.zip"
@@ -1018,7 +1018,7 @@ $MODELS_DIR  = Join-Path $env:USERPROFILE "yoda-models"
 $MODEL_PATH  = Join-Path $MODELS_DIR $GGUF_FILE
 $LOG_DIR     = Join-Path $MODELS_DIR "logs"
 $LLAMA_DIR   = Join-Path $env:USERPROFILE "llama.cpp"
-$cpuArch     = [System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString()
+$cpuArch     = $env:PROCESSOR_ARCHITECTURE
 
 New-Item -ItemType Directory -Force -Path $MODELS_DIR | Out-Null
 New-Item -ItemType Directory -Force -Path $LOG_DIR    | Out-Null
@@ -1084,7 +1084,7 @@ if ($existing) {
 # -- 4. Start llama-server ------------------------------------------------
 Write-Host ""
 Write-Host "Starting llama-server on port $SERVER_PORT..."
-$nglArgs = if ($cpuArch -eq "Arm64") { "" } else { "-ngl 99" }
+$nglArgs = if ($cpuArch -eq "ARM64") { "" } else { "-ngl 99" }
 Write-Host "  -> Architecture: $cpuArch  GPU offload: $(if ($nglArgs) { 'yes' } else { 'no (CPU only)' })"
 $serverProc = Start-Process -FilePath $LLAMA_SERVER \`
   -ArgumentList "--model \`"$MODEL_PATH\`" --port $SERVER_PORT --host 0.0.0.0 -c 4096 --parallel 2 $nglArgs --log-disable" \`
@@ -1379,8 +1379,8 @@ if (Test-Path $PASSPHRASE_FILE) {
 
 # -- Restart llama-server -------------------------------------------------
 New-Item -ItemType Directory -Force -Path $LOG_DIR | Out-Null
-$cpuArch = [System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString()
-$nglArgs = if ($cpuArch -eq "Arm64") { "" } else { "-ngl 99" }
+$cpuArch = $env:PROCESSOR_ARCHITECTURE
+$nglArgs = if ($cpuArch -eq "ARM64") { "" } else { "-ngl 99" }
 Write-Host "  -> Architecture: $cpuArch  GPU offload: $(if ($nglArgs) { 'yes' } else { 'no (CPU only)' })"
 $portOwner = (Get-NetTCPConnection -LocalPort $SERVER_PORT -EA SilentlyContinue | Select-Object -First 1 -ExpandProperty OwningProcess)
 if ($portOwner) { Stop-Process -Id $portOwner -Force -EA SilentlyContinue }
