@@ -310,20 +310,14 @@ pub async fn submit_query(
                                 break;
                             }
                             Ok(Ok(Err(error_msg))) => {
-                                // Distinguish fatal connection errors (server not running)
-                                // from transient loading errors (server starting up).
-                                // "error sending request" / "Connection refused" means the port
-                                // is not open at all — retrying will not help.
-                                let is_fatal = error_msg.contains("error sending request")
-                                    || error_msg.contains("Connection refused")
-                                    || error_msg.contains("connection refused")
-                                    || error_msg.contains("No connection could be made");
-
-                                if is_fatal || attempt >= MAX_ATTEMPTS {
+                                // Always show the current error so user can see what's happening.
+                                // Connection-refused errors look identical whether the server is
+                                // still loading or truly crashed — we cannot tell the difference
+                                // from the error text, so we always retry the full window.
+                                if attempt >= MAX_ATTEMPTS {
                                     tracing::warn!(
                                         task_id = %task_id, error = %error_msg, attempt,
-                                        fatal = is_fatal,
-                                        "BG: cube inference_error — marking ESCALATED"
+                                        "BG: cube inference_error on final attempt — ESCALATED"
                                     );
                                     let _ = sqlx::query(
                                         "UPDATE tasks SET status = 'ESCALATED', error_message = $2, updated_at = NOW() WHERE id = $1"
@@ -333,11 +327,23 @@ pub async fn submit_query(
                                     .execute(&bg_state.db)
                                     .await;
                                 } else {
+                                    let remaining = MAX_ATTEMPTS - attempt;
+                                    let status_msg = format!(
+                                        "Waiting for engine (attempt {attempt}/{MAX_ATTEMPTS}, {remaining} retries left): {error_msg}"
+                                    );
                                     tracing::warn!(
                                         task_id = %task_id, error = %error_msg, attempt,
                                         retry_in_secs = RETRY_WAIT_SECS,
-                                        "BG: cube inference_error — transient, retrying"
+                                        "BG: cube inference_error — retrying"
                                     );
+                                    // Update error_message so the UI shows live progress
+                                    let _ = sqlx::query(
+                                        "UPDATE tasks SET error_message = $2, updated_at = NOW() WHERE id = $1"
+                                    )
+                                    .bind(task_id)
+                                    .bind(&status_msg)
+                                    .execute(&bg_state.db)
+                                    .await;
                                     tokio::time::sleep(Duration::from_secs(RETRY_WAIT_SECS)).await;
                                 }
                             }
