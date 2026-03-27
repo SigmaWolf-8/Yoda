@@ -171,8 +171,9 @@ pub async fn submit_query(
     // daemon's WebSocket tunnel.  We look up the live cube address from
     // crs_registrations rather than using a hardcoded ternary value.
     // Commercial / free_tier engines are handled server-side above.
-    let engine_slot: Option<String> = sqlx::query_scalar(
-        "SELECT slot FROM engine_configs \
+    // Fetch both slot ('a'/'b'/'c') and model_name so the task_results row is complete.
+    let engine_info: Option<(String, String)> = sqlx::query_as(
+        "SELECT slot, COALESCE(model_name, '') FROM engine_configs \
          WHERE org_id = $1 AND endpoint_url IS NOT NULL AND endpoint_url <> '' \
          AND hosting_mode = 'self_hosted' AND is_disabled = false \
          ORDER BY slot ASC LIMIT 1"
@@ -181,6 +182,10 @@ pub async fn submit_query(
     .fetch_optional(&state.db)
     .await
     .unwrap_or(None);
+    let (engine_slot, engine_model_name) = match engine_info {
+        Some((s, m)) => (Some(s), m),
+        None => (None, String::new()),
+    };
 
     // Look up the most recently heartbeated cube node address.
     // Falls back to the hardcoded slot map only if no live registration exists.
@@ -259,11 +264,12 @@ pub async fn submit_query(
 
                                 sqlx::query(
                                     "INSERT INTO task_results \
-                                     (id, task_id, step_number, engine_slot, result_content, created_at) \
-                                     VALUES (uuid_generate_v4(), $1, 1, $2, $3, NOW())"
+                                     (id, task_id, step_number, engine_slot, engine_model, result_content, created_at) \
+                                     VALUES (uuid_generate_v4(), $1, 1, $2, $3, $4, NOW())"
                                 )
                                 .bind(task_id)
-                                .bind(&result.model)
+                                .bind(slot.as_str())
+                                .bind(&engine_model_name)
                                 .bind(&result.content)
                                 .execute(&state.db)
                                 .await
