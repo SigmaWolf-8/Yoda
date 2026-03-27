@@ -1388,7 +1388,7 @@ $portOwner = (Get-NetTCPConnection -LocalPort $SERVER_PORT -EA SilentlyContinue 
 if ($portOwner) { Stop-Process -Id $portOwner -Force -EA SilentlyContinue }
 Start-Sleep -Milliseconds 800
 $LLAMA_LOG = Join-Path $LOG_DIR "llama-server-$SERVER_PORT.log"
-"" | Out-File -FilePath $LLAMA_LOG -Encoding UTF8  # clear old log
+try { "" | Out-File -FilePath $LLAMA_LOG -Encoding UTF8 -EA Stop } catch { }  # clear old log (ignore if locked)
 # Use llama-server's built-in --log-file so no I/O redirect needed (avoids WindowStyle conflict)
 # ARM64: use smaller context to save KV-cache RAM; GPU layer count is always 0 on ARM64
 $ctxSize      = if ($cpuArch -eq "ARM64") { "2048" } else { "4096" }
