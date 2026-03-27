@@ -490,10 +490,9 @@ async fn update_engine(
     .bind(&req.model_family).bind(&req.family_override).bind(&req.cube_endpoint_url)
     .execute(&state.db).await.map_err(AppError::Database)?;
 
-    // Spawn a background probe for cloud engines so health_status updates
-    // immediately after save. Skip self-hosted — the server can't reach
-    // localhost/LAN addresses, so a probe would always return offline.
     if req.hosting_mode == "commercial" || req.hosting_mode == "free_tier" {
+        // Spawn a background probe for cloud engines so health_status updates
+        // immediately after save.
         let db_clone         = state.db.clone();
         let relay_tx_clone   = state.relay_tx.clone();
         let live_peer_clone  = state.live_cube_peer.clone();
@@ -502,6 +501,23 @@ async fn update_engine(
         tokio::spawn(async move {
             probe_engine_inner(db_clone, relay_tx_clone, live_peer_clone, org_clone, slot_clone).await;
         });
+    } else if req.hosting_mode == "self_hosted" {
+        // For self-hosted engines the relay health monitor promotes offline→tunnel_open
+        // every 30 seconds, but that means a newly-saved engine can show as offline for
+        // up to 30 s even when the relay is already live.  Promote immediately here so
+        // the UI reflects real state right after Save.  Never downgrade 'online'.
+        let relay_armed = state.relay_tx.read().await.is_some();
+        let peer_count  = state.live_cube_peer.read().await.len();
+        if relay_armed && peer_count > 0 {
+            let _ = sqlx::query(
+                "UPDATE engine_configs SET health_status='tunnel_open' \
+                 WHERE org_id=$1 AND slot=$2 AND health_status='offline'",
+            )
+            .bind(user.org_id)
+            .bind(&slot)
+            .execute(&state.db)
+            .await;
+        }
     }
 
     Ok(Json(serde_json::json!({"status":"updated","slot":slot})))
