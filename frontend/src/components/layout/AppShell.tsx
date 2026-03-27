@@ -193,6 +193,7 @@ export function AppShell() {
           style={{
             borderTopColor: 'hsl(220,15%,86%)',
             boxShadow: '0 -2px 20px rgba(0,0,0,0.50)',
+            background: '#ffffff',
           }}
         >
           <div className="flex items-center gap-1">
