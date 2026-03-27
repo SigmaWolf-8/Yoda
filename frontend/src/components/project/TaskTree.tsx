@@ -160,7 +160,7 @@ function TreeNodeRow({
           </span>
         </button>
 
-        {/* Delete button — visible on hover or during confirm */}
+        {/* Delete button — always visible */}
         {onDelete && (
           <button
             onClick={handleDeleteClick}
@@ -168,7 +168,7 @@ function TreeNodeRow({
             className={`flex-shrink-0 mr-1 p-1 rounded transition-colors ${
               confirming
                 ? 'text-[var(--color-err)] bg-[var(--color-err)]/10'
-                : 'text-[var(--color-text-muted)] opacity-0 group-hover:opacity-100 hover:text-[var(--color-err)] hover:bg-[var(--color-err)]/10'
+                : 'text-[var(--color-text-muted)] hover:text-[var(--color-err)] hover:bg-[var(--color-err)]/10'
             }`}
           >
             <Trash2 className="w-3.5 h-3.5" />
