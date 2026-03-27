@@ -1387,31 +1387,27 @@ if ($portOwner) { Stop-Process -Id $portOwner -Force -EA SilentlyContinue }
 Start-Sleep -Milliseconds 800
 $LLAMA_LOG = Join-Path $LOG_DIR "llama-server-$SERVER_PORT.log"
 "" | Out-File -FilePath $LLAMA_LOG -Encoding UTF8  # clear old log
+# Use llama-server's built-in --log-file so no I/O redirect needed (avoids WindowStyle conflict)
 $serverProc = Start-Process -FilePath $LLAMA_SERVER \`
-  -ArgumentList "--model \`"$MODEL_PATH\`" --port $SERVER_PORT --host 0.0.0.0 -c 4096 --parallel 2 $nglArgs" \`
-  -WindowStyle Hidden -PassThru \`
-  -RedirectStandardOutput $LLAMA_LOG -RedirectStandardError "$LLAMA_LOG.err"
+  -ArgumentList "--model \`"$MODEL_PATH\`" --port $SERVER_PORT --host 0.0.0.0 -c 4096 --parallel 2 $nglArgs --log-file \`"$LLAMA_LOG\`"" \`
+  -WindowStyle Hidden -PassThru
 Write-Host "  OK llama-server started (PID $($serverProc.Id))"
 Write-Host "     Log: $LLAMA_LOG"
-# Wait and verify it's still alive
+# Wait 5 seconds and verify it is still alive
 Start-Sleep -Seconds 5
 if ($serverProc.HasExited) {
-  Write-Host "" 
+  Write-Host ""
   Write-Host "=== LLAMA-SERVER CRASHED ===" -ForegroundColor Red
   Write-Host "  Exit code: $($serverProc.ExitCode)" -ForegroundColor Red
   if (Test-Path $LLAMA_LOG) {
     Write-Host "  Last log lines:" -ForegroundColor Yellow
-    Get-Content $LLAMA_LOG -Tail 10 | ForEach-Object { Write-Host "    $_" -ForegroundColor Yellow }
-  }
-  if (Test-Path "$LLAMA_LOG.err") {
-    $errLines = Get-Content "$LLAMA_LOG.err" -Tail 5 -EA SilentlyContinue
-    if ($errLines) { $errLines | ForEach-Object { Write-Host "    ERR: $_" -ForegroundColor Red } }
+    Get-Content $LLAMA_LOG -Tail 15 | ForEach-Object { Write-Host "    $_" -ForegroundColor Yellow }
   }
   Write-Host ""
   Write-Host "  Common causes:" -ForegroundColor White
-  Write-Host "    - Not enough RAM (7B model needs ~5GB free)" -ForegroundColor White
-  Write-Host "    - Another llama-server already using port $SERVER_PORT" -ForegroundColor White
-  Write-Host "    - Wrong CPU arch binary (re-run Install script)" -ForegroundColor White
+  Write-Host "    - Not enough free RAM (7B model needs ~5 GB)" -ForegroundColor White
+  Write-Host "    - Both engines A and B running at once -- try just one first" -ForegroundColor White
+  Write-Host "    - Wrong CPU arch binary (re-run the Install script)" -ForegroundColor White
   Read-Host "Press Enter to exit"
   exit 1
 }
