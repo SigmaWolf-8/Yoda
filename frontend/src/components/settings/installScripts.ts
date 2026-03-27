@@ -1163,15 +1163,18 @@ while (\$true) {
 }
 "@
 Set-Content -Path $watchdogScript -Value $watchdogContent -Encoding UTF8
-$taskName = "YODA-Watchdog-$SERVER_PORT"
-$action   = New-ScheduledTaskAction -Execute "powershell.exe" \`
-              -Argument "-NonInteractive -WindowStyle Hidden -File \`"$watchdogScript\`""
-$trigger  = New-ScheduledTaskTrigger -AtLogOn
-$settings = New-ScheduledTaskSettingsSet -MultipleInstances IgnoreNew -ExecutionTimeLimit 0
-Register-ScheduledTask -TaskName $taskName -Action $action -Trigger $trigger \`
+$taskName  = "YODA-Watchdog-$SERVER_PORT"
+$action    = New-ScheduledTaskAction -Execute "powershell.exe" \`
+               -Argument "-NonInteractive -WindowStyle Hidden -File \`"$watchdogScript\`""
+$trigger1  = New-ScheduledTaskTrigger -AtLogOn
+$trigger2  = New-ScheduledTaskTrigger -Once -At (Get-Date).AddMinutes(1) \`
+               -RepetitionInterval (New-TimeSpan -Minutes 5) \`
+               -RepetitionDuration ([TimeSpan]::MaxValue)
+$settings  = New-ScheduledTaskSettingsSet -MultipleInstances IgnoreNew -ExecutionTimeLimit 0
+Register-ScheduledTask -TaskName $taskName -Action $action -Trigger @($trigger1,$trigger2) \`
   -Settings $settings -RunLevel Limited -Force | Out-Null
 Start-ScheduledTask -TaskName $taskName -EA SilentlyContinue
-Write-Host "  OK Watchdog registered as '$taskName' -- runs at logon, restarts on crash" -ForegroundColor Green
+Write-Host "  OK Watchdog registered as '$taskName' -- restarts every 5 min if crashed" -ForegroundColor Green
 
 Write-Host ""
 Write-Host "======================================" -ForegroundColor Green
@@ -1496,21 +1499,18 @@ while (\$true) {
 }
 "@
 Set-Content -Path $watchdogScript -Value $watchdogContent -Encoding UTF8
-$taskName = "YODA-Watchdog-$SERVER_PORT"
-try {
-  $action   = New-ScheduledTaskAction -Execute "powershell.exe" \`
-                -Argument "-NonInteractive -WindowStyle Hidden -File \`"$watchdogScript\`""
-  $trigger  = New-ScheduledTaskTrigger -AtLogOn
-  $settings = New-ScheduledTaskSettingsSet -MultipleInstances IgnoreNew -ExecutionTimeLimit 0
-  Register-ScheduledTask -TaskName $taskName -Action $action -Trigger $trigger \`
-    -Settings $settings -RunLevel Limited -Force -EA Stop | Out-Null
-  Start-ScheduledTask -TaskName $taskName -EA SilentlyContinue
-  Write-Host "  OK Watchdog registered as '$taskName'" -ForegroundColor Green
-} catch {
-  # Task already exists from initial install — just ensure it's running
-  Start-ScheduledTask -TaskName $taskName -EA SilentlyContinue
-  Write-Host "  OK Watchdog already registered — ensuring it's running" -ForegroundColor Green
-}
+$taskName  = "YODA-Watchdog-$SERVER_PORT"
+$action    = New-ScheduledTaskAction -Execute "powershell.exe" \`
+               -Argument "-NonInteractive -WindowStyle Hidden -File \`"$watchdogScript\`""
+$trigger1  = New-ScheduledTaskTrigger -AtLogOn
+$trigger2  = New-ScheduledTaskTrigger -Once -At (Get-Date).AddMinutes(1) \`
+               -RepetitionInterval (New-TimeSpan -Minutes 5) \`
+               -RepetitionDuration ([TimeSpan]::MaxValue)
+$settings  = New-ScheduledTaskSettingsSet -MultipleInstances IgnoreNew -ExecutionTimeLimit 0
+Register-ScheduledTask -TaskName $taskName -Action $action -Trigger @($trigger1,$trigger2) \`
+  -Settings $settings -RunLevel Limited -Force | Out-Null
+Start-ScheduledTask -TaskName $taskName -EA SilentlyContinue
+Write-Host "  OK Watchdog registered as '$taskName' -- restarts every 5 min if crashed" -ForegroundColor Green
 
 Write-Host ""
 Write-Host "  Both processes running + watchdog active. YODA will update within 10s." -ForegroundColor Green
