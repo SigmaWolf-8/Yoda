@@ -107,28 +107,32 @@ function TreeNodeRow({
   onDelete?: (id: string) => void;
 }) {
   const [expanded, setExpanded] = useState(true);
-  const [confirming, setConfirming] = useState(false);
   const hasChildren = node.children.length > 0;
   const isSelected = node.task.id === selectedId;
 
   function handleDeleteClick(e: React.MouseEvent) {
     e.stopPropagation();
-    if (confirming) {
+    if (window.confirm(`Delete task "${node.task.title}"?`)) {
       onDelete?.(node.task.id);
-      setConfirming(false);
-    } else {
-      setConfirming(true);
-      // Auto-cancel confirmation after 3s
-      setTimeout(() => setConfirming(false), 3000);
     }
   }
 
   return (
     <div>
-      <div className="group flex items-center">
+      <div className="w-full overflow-hidden flex items-center">
+        {/* Delete button pinned left so it is always in view */}
+        {onDelete && (
+          <button
+            onClick={handleDeleteClick}
+            title="Delete task"
+            className="flex-shrink-0 ml-1 p-1 rounded text-[var(--color-text-muted)] hover:text-[var(--color-err)] hover:bg-[var(--color-err)]/10 transition-colors"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+          </button>
+        )}
         <button
           onClick={() => onSelect(node.task.id)}
-          className={`flex-1 flex items-center gap-2 py-1.5 text-left rounded-lg transition-colors ${
+          className={`flex-1 min-w-0 flex items-center gap-2 py-1.5 text-left rounded-lg transition-colors ${
             isSelected
               ? 'bg-[var(--color-gold-500)]/10 text-[var(--color-gold-400)]'
               : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-tertiary)]'
@@ -159,21 +163,6 @@ function TreeNodeRow({
             {node.task.title}
           </span>
         </button>
-
-        {/* Delete button — always visible */}
-        {onDelete && (
-          <button
-            onClick={handleDeleteClick}
-            title={confirming ? 'Click again to confirm delete' : 'Delete task'}
-            className={`flex-shrink-0 mr-1 p-1 rounded transition-colors ${
-              confirming
-                ? 'text-[var(--color-err)] bg-[var(--color-err)]/10'
-                : 'text-[var(--color-text-muted)] hover:text-[var(--color-err)] hover:bg-[var(--color-err)]/10'
-            }`}
-          >
-            <Trash2 className="w-3.5 h-3.5" />
-          </button>
-        )}
       </div>
 
       {/* Children */}
