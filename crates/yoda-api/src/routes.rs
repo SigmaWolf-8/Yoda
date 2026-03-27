@@ -79,6 +79,7 @@ pub fn build_router(state: AppState) -> Router {
         .route("/api/tasks/{id}", get(get_task))
         .route("/api/tasks/{id}", delete(delete_task))
         .route("/api/tasks/{id}/output", post(set_task_output))
+        .route("/api/tasks/{id}/message", post(add_task_message))
         .route("/api/tasks/{id}/retry", post(retry_task))
         .route("/api/tasks/{id}/escalate", post(escalate_task))
         .route("/api/tasks/{id}/cancel", post(cancel_task))
@@ -358,7 +359,153 @@ async fn get_task(State(state): State<AppState>, Path(task_id): Path<Uuid>) -> R
         "tis27_hash": "", "created_at": ca,
     })).collect();
 
-    Ok(Json(serde_json::json!({ "task": task, "results": results, "reviews": [] })))
+    let message_rows = sqlx::query_as::<_, (Uuid, String, String, chrono::DateTime<chrono::Utc>)>(
+        "SELECT id, role, content, created_at FROM task_messages WHERE task_id=$1 ORDER BY created_at"
+    ).bind(task_id).fetch_all(&state.db).await.unwrap_or_default();
+
+    let messages: Vec<serde_json::Value> = message_rows.into_iter().map(|(mid, role, content, msg_ca)| serde_json::json!({
+        "id": mid, "task_id": task_id, "role": role, "content": content, "created_at": msg_ca,
+    })).collect();
+
+    Ok(Json(serde_json::json!({ "task": task, "results": results, "reviews": [], "messages": messages })))
+}
+
+#[derive(Debug, Deserialize)]
+struct AddMessageRequest {
+    text: String,
+}
+
+async fn add_task_message(
+    State(state): State<AppState>,
+    user: axum::Extension<auth::AuthenticatedUser>,
+    Path(task_id): Path<Uuid>,
+    Json(req): Json<AddMessageRequest>,
+) -> Result<Json<serde_json::Value>, AppError> {
+    if req.text.trim().is_empty() {
+        return Err(AppError::Validation("text is required".into()));
+    }
+
+    // Verify ownership
+    let owned = sqlx::query_scalar::<_, bool>(
+        "SELECT EXISTS(SELECT 1 FROM tasks t JOIN projects p ON p.id = t.project_id \
+         WHERE t.id = $1 AND p.org_id = $2)"
+    )
+    .bind(task_id)
+    .bind(user.org_id)
+    .fetch_one(&state.db)
+    .await
+    .map_err(AppError::Database)?;
+
+    if !owned {
+        return Err(AppError::NotFound("Task not found".into()));
+    }
+
+    // Fetch existing messages for conversation context
+    let existing: Vec<(String, String)> = sqlx::query_as::<_, (String, String)>(
+        "SELECT role, content FROM task_messages WHERE task_id=$1 ORDER BY created_at"
+    )
+    .bind(task_id)
+    .fetch_all(&state.db)
+    .await
+    .map_err(AppError::Database)?;
+
+    // Build full conversation history for the LLM
+    let mut msgs = vec![serde_json::json!({
+        "role": "system",
+        "content": "You are a helpful AI assistant. Always respond in English, regardless of the language used in the query."
+    })];
+    for (role, content) in &existing {
+        msgs.push(serde_json::json!({ "role": role, "content": content }));
+    }
+    msgs.push(serde_json::json!({ "role": "user", "content": req.text }));
+    let messages = serde_json::Value::Array(msgs);
+
+    // Insert user message into thread
+    sqlx::query("INSERT INTO task_messages (task_id, role, content) VALUES ($1, 'user', $2)")
+        .bind(task_id)
+        .bind(&req.text)
+        .execute(&state.db)
+        .await
+        .map_err(AppError::Database)?;
+
+    // Determine next step number
+    let next_step: i64 = sqlx::query_scalar(
+        "SELECT COALESCE(MAX(step_number), 0) + 1 FROM task_results WHERE task_id=$1"
+    )
+    .bind(task_id)
+    .fetch_one(&state.db)
+    .await
+    .unwrap_or(1);
+
+    // Fetch engine info
+    let engine_info: Option<(String, String)> = sqlx::query_as(
+        "SELECT slot, COALESCE(model_name, '') FROM engine_configs \
+         WHERE org_id = $1 AND endpoint_url IS NOT NULL AND endpoint_url <> '' \
+         AND hosting_mode = 'self_hosted' AND is_disabled = false \
+         ORDER BY slot ASC LIMIT 1"
+    )
+    .bind(user.org_id)
+    .fetch_optional(&state.db)
+    .await
+    .unwrap_or(None);
+
+    let (engine_slot, engine_model) = match engine_info {
+        Some((s, m)) => (Some(s), m),
+        None => (None, String::new()),
+    };
+
+    let live_cube_address: Option<String> = sqlx::query_scalar(
+        "SELECT address_str FROM crs_registrations \
+         WHERE last_heartbeat > NOW() - INTERVAL '5 minutes' \
+         ORDER BY last_heartbeat DESC LIMIT 1"
+    )
+    .fetch_optional(&state.db)
+    .await
+    .unwrap_or(None);
+
+    // Reset task status so UI shows it's working
+    let _ = sqlx::query(
+        "UPDATE tasks SET status='QUEUED', error_message=NULL, updated_at=NOW() WHERE id=$1"
+    )
+    .bind(task_id)
+    .execute(&state.db)
+    .await;
+
+    if let Some(ref slot) = engine_slot {
+        if let Some(relay_tx) = state.relay_tx.read().await.clone() {
+            let preferred_addr = slot_to_cube_address(slot.as_str()).to_string();
+            let live_peers = state.live_cube_peer.read().await.clone();
+            let cube_address_opt = if live_peers.contains(&preferred_addr) {
+                Some(preferred_addr)
+            } else if !live_peers.is_empty() {
+                live_peers.into_iter().next()
+            } else {
+                live_cube_address.clone()
+            };
+
+            if let Some(cube_address) = cube_address_opt {
+                let _ = sqlx::query(
+                    "UPDATE tasks SET status='STEP_1', updated_at=NOW() WHERE id=$1"
+                )
+                .bind(task_id)
+                .execute(&state.db)
+                .await;
+
+                query::spawn_bg_inference(
+                    state.clone(),
+                    relay_tx,
+                    task_id,
+                    cube_address,
+                    slot.clone(),
+                    engine_model,
+                    messages,
+                    next_step as i32,
+                );
+            }
+        }
+    }
+
+    Ok(Json(serde_json::json!({ "task_id": task_id, "ok": true })))
 }
 
 async fn retry_task(State(_state): State<AppState>, Path(_task_id): Path<Uuid>) -> Result<Json<serde_json::Value>, AppError> {

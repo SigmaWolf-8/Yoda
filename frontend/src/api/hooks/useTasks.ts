@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import apiClient from '../client';
-import type { Task, QueryResult } from '../../types';
+import type { Task, QueryResult, TaskMessage } from '../../types';
 import type { TaskResult } from '../../types/task-result';
 import type { TaskReview } from '../../types/task-review';
 import type { AgentRecentTask } from '../../types/agent';
@@ -54,6 +54,7 @@ export function useTask(taskId?: string) {
         task: Task;
         results: TaskResult[];
         reviews: TaskReview[];
+        messages: TaskMessage[];
       }>(`/tasks/${taskId}`);
       return res.data;
     },
@@ -62,6 +63,22 @@ export function useTask(taskId?: string) {
       const status = q.state.data?.task.status;
       if (!status || status === 'FINAL' || status === 'ESCALATED' || status === 'CANCELLED') return false;
       return 3_000;
+    },
+  });
+}
+
+export function useAddTaskMessage(taskId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (text: string) => {
+      const res = await apiClient.post<{ task_id: string; ok: boolean }>(
+        `/tasks/${taskId}/message`,
+        { text },
+      );
+      return res.data;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['task', taskId] });
     },
   });
 }

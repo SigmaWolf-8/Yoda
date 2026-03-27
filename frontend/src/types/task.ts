@@ -46,6 +46,14 @@ export interface TaskTree {
   budget: number;
 }
 
+export interface TaskMessage {
+  id: string;
+  task_id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  created_at: string;
+}
+
 export interface QueryResult {
   status?: 'executing' | 'pending_approval';
   task_ids?: string[];

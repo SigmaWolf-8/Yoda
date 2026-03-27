@@ -13,6 +13,7 @@ import { useProject, useTasks, useTask, useUpdateProject, useDeleteTask } from '
 import { ModeToggle } from '../../components/project/ModeToggle';
 import { QueryInput } from '../../components/project/QueryInput';
 import { TaskTree } from '../../components/project/TaskTree';
+import { TaskThread } from '../../components/project/TaskThread';
 import { DecompositionApproval } from '../../components/project/DecompositionApproval';
 import type { QueryResult, TaskTree as TaskTreeType } from '../../types';
 
@@ -61,7 +62,7 @@ export function ProjectWorkspacePage() {
   }
 
   const task = taskDetail?.task;
-  const results = taskDetail?.results ?? [];
+  const messages = taskDetail?.messages ?? [];
 
   return (
     <div className="flex h-[calc(100vh-3.5rem)] overflow-hidden">
@@ -150,83 +151,13 @@ export function ProjectWorkspacePage() {
         </div>
 
         {/* Main area */}
-        <div className="flex-1 overflow-y-auto p-4 lg:p-6">
+        <div className="flex-1 overflow-hidden flex flex-col p-4 lg:p-6">
           {selectedTaskId && task ? (
-            <div className="mb-6 animate-fade-in space-y-4">
-              {/* Task header card */}
-              <div className="bg-[var(--color-surface-secondary)] border border-[var(--color-border-subtle)] rounded-xl p-5">
-                <div className="flex items-center gap-2 mb-2">
-                  <code className="text-sm font-mono text-[var(--color-text-muted)] bg-[var(--color-surface-tertiary)] px-1.5 py-0.5 rounded">
-                    {task.task_number}
-                  </code>
-                  <span className={`px-2 py-0.5 rounded-full text-xs font-semibold uppercase ${
-                    task.status === 'FINAL'
-                      ? 'bg-[var(--color-ok)]/10 text-[var(--color-ok)]'
-                      : task.status === 'ESCALATED'
-                        ? 'bg-[var(--color-warn)]/10 text-[var(--color-warn)]'
-                        : task.status === 'CANCELLED'
-                          ? 'bg-[var(--color-err)]/10 text-[var(--color-err)]'
-                          : 'bg-[var(--color-plex-500)]/10 text-[var(--color-plex-400)]'
-                  }`}>
-                    {task.status.replace(/_/g, ' ')}
-                  </span>
-                </div>
-                <h3 className="text-base font-semibold text-[var(--color-text-primary)] mb-2">
-                  {task.title}
-                </h3>
-
-                {task.competencies.length > 0 && (
-                  <div className="flex gap-1.5 flex-wrap">
-                    {task.competencies.map((c) => (
-                      <span
-                        key={c}
-                        className="px-2 py-0.5 rounded text-xs font-medium bg-[var(--color-plex-500)]/10 text-[var(--color-plex-400)] border border-[var(--color-plex-500)]/20"
-                      >
-                        {c}
-                      </span>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* Results */}
-              {results.length > 0 ? (
-                results.map((r) => (
-                  <div
-                    key={r.id}
-                    className="bg-[var(--color-surface-secondary)] border border-[var(--color-border-subtle)] rounded-xl p-5"
-                  >
-                    <div className="flex items-center gap-2 mb-3">
-                      <span className="text-xs font-semibold text-[var(--color-text-muted)] uppercase tracking-wider">
-                        Step {r.step_number}
-                      </span>
-                      {r.engine_id && (
-                        <code className="text-[11px] font-mono text-[var(--color-text-muted)] bg-[var(--color-surface-tertiary)] px-1.5 py-0.5 rounded">
-                          {r.engine_id}
-                        </code>
-                      )}
-                    </div>
-                    <div className="text-sm text-[var(--color-text-primary)] leading-relaxed whitespace-pre-wrap break-words">
-                      {r.result_content}
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <div className="bg-[var(--color-surface-secondary)] border border-[var(--color-border-subtle)] rounded-xl p-5">
-                  <div className="flex items-center gap-2 text-sm text-[var(--color-text-muted)]">
-                    {task.status !== 'FINAL' && task.status !== 'ESCALATED' && (
-                      <Loader2 className="w-3.5 h-3.5 animate-spin flex-shrink-0" />
-                    )}
-                    {task.status === 'FINAL'
-                      ? 'Task completed with no result content stored.'
-                      : 'Waiting for engine response…'}
-                  </div>
-                </div>
-              )}
+            <div className="flex-1 overflow-hidden animate-fade-in">
+              <TaskThread task={task} messages={messages} />
             </div>
           ) : !selectedTaskId && tasks && tasks.length === 0 ? (
-            /* No tasks yet — prompt to submit */
-            <div className="flex flex-col items-center justify-center py-16 text-center">
+            <div className="flex flex-col items-center justify-center py-16 text-center flex-1">
               <div className="w-12 h-12 rounded-xl bg-[var(--color-gold-500)]/10 flex items-center justify-center mb-4">
                 <GitBranch className="w-6 h-6 text-[var(--color-gold-400)]" />
               </div>
@@ -234,12 +165,12 @@ export function ProjectWorkspacePage() {
                 No tasks yet
               </h3>
               <p className="text-sm text-[var(--color-text-muted)] max-w-xs">
-                Submit a query below to decompose it into tasks. Each task passes through the four-step adversarial refinement protocol.
+                Submit a query below to start a new conversation thread.
               </p>
             </div>
           ) : !selectedTaskId && tasks && tasks.length > 0 ? (
-            <div className="flex flex-col items-center justify-center py-16 text-center">
-              <p className="text-sm text-[var(--color-text-muted)]">Select a task from the sidebar to view its output.</p>
+            <div className="flex flex-col items-center justify-center py-16 text-center flex-1">
+              <p className="text-sm text-[var(--color-text-muted)]">Select a thread from the sidebar.</p>
             </div>
           ) : null}
         </div>
