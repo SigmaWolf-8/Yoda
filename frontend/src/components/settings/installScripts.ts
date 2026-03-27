@@ -707,8 +707,10 @@ Write-Host ""
 Write-Host "Starting llama-server on port $SERVER_PORT..."
 Get-Process -Name "llama-server" -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
 Start-Sleep -Milliseconds 800
-$nglArgs = if ($cpuArch -eq "ARM64") { "" } else { "-ngl 99" }
-$serverProc = Start-Process -FilePath $LLAMA_SERVER -ArgumentList "--model \`"$MODEL_PATH\`" --port $SERVER_PORT --host 0.0.0.0 -c 4096 --parallel 2 $nglArgs --log-disable" -WindowStyle Hidden -PassThru
+$nglArgs      = if ($cpuArch -eq "ARM64") { "" } else { "-ngl 99" }
+$ctxSize      = if ($cpuArch -eq "ARM64") { "2048" } else { "4096" }
+$parallelCount= if ($cpuArch -eq "ARM64") { "1"    } else { "2" }
+$serverProc = Start-Process -FilePath $LLAMA_SERVER -ArgumentList "--model \`"$MODEL_PATH\`" --port $SERVER_PORT --host 0.0.0.0 -c $ctxSize --parallel $parallelCount $nglArgs --log-disable" -WindowStyle Hidden -PassThru
 Write-Host "  OK llama-server started (PID $($serverProc.Id))"
 Start-Sleep -Seconds 2
 
@@ -1155,7 +1157,7 @@ while (\$true) {
   Start-Sleep -Seconds 30
   if (-not (Get-NetTCPConnection -LocalPort \$PORT -State Listen -EA SilentlyContinue)) {
     Start-Process -FilePath \$LLAMA_EXE \`
-      -ArgumentList "--model \`"\$MODEL_PATH\`" --port \$PORT --host 0.0.0.0 -c 4096 --parallel 2 \$NGL --log-disable" \`
+      -ArgumentList "--model \`"\$MODEL_PATH\`" --port \$PORT --host 0.0.0.0 -c $ctxSize --parallel $parallelCount \$NGL --log-disable" \`
       -WindowStyle Hidden
   }
 }
@@ -1389,9 +1391,10 @@ $LLAMA_LOG = Join-Path $LOG_DIR "llama-server-$SERVER_PORT.log"
 "" | Out-File -FilePath $LLAMA_LOG -Encoding UTF8  # clear old log
 # Use llama-server's built-in --log-file so no I/O redirect needed (avoids WindowStyle conflict)
 # ARM64: use smaller context to save KV-cache RAM; GPU layer count is always 0 on ARM64
-$ctxSize = if ($cpuArch -eq "ARM64") { "2048" } else { "4096" }
+$ctxSize      = if ($cpuArch -eq "ARM64") { "2048" } else { "4096" }
+$parallelCount= if ($cpuArch -eq "ARM64") { "1"    } else { "2" }
 $serverProc = Start-Process -FilePath $LLAMA_SERVER \`
-  -ArgumentList "--model \`"$MODEL_PATH\`" --port $SERVER_PORT --host 0.0.0.0 -c $ctxSize --parallel 1 $nglArgs --log-file \`"$LLAMA_LOG\`"" \`
+  -ArgumentList "--model \`"$MODEL_PATH\`" --port $SERVER_PORT --host 0.0.0.0 -c $ctxSize --parallel $parallelCount $nglArgs --log-file \`"$LLAMA_LOG\`"" \`
   -WindowStyle Hidden -PassThru
 Write-Host "  OK llama-server started (PID $($serverProc.Id))  context=$ctxSize"
 Write-Host "     Log: $LLAMA_LOG"
@@ -1465,7 +1468,7 @@ while (\$true) {
   # Watchdog: llama-server
   if (-not (Get-NetTCPConnection -LocalPort \$SERVER_PORT -State Listen -EA SilentlyContinue)) {
     Start-Process -FilePath \$LLAMA_EXE \`
-      -ArgumentList "--model \`"\$MODEL_PATH\`" --port \$SERVER_PORT --host 0.0.0.0 -c 4096 --parallel 2 \$NGL --log-disable" \`
+      -ArgumentList "--model \`"\$MODEL_PATH\`" --port \$SERVER_PORT --host 0.0.0.0 -c $ctxSize --parallel $parallelCount \$NGL --log-disable" \`
       -WindowStyle Hidden
     Start-Sleep -Seconds 3
   }
