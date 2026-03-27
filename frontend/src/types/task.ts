@@ -26,6 +26,7 @@ export interface Task {
   mode: 'yoda' | 'ronin';
   primary_engine: string;
   primary_agent_role: string;
+  error_message?: string | null;
   created_at: string;
   updated_at: string;
 }

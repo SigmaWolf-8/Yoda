@@ -165,6 +165,16 @@ function TreeNodeRow({
         </button>
       </div>
 
+      {/* Error message — shown immediately under ESCALATED tasks */}
+      {node.task.status === 'ESCALATED' && node.task.error_message && (
+        <div
+          className="mx-2 mb-1 px-2 py-1.5 rounded text-xs text-[var(--color-warn)] bg-[var(--color-warn)]/10 break-words"
+          style={{ marginLeft: `${depth * 16 + 36}px` }}
+        >
+          {node.task.error_message}
+        </div>
+      )}
+
       {/* Children */}
       {expanded && hasChildren && (
         <div>

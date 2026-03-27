@@ -310,24 +310,35 @@ pub async fn submit_query(
                                 break;
                             }
                             Ok(Ok(Err(error_msg))) => {
-                                if attempt < MAX_ATTEMPTS {
+                                // Distinguish fatal connection errors (server not running)
+                                // from transient loading errors (server starting up).
+                                // "error sending request" / "Connection refused" means the port
+                                // is not open at all — retrying will not help.
+                                let is_fatal = error_msg.contains("error sending request")
+                                    || error_msg.contains("Connection refused")
+                                    || error_msg.contains("connection refused")
+                                    || error_msg.contains("No connection could be made");
+
+                                if is_fatal || attempt >= MAX_ATTEMPTS {
+                                    tracing::warn!(
+                                        task_id = %task_id, error = %error_msg, attempt,
+                                        fatal = is_fatal,
+                                        "BG: cube inference_error — marking ESCALATED"
+                                    );
+                                    let _ = sqlx::query(
+                                        "UPDATE tasks SET status = 'ESCALATED', error_message = $2, updated_at = NOW() WHERE id = $1"
+                                    )
+                                    .bind(task_id)
+                                    .bind(&error_msg)
+                                    .execute(&bg_state.db)
+                                    .await;
+                                } else {
                                     tracing::warn!(
                                         task_id = %task_id, error = %error_msg, attempt,
                                         retry_in_secs = RETRY_WAIT_SECS,
-                                        "BG: cube inference_error — model loading, retrying"
+                                        "BG: cube inference_error — transient, retrying"
                                     );
                                     tokio::time::sleep(Duration::from_secs(RETRY_WAIT_SECS)).await;
-                                } else {
-                                    tracing::warn!(
-                                        task_id = %task_id, error = %error_msg,
-                                        "BG: cube inference_error on final attempt — marking ESCALATED"
-                                    );
-                                    let _ = sqlx::query(
-                                        "UPDATE tasks SET status = 'ESCALATED', updated_at = NOW() WHERE id = $1"
-                                    )
-                                    .bind(task_id)
-                                    .execute(&bg_state.db)
-                                    .await;
                                 }
                             }
                             Ok(Err(_)) => {
@@ -345,7 +356,7 @@ pub async fn submit_query(
                                 } else {
                                     tracing::warn!(task_id = %task_id, "BG: relay timed out on final attempt — marking ESCALATED");
                                     let _ = sqlx::query(
-                                        "UPDATE tasks SET status = 'ESCALATED', updated_at = NOW() WHERE id = $1"
+                                        "UPDATE tasks SET status = 'ESCALATED', error_message = 'Engine did not respond within the retry window. Check that llama-server is running on the engine node.', updated_at = NOW() WHERE id = $1"
                                     )
                                     .bind(task_id)
                                     .execute(&bg_state.db)

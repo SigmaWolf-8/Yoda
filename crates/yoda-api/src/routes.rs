@@ -283,15 +283,16 @@ async fn list_tasks(
     let _ = sqlx::query_scalar::<_,Uuid>("SELECT id FROM projects WHERE id=$1 AND org_id=$2")
         .bind(project_id).bind(user.org_id).fetch_optional(&state.db).await
         .map_err(AppError::Database)?.ok_or(AppError::NotFound("Project not found".into()))?;
-    let rows = sqlx::query_as::<_, (Uuid,Uuid,String,String,String,String,serde_json::Value,serde_json::Value,Option<i32>,Option<String>,Option<String>,chrono::DateTime<chrono::Utc>,chrono::DateTime<chrono::Utc>)>(
-        "SELECT id,project_id,task_number,title,status,mode,competencies,dependencies,workflow_position,primary_engine_slot,primary_agent_role,created_at,updated_at FROM tasks WHERE project_id=$1 ORDER BY workflow_position,task_number"
+    let rows = sqlx::query_as::<_, (Uuid,Uuid,String,String,String,String,serde_json::Value,serde_json::Value,Option<i32>,Option<String>,Option<String>,chrono::DateTime<chrono::Utc>,chrono::DateTime<chrono::Utc>,Option<String>)>(
+        "SELECT id,project_id,task_number,title,status,mode,competencies,dependencies,workflow_position,primary_engine_slot,primary_agent_role,created_at,updated_at,error_message FROM tasks WHERE project_id=$1 ORDER BY workflow_position,task_number"
     ).bind(project_id).fetch_all(&state.db).await.map_err(AppError::Database)?;
-    let tasks: Vec<serde_json::Value> = rows.into_iter().map(|(id,pid,tn,t,s,m,c,d,wp,pe,par,ca,ua)| {
+    let tasks: Vec<serde_json::Value> = rows.into_iter().map(|(id,pid,tn,t,s,m,c,d,wp,pe,par,ca,ua,em)| {
         serde_json::json!({
             "id": id, "project_id": pid, "task_number": tn, "title": t,
             "status": s, "mode": m, "competencies": c, "dependencies": d,
             "workflow_position": wp, "primary_engine": pe, "primary_agent_role": par,
             "parent_task_id": serde_json::Value::Null,
+            "error_message": em,
             "created_at": ca, "updated_at": ua,
         })
     }).collect();
@@ -334,8 +335,8 @@ async fn list_recent_tasks(
 }
 
 async fn get_task(State(state): State<AppState>, Path(task_id): Path<Uuid>) -> Result<Json<serde_json::Value>, AppError> {
-    let (id,pid,tn,t,s,m,c,d,wp,pe,par,ca,ua) = sqlx::query_as::<_, (Uuid,Uuid,String,String,String,String,serde_json::Value,serde_json::Value,Option<i32>,Option<String>,Option<String>,chrono::DateTime<chrono::Utc>,chrono::DateTime<chrono::Utc>)>(
-        "SELECT id,project_id,task_number,title,status,mode,competencies,dependencies,workflow_position,primary_engine_slot,primary_agent_role,created_at,updated_at FROM tasks WHERE id=$1"
+    let (id,pid,tn,t,s,m,c,d,wp,pe,par,ca,ua,em) = sqlx::query_as::<_, (Uuid,Uuid,String,String,String,String,serde_json::Value,serde_json::Value,Option<i32>,Option<String>,Option<String>,chrono::DateTime<chrono::Utc>,chrono::DateTime<chrono::Utc>,Option<String>)>(
+        "SELECT id,project_id,task_number,title,status,mode,competencies,dependencies,workflow_position,primary_engine_slot,primary_agent_role,created_at,updated_at,error_message FROM tasks WHERE id=$1"
     ).bind(task_id).fetch_optional(&state.db).await.map_err(AppError::Database)?.ok_or(AppError::NotFound("Task not found".into()))?;
 
     let task = serde_json::json!({
@@ -343,6 +344,7 @@ async fn get_task(State(state): State<AppState>, Path(task_id): Path<Uuid>) -> R
         "status": s, "mode": m, "competencies": c, "dependencies": d,
         "workflow_position": wp, "primary_engine": pe, "primary_agent_role": par,
         "parent_task_id": serde_json::Value::Null,
+        "error_message": em,
         "created_at": ca, "updated_at": ua,
     });
 
