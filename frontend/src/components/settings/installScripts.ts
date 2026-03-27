@@ -710,7 +710,7 @@ Start-Sleep -Milliseconds 800
 $nglArgs      = if ($cpuArch -eq "ARM64") { "" } else { "-ngl 99" }
 $ctxSize      = if ($cpuArch -eq "ARM64") { "2048" } else { "4096" }
 $parallelCount= if ($cpuArch -eq "ARM64") { "1"    } else { "2" }
-$serverProc = Start-Process -FilePath $LLAMA_SERVER -ArgumentList "--model \`"$MODEL_PATH\`" --port $SERVER_PORT --host 0.0.0.0 -c $ctxSize --parallel $parallelCount $nglArgs --cors-allow-origins * --log-disable" -WindowStyle Hidden -PassThru
+$serverProc = Start-Process -FilePath $LLAMA_SERVER -ArgumentList "--model \`"$MODEL_PATH\`" --port $SERVER_PORT --host 0.0.0.0 -c $ctxSize --parallel $parallelCount $nglArgs --log-disable" -WindowStyle Hidden -PassThru
 Write-Host "  OK llama-server started (PID $($serverProc.Id))"
 Start-Sleep -Seconds 2
 
@@ -1089,7 +1089,7 @@ Write-Host "Starting llama-server on port $SERVER_PORT..."
 $nglArgs = if ($cpuArch -eq "ARM64") { "" } else { "-ngl 99" }
 Write-Host "  -> Architecture: $cpuArch  GPU offload: $(if ($nglArgs) { 'yes' } else { 'no (CPU only)' })"
 $serverProc = Start-Process -FilePath $LLAMA_SERVER \`
-  -ArgumentList "--model \`"$MODEL_PATH\`" --port $SERVER_PORT --host 0.0.0.0 -c 4096 --parallel 2 $nglArgs --cors-allow-origins * --log-disable" \`
+  -ArgumentList "--model \`"$MODEL_PATH\`" --port $SERVER_PORT --host 0.0.0.0 -c 4096 --parallel 2 $nglArgs --log-disable" \`
   -WindowStyle Hidden -PassThru
 Write-Host "  OK PID $($serverProc.Id)"
 Write-Host ""
@@ -1157,7 +1157,7 @@ while (\$true) {
   Start-Sleep -Seconds 30
   if (-not (Get-NetTCPConnection -LocalPort \$PORT -State Listen -EA SilentlyContinue)) {
     Start-Process -FilePath \$LLAMA_EXE \`
-      -ArgumentList "--model \`"\$MODEL_PATH\`" --port \$PORT --host 0.0.0.0 -c $ctxSize --parallel $parallelCount \$NGL --cors-allow-origins * --log-disable" \`
+      -ArgumentList "--model \`"\$MODEL_PATH\`" --port \$PORT --host 0.0.0.0 -c $ctxSize --parallel $parallelCount \$NGL --log-disable" \`
       -WindowStyle Hidden
   }
 }
@@ -1403,7 +1403,7 @@ try { "" | Out-File -FilePath $LLAMA_LOG -Encoding UTF8 -EA Stop } catch { }  # 
 $ctxSize      = if ($cpuArch -eq "ARM64") { "2048" } else { "4096" }
 $parallelCount= if ($cpuArch -eq "ARM64") { "1"    } else { "2" }
 $serverProc = Start-Process -FilePath $LLAMA_SERVER \`
-  -ArgumentList "--model \`"$MODEL_PATH\`" --port $SERVER_PORT --host 0.0.0.0 -c $ctxSize --parallel $parallelCount $nglArgs --cors-allow-origins * --log-file \`"$LLAMA_LOG\`"" \`
+  -ArgumentList "--model \`"$MODEL_PATH\`" --port $SERVER_PORT --host 0.0.0.0 -c $ctxSize --parallel $parallelCount $nglArgs --log-file \`"$LLAMA_LOG\`"" \`
   -WindowStyle Hidden -PassThru
 Write-Host "  OK llama-server started (PID $($serverProc.Id))  context=$ctxSize"
 Write-Host "     Log: $LLAMA_LOG"
@@ -1477,7 +1477,7 @@ while (\$true) {
   # Watchdog: llama-server
   if (-not (Get-NetTCPConnection -LocalPort \$SERVER_PORT -State Listen -EA SilentlyContinue)) {
     Start-Process -FilePath \$LLAMA_EXE \`
-      -ArgumentList "--model \`"\$MODEL_PATH\`" --port \$SERVER_PORT --host 0.0.0.0 -c $ctxSize --parallel $parallelCount \$NGL --cors-allow-origins * --log-disable" \`
+      -ArgumentList "--model \`"\$MODEL_PATH\`" --port \$SERVER_PORT --host 0.0.0.0 -c $ctxSize --parallel $parallelCount \$NGL --log-disable" \`
       -WindowStyle Hidden
     Start-Sleep -Seconds 3
   }
