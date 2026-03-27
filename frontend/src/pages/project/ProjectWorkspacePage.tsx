@@ -15,7 +15,7 @@ import { QueryInput } from '../../components/project/QueryInput';
 import { TaskTree } from '../../components/project/TaskTree';
 import { TaskThread } from '../../components/project/TaskThread';
 import { DecompositionApproval } from '../../components/project/DecompositionApproval';
-import type { QueryResult, TaskTree as TaskTreeType } from '../../types';
+import type { QueryResult, TaskTree as TaskTreeType, TaskMessage } from '../../types';
 
 export function ProjectWorkspacePage() {
   const { id } = useParams<{ id: string }>();
@@ -62,7 +62,7 @@ export function ProjectWorkspacePage() {
   }
 
   const task = taskDetail?.task;
-  const messages = taskDetail?.messages ?? [];
+  const messages: TaskMessage[] = taskDetail?.messages ?? [];
 
   return (
     <div className="flex h-[calc(100vh-3.5rem)] overflow-hidden">
