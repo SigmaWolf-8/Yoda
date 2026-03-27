@@ -1388,30 +1388,44 @@ Start-Sleep -Milliseconds 800
 $LLAMA_LOG = Join-Path $LOG_DIR "llama-server-$SERVER_PORT.log"
 "" | Out-File -FilePath $LLAMA_LOG -Encoding UTF8  # clear old log
 # Use llama-server's built-in --log-file so no I/O redirect needed (avoids WindowStyle conflict)
+# ARM64: use smaller context to save KV-cache RAM; GPU layer count is always 0 on ARM64
+$ctxSize = if ($cpuArch -eq "ARM64") { "2048" } else { "4096" }
 $serverProc = Start-Process -FilePath $LLAMA_SERVER \`
-  -ArgumentList "--model \`"$MODEL_PATH\`" --port $SERVER_PORT --host 0.0.0.0 -c 4096 --parallel 2 $nglArgs --log-file \`"$LLAMA_LOG\`"" \`
+  -ArgumentList "--model \`"$MODEL_PATH\`" --port $SERVER_PORT --host 0.0.0.0 -c $ctxSize --parallel 1 $nglArgs --log-file \`"$LLAMA_LOG\`"" \`
   -WindowStyle Hidden -PassThru
-Write-Host "  OK llama-server started (PID $($serverProc.Id))"
+Write-Host "  OK llama-server started (PID $($serverProc.Id))  context=$ctxSize"
 Write-Host "     Log: $LLAMA_LOG"
-# Wait 5 seconds and verify it is still alive
-Start-Sleep -Seconds 5
+# Wait 8 seconds and verify it is still alive
+Start-Sleep -Seconds 8
 if ($serverProc.HasExited) {
   Write-Host ""
   Write-Host "=== LLAMA-SERVER CRASHED ===" -ForegroundColor Red
   Write-Host "  Exit code: $($serverProc.ExitCode)" -ForegroundColor Red
   if (Test-Path $LLAMA_LOG) {
     Write-Host "  Last log lines:" -ForegroundColor Yellow
-    Get-Content $LLAMA_LOG -Tail 15 | ForEach-Object { Write-Host "    $_" -ForegroundColor Yellow }
+    Get-Content $LLAMA_LOG -Tail 20 | ForEach-Object { Write-Host "    $_" -ForegroundColor Yellow }
   }
   Write-Host ""
-  Write-Host "  Common causes:" -ForegroundColor White
-  Write-Host "    - Not enough free RAM (7B model needs ~5 GB)" -ForegroundColor White
-  Write-Host "    - Both engines A and B running at once -- try just one first" -ForegroundColor White
-  Write-Host "    - Wrong CPU arch binary (re-run the Install script)" -ForegroundColor White
+  if ($cpuArch -eq "ARM64") {
+    Write-Host "  ARM64 diagnosis:" -ForegroundColor Cyan
+    Write-Host "    Recent llama.cpp loads Q4_K_M models twice on ARM64:" -ForegroundColor White
+    Write-Host "      - ~4 GB  memory-mapped model weights" -ForegroundColor White
+    Write-Host "      - ~4 GB  NEON-optimised repack buffer" -ForegroundColor White
+    Write-Host "    Total needed: ~8 GB free RAM simultaneously." -ForegroundColor White
+    Write-Host ""
+    Write-Host "  To fix (try in order):" -ForegroundColor Yellow
+    Write-Host "    1. Close Chrome/Edge tabs, Teams, other heavy apps then try again" -ForegroundColor White
+    Write-Host "    2. Run only ONE engine at a time (A or B, not both)" -ForegroundColor White
+    Write-Host "    3. If your machine has 8 GB RAM total, use Engine C with a smaller model" -ForegroundColor White
+  } else {
+    Write-Host "  Common causes:" -ForegroundColor White
+    Write-Host "    - Not enough free RAM (needs ~5 GB free)" -ForegroundColor White
+    Write-Host "    - Wrong CPU arch binary (re-run the Install script)" -ForegroundColor White
+  }
   Read-Host "Press Enter to exit"
   exit 1
 }
-Write-Host "  OK llama-server still running after 5s"
+Write-Host "  OK llama-server still running after 8s"
 
 # -- Restart PlenumNET daemon ---------------------------------------------
 # The daemon self-registers with the CRS on startup using CUBE_CRS_URL +
