@@ -1396,8 +1396,8 @@ export function EngineSlotCard({
                 </button>
               </div>
             )}
-            {/* Restart Engine — visible when self-hosted engine IS online (llama-server may have crashed) */}
-            {modelName && GGUF_INFO[modelName] && mode === 'self_hosted' && config?.health_status === 'online' && (
+            {/* Restart Engine — visible for any self-hosted engine with a known model */}
+            {modelName && GGUF_INFO[modelName] && mode === 'self_hosted' && (
               <div className="flex gap-2">
                 <button
                   type="button"
