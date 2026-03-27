@@ -1,0 +1,215 @@
+# YODA Reconnect (Windows)
+# Model: DeepSeek-R1-Distill-Qwen-7B  |  Port: 11125  |  Token: 00000000-aaaa-4000-8000-000000000001
+$ErrorActionPreference = "Stop"
+trap {
+  Write-Host ""
+  Write-Host "=== RECONNECT ERROR ===" -ForegroundColor Red
+  Write-Host $_.Exception.Message -ForegroundColor Red
+  Write-Host ""
+  Read-Host "Press Enter to close"
+  break
+}
+
+$SESSION_TOKEN = "00000000-aaaa-4000-8000-000000000001"
+$CRS_URL       = "https://plenumnet.replit.app"
+$GGUF_FILE     = "DeepSeek-R1-Distill-Qwen-7B-Q4_K_M.gguf"
+$SERVER_PORT   = 11125
+$MODELS_DIR    = Join-Path $env:USERPROFILE "yoda-models"
+$MODEL_PATH    = Join-Path $MODELS_DIR $GGUF_FILE
+$LOG_DIR       = Join-Path $MODELS_DIR "logs"
+$LLAMA_DIR     = Join-Path $env:USERPROFILE "llama.cpp"
+$IDENTITY_DIR  = Join-Path (Join-Path $env:USERPROFILE ".plenumnet") "identity"
+
+# Locate PlenumNET daemon (binary may be inter-cube.exe or inter-cube-daemon.exe)
+$PLENUMNET_DIR = Join-Path $env:USERPROFILE "PlenumNET"
+$relDir = Join-Path (Join-Path $PLENUMNET_DIR "target") "release"
+if (-not (Test-Path $relDir)) {
+  $altDir = Join-Path (Join-Path (Join-Path "C:" "PlenumNET") "target") "release"
+  if (Test-Path $altDir) { $PLENUMNET_DIR = Join-Path "C:" "PlenumNET"; $relDir = $altDir }
+}
+$daemonBin = Get-ChildItem -Path $relDir -Filter "inter-cube*.exe" -ErrorAction SilentlyContinue |
+  Where-Object { $_.Name -notlike "*.d" } | Select-Object -First 1
+$DAEMON_PATH = if ($daemonBin) { $daemonBin.FullName } else { "" }
+
+Write-Host "=== YODA Reconnect ===" -ForegroundColor Cyan
+Write-Host "Model : DeepSeek-R1-Distill-Qwen-7B"
+Write-Host "Port  : $SERVER_PORT"
+Write-Host ""
+
+# ── Preflight checks ──────────────────────────────────────────────────
+if (-not $DAEMON_PATH -or -not (Test-Path $DAEMON_PATH)) {
+  throw "PlenumNET daemon not found in $relDir -- run the Install script first (Settings -> AI Engines -> Install)."
+}
+if (-not (Test-Path $MODEL_PATH) -or (Get-Item $MODEL_PATH).Length -eq 0) {
+  throw "Model not found or empty at $MODEL_PATH -- run the Install script first."
+}
+function Find-LlamaServer {
+  $hit = Get-ChildItem -Path $LLAMA_DIR -Recurse -Filter "llama-server.exe" -EA SilentlyContinue | Select-Object -First 1
+  if ($hit) { return $hit.FullName }
+  $dl = Join-Path $env:USERPROFILE "Downloads"
+  $hit = Get-ChildItem -Path $dl -Recurse -Filter "llama-server.exe" -EA SilentlyContinue | Select-Object -First 1
+  if ($hit) { return $hit.FullName }
+  $cmd = Get-Command "llama-server" -EA SilentlyContinue
+  if ($cmd) { return $cmd.Source }
+  return $null
+}
+$LLAMA_SERVER = Find-LlamaServer
+if (-not $LLAMA_SERVER) {
+  throw "llama-server.exe not found in $LLAMA_DIR, Downloads, or PATH -- run the Install script first."
+}
+Write-Host "  OK llama-server: $LLAMA_SERVER"
+
+# ── Detect IP ─────────────────────────────────────────────────────────
+$ip = (Get-NetIPAddress -AddressFamily IPv4 |
+  Where-Object { $_.IPAddress -notmatch '^127\.' -and $_.IPAddress -notmatch '^169\.254' -and $_.PrefixOrigin -ne 'WellKnown' } |
+  Sort-Object @{ Expression = { switch -Wildcard ($_.InterfaceAlias) { 'Wi-Fi*' { 0 } 'Ethernet*' { 1 } default { 2 } } } } |
+  Select-Object -First 1).IPAddress
+if (-not $ip) { $ip = "0.0.0.0" }
+$CUBE_ENDPOINT = "$ip`:51820"
+Write-Host "  Local endpoint : $CUBE_ENDPOINT"
+
+# -- Load identity passphrase ---------------------------------------------
+$PASSPHRASE_FILE = Join-Path $IDENTITY_DIR ".passphrase"
+if (Test-Path $PASSPHRASE_FILE) {
+  $env:CUBE_IDENTITY_PASSPHRASE = (Get-Content $PASSPHRASE_FILE -Raw).Trim()
+  Write-Host "  OK Identity passphrase loaded"
+} else {
+  Write-Host "  WARN No passphrase file at $PASSPHRASE_FILE -- daemon will use hostname-derived fallback." -ForegroundColor Yellow
+  Write-Host "       If daemon fails, run the Install script to regenerate identity." -ForegroundColor Yellow
+}
+
+# -- Restart llama-server -------------------------------------------------
+New-Item -ItemType Directory -Force -Path $LOG_DIR | Out-Null
+$cpuArch = $env:PROCESSOR_ARCHITECTURE
+$nglArgs = if ($cpuArch -eq "ARM64") { "" } else { "-ngl 99" }
+Write-Host "  -> Architecture: $cpuArch  GPU offload: $(if ($nglArgs) { 'yes' } else { 'no (CPU only)' })"
+# Stop the existing watchdog BEFORE killing llama-server so it cannot
+# re-spawn a new process (with old settings) in the gap.
+Stop-ScheduledTask -TaskName "YODA-Watchdog-$SERVER_PORT" -EA SilentlyContinue
+Start-Sleep -Milliseconds 300
+# Kill ALL llama-server processes on this port (port-specific kill catches the primary;
+# Get-Process catches any zombie/unlisted instances from a previous watchdog cycle).
+$portOwner = (Get-NetTCPConnection -LocalPort $SERVER_PORT -EA SilentlyContinue | Select-Object -First 1 -ExpandProperty OwningProcess)
+if ($portOwner) { Stop-Process -Id $portOwner -Force -EA SilentlyContinue }
+Get-Process -Name "llama-server" -EA SilentlyContinue |
+  Where-Object { -not (Get-NetTCPConnection -LocalPort ($SERVER_PORT - 1) -State Listen -EA SilentlyContinue | Where-Object OwningProcess -eq $_.Id) } |
+  Stop-Process -Force -EA SilentlyContinue
+Start-Sleep -Milliseconds 800
+$LLAMA_LOG = Join-Path $LOG_DIR "llama-server-$SERVER_PORT.log"
+try { "" | Out-File -FilePath $LLAMA_LOG -Encoding UTF8 -EA Stop } catch { }  # clear old log (ignore if locked)
+# Use llama-server's built-in --log-file so no I/O redirect needed (avoids WindowStyle conflict)
+# ARM64: use smaller context to save KV-cache RAM; GPU layer count is always 0 on ARM64
+$ctxSize      = if ($cpuArch -eq "ARM64") { "2048" } else { "4096" }
+$parallelCount= if ($cpuArch -eq "ARM64") { "1"    } else { "2" }
+$serverProc = Start-Process -FilePath $LLAMA_SERVER `
+  -ArgumentList "--model `"$MODEL_PATH`" --port $SERVER_PORT --host 0.0.0.0 -c $ctxSize --parallel $parallelCount $nglArgs --cors-allow-origins * --log-file `"$LLAMA_LOG`"" `
+  -WindowStyle Hidden -PassThru
+Write-Host "  OK llama-server started (PID $($serverProc.Id))  context=$ctxSize"
+Write-Host "     Log: $LLAMA_LOG"
+# Wait 8 seconds and verify it is still alive
+Start-Sleep -Seconds 8
+if ($serverProc.HasExited) {
+  Write-Host ""
+  Write-Host "=== LLAMA-SERVER CRASHED ===" -ForegroundColor Red
+  Write-Host "  Exit code: $($serverProc.ExitCode)" -ForegroundColor Red
+  if (Test-Path $LLAMA_LOG) {
+    Write-Host "  Last log lines:" -ForegroundColor Yellow
+    Get-Content $LLAMA_LOG -Tail 20 | ForEach-Object { Write-Host "    $_" -ForegroundColor Yellow }
+  }
+  Write-Host ""
+  if ($cpuArch -eq "ARM64") {
+    Write-Host "  ARM64 diagnosis:" -ForegroundColor Cyan
+    Write-Host "    Recent llama.cpp loads Q4_K_M models twice on ARM64:" -ForegroundColor White
+    Write-Host "      - ~4 GB  memory-mapped model weights" -ForegroundColor White
+    Write-Host "      - ~4 GB  NEON-optimised repack buffer" -ForegroundColor White
+    Write-Host "    Total needed: ~8 GB free RAM simultaneously." -ForegroundColor White
+    Write-Host ""
+    Write-Host "  To fix (try in order):" -ForegroundColor Yellow
+    Write-Host "    1. Close Chrome/Edge tabs, Teams, other heavy apps then try again" -ForegroundColor White
+    Write-Host "    2. Run only ONE engine at a time (A or B, not both)" -ForegroundColor White
+    Write-Host "    3. If your machine has 8 GB RAM total, use Engine C with a smaller model" -ForegroundColor White
+  } else {
+    Write-Host "  Common causes:" -ForegroundColor White
+    Write-Host "    - Not enough free RAM (needs ~5 GB free)" -ForegroundColor White
+    Write-Host "    - Wrong CPU arch binary (re-run the Install script)" -ForegroundColor White
+  }
+  Read-Host "Press Enter to exit"
+  exit 1
+}
+Write-Host "  OK llama-server still running after 8s"
+
+# -- Restart PlenumNET daemon ---------------------------------------------
+# The daemon self-registers with the CRS on startup using CUBE_CRS_URL +
+# CUBE_SESSION_TOKEN, so no explicit registration call is needed here.
+$daemonPort = $SERVER_PORT - 1
+$portOwner = (Get-NetTCPConnection -LocalPort $daemonPort -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty OwningProcess)
+if ($portOwner) { Stop-Process -Id $portOwner -Force -ErrorAction SilentlyContinue }
+Start-Sleep -Milliseconds 800
+$env:CUBE_MODE          = "cube"
+$env:CUBE_API_PORT      = $daemonPort
+$env:CUBE_CRS_URL       = $CRS_URL
+$env:CUBE_ENDPOINT      = $CUBE_ENDPOINT
+$env:CUBE_SESSION_TOKEN = $SESSION_TOKEN
+$env:CUBE_ROLE          = "inference"
+$daemonProc = Start-Process -FilePath $DAEMON_PATH -WindowStyle Hidden -PassThru
+Write-Host "  OK Daemon started (PID $($daemonProc.Id))"
+
+# -- Register full dual watchdog (llama-server + daemon) ----------------------
+Write-Host ""
+Write-Host "Registering watchdog (auto-restart on crash)..."
+$watchdogScript = Join-Path $MODELS_DIR "watchdog-$SERVER_PORT.ps1"
+$watchdogContent = @"
+$ErrorActionPreference = 'SilentlyContinue'
+$LLAMA_EXE   = '$($LLAMA_SERVER  -replace "'","''")'
+$MODEL_PATH  = '$($MODEL_PATH    -replace "'","''")'
+$DAEMON_EXE  = '$($DAEMON_PATH   -replace "'","''")'
+$SERVER_PORT = $SERVER_PORT
+$DAEMON_PORT = $daemonPort
+$NGL         = '$nglArgs'
+$CUBE_ENDPOINT_VAL     = '$CUBE_ENDPOINT'
+$CUBE_CRS_URL_VAL      = '$CRS_URL'
+$CUBE_SESSION_TOKEN_VAL= '$SESSION_TOKEN'
+$PASSPHRASE  = if (Test-Path '$PASSPHRASE_FILE') { (Get-Content '$PASSPHRASE_FILE' -Raw).Trim() } else { '' }
+
+while ($true) {
+  Start-Sleep -Seconds 30
+  # Watchdog: llama-server
+  if (-not (Get-NetTCPConnection -LocalPort $SERVER_PORT -State Listen -EA SilentlyContinue)) {
+    Start-Process -FilePath $LLAMA_EXE `
+      -ArgumentList "--model `"$MODEL_PATH`" --port $SERVER_PORT --host 0.0.0.0 -c $ctxSize --parallel $parallelCount $NGL --cors-allow-origins * --log-disable" `
+      -WindowStyle Hidden
+    Start-Sleep -Seconds 3
+  }
+  # Watchdog: PlenumNET daemon
+  if (-not (Get-NetTCPConnection -LocalPort $DAEMON_PORT -State Listen -EA SilentlyContinue)) {
+    $env:CUBE_MODE          = 'cube'
+    $env:CUBE_API_PORT      = $DAEMON_PORT
+    $env:CUBE_CRS_URL       = $CUBE_CRS_URL_VAL
+    $env:CUBE_ENDPOINT      = $CUBE_ENDPOINT_VAL
+    $env:CUBE_SESSION_TOKEN = $CUBE_SESSION_TOKEN_VAL
+    $env:CUBE_ROLE          = 'inference'
+    $env:CUBE_IDENTITY_PASSPHRASE = $PASSPHRASE
+    Start-Process -FilePath $DAEMON_EXE -WindowStyle Hidden
+    Start-Sleep -Seconds 3
+  }
+}
+"@
+Set-Content -Path $watchdogScript -Value $watchdogContent -Encoding UTF8
+$taskName = "YODA-Watchdog-$SERVER_PORT"
+try {
+  $action   = New-ScheduledTaskAction -Execute "powershell.exe" `
+                -Argument "-NonInteractive -WindowStyle Hidden -File `"$watchdogScript`""
+  $trigger  = New-ScheduledTaskTrigger -AtLogOn
+  $settings = New-ScheduledTaskSettingsSet -MultipleInstances IgnoreNew -ExecutionTimeLimit 0
+  Register-ScheduledTask -TaskName $taskName -Action $action -Trigger $trigger `
+    -Settings $settings -RunLevel Limited -Force -EA Stop | Out-Null
+  Start-ScheduledTask -TaskName $taskName -EA SilentlyContinue
+  Write-Host "  OK Watchdog registered as '$taskName'" -ForegroundColor Green
+} catch {
+  # Task already exists from initial install — just ensure it's running
+  Start-ScheduledTask -TaskName $taskName -EA SilentlyContinue
+  Write-Host "  OK Watchdog already registered — ensuring it's running" -ForegroundColor Green
+}
+
+Write-Host ""
+Write-Host "  Both processes running + watchdog active. YODA will update within 10s." -ForegroundColor Green
