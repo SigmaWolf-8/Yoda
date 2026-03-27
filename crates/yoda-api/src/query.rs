@@ -262,14 +262,18 @@ pub async fn submit_query(
                                 .await
                                 .map_err(AppError::Database)?;
 
+                                let tis27 = format!("relay-{task_id}");
                                 sqlx::query(
                                     "INSERT INTO task_results \
-                                     (id, task_id, step_number, engine_slot, engine_model, result_content, created_at) \
-                                     VALUES (uuid_generate_v4(), $1, 1, $2, $3, $4, NOW())"
+                                     (id, task_id, step_number, engine_slot, engine_model, agent_role, tis27_hash, result_content, created_at) \
+                                     VALUES (uuid_generate_v4(), $1, 1, $2, $3, 'plenumlan-relay', $4, $5, NOW()) \
+                                     ON CONFLICT (task_id, step_number) DO UPDATE \
+                                       SET result_content = EXCLUDED.result_content, engine_model = EXCLUDED.engine_model"
                                 )
                                 .bind(task_id)
                                 .bind(slot.as_str())
                                 .bind(&engine_model_name)
+                                .bind(&tis27)
                                 .bind(&result.content)
                                 .execute(&state.db)
                                 .await
