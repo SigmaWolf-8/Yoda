@@ -1385,9 +1385,37 @@ Write-Host "  -> Architecture: $cpuArch  GPU offload: $(if ($nglArgs) { 'yes' } 
 $portOwner = (Get-NetTCPConnection -LocalPort $SERVER_PORT -EA SilentlyContinue | Select-Object -First 1 -ExpandProperty OwningProcess)
 if ($portOwner) { Stop-Process -Id $portOwner -Force -EA SilentlyContinue }
 Start-Sleep -Milliseconds 800
-$serverProc = Start-Process -FilePath $LLAMA_SERVER -ArgumentList "--model \`"$MODEL_PATH\`" --port $SERVER_PORT --host 0.0.0.0 -c 4096 --parallel 2 $nglArgs --log-disable" -WindowStyle Hidden -PassThru
+$LLAMA_LOG = Join-Path $LOG_DIR "llama-server-$SERVER_PORT.log"
+"" | Out-File -FilePath $LLAMA_LOG -Encoding UTF8  # clear old log
+$serverProc = Start-Process -FilePath $LLAMA_SERVER \`
+  -ArgumentList "--model \`"$MODEL_PATH\`" --port $SERVER_PORT --host 0.0.0.0 -c 4096 --parallel 2 $nglArgs" \`
+  -WindowStyle Hidden -PassThru \`
+  -RedirectStandardOutput $LLAMA_LOG -RedirectStandardError "$LLAMA_LOG.err"
 Write-Host "  OK llama-server started (PID $($serverProc.Id))"
-Start-Sleep -Seconds 2
+Write-Host "     Log: $LLAMA_LOG"
+# Wait and verify it's still alive
+Start-Sleep -Seconds 5
+if ($serverProc.HasExited) {
+  Write-Host "" 
+  Write-Host "=== LLAMA-SERVER CRASHED ===" -ForegroundColor Red
+  Write-Host "  Exit code: $($serverProc.ExitCode)" -ForegroundColor Red
+  if (Test-Path $LLAMA_LOG) {
+    Write-Host "  Last log lines:" -ForegroundColor Yellow
+    Get-Content $LLAMA_LOG -Tail 10 | ForEach-Object { Write-Host "    $_" -ForegroundColor Yellow }
+  }
+  if (Test-Path "$LLAMA_LOG.err") {
+    $errLines = Get-Content "$LLAMA_LOG.err" -Tail 5 -EA SilentlyContinue
+    if ($errLines) { $errLines | ForEach-Object { Write-Host "    ERR: $_" -ForegroundColor Red } }
+  }
+  Write-Host ""
+  Write-Host "  Common causes:" -ForegroundColor White
+  Write-Host "    - Not enough RAM (7B model needs ~5GB free)" -ForegroundColor White
+  Write-Host "    - Another llama-server already using port $SERVER_PORT" -ForegroundColor White
+  Write-Host "    - Wrong CPU arch binary (re-run Install script)" -ForegroundColor White
+  Read-Host "Press Enter to exit"
+  exit 1
+}
+Write-Host "  OK llama-server still running after 5s"
 
 # -- Restart PlenumNET daemon ---------------------------------------------
 # The daemon self-registers with the CRS on startup using CUBE_CRS_URL +
