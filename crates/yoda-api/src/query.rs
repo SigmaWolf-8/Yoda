@@ -198,20 +198,17 @@ pub async fn submit_query(
     .await
     .unwrap_or(None);
 
-    if let Some(slot) = &engine_slot {
-        // Check if the relay is alive
+    // ── PlenumLAN relay ───────────────────────────────────────────────────────
+    // Spawn inference as a background task so the HTTP response returns
+    // immediately (within the 30-second client timeout).  The frontend polls
+    // GET /api/tasks/{id} every 3 s and picks up the result when it arrives.
+    if let Some(ref slot) = engine_slot {
         if let Some(relay_tx) = state.relay_tx.read().await.clone() {
-            let request_id = Uuid::new_v4();
-            // Route to the slot-specific daemon address (deterministic from the Array3 layout):
-            //   Engine A → 1111111111111, Engine B → 2111111111111, Engine C → 3111111111111
-            // If the preferred address isn't confirmed live, fall back to any live peer,
-            // then the DB-cached address, then browser relay.
             let preferred_addr = slot_to_cube_address(slot.as_str()).to_string();
             let live_peers = state.live_cube_peer.read().await.clone();
             let cube_address_opt = if live_peers.contains(&preferred_addr) {
                 Some(preferred_addr)
             } else if !live_peers.is_empty() {
-                // Preferred daemon not confirmed but others are — use any live peer as fallback
                 tracing::warn!(
                     slot = %slot,
                     preferred = %slot_to_cube_address(slot.as_str()),
@@ -219,52 +216,78 @@ pub async fn submit_query(
                 );
                 live_peers.into_iter().next()
             } else {
-                // No live peers from relay session — try the DB-cached address
                 live_cube_address.clone()
             };
 
             if let Some(cube_address) = cube_address_opt {
-                let messages = serde_json::json!([
+                // Mark task as in-progress immediately so the UI shows activity
+                let _ = sqlx::query(
+                    "UPDATE tasks SET status = 'STEP_1', updated_at = NOW() WHERE id = $1"
+                )
+                .bind(task_id)
+                .execute(&state.db)
+                .await;
+
+                // Clone everything needed by the background task
+                let bg_state    = state.clone();
+                let bg_slot     = slot.clone();
+                let bg_model    = engine_model_name.clone();
+                let bg_addr     = cube_address;
+                let bg_messages = serde_json::json!([
                     {"role": "system", "content": "You are a helpful AI assistant. Always respond in English, regardless of the language used in the query."},
                     {"role": "user", "content": req.text}
                 ]);
 
-                let relay_req = RelayInferRequest {
-                    request_id,
-                    task_id,
-                    cube_address,
-                    messages,
-                    model: "local".to_string(),
-                    max_tokens: 1024,
-                    temperature: 0.7,
-                };
+                tokio::spawn(async move {
+                    // Retry up to 8 attempts, 20 s apart — covers the 2-3 min ARM64
+                    // model-loading window without the user needing to do anything.
+                    const MAX_ATTEMPTS: u32 = 8;
+                    const RETRY_WAIT_SECS: u64 = 20;
 
-                // Register a pending oneshot before sending (avoid a race)
-                let (tx, rx) = oneshot::channel();
-                state.pending_relays.write().await.insert(request_id, tx);
+                    let mut succeeded = false;
+                    for attempt in 1..=MAX_ATTEMPTS {
+                        let req_id = Uuid::new_v4();
+                        let relay_req = RelayInferRequest {
+                            request_id: req_id,
+                            task_id,
+                            cube_address: bg_addr.clone(),
+                            messages: bg_messages.clone(),
+                            model: "local".to_string(),
+                            max_tokens: 1024,
+                            temperature: 0.7,
+                        };
 
-                match relay_tx.send(relay_req).await {
-                    Ok(()) => {
+                        let (tx, rx) = oneshot::channel();
+                        bg_state.pending_relays.write().await.insert(req_id, tx);
+
+                        let send_ok = match relay_tx.send(relay_req).await {
+                            Ok(()) => true,
+                            Err(e) => {
+                                tracing::warn!(error = %e, attempt, "relay_tx send failed in bg task");
+                                bg_state.pending_relays.write().await.remove(&req_id);
+                                false
+                            }
+                        };
+
+                        if !send_ok { break; }
+
                         tracing::info!(
-                            task_id = %task_id,
-                            request_id = %request_id,
-                            "Inference request dispatched via PlenumLAN relay — awaiting response"
+                            task_id = %task_id, request_id = %req_id, attempt,
+                            "BG inference dispatched via PlenumLAN relay"
                         );
 
-                        match tokio::time::timeout(Duration::from_secs(120), rx).await {
+                        match tokio::time::timeout(Duration::from_secs(90), rx).await {
                             Ok(Ok(Ok(result))) => {
-                                // Write result to DB and mark task FINAL
-                                sqlx::query(
-                                    "UPDATE tasks SET status = 'FINAL', updated_at = NOW() \
-                                     WHERE id = $1"
+                                // Store result and mark FINAL
+                                let _ = sqlx::query(
+                                    "UPDATE tasks SET status = 'FINAL', updated_at = NOW() WHERE id = $1"
                                 )
                                 .bind(task_id)
-                                .execute(&state.db)
-                                .await
-                                .map_err(AppError::Database)?;
+                                .execute(&bg_state.db)
+                                .await;
 
                                 let tis27 = format!("relay-{task_id}");
-                                sqlx::query(
+                                let _ = sqlx::query(
                                     "INSERT INTO task_results \
                                      (id, task_id, step_number, engine_slot, engine_model, agent_role, tis27_hash, result_content, created_at) \
                                      VALUES (uuid_generate_v4(), $1, 1, $2, $3, 'plenumlan-relay', $4, $5, NOW()) \
@@ -272,87 +295,90 @@ pub async fn submit_query(
                                        SET result_content = EXCLUDED.result_content, engine_model = EXCLUDED.engine_model"
                                 )
                                 .bind(task_id)
-                                .bind(slot.as_str())
-                                .bind(&engine_model_name)
+                                .bind(bg_slot.as_str())
+                                .bind(&bg_model)
                                 .bind(&tis27)
                                 .bind(&result.content)
-                                .execute(&state.db)
-                                .await
-                                .map_err(AppError::Database)?;
+                                .execute(&bg_state.db)
+                                .await;
 
                                 tracing::info!(
-                                    task_id = %task_id,
-                                    tokens = result.tokens,
-                                    "Relay inference result stored — task FINAL"
+                                    task_id = %task_id, tokens = result.tokens, attempt,
+                                    "BG relay inference stored — task FINAL"
                                 );
-
-                                return Ok((StatusCode::CREATED, Json(QueryResponse {
-                                    decomposition: None,
-                                    task_id: Some(task_id),
-                                    needs_approval: false,
-                                    relay_endpoint: None,
-                                })));
+                                succeeded = true;
+                                break;
                             }
                             Ok(Ok(Err(error_msg))) => {
-                                // Cube returned inference_error — fall through to browser relay
-                                tracing::warn!(
-                                    task_id = %task_id,
-                                    error = %error_msg,
-                                    "Cube returned inference_error — falling back to browser relay"
-                                );
+                                if attempt < MAX_ATTEMPTS {
+                                    tracing::warn!(
+                                        task_id = %task_id, error = %error_msg, attempt,
+                                        retry_in_secs = RETRY_WAIT_SECS,
+                                        "BG: cube inference_error — model loading, retrying"
+                                    );
+                                    tokio::time::sleep(Duration::from_secs(RETRY_WAIT_SECS)).await;
+                                } else {
+                                    tracing::warn!(
+                                        task_id = %task_id, error = %error_msg,
+                                        "BG: cube inference_error on final attempt — marking ESCALATED"
+                                    );
+                                    let _ = sqlx::query(
+                                        "UPDATE tasks SET status = 'ESCALATED', updated_at = NOW() WHERE id = $1"
+                                    )
+                                    .bind(task_id)
+                                    .execute(&bg_state.db)
+                                    .await;
+                                }
                             }
                             Ok(Err(_)) => {
-                                tracing::warn!(task_id = %task_id, "Relay oneshot sender dropped");
+                                tracing::warn!(task_id = %task_id, attempt, "BG: relay oneshot dropped");
+                                break;
                             }
                             Err(_) => {
-                                tracing::warn!(
-                                    task_id = %task_id,
-                                    request_id = %request_id,
-                                    "Relay inference timed out after 120 s — falling back to browser relay"
-                                );
-                                state.pending_relays.write().await.remove(&request_id);
+                                bg_state.pending_relays.write().await.remove(&req_id);
+                                if attempt < MAX_ATTEMPTS {
+                                    tracing::warn!(
+                                        task_id = %task_id, attempt,
+                                        "BG: relay timed out — retrying"
+                                    );
+                                    tokio::time::sleep(Duration::from_secs(RETRY_WAIT_SECS)).await;
+                                } else {
+                                    tracing::warn!(task_id = %task_id, "BG: relay timed out on final attempt — marking ESCALATED");
+                                    let _ = sqlx::query(
+                                        "UPDATE tasks SET status = 'ESCALATED', updated_at = NOW() WHERE id = $1"
+                                    )
+                                    .bind(task_id)
+                                    .execute(&bg_state.db)
+                                    .await;
+                                }
                             }
                         }
                     }
-                    Err(e) => {
-                        tracing::warn!(error = %e, "relay_tx send failed — relay may be disconnecting");
-                        state.pending_relays.write().await.remove(&request_id);
+
+                    if !succeeded {
+                        tracing::warn!(task_id = %task_id, "BG relay exhausted all attempts");
                     }
-                }
-            } else {
-                tracing::info!(task_id = %task_id, "No confirmed cube peer — skipping relay, falling back to browser relay");
+                });
+
+                // Return immediately — frontend polls for completion
+                return Ok((StatusCode::CREATED, Json(QueryResponse {
+                    decomposition: None,
+                    task_id: Some(task_id),
+                    needs_approval: false,
+                    relay_endpoint: None,
+                })));
             }
         }
     }
 
-    // ── Browser relay fallback ────────────────────────────────────────────────
-    // Replit's server can't reach local/LAN addresses so health checks mark them
-    // offline — but the browser running on the user's machine CAN.
-    // The relay_endpoint is taken verbatim from the user-configured endpoint_url;
-    // no default ports are guessed. If none is set, relay_endpoint stays None.
-    // Browser relay only makes sense for self-hosted local engines.
-    // The browser has no credentials to call commercial/free_tier APIs directly,
-    // and those should have been handled server-side in decomposition above.
-    let relay_info: Option<(String, String, Option<String>)> = sqlx::query_as(
-        "SELECT slot, hosting_mode, endpoint_url FROM engine_configs \
-         WHERE org_id = $1 AND hosting_mode = 'self_hosted' AND is_disabled = false \
-         ORDER BY slot ASC LIMIT 1"
-    )
-    .bind(user.org_id)
-    .fetch_optional(&state.db)
-    .await
-    .unwrap_or(None);
-
-    let relay_endpoint: Option<String> = relay_info.and_then(|(_slot, _hosting_mode, endpoint_url)| {
-        // Only relay to URLs the user has explicitly configured — no hardcoded port guessing.
-        endpoint_url.filter(|u| !u.is_empty())
-    });
-
+    // ── No relay path available — return task ID for polling ─────────────────
+    // The task sits as QUEUED. If a relay reconnects, a future retry will pick
+    // it up. This avoids the CORS-dependent browser relay entirely.
     Ok((StatusCode::CREATED, Json(QueryResponse {
         decomposition: None,
         task_id: Some(task_id),
         needs_approval: false,
-        relay_endpoint,
+        relay_endpoint: None,
     })))
 }
 
