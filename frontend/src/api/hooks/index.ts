@@ -21,6 +21,7 @@ export {
   useRetryTask,
   useEscalateTask,
   useCancelTask,
+  useDeleteTask,
 } from './useTasks';
 export { useTaskBible, useTaskBibleEntry } from './useTaskBible';
 export { useKnowledgeBase, useUpdateKBEntry, useDeleteKBEntry } from './useKnowledgeBase';

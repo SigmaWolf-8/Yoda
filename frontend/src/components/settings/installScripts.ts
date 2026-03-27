@@ -1384,8 +1384,17 @@ New-Item -ItemType Directory -Force -Path $LOG_DIR | Out-Null
 $cpuArch = $env:PROCESSOR_ARCHITECTURE
 $nglArgs = if ($cpuArch -eq "ARM64") { "" } else { "-ngl 99" }
 Write-Host "  -> Architecture: $cpuArch  GPU offload: $(if ($nglArgs) { 'yes' } else { 'no (CPU only)' })"
+# Stop the existing watchdog BEFORE killing llama-server so it cannot
+# re-spawn a new process (with old settings) in the gap.
+Stop-ScheduledTask -TaskName "YODA-Watchdog-$SERVER_PORT" -EA SilentlyContinue
+Start-Sleep -Milliseconds 300
+# Kill ALL llama-server processes on this port (port-specific kill catches the primary;
+# Get-Process catches any zombie/unlisted instances from a previous watchdog cycle).
 $portOwner = (Get-NetTCPConnection -LocalPort $SERVER_PORT -EA SilentlyContinue | Select-Object -First 1 -ExpandProperty OwningProcess)
 if ($portOwner) { Stop-Process -Id $portOwner -Force -EA SilentlyContinue }
+Get-Process -Name "llama-server" -EA SilentlyContinue |
+  Where-Object { -not (Get-NetTCPConnection -LocalPort ($SERVER_PORT - 1) -State Listen -EA SilentlyContinue | Where-Object OwningProcess -eq $_.Id) } |
+  Stop-Process -Force -EA SilentlyContinue
 Start-Sleep -Milliseconds 800
 $LLAMA_LOG = Join-Path $LOG_DIR "llama-server-$SERVER_PORT.log"
 try { "" | Out-File -FilePath $LLAMA_LOG -Encoding UTF8 -EA Stop } catch { }  # clear old log (ignore if locked)

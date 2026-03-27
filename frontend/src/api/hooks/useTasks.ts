@@ -132,3 +132,16 @@ export function useCancelTask() {
     },
   });
 }
+
+export function useDeleteTask(projectId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (taskId: string) => {
+      await apiClient.delete(`/tasks/${taskId}`);
+      return taskId;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['tasks', projectId] });
+    },
+  });
+}

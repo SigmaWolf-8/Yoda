@@ -77,6 +77,7 @@ pub fn build_router(state: AppState) -> Router {
         .route("/api/tasks/recent", get(list_recent_tasks))
         .route("/api/projects/{id}/tasks", get(list_tasks))
         .route("/api/tasks/{id}", get(get_task))
+        .route("/api/tasks/{id}", delete(delete_task))
         .route("/api/tasks/{id}/output", post(set_task_output))
         .route("/api/tasks/{id}/retry", post(retry_task))
         .route("/api/tasks/{id}/escalate", post(escalate_task))
@@ -370,6 +371,35 @@ async fn escalate_task(State(state): State<AppState>, Path(task_id): Path<Uuid>)
 async fn cancel_task(State(state): State<AppState>, Path(task_id): Path<Uuid>) -> Result<StatusCode, AppError> {
     sqlx::query("UPDATE tasks SET status='ESCALATED' WHERE id=$1 AND status NOT IN ('FINAL','ESCALATED')")
         .bind(task_id).execute(&state.db).await.map_err(AppError::Database)?;
+    Ok(StatusCode::NO_CONTENT)
+}
+
+async fn delete_task(
+    State(state): State<AppState>,
+    user: axum::Extension<auth::AuthenticatedUser>,
+    Path(task_id): Path<Uuid>,
+) -> Result<StatusCode, AppError> {
+    // Verify ownership via project membership before deleting
+    let owned = sqlx::query_scalar::<_, bool>(
+        "SELECT EXISTS(SELECT 1 FROM tasks t JOIN projects p ON p.id = t.project_id \
+         WHERE t.id = $1 AND p.org_id = $2)"
+    )
+    .bind(task_id)
+    .bind(user.org_id)
+    .fetch_one(&state.db)
+    .await
+    .map_err(AppError::Database)?;
+
+    if !owned {
+        return Err(AppError::NotFound("Task not found".into()));
+    }
+
+    sqlx::query("DELETE FROM tasks WHERE id = $1")
+        .bind(task_id)
+        .execute(&state.db)
+        .await
+        .map_err(AppError::Database)?;
+
     Ok(StatusCode::NO_CONTENT)
 }
 

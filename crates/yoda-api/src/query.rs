@@ -225,6 +225,7 @@ pub async fn submit_query(
 
             if let Some(cube_address) = cube_address_opt {
                 let messages = serde_json::json!([
+                    {"role": "system", "content": "You are a helpful AI assistant. Always respond in English, regardless of the language used in the query."},
                     {"role": "user", "content": req.text}
                 ]);
 

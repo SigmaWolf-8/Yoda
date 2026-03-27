@@ -6,6 +6,7 @@ import {
   ChevronRight,
   ChevronDown,
   XCircle,
+  Trash2,
 } from 'lucide-react';
 import { useState } from 'react';
 import type { Task, TaskStatus } from '../../types';
@@ -14,6 +15,7 @@ interface Props {
   tasks: Task[];
   selectedId?: string;
   onSelect: (taskId: string) => void;
+  onDelete?: (taskId: string) => void;
 }
 
 /* ── Status rendering ── */
@@ -96,51 +98,83 @@ function TreeNodeRow({
   depth,
   selectedId,
   onSelect,
+  onDelete,
 }: {
   node: TreeNode;
   depth: number;
   selectedId?: string;
   onSelect: (id: string) => void;
+  onDelete?: (id: string) => void;
 }) {
   const [expanded, setExpanded] = useState(true);
+  const [confirming, setConfirming] = useState(false);
   const hasChildren = node.children.length > 0;
   const isSelected = node.task.id === selectedId;
 
+  function handleDeleteClick(e: React.MouseEvent) {
+    e.stopPropagation();
+    if (confirming) {
+      onDelete?.(node.task.id);
+      setConfirming(false);
+    } else {
+      setConfirming(true);
+      // Auto-cancel confirmation after 3s
+      setTimeout(() => setConfirming(false), 3000);
+    }
+  }
+
   return (
     <div>
-      <button
-        onClick={() => onSelect(node.task.id)}
-        className={`w-full flex items-center gap-2 py-1.5 pr-3 text-left rounded-lg transition-colors ${
-          isSelected
-            ? 'bg-[var(--color-gold-500)]/10 text-[var(--color-gold-400)]'
-            : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-tertiary)]'
-        }`}
-        style={{ paddingLeft: `${depth * 16 + 8}px` }}
-      >
-        {/* Expand toggle */}
-        {hasChildren ? (
-          <span
-            onClick={(e) => { e.stopPropagation(); setExpanded(!expanded); }}
-            className="flex-shrink-0 cursor-pointer"
-          >
-            {expanded
-              ? <ChevronDown className="w-3 h-3 text-[var(--color-text-muted)]" />
-              : <ChevronRight className="w-3 h-3 text-[var(--color-text-muted)]" />
-            }
+      <div className="group flex items-center">
+        <button
+          onClick={() => onSelect(node.task.id)}
+          className={`flex-1 flex items-center gap-2 py-1.5 text-left rounded-lg transition-colors ${
+            isSelected
+              ? 'bg-[var(--color-gold-500)]/10 text-[var(--color-gold-400)]'
+              : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-tertiary)]'
+          }`}
+          style={{ paddingLeft: `${depth * 16 + 8}px` }}
+        >
+          {/* Expand toggle */}
+          {hasChildren ? (
+            <span
+              onClick={(e) => { e.stopPropagation(); setExpanded(!expanded); }}
+              className="flex-shrink-0 cursor-pointer"
+            >
+              {expanded
+                ? <ChevronDown className="w-3 h-3 text-[var(--color-text-muted)]" />
+                : <ChevronRight className="w-3 h-3 text-[var(--color-text-muted)]" />
+              }
+            </span>
+          ) : (
+            <span className="w-3 flex-shrink-0" />
+          )}
+
+          {/* Status */}
+          {statusIndicator(node.task.status)}
+
+          {/* Task number + title */}
+          <span className="flex-1 min-w-0 truncate text-sm">
+            <span className="font-mono text-[var(--color-text-muted)] mr-1.5">{node.task.task_number}</span>
+            {node.task.title}
           </span>
-        ) : (
-          <span className="w-3 flex-shrink-0" />
+        </button>
+
+        {/* Delete button — visible on hover or during confirm */}
+        {onDelete && (
+          <button
+            onClick={handleDeleteClick}
+            title={confirming ? 'Click again to confirm delete' : 'Delete task'}
+            className={`flex-shrink-0 mr-1 p-1 rounded transition-colors ${
+              confirming
+                ? 'text-[var(--color-err)] bg-[var(--color-err)]/10'
+                : 'text-[var(--color-text-muted)] opacity-0 group-hover:opacity-100 hover:text-[var(--color-err)] hover:bg-[var(--color-err)]/10'
+            }`}
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+          </button>
         )}
-
-        {/* Status */}
-        {statusIndicator(node.task.status)}
-
-        {/* Task number + title */}
-        <span className="flex-1 min-w-0 truncate text-sm">
-          <span className="font-mono text-[var(--color-text-muted)] mr-1.5">{node.task.task_number}</span>
-          {node.task.title}
-        </span>
-      </button>
+      </div>
 
       {/* Children */}
       {expanded && hasChildren && (
@@ -152,6 +186,7 @@ function TreeNodeRow({
               depth={depth + 1}
               selectedId={selectedId}
               onSelect={onSelect}
+              onDelete={onDelete}
             />
           ))}
         </div>
@@ -162,7 +197,7 @@ function TreeNodeRow({
 
 /* ── Main component ── */
 
-export function TaskTree({ tasks, selectedId, onSelect }: Props) {
+export function TaskTree({ tasks, selectedId, onSelect, onDelete }: Props) {
   const tree = buildTree(tasks);
 
   if (!tasks.length) {
@@ -184,6 +219,7 @@ export function TaskTree({ tasks, selectedId, onSelect }: Props) {
           depth={0}
           selectedId={selectedId}
           onSelect={onSelect}
+          onDelete={onDelete}
         />
       ))}
     </div>

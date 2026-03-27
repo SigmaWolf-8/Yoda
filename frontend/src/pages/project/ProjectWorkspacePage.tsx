@@ -9,7 +9,7 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
 } from 'lucide-react';
-import { useProject, useTasks, useTask, useUpdateProject } from '../../api/hooks';
+import { useProject, useTasks, useTask, useUpdateProject, useDeleteTask } from '../../api/hooks';
 import { ModeToggle } from '../../components/project/ModeToggle';
 import { QueryInput } from '../../components/project/QueryInput';
 import { TaskTree } from '../../components/project/TaskTree';
@@ -26,6 +26,7 @@ export function ProjectWorkspacePage() {
   const { data: taskDetail } = useTask(selectedTaskId);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [pendingTree, setPendingTree] = useState<TaskTreeType | null>(null);
+  const deleteTask = useDeleteTask(id ?? '');
 
   function handleModeChange(mode: 'yoda' | 'ronin') {
     if (!project) return;
@@ -83,6 +84,10 @@ export function ProjectWorkspacePage() {
               tasks={tasks ?? []}
               selectedId={selectedTaskId}
               onSelect={setSelectedTaskId}
+              onDelete={(taskId) => {
+                deleteTask.mutate(taskId);
+                if (selectedTaskId === taskId) setSelectedTaskId(undefined);
+              }}
             />
           </div>
         </aside>
