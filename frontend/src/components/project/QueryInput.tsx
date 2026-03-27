@@ -217,8 +217,8 @@ export function QueryInput({ projectId, mode, onResult }: Props) {
             <p className="text-sm text-[var(--color-warn)] font-medium">AI engine not responding</p>
           </div>
           <p className="text-xs text-[var(--color-text-muted)]">
-            Your model server at <code className="font-mono text-xs bg-[var(--color-surface-secondary)] px-1 rounded">{endpoint}</code> is not reachable — llama-server is not running on your machine.
-            Go to <strong>Settings → AI Engines</strong> and click <strong>Sync Node</strong> to download and run the reconnect script (no re-download needed if the model is already installed).
+            Your model server at <code className="font-mono text-xs bg-[var(--color-surface-secondary)] px-1 rounded">{endpoint}</code> is not reachable — llama-server is not running or is still loading.
+            Go to <strong>Settings → AI Engines</strong> and click <strong>Restart Engine</strong> to download a one-click restart script (no re-download needed). If the model just started, wait 2–3 minutes for it to load into RAM then retry.
           </p>
           <button onClick={resetForRetry} className="text-xs text-[var(--color-plex-400)] hover:underline">Retry</button>
         </div>

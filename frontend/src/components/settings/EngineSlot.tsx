@@ -26,8 +26,10 @@ import { ModelInstallModal } from './ModelInstallModal';
 import {
   detectOS,
   makeBashInstallScript,
+  makeBashReconnectScript,
   makeBatWrapper,
   makePsInstallScript,
+  makePsReconnectScript,
   makePsStep1Script,
   makePsStep2Script,
   triggerDownload,
@@ -845,6 +847,26 @@ export function EngineSlotCard({
     }, 3000);
   }
 
+  function handleRestart() {
+    const info = GGUF_INFO[modelName];
+    if (!info) return;
+    const enginePort = portFromUrl(endpoint);
+    if (enginePort === undefined) {
+      toast('error', 'Enter your engine endpoint URL before downloading a restart script.');
+      return;
+    }
+    const token = crypto.randomUUID();
+    const os = detectOS();
+    if (os === 'windows') {
+      const ps  = makePsReconnectScript(modelName, info.file, enginePort, token, crsUrl);
+      const bat = makeBatWrapper(ps, modelName);
+      triggerDownload(bat, 'yoda-restart-engine.bat', 'application/octet-stream');
+    } else {
+      const sh = makeBashReconnectScript(modelName, info.file, enginePort, token, crsUrl);
+      triggerDownload(sh, 'yoda-restart-engine.sh', 'text/x-shellscript');
+    }
+  }
+
   function handleStep2Install() {
     const info = GGUF_INFO[modelName];
     if (!info) return;
@@ -1364,6 +1386,19 @@ export function EngineSlotCard({
                     <RefreshCcw className="w-3.5 h-3.5" />
                   )}
                   {syncing ? 'Checking relay…' : 'Sync Node'}
+                </button>
+              </div>
+            )}
+            {/* Restart Engine — visible when self-hosted engine IS online (llama-server may have crashed) */}
+            {modelName && GGUF_INFO[modelName] && mode === 'self_hosted' && config?.health_status === 'online' && (
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={handleRestart}
+                  className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg border border-[var(--color-warn)]/40 bg-[var(--color-warn)]/6 text-[var(--color-warn)] text-sm font-medium hover:bg-[var(--color-warn)]/12 hover:border-[var(--color-warn)]/70 transition-colors"
+                >
+                  <RefreshCcw className="w-3.5 h-3.5" />
+                  Restart Engine
                 </button>
               </div>
             )}

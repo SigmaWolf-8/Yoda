@@ -1167,7 +1167,7 @@ $action   = New-ScheduledTaskAction -Execute "powershell.exe" \`
 $trigger  = New-ScheduledTaskTrigger -AtLogOn
 $settings = New-ScheduledTaskSettingsSet -MultipleInstances IgnoreNew -ExecutionTimeLimit 0
 Register-ScheduledTask -TaskName $taskName -Action $action -Trigger $trigger \`
-  -Settings $settings -RunLevel Highest -Force | Out-Null
+  -Settings $settings -RunLevel Limited -Force | Out-Null
 Start-ScheduledTask -TaskName $taskName -EA SilentlyContinue
 Write-Host "  OK Watchdog registered as '$taskName' -- runs at logon, restarts on crash" -ForegroundColor Green
 
@@ -1452,7 +1452,7 @@ $action   = New-ScheduledTaskAction -Execute "powershell.exe" \`
 $trigger  = New-ScheduledTaskTrigger -AtLogOn
 $settings = New-ScheduledTaskSettingsSet -MultipleInstances IgnoreNew -ExecutionTimeLimit 0
 Register-ScheduledTask -TaskName $taskName -Action $action -Trigger $trigger \`
-  -Settings $settings -RunLevel Highest -Force | Out-Null
+  -Settings $settings -RunLevel Limited -Force | Out-Null
 Start-ScheduledTask -TaskName $taskName -EA SilentlyContinue
 Write-Host "  OK Watchdog registered as '$taskName' -- monitors both processes, restarts on crash" -ForegroundColor Green
 
