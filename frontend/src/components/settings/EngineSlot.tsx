@@ -855,7 +855,14 @@ export function EngineSlotCard({
       toast('error', 'Enter your engine endpoint URL before downloading a restart script.');
       return;
     }
-    const token = crypto.randomUUID();
+    // Use a STABLE per-slot token so the daemon always re-registers with the
+    // same session token, preventing duplicate CRS entries / phantom peers.
+    const STABLE_RESTART_TOKENS: Record<string, string> = {
+      a: '00000000-aaaa-4000-8000-000000000001',
+      b: '00000000-bbbb-4000-8000-000000000002',
+      c: '00000000-cccc-4000-8000-000000000003',
+    };
+    const token = STABLE_RESTART_TOKENS[slot] ?? `00000000-${slot}-4000-8000-000000000000`;
     const os = detectOS();
     if (os === 'windows') {
       const ps  = makePsReconnectScript(modelName, info.file, enginePort, token, crsUrl);
