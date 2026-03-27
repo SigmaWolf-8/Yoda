@@ -21,6 +21,7 @@ import {
   ExternalLink,
   RefreshCcw,
   Power,
+  ClipboardCopy,
 } from 'lucide-react';
 import { ModelInstallModal } from './ModelInstallModal';
 import {
@@ -847,12 +848,12 @@ export function EngineSlotCard({
     }, 3000);
   }
 
-  function handleRestart() {
+  function handleRestart(forceDownload = false) {
     const info = GGUF_INFO[modelName];
     if (!info) return;
     const enginePort = portFromUrl(endpoint);
     if (enginePort === undefined) {
-      toast('error', 'Enter your engine endpoint URL before downloading a restart script.');
+      toast('error', 'Enter your engine endpoint URL before restarting.');
       return;
     }
     // Use a STABLE per-slot token so the daemon always re-registers with the
@@ -865,9 +866,24 @@ export function EngineSlotCard({
     const token = STABLE_RESTART_TOKENS[slot] ?? `00000000-${slot}-4000-8000-000000000000`;
     const os = detectOS();
     if (os === 'windows') {
-      const ps  = makePsReconnectScript(modelName, info.file, enginePort, token, crsUrl);
-      const bat = makeBatWrapper(ps, modelName);
-      triggerDownload(bat, 'yoda-restart-engine.bat', 'application/octet-stream');
+      const ps = makePsReconnectScript(modelName, info.file, enginePort, token, crsUrl);
+      if (forceDownload) {
+        const bat = makeBatWrapper(ps, modelName);
+        triggerDownload(bat, 'yoda-restart-engine.bat', 'application/octet-stream');
+        return;
+      }
+      // Primary: copy PS1 directly to clipboard — no file download, no Defender issues
+      navigator.clipboard.writeText(ps).then(() => {
+        toast('success',
+          '✓ Copied! Open PowerShell (Win+X → "Windows PowerShell"), paste and press Enter. ' +
+          'Wait ~2 min for the model to load after it finishes.'
+        );
+      }).catch(() => {
+        // Clipboard not available — fall back to download
+        const bat = makeBatWrapper(ps, modelName);
+        triggerDownload(bat, 'yoda-restart-engine.bat', 'application/octet-stream');
+        toast('info', 'Script downloaded. If Windows Defender blocks it: right-click → Properties → Unblock → OK, then run.');
+      });
     } else {
       const sh = makeBashReconnectScript(modelName, info.file, enginePort, token, crsUrl);
       triggerDownload(sh, 'yoda-restart-engine.sh', 'text/x-shellscript');
@@ -1398,15 +1414,27 @@ export function EngineSlotCard({
             )}
             {/* Restart Engine — visible for any self-hosted engine with a known model */}
             {modelName && GGUF_INFO[modelName] && mode === 'self_hosted' && (
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={handleRestart}
-                  className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg border border-[var(--color-warn)]/40 bg-[var(--color-warn)]/6 text-[var(--color-warn)] text-sm font-medium hover:bg-[var(--color-warn)]/12 hover:border-[var(--color-warn)]/70 transition-colors"
-                >
-                  <RefreshCcw className="w-3.5 h-3.5" />
-                  Restart Engine
-                </button>
+              <div className="flex flex-col gap-1">
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => handleRestart(false)}
+                    className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg border border-[var(--color-warn)]/40 bg-[var(--color-warn)]/6 text-[var(--color-warn)] text-sm font-medium hover:bg-[var(--color-warn)]/12 hover:border-[var(--color-warn)]/70 transition-colors"
+                  >
+                    <ClipboardCopy className="w-3.5 h-3.5" />
+                    Copy Restart Script
+                  </button>
+                </div>
+                <p className="text-xs text-[var(--color-text-muted)] text-center">
+                  Copies script to clipboard → paste into PowerShell.{' '}
+                  <button
+                    type="button"
+                    onClick={() => handleRestart(true)}
+                    className="underline hover:text-[var(--color-text-base)] transition-colors"
+                  >
+                    Download .bat instead
+                  </button>
+                </p>
               </div>
             )}
             {/* Always-visible installer buttons for self-hosted engines that aren't online yet */}
