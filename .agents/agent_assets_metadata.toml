@@ -36,3 +36,9 @@ id = "u02BI5XdhNuajkWH2mGdB"
 uri = "file://yoda-reconnect-ps1.txt"
 type = "text"
 title = "yoda-reconnect.ps1 (rename from .txt)"
+
+[[outputs]]
+id = "p-sQQiPH8bbYdJSERASg5"
+uri = "file://downloads/yoda-source.tar.gz"
+type = "unspecified"
+title = "yoda-source.tar.gz — backend + frontend source"
