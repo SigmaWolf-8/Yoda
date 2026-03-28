@@ -474,16 +474,19 @@ async fn add_task_message(
     if let Some(ref slot) = engine_slot {
         if let Some(relay_tx) = state.relay_tx.read().await.clone() {
             let preferred_addr = slot_to_cube_address(slot.as_str()).to_string();
-            let live_peers = state.live_cube_peer.read().await.clone();
-            let cube_address_opt = if live_peers.contains(&preferred_addr) {
-                Some(preferred_addr)
-            } else if !live_peers.is_empty() {
-                live_peers.into_iter().next()
-            } else {
-                live_cube_address.clone()
-            };
+            let live_peers_set = state.live_cube_peer.read().await.clone();
 
-            if let Some(cube_address) = cube_address_opt {
+            let mut cube_peers: Vec<String> = live_peers_set.into_iter().collect();
+            if let Some(pos) = cube_peers.iter().position(|p| p == &preferred_addr) {
+                cube_peers.swap(0, pos);
+            }
+            if cube_peers.is_empty() {
+                if let Some(addr) = live_cube_address.clone() {
+                    cube_peers.push(addr);
+                }
+            }
+
+            if !cube_peers.is_empty() {
                 let _ = sqlx::query(
                     "UPDATE tasks SET status='STEP_1', updated_at=NOW() WHERE id=$1"
                 )
@@ -495,7 +498,7 @@ async fn add_task_message(
                     state.clone(),
                     relay_tx,
                     task_id,
-                    cube_address,
+                    cube_peers,
                     slot.clone(),
                     engine_model,
                     messages,

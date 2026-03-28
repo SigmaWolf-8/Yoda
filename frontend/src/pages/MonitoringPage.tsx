@@ -1,5 +1,27 @@
-import { useEffect, useState } from 'react';
-import { BarChart3, Loader2, RefreshCw } from 'lucide-react';
+import { useEffect, useState, Component } from 'react';
+import type { ReactNode } from 'react';
+import { BarChart3, Loader2, RefreshCw, AlertTriangle } from 'lucide-react';
+
+class PanelErrorBoundary extends Component<{ label: string; children: ReactNode }, { error: string | null }> {
+  constructor(props: { label: string; children: ReactNode }) {
+    super(props);
+    this.state = { error: null };
+  }
+  static getDerivedStateFromError(e: unknown) {
+    return { error: e instanceof Error ? e.message : String(e) };
+  }
+  render() {
+    if (this.state.error) {
+      return (
+        <div className="flex items-start gap-2 p-4 rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-surface-secondary)] text-sm text-[var(--color-text-muted)]">
+          <AlertTriangle className="w-4 h-4 text-[var(--color-text-muted)] flex-shrink-0 mt-0.5" />
+          <span><strong className="text-[var(--color-text-secondary)]">{this.props.label}</strong> failed to render: {this.state.error}</span>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 import { useEngineConfigs } from '../api/hooks';
 import { NodeHealthStrip } from '../components/monitoring/NodeHealthStrip';
 import { NodeCard } from '../components/monitoring/NodeCard';
@@ -121,44 +143,62 @@ export function MonitoringPage() {
       </div>
 
       {/* ── Health strip ── */}
-      <NodeHealthStrip
-        engines={engines ?? []}
-        crsReachable={crsReachable}
-        crsHasNode={crsHasNode}
-      />
+      <PanelErrorBoundary label="Health Strip">
+        <NodeHealthStrip
+          engines={engines ?? []}
+          crsReachable={crsReachable}
+          crsHasNode={crsHasNode}
+        />
+      </PanelErrorBoundary>
 
       {/* ── Node card + engine connections ── */}
       <div className="grid grid-cols-1 md:grid-cols-5 gap-5">
         <div className="md:col-span-2">
-          <NodeCard
-            stats={crsStats}
-            fts={ftsStats}
-            error={crsError}
-            nodeAddress={nodeAddress}
-          />
+          <PanelErrorBoundary label="Node Card">
+            <NodeCard
+              stats={crsStats}
+              fts={ftsStats}
+              error={crsError}
+              nodeAddress={nodeAddress}
+            />
+          </PanelErrorBoundary>
         </div>
         <div className="md:col-span-3">
-          <PlenumNetPanel engines={engines ?? []} />
+          <PanelErrorBoundary label="PlenumNET Panel">
+            <PlenumNetPanel engines={engines ?? []} />
+          </PanelErrorBoundary>
         </div>
       </div>
 
       {/* ── Engine health ── */}
-      <EngineHealthDashboard engines={engines ?? []} />
+      <PanelErrorBoundary label="Engine Health">
+        <EngineHealthDashboard engines={engines ?? []} />
+      </PanelErrorBoundary>
 
       {/* ── AI latency chart ── */}
-      <InferenceMetricsChart data={metricsData} />
+      <PanelErrorBoundary label="Metrics Chart">
+        <InferenceMetricsChart data={metricsData} />
+      </PanelErrorBoundary>
 
       {/* ── Network neighbor view ── */}
-      <NeighborTable />
+      <PanelErrorBoundary label="Network View">
+        <NeighborTable />
+      </PanelErrorBoundary>
 
       {/* ── Cost + censorship ── */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-        <CostTracker engines={engines ?? []} />
-        <CensorshipLog reviews={allReviews} />
+        <PanelErrorBoundary label="Cost Tracker">
+          <CostTracker engines={engines ?? []} />
+        </PanelErrorBoundary>
+        <PanelErrorBoundary label="Censorship Log">
+          <CensorshipLog reviews={allReviews} />
+        </PanelErrorBoundary>
       </div>
 
       {/* ── Daemon logs ── */}
-      <DaemonLogsPanel />
+      <PanelErrorBoundary label="Daemon Logs">
+        <DaemonLogsPanel />
+      </PanelErrorBoundary>
 
     </div>
   );

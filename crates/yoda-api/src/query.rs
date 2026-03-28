@@ -44,7 +44,7 @@ pub fn spawn_bg_inference(
     state: AppState,
     relay_tx: tokio::sync::mpsc::Sender<RelayInferRequest>,
     task_id: Uuid,
-    cube_address: String,
+    cube_peers: Vec<String>,
     slot: String,
     model: String,
     messages: serde_json::Value,
@@ -56,11 +56,14 @@ pub fn spawn_bg_inference(
 
         let mut succeeded = false;
         for attempt in 1..=MAX_ATTEMPTS {
+            // Round-robin across all live peers so a dead llama-server on one
+            // node doesn't block every retry from trying the other nodes.
+            let cube_address = cube_peers[(attempt - 1) as usize % cube_peers.len()].clone();
             let req_id = Uuid::new_v4();
             let relay_req = RelayInferRequest {
                 request_id: req_id,
                 task_id,
-                cube_address: cube_address.clone(),
+                cube_address,
                 messages: messages.clone(),
                 model: "local".to_string(),
                 max_tokens: 1024,
@@ -356,21 +359,28 @@ pub async fn submit_query(
     if let Some(ref slot) = engine_slot {
         if let Some(relay_tx) = state.relay_tx.read().await.clone() {
             let preferred_addr = slot_to_cube_address(slot.as_str()).to_string();
-            let live_peers = state.live_cube_peer.read().await.clone();
-            let cube_address_opt = if live_peers.contains(&preferred_addr) {
-                Some(preferred_addr)
-            } else if !live_peers.is_empty() {
-                tracing::warn!(
-                    slot = %slot,
-                    preferred = %slot_to_cube_address(slot.as_str()),
-                    "Preferred daemon not live — routing to any available live peer"
-                );
-                live_peers.into_iter().next()
-            } else {
-                live_cube_address.clone()
-            };
+            let live_peers_set = state.live_cube_peer.read().await.clone();
 
-            if let Some(cube_address) = cube_address_opt {
+            // Build ordered peer list: preferred engine first, then all other live peers.
+            // spawn_bg_inference will round-robin through this list so a dead llama-server
+            // on one node doesn't exhaust all retries before trying the others.
+            let mut cube_peers: Vec<String> = live_peers_set.into_iter().collect();
+            if let Some(pos) = cube_peers.iter().position(|p| p == &preferred_addr) {
+                cube_peers.swap(0, pos);
+            } else if !cube_peers.is_empty() {
+                tracing::warn!(
+                    slot = %slot, preferred = %preferred_addr,
+                    "Preferred daemon not live — will try other live peers"
+                );
+                // preferred not live; leave list as-is (any order is fine)
+            }
+            if cube_peers.is_empty() {
+                if let Some(addr) = live_cube_address.clone() {
+                    cube_peers.push(addr);
+                }
+            }
+
+            if !cube_peers.is_empty() {
                 let _ = sqlx::query(
                     "UPDATE tasks SET status = 'STEP_1', updated_at = NOW() WHERE id = $1"
                 )
@@ -383,11 +393,16 @@ pub async fn submit_query(
                     {"role": "user", "content": req.text}
                 ]);
 
+                tracing::info!(
+                    task_id = %task_id, peer_count = cube_peers.len(), peers = ?cube_peers,
+                    "BG inference: round-robin peer list built"
+                );
+
                 spawn_bg_inference(
                     state.clone(),
                     relay_tx,
                     task_id,
-                    cube_address,
+                    cube_peers,
                     slot.clone(),
                     engine_model_name.clone(),
                     bg_messages,
