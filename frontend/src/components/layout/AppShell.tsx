@@ -37,7 +37,6 @@ function SidebarLogoVideo() {
       ref={sidebarRef}
       src="/yoda-logo.mp4"
       className="w-full h-full object-cover scale-125"
-      autoPlay
       muted
       playsInline
       onClick={playSidebar}
@@ -129,9 +128,10 @@ export function AppShell() {
           width: asideWidth,
           background: 'linear-gradient(160deg, hsl(220,20%,98%) 0%, hsl(220,15%,95%) 100%)',
           boxShadow: [
-            'inset 0 80px 120px rgba(0,0,0,0.45)',
-            'inset 0 -80px 120px rgba(0,0,0,0.45)',
-            'inset -12px 0 48px rgba(0,0,0,0.28)',
+            'inset 0 8px 18px rgba(0,0,0,0.38)',
+            'inset 0 -8px 18px rgba(0,0,0,0.38)',
+            'inset -6px 0 14px rgba(0,0,0,0.22)',
+            'inset 6px 0 10px rgba(0,0,0,0.18)',
             '6px 0 40px rgba(0,0,0,0.55)',
             '12px 0 80px rgba(0,0,0,0.35)',
             '20px 0 60px rgba(0,0,0,0.18)',

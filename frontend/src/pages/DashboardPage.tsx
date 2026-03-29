@@ -2,8 +2,10 @@ import { LayoutDashboard } from 'lucide-react';
 import { usePageHeader } from '../context/PageHeader';
 import { useVideoPlay } from '../context/VideoPlay';
 
+const SIDEBAR_PLAY_OFFSET_MS = 800;
+
 export function DashboardPage() {
-  const { heroRef, playHero } = useVideoPlay();
+  const { heroRef, playHero, playSidebarAfterDelay } = useVideoPlay();
 
   usePageHeader({
     icon: LayoutDashboard,
@@ -66,6 +68,7 @@ export function DashboardPage() {
               heroRef.current.currentTime = 0;
               heroRef.current.pause();
             }
+            playSidebarAfterDelay(SIDEBAR_PLAY_OFFSET_MS);
           }}
         >
           <source src={`${import.meta.env.BASE_URL}hero.mp4`} type="video/mp4" />
