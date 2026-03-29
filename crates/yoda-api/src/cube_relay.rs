@@ -690,15 +690,8 @@ async fn handle_inbound(state: &AppState, text: &str, own_address: &str, probe_i
                 // Try to extract the requestId from the payload so we only fail
                 // that one request, not all of them.
                 let payload_str = env.payload.as_deref().unwrap_or("{}");
-                // R3-5: try both camelCase ("requestId") and snake_case ("request_id") —
-                // the live CRS may use either spelling depending on version.
-                let maybe_request_id: Option<Uuid> = serde_json::from_str::<serde_json::Value>(payload_str)
-                    .ok()
-                    .and_then(|v| {
-                        v["requestId"].as_str()
-                            .or_else(|| v["request_id"].as_str())
-                            .and_then(|s| s.parse::<Uuid>().ok())
-                    });
+                // R3-5: parse_relay_ack_request_id tries both camelCase and snake_case.
+                let maybe_request_id = parse_relay_ack_request_id(payload_str);
 
                 if let Some(request_id) = maybe_request_id {
                     // Scoped fail: only the specific request that was undelivered
@@ -725,6 +718,81 @@ async fn handle_inbound(state: &AppState, text: &str, own_address: &str, probe_i
         other => {
             tracing::info!(kind = %other, raw = %text, "Unrecognised relay message — logging for peer discovery debug");
         }
+    }
+}
+
+/// Extract a request UUID from a relay_ack payload JSON string.
+///
+/// R3-5: The live CRS may spell the field `requestId` (camelCase) or
+/// `request_id` (snake_case) depending on version.  This function tries
+/// both so that undelivered requests are cancelled immediately regardless
+/// of wire-format spelling.  Returns `None` when neither field is present
+/// or the value is not a valid UUID — the caller then logs the raw payload
+/// so the actual field name is visible in logs.
+fn parse_relay_ack_request_id(payload_str: &str) -> Option<Uuid> {
+    serde_json::from_str::<serde_json::Value>(payload_str)
+        .ok()
+        .and_then(|v| {
+            v["requestId"].as_str()
+                .or_else(|| v["request_id"].as_str())
+                .and_then(|s| s.parse::<Uuid>().ok())
+        })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const TEST_UUID: &str = "550e8400-e29b-41d4-a716-446655440000";
+
+    #[test]
+    fn relay_ack_camel_case_request_id() {
+        let payload = format!(r#"{{"requestId": "{}"}}"#, TEST_UUID);
+        let result = parse_relay_ack_request_id(&payload);
+        assert_eq!(result, Some(TEST_UUID.parse::<Uuid>().unwrap()),
+            "should extract UUID from camelCase requestId field");
+    }
+
+    #[test]
+    fn relay_ack_snake_case_request_id() {
+        let payload = format!(r#"{{"request_id": "{}"}}"#, TEST_UUID);
+        let result = parse_relay_ack_request_id(&payload);
+        assert_eq!(result, Some(TEST_UUID.parse::<Uuid>().unwrap()),
+            "should extract UUID from snake_case request_id field (R3-5: CRS fallback)");
+    }
+
+    #[test]
+    fn relay_ack_empty_payload_returns_none() {
+        // Live CRS confirmed to send {} in relay_ack payloads (R3-5 investigation)
+        assert_eq!(parse_relay_ack_request_id("{}"), None,
+            "empty payload should return None");
+    }
+
+    #[test]
+    fn relay_ack_no_id_field_returns_none() {
+        let payload = r#"{"delivered": false, "reason": "peer offline"}"#;
+        assert_eq!(parse_relay_ack_request_id(payload), None,
+            "payload without any id field should return None");
+    }
+
+    #[test]
+    fn relay_ack_invalid_uuid_returns_none() {
+        let payload = r#"{"requestId": "not-a-uuid"}"#;
+        assert_eq!(parse_relay_ack_request_id(payload), None,
+            "malformed UUID value should return None");
+    }
+
+    #[test]
+    fn relay_ack_camel_takes_priority_over_snake() {
+        // When both fields appear (unexpected but handled), camelCase wins.
+        let other_uuid = "6ba7b810-9dad-11d1-80b4-00c04fd430c8";
+        let payload = format!(
+            r#"{{"requestId": "{}", "request_id": "{}"}}"#,
+            TEST_UUID, other_uuid
+        );
+        let result = parse_relay_ack_request_id(&payload);
+        assert_eq!(result, Some(TEST_UUID.parse::<Uuid>().unwrap()),
+            "camelCase requestId should take priority when both fields present");
     }
 }
 
