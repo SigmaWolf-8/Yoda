@@ -233,17 +233,88 @@ fn extract_variable(title: &str) -> String {
     title.split_whitespace().last().unwrap_or(title).to_string()
 }
 
-fn infer_competencies(query: &str) -> Vec<String> {
+/// Infer competency tags from a query string using keyword matching.
+///
+/// This is the CANONICAL keyword table — the agent compiler
+/// (`tools/yoda-agent-compiler`) should reference this same table.
+/// If you add keywords here, add them to the compiler too.
+///
+/// R2-2: Unified with compiler's COMPETENCY_KEYWORDS (100+ entries).
+/// R1-A3-4: Standalone function — no project_id/mode required.
+pub fn infer_competencies(query: &str) -> Vec<String> {
     let lower = query.to_lowercase();
     let mut comps = Vec::new();
     let checks: &[(&str, &str)] = &[
-        ("api", "api-design"), ("rest", "rest-api"), ("database", "database"),
-        ("postgres", "postgresql"), ("react", "react"), ("frontend", "frontend"),
-        ("rust", "rust"), ("python", "python"), ("typescript", "typescript"),
-        ("security", "security"), ("auth", "authentication"), ("test", "testing"),
-        ("deploy", "devops"), ("docker", "docker"), ("webhook", "backend"),
-        ("retry", "backend"), ("queue", "backend"), ("encrypt", "cryptography"),
-        ("plenumnet", "plenumnet"), ("tl-dsa", "tl-dsa"), ("tis-27", "tis-27"),
+        // Frontend
+        ("react", "react"), ("vue", "vue"), ("angular", "angular"),
+        ("typescript", "typescript"), ("javascript", "javascript"),
+        ("css", "css"), ("tailwind", "tailwind"), ("html", "html"),
+        ("accessibility", "accessibility"), ("wcag", "accessibility"),
+        ("responsive", "responsive-design"), ("performance", "performance"),
+        ("frontend", "frontend"),
+        // Backend
+        ("api", "api-design"), ("rest", "rest-api"), ("graphql", "graphql"),
+        ("rust", "rust"), ("python", "python"), ("golang", "golang"),
+        ("go ", "golang"), ("node.js", "nodejs"), ("nodejs", "nodejs"),
+        ("backend", "backend"), ("webhook", "backend"),
+        ("retry", "backend"), ("queue", "backend"),
+        // Database
+        ("database", "database"), ("postgres", "postgresql"),
+        ("postgresql", "postgresql"), ("sql", "sql"),
+        ("nosql", "nosql"), ("mongodb", "mongodb"), ("redis", "redis"),
+        // DevOps & Infrastructure
+        ("docker", "docker"), ("kubernetes", "kubernetes"),
+        ("ci/cd", "ci-cd"), ("terraform", "terraform"),
+        ("aws", "aws"), ("gcp", "gcp"), ("azure", "azure"),
+        ("deploy", "devops"),
+        // Security & Crypto
+        ("security", "security"), ("threat model", "threat-modeling"),
+        ("cryptograph", "cryptography"), ("authentication", "authentication"),
+        ("authorization", "authorization"), ("encryption", "encryption"),
+        ("auth", "authentication"),
+        // Testing
+        ("testing", "testing"), ("test", "testing"),
+        ("unit test", "unit-testing"), ("integration test", "integration-testing"),
+        ("e2e", "e2e-testing"),
+        // ML & Data
+        ("machine learning", "machine-learning"), ("ml ", "machine-learning"),
+        ("data pipeline", "data-pipelines"),
+        // Mobile
+        ("ios", "ios"), ("android", "android"),
+        ("react native", "react-native"), ("flutter", "flutter"),
+        ("mobile", "mobile"),
+        // Blockchain
+        ("smart contract", "smart-contracts"), ("solidity", "solidity"),
+        ("blockchain", "blockchain"),
+        // Embedded & IoT
+        ("embedded", "embedded"), ("firmware", "firmware"),
+        ("rtos", "rtos"), ("iot", "iot"),
+        // Design & UX
+        ("ux", "ux-design"), ("user experience", "ux-design"),
+        ("user research", "user-research"), ("wireframe", "wireframing"),
+        ("prototype", "prototyping"),
+        // Content & Marketing
+        ("content", "content-creation"), ("copywriting", "copywriting"),
+        ("seo", "seo"), ("marketing", "marketing"), ("analytics", "analytics"),
+        // Compliance & Legal
+        ("compliance", "compliance"), ("gdpr", "gdpr"),
+        ("privacy", "data-privacy"), ("legal", "legal"),
+        // Project Management
+        ("project management", "project-management"),
+        ("agile", "agile"), ("scrum", "scrum"),
+        // Game Development
+        ("game", "game-development"), ("unity", "unity"),
+        ("unreal", "unreal-engine"),
+        // PlenumNET-specific
+        ("plenumnet", "plenumnet"), ("tis-27", "tis-27"), ("tl-dsa", "tl-dsa"),
+        ("tlsponge", "tlsponge-385"), ("phase encryption", "phase-encryption"),
+        ("tl-kem", "tl-kem"), ("ternary", "ternary-math"), ("gf(3)", "gf3"),
+        ("sponge", "sponge-construction"), ("tdns", "tdns"),
+        ("inter-cube", "inter-cube"), ("hypercube", "inter-cube"),
+        ("task bible", "task-bible"), ("maestro", "maestro-erp"),
+        ("knowledge base", "knowledge-management"),
+        ("orchestrat", "orchestration"), ("dag", "dag-execution"),
+        ("decompos", "decomposition"),
     ];
     for (kw, tag) in checks {
         if lower.contains(kw) && !comps.contains(&tag.to_string()) {

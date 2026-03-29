@@ -34,22 +34,22 @@ pub fn validate_transition(
     to: TaskStatus,
 ) -> Result<(), StateError> {
     // Terminal states cannot transition
-    if matches!(from, TaskStatus::Final | TaskStatus::Escalated) {
+    if matches!(from, TaskStatus::Final | TaskStatus::Escalated | TaskStatus::Cancelled) {
         return Err(StateError::TerminalState(task_id, from));
     }
 
     let valid = match from {
-        TaskStatus::Decomposing => matches!(to, TaskStatus::Queued),
-        TaskStatus::Queued => matches!(to, TaskStatus::Assigned),
-        TaskStatus::Assigned => matches!(to, TaskStatus::Step1Production),
-        TaskStatus::Step1Production => matches!(to, TaskStatus::Step1Review),
-        TaskStatus::Step1Review => matches!(to, TaskStatus::Step2Production | TaskStatus::Escalated),
-        TaskStatus::Step2Production => matches!(to, TaskStatus::Step2Review),
-        TaskStatus::Step2Review => matches!(to, TaskStatus::Step3Production | TaskStatus::Escalated),
-        TaskStatus::Step3Production => matches!(to, TaskStatus::Step3Review),
-        TaskStatus::Step3Review => matches!(to, TaskStatus::Step4FinalOutput | TaskStatus::Escalated),
-        TaskStatus::Step4FinalOutput => matches!(to, TaskStatus::Final),
-        TaskStatus::Final | TaskStatus::Escalated => false,
+        TaskStatus::Decomposing => matches!(to, TaskStatus::Queued | TaskStatus::Cancelled),
+        TaskStatus::Queued => matches!(to, TaskStatus::Assigned | TaskStatus::Cancelled),
+        TaskStatus::Assigned => matches!(to, TaskStatus::Step1Production | TaskStatus::Cancelled),
+        TaskStatus::Step1Production => matches!(to, TaskStatus::Step1Review | TaskStatus::Cancelled),
+        TaskStatus::Step1Review => matches!(to, TaskStatus::Step2Production | TaskStatus::Escalated | TaskStatus::Cancelled),
+        TaskStatus::Step2Production => matches!(to, TaskStatus::Step2Review | TaskStatus::Cancelled),
+        TaskStatus::Step2Review => matches!(to, TaskStatus::Step3Production | TaskStatus::Escalated | TaskStatus::Cancelled),
+        TaskStatus::Step3Production => matches!(to, TaskStatus::Step3Review | TaskStatus::Cancelled),
+        TaskStatus::Step3Review => matches!(to, TaskStatus::Step4FinalOutput | TaskStatus::Escalated | TaskStatus::Cancelled),
+        TaskStatus::Step4FinalOutput => matches!(to, TaskStatus::Final | TaskStatus::Cancelled),
+        TaskStatus::Final | TaskStatus::Escalated | TaskStatus::Cancelled => false,
     };
 
     if valid {
@@ -88,7 +88,7 @@ pub fn transition(
 
 /// Check if a status is terminal (no further transitions possible).
 pub fn is_terminal(status: TaskStatus) -> bool {
-    matches!(status, TaskStatus::Final | TaskStatus::Escalated)
+    matches!(status, TaskStatus::Final | TaskStatus::Escalated | TaskStatus::Cancelled)
 }
 
 /// Check if a status is in a review phase.

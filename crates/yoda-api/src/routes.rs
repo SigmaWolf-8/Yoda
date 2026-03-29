@@ -410,9 +410,65 @@ async fn add_task_message(
     .map_err(AppError::Database)?;
 
     // Build full conversation history for the LLM
+    // R2-4: Read the agent assigned at task creation instead of re-inferring from title.
+    let agent_prompt = {
+        let stored_role: Option<String> = sqlx::query_scalar(
+            "SELECT primary_agent_role FROM tasks WHERE id = $1"
+        )
+        .bind(task_id)
+        .fetch_optional(&state.db)
+        .await
+        .ok()
+        .flatten();
+
+        match stored_role.as_deref() {
+            Some(role) if !role.is_empty() => {
+                // Use the stored agent's system prompt if it's still in the registry.
+                if let Some(agent) = state.agents.get(role) {
+                    agent.system_prompt.clone()
+                } else {
+                    // Agent compiled out of the registry since task was created — re-infer.
+                    tracing::warn!(
+                        task_id = %task_id, role = %role,
+                        "Stored agent role not found in registry — falling back to competency match"
+                    );
+                    let task_title: Option<String> = sqlx::query_scalar(
+                        "SELECT title FROM tasks WHERE id = $1"
+                    )
+                    .bind(task_id)
+                    .fetch_optional(&state.db)
+                    .await
+                    .ok()
+                    .flatten();
+                    let title = task_title.as_deref().unwrap_or("");
+                    let competencies = query::infer_competencies_pub(title);
+                    state.agents.find_best_match(&competencies)
+                        .map(|a| a.system_prompt.clone())
+                        .unwrap_or_else(|_| default_yoda_prompt())
+                }
+            }
+            _ => {
+                // No stored agent — fall back to competency inference from title
+                let task_title: Option<String> = sqlx::query_scalar(
+                    "SELECT title FROM tasks WHERE id = $1"
+                )
+                .bind(task_id)
+                .fetch_optional(&state.db)
+                .await
+                .ok()
+                .flatten();
+                let title = task_title.as_deref().unwrap_or("");
+                let competencies = query::infer_competencies_pub(title);
+                state.agents.find_best_match(&competencies)
+                    .map(|a| a.system_prompt.clone())
+                    .unwrap_or_else(|_| default_yoda_prompt())
+            }
+        }
+    };
+
     let mut msgs = vec![serde_json::json!({
         "role": "system",
-        "content": "You are a helpful AI assistant. Always respond in English, regardless of the language used in the query."
+        "content": agent_prompt
     })];
     for (role, content) in &existing {
         msgs.push(serde_json::json!({ "role": role, "content": content }));
@@ -494,6 +550,17 @@ async fn add_task_message(
                 .execute(&state.db)
                 .await;
 
+                // Cancel any existing bg inference for this task and create fresh token
+                let cancel_token = {
+                    let token = tokio_util::sync::CancellationToken::new();
+                    let mut tokens = state.task_cancel_tokens.write().await;
+                    if let Some(old) = tokens.insert(task_id, token.clone()) {
+                        old.cancel();
+                        tracing::info!(task_id = %task_id, "Cancelled previous bg inference before follow-up");
+                    }
+                    token
+                };
+
                 query::spawn_bg_inference(
                     state.clone(),
                     relay_tx,
@@ -503,6 +570,7 @@ async fn add_task_message(
                     engine_model,
                     messages,
                     next_step as i32,
+                    cancel_token,
                 );
             }
         }
@@ -521,6 +589,15 @@ async fn escalate_task(State(state): State<AppState>, Path(task_id): Path<Uuid>)
 }
 
 async fn cancel_task(State(state): State<AppState>, Path(task_id): Path<Uuid>) -> Result<StatusCode, AppError> {
+    // Cancel the background inference token first
+    {
+        let mut tokens = state.task_cancel_tokens.write().await;
+        if let Some(token) = tokens.remove(&task_id) {
+            token.cancel();
+            tracing::info!(task_id = %task_id, "Cancelled bg inference token on task cancel");
+        }
+    }
+
     sqlx::query("UPDATE tasks SET status='ESCALATED' WHERE id=$1 AND status NOT IN ('FINAL','ESCALATED')")
         .bind(task_id).execute(&state.db).await.map_err(AppError::Database)?;
     Ok(StatusCode::NO_CONTENT)
@@ -607,6 +684,11 @@ async fn set_task_output(
     );
 
     Ok(Json(serde_json::json!({ "status": "ok", "task_id": task_id })))
+}
+
+/// Default YODA system prompt — delegates to query::DEFAULT_YODA_PROMPT (R3-7).
+fn default_yoda_prompt() -> String {
+    query::DEFAULT_YODA_PROMPT.to_string()
 }
 
 // ─── Engines ─────────────────────────────────────────────────────────

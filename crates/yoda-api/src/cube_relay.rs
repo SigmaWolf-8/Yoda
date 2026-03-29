@@ -104,9 +104,17 @@ const CRS_WS: &str   = "wss://plenumnet.replit.app/ws/relay";
 pub fn spawn_relay_task(state: AppState) {
     tokio::spawn(async move {
         // Load or generate YODA's relay public key.
-        // Uses OsRng for a cryptographically-random 32-byte throwaway key
-        // when PLENUMLAN_PUBLIC_KEY is not set in the environment.
+        // SECURITY: DEVELOPMENT-ONLY — This uses a throwaway random key when
+        // PLENUMLAN_PUBLIC_KEY is not set. The challenge-response echoes the
+        // nonce instead of producing a TL-DSA signature, violating INVARIANT 7.
+        // Phase 3 MUST replace this with TL-DSA signing via the Rust kernel
+        // bridge using the node's actual PT26-DSA keypair. See R1-A3-1.
         let public_key = std::env::var("PLENUMLAN_PUBLIC_KEY").unwrap_or_else(|_| {
+            tracing::warn!(
+                "PLENUMLAN_PUBLIC_KEY not set — using throwaway key. \
+                 This is acceptable for development but MUST be replaced with \
+                 a real PT26-DSA keypair for production (INVARIANT 7)."
+            );
             let mut bytes = [0u8; 32];
             rand::rngs::OsRng.fill_bytes(&mut bytes);
             hex::encode(bytes)
@@ -662,14 +670,27 @@ async fn handle_inbound(state: &AppState, text: &str, own_address: &str) {
         }
         "relay_ack" => {
             if env.delivered == Some(false) {
-                // A specific message was undelivered to its target.
-                // We don't know which peer failed from the ack alone, so we
-                // log a warning but leave the live set intact for other peers.
-                // Fast-fail pending relay requests so the query handler falls back quickly.
-                tracing::warn!("Relay message undelivered — target Cube node may be offline");
-                let mut pending = state.pending_relays.write().await;
-                for (_, sender) in pending.drain() {
-                    let _ = sender.send(Err("Cube node offline — falling back to browser relay".into()));
+                // Try to extract the requestId from the payload so we only fail
+                // that one request, not all of them.
+                let payload_str = env.payload.as_deref().unwrap_or("{}");
+                let maybe_request_id: Option<Uuid> = serde_json::from_str::<serde_json::Value>(payload_str)
+                    .ok()
+                    .and_then(|v| v["requestId"].as_str().and_then(|s| s.parse::<Uuid>().ok()));
+
+                if let Some(request_id) = maybe_request_id {
+                    // Scoped fail: only the specific request that was undelivered
+                    let mut pending = state.pending_relays.write().await;
+                    if let Some(sender) = pending.remove(&request_id) {
+                        let _ = sender.send(Err("Cube node offline — message undelivered".into()));
+                        tracing::warn!(request_id = %request_id, "Relay message undelivered — failed specific request");
+                    }
+                } else {
+                    // Cannot identify which request failed — log warning but do NOT drain all.
+                    // Individual requests will time out naturally after 90s.
+                    tracing::warn!(
+                        "Relay message undelivered (no requestId in ack) — \
+                         letting individual requests time out rather than draining all"
+                    );
                 }
             }
         }

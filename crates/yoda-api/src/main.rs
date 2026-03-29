@@ -106,6 +106,13 @@ async fn main() -> anyhow::Result<()> {
         });
     tracing::info!(count = agents.count(), "Agent configs loaded");
 
+    if agents.count() == 0 {
+        tracing::warn!(
+            "No agents loaded — all queries will use generic prompts. \
+             Run 'bash scripts/bootstrap-agents.sh' to compile the agent roster."
+        );
+    }
+
     // ── Build app state ──────────────────────────────────────────────
     let state = state::AppState::new(db, agents);
 

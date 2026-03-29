@@ -13,6 +13,15 @@ use crate::auth::AuthenticatedUser;
 use crate::cube_relay::{RelayInferRequest, slot_to_cube_address};
 use crate::error::AppError;
 use crate::state::AppState;
+use tokio_util::sync::CancellationToken;
+
+/// R3-7: Canonical default system prompt when no agent matches or roster is empty.
+/// Used by query.rs and routes.rs — single source of truth.
+pub const DEFAULT_YODA_PROMPT: &str = "\
+You are YODA — a senior engineering intelligence system. \
+Analyse the user's query thoroughly. Provide structured, expert-level \
+analysis covering technical depth, security implications, trade-offs, \
+and concrete recommendations. Be precise. Use markdown where appropriate.";
 use yoda_orchestrator::decomposer::{
     self, DecomposeConfig, DecompositionResult, ProposedTask,
 };
@@ -49,13 +58,48 @@ pub fn spawn_bg_inference(
     model: String,
     messages: serde_json::Value,
     step_number: i32,
+    cancel_token: CancellationToken,
 ) {
     tokio::spawn(async move {
-        const MAX_ATTEMPTS: u32 = 8;
-        const RETRY_WAIT_SECS: u64 = 20;
+        // R1-A2-4: Configurable via env vars, with sensible defaults.
+        let max_attempts: u32 = std::env::var("YODA_BG_MAX_ATTEMPTS")
+            .ok().and_then(|v| v.parse().ok()).unwrap_or(8);
+        let retry_wait_secs: u64 = std::env::var("YODA_BG_RETRY_WAIT_SECS")
+            .ok().and_then(|v| v.parse().ok()).unwrap_or(20);
 
         let mut succeeded = false;
-        for attempt in 1..=MAX_ATTEMPTS {
+        for attempt in 1..=max_attempts {
+            // ── Guard: bail if task was cancelled/completed or token cancelled ──
+            if cancel_token.is_cancelled() {
+                tracing::info!(task_id = %task_id, attempt, "BG inference cancelled via token");
+                break;
+            }
+            {
+                let current_status: Option<String> = sqlx::query_scalar(
+                    "SELECT status FROM tasks WHERE id = $1"
+                )
+                .bind(task_id)
+                .fetch_optional(&state.db)
+                .await
+                .ok()
+                .flatten();
+                match current_status.as_deref() {
+                    Some("FINAL") | Some("ESCALATED") | Some("CANCELLED") => {
+                        tracing::info!(
+                            task_id = %task_id, status = ?current_status, attempt,
+                            "BG inference: task already terminal — stopping"
+                        );
+                        succeeded = true; // don't log "exhausted all attempts"
+                        break;
+                    }
+                    None => {
+                        tracing::warn!(task_id = %task_id, "BG inference: task not found — stopping");
+                        break;
+                    }
+                    _ => {} // Task still active, continue
+                }
+            }
+
             // Round-robin across all live peers so a dead llama-server on one
             // node doesn't block every retry from trying the other nodes.
             let cube_address = cube_peers[(attempt - 1) as usize % cube_peers.len()].clone();
@@ -66,7 +110,7 @@ pub fn spawn_bg_inference(
                 cube_address,
                 messages: messages.clone(),
                 model: "local".to_string(),
-                max_tokens: 1024,
+                max_tokens: 4096,  // R3-2: match browser relay + dispatch.rs DEFAULT_MAX_TOKENS
                 temperature: 0.7,
             };
 
@@ -98,7 +142,7 @@ pub fn spawn_bg_inference(
                     .execute(&state.db)
                     .await;
 
-                    let tis27 = format!("relay-{task_id}-step{step_number}");
+                    let tis27 = yoda_plenumnet_bridge::hashing::hash_bytes(result.content.as_bytes());
                     let _ = sqlx::query(
                         "INSERT INTO task_results \
                          (id, task_id, step_number, engine_slot, engine_model, agent_role, tis27_hash, result_content, created_at) \
@@ -132,7 +176,7 @@ pub fn spawn_bg_inference(
                     break;
                 }
                 Ok(Ok(Err(error_msg))) => {
-                    if attempt >= MAX_ATTEMPTS {
+                    if attempt >= max_attempts {
                         tracing::warn!(
                             task_id = %task_id, error = %error_msg, attempt,
                             "BG: cube inference_error on final attempt — ESCALATED"
@@ -145,13 +189,13 @@ pub fn spawn_bg_inference(
                         .execute(&state.db)
                         .await;
                     } else {
-                        let remaining = MAX_ATTEMPTS - attempt;
+                        let remaining = max_attempts - attempt;
                         let status_msg = format!(
-                            "Waiting for engine (attempt {attempt}/{MAX_ATTEMPTS}, {remaining} retries left): {error_msg}"
+                            "Waiting for engine (attempt {attempt}/{max_attempts}, {remaining} retries left): {error_msg}"
                         );
                         tracing::warn!(
                             task_id = %task_id, error = %error_msg, attempt,
-                            retry_in_secs = RETRY_WAIT_SECS,
+                            retry_in_secs = retry_wait_secs,
                             "BG: cube inference_error — retrying"
                         );
                         let _ = sqlx::query(
@@ -161,7 +205,13 @@ pub fn spawn_bg_inference(
                         .bind(&status_msg)
                         .execute(&state.db)
                         .await;
-                        tokio::time::sleep(Duration::from_secs(RETRY_WAIT_SECS)).await;
+                        tokio::select! {
+                            _ = tokio::time::sleep(Duration::from_secs(retry_wait_secs)) => {}
+                            _ = cancel_token.cancelled() => {
+                                tracing::info!(task_id = %task_id, "BG inference cancelled during retry backoff");
+                                break;
+                            }
+                        }
                     }
                 }
                 Ok(Err(_)) => {
@@ -170,12 +220,18 @@ pub fn spawn_bg_inference(
                 }
                 Err(_) => {
                     state.pending_relays.write().await.remove(&req_id);
-                    if attempt < MAX_ATTEMPTS {
+                    if attempt < max_attempts {
                         tracing::warn!(
                             task_id = %task_id, attempt,
                             "BG: relay timed out — retrying"
                         );
-                        tokio::time::sleep(Duration::from_secs(RETRY_WAIT_SECS)).await;
+                        tokio::select! {
+                            _ = tokio::time::sleep(Duration::from_secs(retry_wait_secs)) => {}
+                            _ = cancel_token.cancelled() => {
+                                tracing::info!(task_id = %task_id, "BG inference cancelled during timeout backoff");
+                                break;
+                            }
+                        }
                     } else {
                         tracing::warn!(task_id = %task_id, "BG: relay timed out on final attempt — marking ESCALATED");
                         let _ = sqlx::query(
@@ -192,6 +248,10 @@ pub fn spawn_bg_inference(
         if !succeeded {
             tracing::warn!(task_id = %task_id, "BG relay exhausted all attempts");
         }
+
+        // R2-1: Clean up cancel token to prevent memory leak.
+        // Token is removed regardless of success, cancellation, or exhaustion.
+        state.task_cancel_tokens.write().await.remove(&task_id);
     });
 }
 
@@ -247,6 +307,7 @@ pub async fn submit_query(
          FROM engine_configs \
          WHERE org_id = $1 \
            AND health_status = 'online' \
+           AND health_status = 'online' \
            AND hosting_mode IN ('commercial', 'free_tier') \
            AND is_disabled = false \
          ORDER BY slot \
@@ -297,18 +358,33 @@ pub async fn submit_query(
 
     let task_id = Uuid::new_v4();
     let now = chrono::Utc::now();
-    let competencies = serde_json::to_value(
-        decomposer::decompose_simple(&req.text, project_id, mode)
-            .first()
-            .map(|t| t.competencies.clone())
-            .unwrap_or_default()
-    ).unwrap_or_default();
+    // R3-3: Compute competencies once, use for both task row and agent matching.
+    let competencies_vec = decomposer::infer_competencies(&req.text);
+    let competencies = serde_json::to_value(&competencies_vec).unwrap_or_default();
     let mode_str = match mode { Mode::Yoda => "yoda", Mode::Ronin => "ronin" };
+
+    // R2-4: Select best agent ONCE at task creation, store on the task row.
+    let (matched_agent_id, matched_agent_prompt) = {
+        match state.agents.find_best_match(&competencies_vec) {
+            Ok(agent) => {
+                tracing::info!(
+                    agent_id = %agent.agent_id,
+                    competencies = ?competencies_vec,
+                    "Matched agent for task"
+                );
+                (Some(agent.agent_id.clone()), agent.system_prompt.clone())
+            }
+            Err(_) => (
+                None,
+                DEFAULT_YODA_PROMPT.to_string()
+            ),
+        }
+    };
 
     sqlx::query(
         "INSERT INTO tasks (id, project_id, task_number, title, competencies, dependencies, \
-         status, workflow_position, mode, created_at, updated_at) \
-         VALUES ($1, $2, $3, $4, $5, '[]'::jsonb, 'QUEUED', $6, $7, $8, $8)"
+         status, workflow_position, mode, primary_agent_role, created_at, updated_at) \
+         VALUES ($1, $2, $3, $4, $5, '[]'::jsonb, 'QUEUED', $6, $7, $8, $9, $9)"
     )
     .bind(task_id)
     .bind(project_id)
@@ -317,6 +393,7 @@ pub async fn submit_query(
     .bind(&competencies)
     .bind(next_number as i32)
     .bind(mode_str)
+    .bind(&matched_agent_id)
     .bind(now)
     .execute(&state.db)
     .await
@@ -388,8 +465,9 @@ pub async fn submit_query(
                 .execute(&state.db)
                 .await;
 
+                // Use the agent matched at task creation (R2-4)
                 let bg_messages = serde_json::json!([
-                    {"role": "system", "content": "You are a helpful AI assistant. Always respond in English, regardless of the language used in the query."},
+                    {"role": "system", "content": matched_agent_prompt},
                     {"role": "user", "content": req.text}
                 ]);
 
@@ -397,6 +475,15 @@ pub async fn submit_query(
                     task_id = %task_id, peer_count = cube_peers.len(), peers = ?cube_peers,
                     "BG inference: round-robin peer list built"
                 );
+
+                // Cancel any existing bg inference for this task and create fresh token
+                let cancel_token = CancellationToken::new();
+                {
+                    let mut tokens = state.task_cancel_tokens.write().await;
+                    if let Some(old) = tokens.insert(task_id, cancel_token.clone()) {
+                        old.cancel();
+                    }
+                }
 
                 spawn_bg_inference(
                     state.clone(),
@@ -407,6 +494,7 @@ pub async fn submit_query(
                     engine_model_name.clone(),
                     bg_messages,
                     1,
+                    cancel_token,
                 );
 
                 return Ok((StatusCode::CREATED, Json(QueryResponse {
@@ -505,6 +593,12 @@ pub async fn approve_decomposition(
         task_count: task_ids.len(),
         task_ids,
     })))
+}
+
+/// Re-export competency inference for use in routes.rs (agent matching on follow-up messages).
+/// R1-A3-4: Delegates to the canonical keyword table in yoda_orchestrator::decomposer.
+pub fn infer_competencies_pub(query: &str) -> Vec<String> {
+    decomposer::infer_competencies(query)
 }
 
 /// Helper: build an EngineConfig from a DB row tuple.

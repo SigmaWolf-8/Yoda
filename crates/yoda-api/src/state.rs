@@ -1,6 +1,11 @@
 //! Application state shared across all Axum handlers.
 
 use sqlx::PgPool;
+use std::collections::HashMap;
+use std::sync::Arc;
+use tokio::sync::RwLock;
+use tokio_util::sync::CancellationToken;
+use uuid::Uuid;
 use yoda_inference_router::health::SharedHealthState;
 use yoda_orchestrator::agent::AgentRegistry;
 
@@ -39,6 +44,10 @@ pub struct AppState {
     /// The most recently seen inference cube peer address from the relay session.
     /// Populated from auth_ok peers and peer_joined messages; cleared on relay_ack undelivered.
     pub live_cube_peer: LiveCubePeer,
+    /// Cancellation tokens for active background inference tasks, keyed by task_id.
+    /// Before spawning a new bg inference loop for a task, cancel the existing token
+    /// (if any) and insert a fresh one. The bg loop checks this token between retries.
+    pub task_cancel_tokens: Arc<RwLock<HashMap<Uuid, CancellationToken>>>,
 }
 
 impl AppState {
@@ -76,6 +85,7 @@ impl AppState {
             relay_tx: crate::cube_relay::new_relay_tx(),
             pending_relays: crate::cube_relay::new_pending_relays(),
             live_cube_peer: crate::cube_relay::new_live_cube_peer(),
+            task_cancel_tokens: Arc::new(RwLock::new(HashMap::new())),
         }
     }
 }

@@ -42,6 +42,7 @@ pub enum TaskStatus {
     Step4FinalOutput,
     Final,
     Escalated,
+    Cancelled,
 }
 
 /// Operating mode — determines what Assembly produces.

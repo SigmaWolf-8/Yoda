@@ -48,6 +48,18 @@ impl AgentRegistry {
                 match fs::read_to_string(&path) {
                     Ok(content) => match serde_json::from_str::<AgentConfig>(&content) {
                         Ok(config) => {
+                            // R1-A1-1: Validate system prompt length to prevent
+                            // oversized or injection-laden prompts from compiled JSON.
+                            const MAX_SYSTEM_PROMPT_CHARS: usize = 32_768;
+                            if config.system_prompt.len() > MAX_SYSTEM_PROMPT_CHARS {
+                                tracing::warn!(
+                                    agent_id = %config.agent_id,
+                                    len = config.system_prompt.len(),
+                                    max = MAX_SYSTEM_PROMPT_CHARS,
+                                    "Agent system prompt exceeds maximum length — skipping"
+                                );
+                                continue;
+                            }
                             tracing::debug!(agent_id = %config.agent_id, "Loaded agent config");
                             agents.insert(config.agent_id.clone(), config);
                         }
@@ -75,6 +87,8 @@ impl AgentRegistry {
     ///
     /// Scores each agent by how many required competencies it covers.
     /// Returns the agent with the highest coverage.
+    /// R3-1: On ties, prefers Capomastro agents over upstream, then
+    /// breaks by lexicographic agent_id for deterministic selection.
     pub fn find_best_match(&self, required_competencies: &[String]) -> Result<&AgentConfig, AgentError> {
         if self.agents.is_empty() {
             return Err(AgentError::NoAgentsLoaded);
@@ -89,11 +103,29 @@ impl AgentRegistry {
                 .count();
 
             if score > 0 {
-                if let Some((_, best_score)) = &best {
+                let dominated = if let Some((best_config, best_score)) = &best {
                     if score > *best_score {
-                        best = Some((config, score));
+                        true
+                    } else if score == *best_score {
+                        // Tie-break: Capomastro (proprietary) preferred over upstream (MIT)
+                        let config_is_capomastro = config.division == "capomastro" || config.license != "MIT";
+                        let best_is_capomastro = best_config.division == "capomastro" || best_config.license != "MIT";
+                        if config_is_capomastro && !best_is_capomastro {
+                            true
+                        } else if config_is_capomastro == best_is_capomastro {
+                            // Same division class — lexicographic agent_id for stability
+                            config.agent_id < best_config.agent_id
+                        } else {
+                            false
+                        }
+                    } else {
+                        false
                     }
                 } else {
+                    true // No best yet
+                };
+
+                if dominated {
                     best = Some((config, score));
                 }
             }
