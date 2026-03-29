@@ -183,7 +183,8 @@ async fn run_cli(args: &[String]) -> anyhow::Result<()> {
     // Connect to database
     let database_url = std::env::var("DATABASE_URL")
         .unwrap_or_else(|_| "postgres://localhost:5432/yoda".to_string());
-    let db = PgPoolOptions::new()
+    // _db: connection kept alive for future CLI sub-commands that query the DB directly.
+    let _db = PgPoolOptions::new()
         .max_connections(5)
         .connect(&database_url)
         .await?;

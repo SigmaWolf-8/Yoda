@@ -11,7 +11,7 @@ use uuid::Uuid;
 use crate::auth::AuthenticatedUser;
 use crate::error::AppError;
 use crate::state::AppState;
-use yoda_knowledge_base::{SearchFilters, SearchResult};
+use yoda_knowledge_base::SearchFilters;
 use yoda_knowledge_base::search::{hybrid_search, SearchWeights};
 use yoda_knowledge_base::storage;
 use yoda_knowledge_base::tagging;
@@ -153,7 +153,7 @@ pub async fn delete_kb_entry(
 /// GET /api/projects/:id/kb/tags
 pub async fn get_kb_tags(
     State(state): State<AppState>,
-    user: axum::Extension<AuthenticatedUser>,
+    _user: axum::Extension<AuthenticatedUser>,
     Path(project_id): Path<Uuid>,
 ) -> Result<Json<Vec<tagging::TagInfo>>, AppError> {
     let tags = tagging::get_project_tags(&state.db, project_id)

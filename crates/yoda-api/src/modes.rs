@@ -120,7 +120,10 @@ pub async fn escalate_to_yoda(
         .map_err(AppError::Database)?;
 
     // Create a Yoda-mode analysis task
-    let (analysis_mode, analysis_title) =
+    // _analysis_mode: escalate_to_yoda also returns the target mode, but the INSERT
+    // below hard-codes "yoda" directly.  Keep the binding so the return type is
+    // explicit and future callers can use it.
+    let (_analysis_mode, analysis_title) =
         yoda_orchestrator::assembly::escalate_to_yoda(&title, &req.constraint);
 
     let analysis_task_id = Uuid::new_v4();

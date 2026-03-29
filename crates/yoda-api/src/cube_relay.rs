@@ -225,7 +225,8 @@ async fn run_relay_session(
     address: &str,
     public_key: &str,
     neighbors: Vec<String>,
-    http_client: reqwest::Client,
+    // _http_client: reserved for future authenticated probe requests.
+    _http_client: reqwest::Client,
 ) -> Result<(), anyhow::Error> {
     let (ws_stream, _) = connect_async(CRS_WS).await?;
     let (mut sink, mut stream) = ws_stream.split();
@@ -308,6 +309,10 @@ async fn run_relay_session(
     // inference probe to each known daemon address.  When the daemon is online
     // it responds with inference_response; the `from` field is captured by
     // handle_inbound and inserted into live_cube_peer.
+    //
+    // Probe IDs are tracked so that replies to probes (which are NOT registered
+    // in pending_relays) don't trigger spurious "No pending relay" WARNs.
+    let mut probe_ids: HashSet<Uuid> = HashSet::new();
     {
         let mut probed_now: Vec<&str> = Vec::new();
         // First: probe the CRS-registered neighbors (may include YODA itself)
@@ -327,7 +332,9 @@ async fn run_relay_session(
 
         tracing::info!(count = probed_now.len(), addresses = ?probed_now, "Probing Array3 daemon addresses");
         for target in &probed_now {
-            let probe_id = uuid::Uuid::new_v4().to_string();
+            let probe_uuid = Uuid::new_v4();
+            let probe_id = probe_uuid.to_string();
+            probe_ids.insert(probe_uuid);
             let probe_payload = serde_json::json!({
                 "requestId": probe_id,
                 "messages": [{"role": "user", "content": "ping"}],
@@ -415,7 +422,7 @@ async fn run_relay_session(
                                 reprobe_secs = 60;
                                 reprobe_deadline = tokio::time::Instant::now() + Duration::from_secs(10);
                             }
-                            handle_inbound(state, &text, address).await;
+                            handle_inbound(state, &text, address, &probe_ids).await;
                         }
                     }
                     Some(Ok(Message::Pong(_))) => {
@@ -550,7 +557,7 @@ struct InferenceErrorPayload {
     error: String,
 }
 
-async fn handle_inbound(state: &AppState, text: &str, own_address: &str) {
+async fn handle_inbound(state: &AppState, text: &str, own_address: &str, probe_ids: &HashSet<Uuid>) {
     let env: RelayEnvelope = match serde_json::from_str(text) {
         Ok(e) => e,
         Err(_) => {
@@ -637,6 +644,11 @@ async fn handle_inbound(state: &AppState, text: &str, own_address: &str) {
                     if let Some(sender) = pending.remove(&request_id) {
                         let _ = sender.send(Ok(result));
                         tracing::info!(request_id = %request_id, "inference_response resolved via relay");
+                    } else if probe_ids.contains(&request_id) {
+                        // Startup probe reply — probes are intentionally not registered in
+                        // pending_relays, so this is expected.  The `from` field above has
+                        // already recorded this peer as live.
+                        tracing::debug!(request_id = %request_id, "Startup probe: peer replied with inference_response — peer alive");
                     } else {
                         tracing::warn!(request_id = %request_id, "No pending relay for inference_response");
                     }
@@ -659,6 +671,11 @@ async fn handle_inbound(state: &AppState, text: &str, own_address: &str) {
                             error = %payload.error,
                             "inference_error received from cube — relayed to query handler"
                         );
+                    } else if probe_ids.contains(&request_id) {
+                        // Startup probe replied with error — peer is offline or not running
+                        // an inference-capable model.  Not a fault condition.
+                        tracing::debug!(request_id = %request_id, error = %payload.error,
+                            "Startup probe: peer returned inference_error — peer offline or model not ready");
                     } else {
                         tracing::warn!(request_id = %request_id, "No pending relay for inference_error");
                     }
@@ -673,9 +690,15 @@ async fn handle_inbound(state: &AppState, text: &str, own_address: &str) {
                 // Try to extract the requestId from the payload so we only fail
                 // that one request, not all of them.
                 let payload_str = env.payload.as_deref().unwrap_or("{}");
+                // R3-5: try both camelCase ("requestId") and snake_case ("request_id") —
+                // the live CRS may use either spelling depending on version.
                 let maybe_request_id: Option<Uuid> = serde_json::from_str::<serde_json::Value>(payload_str)
                     .ok()
-                    .and_then(|v| v["requestId"].as_str().and_then(|s| s.parse::<Uuid>().ok()));
+                    .and_then(|v| {
+                        v["requestId"].as_str()
+                            .or_else(|| v["request_id"].as_str())
+                            .and_then(|s| s.parse::<Uuid>().ok())
+                    });
 
                 if let Some(request_id) = maybe_request_id {
                     // Scoped fail: only the specific request that was undelivered
@@ -685,11 +708,15 @@ async fn handle_inbound(state: &AppState, text: &str, own_address: &str) {
                         tracing::warn!(request_id = %request_id, "Relay message undelivered — failed specific request");
                     }
                 } else {
-                    // Cannot identify which request failed — log warning but do NOT drain all.
-                    // Individual requests will time out naturally after 90s.
+                    // Cannot identify which request failed — do NOT drain all pending relays.
+                    // Log the raw payload (R3-5) so the actual CRS field names are visible
+                    // in logs, which reveals the correct spelling if it changes in a future
+                    // CRS release.  Individual requests time out naturally after 90 s.
                     tracing::warn!(
-                        "Relay message undelivered (no requestId in ack) — \
-                         letting individual requests time out rather than draining all"
+                        payload = %payload_str,
+                        "Relay message undelivered — requestId not found in ack; \
+                         logged raw payload so CRS wire format is visible; \
+                         letting individual requests time out after 90 s"
                     );
                 }
             }

@@ -291,7 +291,8 @@ pub async fn sign_final_output(
 pub async fn verify_signature(
     db: &PgPool,
     project_id: Uuid,
-    task_id: Uuid,
+    // _task_id: accepted for future audit-log correlation; not read in current body.
+    _task_id: Uuid,
     final_output: &str,
     signature_hex: &str,
 ) -> Result<bool, SecurityError> {

@@ -4,7 +4,7 @@
 //!       PUT /api/settings/github-pat → store encrypted PAT
 //!       GET /api/settings/github-pat → { configured, username }
 
-use axum::{extract::{Path, State}, http::StatusCode, Json};
+use axum::{extract::{Path, State}, Json};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 

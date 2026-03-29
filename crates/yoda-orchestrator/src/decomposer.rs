@@ -76,7 +76,9 @@ pub async fn decompose_query(
     engine: &EngineConfig,
     orchestrator_agent: &AgentConfig,
     query: &str,
-    project_id: Uuid,
+    // _project_id is accepted for API consistency and future use (e.g. project-scoped KB
+    // retrieval to add context to the prompt).  Not read today.
+    _project_id: Uuid,
     mode: Mode,
     config: &DecomposeConfig,
 ) -> Result<DecompositionResult, DecomposeError> {

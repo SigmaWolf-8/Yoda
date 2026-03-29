@@ -18,7 +18,7 @@ use axum::{
     routing::{delete, get, post, put},
     Json, Router,
 };
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use uuid::Uuid;
 
 use crate::agents;
@@ -268,13 +268,6 @@ async fn delete_project(
 }
 
 // ─── Tasks ───────────────────────────────────────────────────────────
-
-#[derive(Debug, Serialize)]
-struct TaskResponse {
-    id: Uuid, task_number: String, title: String, status: String,
-    mode: String, competencies: serde_json::Value, dependencies: serde_json::Value,
-    workflow_position: Option<i32>, created_at: chrono::DateTime<chrono::Utc>,
-}
 
 async fn list_tasks(
     State(state): State<AppState>,

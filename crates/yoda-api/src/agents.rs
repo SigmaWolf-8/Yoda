@@ -7,7 +7,7 @@
 //!   POST /api/agents/sync         — pull from upstream + recompile
 //!   POST /api/agents/review       — approve/reject new agents
 
-use axum::{extract::State, http::StatusCode, Json};
+use axum::{extract::State, Json};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::Path;
@@ -150,7 +150,7 @@ pub struct NewAgentInfo {
 /// msitarzewski/agency-agents repo. Returns a list of new and modified
 /// agents available for import.
 pub async fn sync_status(
-    State(state): State<AppState>,
+    State(_state): State<AppState>,
     _user: axum::Extension<AuthenticatedUser>,
 ) -> Result<Json<SyncStatusResponse>, AppError> {
     let upstream_dir = Path::new("agents/upstream");

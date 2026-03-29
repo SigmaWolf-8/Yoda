@@ -7,9 +7,8 @@
 //! B2.2.7: Phase Encryption on stored artifacts
 //! B2.2.8: Audit record assembly
 
-use crate::agent::AgentRegistry;
 use crate::state::{self, StateTransition};
-use crate::{AgentConfig, CodeBlock, Mode, Task, TaskStatus};
+use crate::{AgentConfig, Task, TaskStatus};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use uuid::Uuid;

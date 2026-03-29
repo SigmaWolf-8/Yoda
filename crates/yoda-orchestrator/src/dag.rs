@@ -181,9 +181,9 @@ fn topological_sort(nodes: &HashMap<String, DagNode>) -> Result<Vec<String>, Dag
     let mut in_degree: HashMap<&str, usize> = HashMap::new();
     for (tn, node) in nodes {
         in_degree.entry(tn.as_str()).or_insert(0);
-        for dep in &node.dependencies {
-            // dep → tn (dep is a prerequisite of tn)
-            // We want in-degree of tn to count its dependencies
+        for _ in &node.dependencies {
+            // Each dependency is a prerequisite of tn; we count incoming
+            // edges below in the second pass.
         }
     }
     // Count incoming edges (how many deps each node has)
