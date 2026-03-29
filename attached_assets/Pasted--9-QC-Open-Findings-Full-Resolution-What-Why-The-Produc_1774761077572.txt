@@ -1,0 +1,30 @@
+#9 - QC Open Findings — Full Resolution
+What & Why
+The Production-003 QC review produced 30 findings; 26 were resolved in the prod3 deployment. This task closes every remaining open item found in that review and visible in the live system today. Nothing is deferred.
+
+Done looks like
+relay_ack with delivered: false correctly identifies and fails the specific inflight request whether the live CRS sends requestId or request_id, with a raw-payload log line on mismatch so future format drift is immediately visible.
+The "No pending relay for inference_response / inference_error" startup WARN messages are understood and either suppressed (if they are harmless probe echoes) or the root cause is fixed (if they represent real lost responses).
+Zero compiler warnings on cargo build --bin yoda-api: all unused imports, unused variables, and dead-code structs are cleaned up across every crate touched by prod3.
+The unused _project_id parameter in decomposer.rs is either wired up or explicitly documented why it is kept for future use.
+All fixes are covered by inline doc-comments referencing the original QC finding number so the next reviewer can trace them.
+Out of scope
+New features or behaviour changes beyond what the QC findings require.
+Fixing warnings in crates not modified by prod3 (plenumnet-bridge, yoda-crs).
+Changing the relay wire protocol or CRS contract.
+Tasks
+R3-5 relay_ack hardening — Update the relay_ack handler in cube_relay.rs to try both requestId (camelCase) and request_id (snake_case) when extracting the failed request UUID. Log the full raw ack payload at WARN level when neither field resolves, so the actual CRS wire format is captured on the next undelivered message.
+
+Startup WARN triage — Trace the "No pending relay for inference_response / inference_error" messages that appear within the first 3 seconds of startup. Determine if these are harmless echoes of the probe requests (which don't register in pending_relays) or genuine lost responses. If harmless, add a guard that suppresses the WARN for probe-scoped request IDs; if not, fix the root cause.
+
+Dead-code and warning sweep — Remove or prefix-underscore every unused import, variable, and struct flagged by the compiler across yoda-api, yoda-orchestrator, and yoda-task-bible. Specifically: TaskResponse struct (routes.rs), project_id param (decomposer.rs), analysis_mode (modes.rs), and all unused imports in agents.rs, kb.rs, settings.rs, and main.rs. Each fix should preserve intent (comment or _prefix) where the item is a planned extension point.
+
+Relevant files
+crates/yoda-api/src/cube_relay.rs:671-695
+crates/yoda-api/src/routes.rs:273
+crates/yoda-orchestrator/src/decomposer.rs:79
+crates/yoda-api/src/modes.rs:123
+crates/yoda-api/src/agents.rs:10
+crates/yoda-api/src/kb.rs:14,156
+crates/yoda-api/src/settings.rs:7
+crates/yoda-api/src/main.rs:186
