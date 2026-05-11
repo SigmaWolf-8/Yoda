@@ -48,3 +48,9 @@ id = "nl73cYZVQ9aTw6dIowy5c"
 uri = "file://downloads/yoda-full-source.tar.gz"
 type = "unspecified"
 title = "yoda-full-source.tar.gz — complete codebase (23 MB)"
+
+[[outputs]]
+id = "87SnkLXM3IA2aG_TnRqvR"
+uri = "file://yoda-source.zip"
+type = "unspecified"
+title = "YODA Full Source (frontend + backend)"
