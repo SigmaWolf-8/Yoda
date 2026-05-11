@@ -54,3 +54,9 @@ id = "87SnkLXM3IA2aG_TnRqvR"
 uri = "file://yoda-source.zip"
 type = "unspecified"
 title = "YODA Full Source (frontend + backend)"
+
+[[outputs]]
+id = "YrOCOq7UcMR5vDi7Z8gIk"
+uri = "file://yoda-full.zip"
+type = "unspecified"
+title = "YODA Complete Source (518 files — frontend, backend, agents, docs, config)"
