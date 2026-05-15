@@ -4,7 +4,6 @@
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════
 
 use std::collections::HashMap;
-use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::sync::Arc;
@@ -221,34 +220,37 @@ impl Array3InstallationDetector {
 
         let mut results = Vec::new();
 
-        for node in &mut self.config.nodes {
-            eprintln!("[Array3Detector] Checking {}...", node.node_id);
+        for i in 0..self.config.nodes.len() {
+            let node_id = self.config.nodes[i].node_id.clone();
+            let expected_path = self.config.nodes[i].expected_path.clone();
+            let binary_name = self.config.nodes[i].binary_name.clone();
 
-            // Check if binary exists
-            if node.expected_path.exists() {
-                eprintln!("[Array3Detector]   ✓ Binary found at {}", node.expected_path.display());
-                node.installation_status = InstallationStatus::Detected;
+            eprintln!("[Array3Detector] Checking {}...", node_id);
 
-                // Try to get version
-                if let Ok(version) = self.get_binary_version(&node.expected_path) {
-                    node.version = Some(version);
-                    eprintln!("[Array3Detector]   Version: {}", node.version.as_ref().unwrap());
+            if expected_path.exists() {
+                eprintln!("[Array3Detector]   ✓ Binary found at {}", expected_path.display());
+                self.config.nodes[i].installation_status = InstallationStatus::Detected;
+
+                // Try to get version (no mutable borrow held during call)
+                if let Ok(version) = self.get_binary_version(&expected_path) {
+                    eprintln!("[Array3Detector]   Version: {}", version);
+                    self.config.nodes[i].version = Some(version);
                 }
 
-                // Check if it's running
-                if self.is_process_running(&node.binary_name).await {
-                    node.installation_status = InstallationStatus::Running;
+                // Check if running
+                if self.is_process_running(&binary_name).await {
+                    self.config.nodes[i].installation_status = InstallationStatus::Running;
                     eprintln!("[Array3Detector]   Status: RUNNING");
                 } else {
                     eprintln!("[Array3Detector]   Status: DETECTED (not running)");
                 }
             } else {
-                node.installation_status = InstallationStatus::NotFound;
+                self.config.nodes[i].installation_status = InstallationStatus::NotFound;
                 eprintln!("[Array3Detector]   ✗ Binary NOT found");
-                eprintln!("[Array3Detector]   Expected: {}", node.expected_path.display());
+                eprintln!("[Array3Detector]   Expected: {}", expected_path.display());
             }
 
-            results.push(node.clone());
+            results.push(self.config.nodes[i].clone());
         }
 
         self.config.nodes = results.clone();

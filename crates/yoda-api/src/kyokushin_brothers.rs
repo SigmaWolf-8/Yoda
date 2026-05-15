@@ -15,13 +15,12 @@
 // Three warriors. One mission. Simultaneous execution. Response: 3–5 seconds.
 // ═══════════════════════════════════════════════════════════════════════════════════════════════
 
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::sync::Arc;
-use std::time::{SystemTime, UNIX_EPOCH, Instant, Duration};
-use tokio::sync::{RwLock, Mutex};
-use tokio::task::JoinHandle;
+use std::time::{Instant, Duration};
+use tokio::sync::RwLock;
 use serde::{Deserialize, Serialize};
-use chrono::{DateTime, Utc};
+use chrono::Utc;
 use uuid::Uuid;
 use thiserror::Error;
 
@@ -578,7 +577,7 @@ pub struct UnifiedResponse {
     pub execution_timeline: ExecutionTimeline,
     pub merged_at_hptp: String,
     pub total_execution_ms: f64,
-    pub brothers: [&'static str; 3],
+    pub brothers: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -965,7 +964,7 @@ impl KyokushinBrothers {
             execution_timeline: timeline,
             merged_at_hptp: hptp_timestamp(),
             total_execution_ms,
-            brothers: ["Alpha", "Beta", "Gamma"],
+            brothers: vec!["Alpha".to_string(), "Beta".to_string(), "Gamma".to_string()],
         };
 
         {
