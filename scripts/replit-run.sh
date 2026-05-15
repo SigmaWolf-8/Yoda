@@ -3,10 +3,8 @@
 #
 # 1. Runs database migrations (if DATABASE_URL is set)
 # 2. Builds the React frontend (if dist/ is missing or stale)
-# 3. Builds and runs the Axum backend (which serves React dist/ as static files)
-#
-# The backend serves the frontend at / and API at /api/*, so only port 3000
-# is exposed. No separate frontend server needed.
+# 3. If a cached binary exists, starts it immediately so port 3000 opens fast
+# 4. Builds the updated binary in the background; hot-swaps it on completion
 
 set -euo pipefail
 
@@ -36,34 +34,64 @@ else
     echo "Frontend dist/ exists — skipping rebuild (set REBUILD_FRONTEND=1 to force)"
 fi
 
-# ── 3. Build and run backend ─────────────────────────────────────────
-echo "Building Axum backend..."
-cargo build --bin yoda-api 2>&1
-
-# ── 4. Build and start CRS daemon (non-fatal) ─────────────────────────
-echo "Building YODA CRS daemon (release)..."
-if cargo build --release --bin yoda-crs 2>&1; then
-    CRS_PORT="${CUBE_API_PORT:-8081}"
-
-    # Kill any previous yoda-crs still holding the port (survives SIGTERM to shell).
-    # Use pkill by name first (most reliable), then fall back to fuser/lsof.
-    pkill -x yoda-crs 2>/dev/null || true
-    fuser -k "${CRS_PORT}/tcp" 2>/dev/null || true
-    sleep 1
-
-    echo "Starting YODA CRS on port $CRS_PORT..."
-    CUBE_MODE=crs \
-    CUBE_API_PORT="$CRS_PORT" \
+# ── 3. Hot-start: run existing binary immediately if present ──────────
+HOT_PID=""
+if [ -f "target/debug/yoda-api" ]; then
+    echo "Hot-starting cached binary so port 3000 opens immediately..."
     RUST_LOG="${RUST_LOG:-info}" \
-    ./target/release/yoda-crs &
-    CRS_PID=$!
-    echo "CRS daemon started (PID $CRS_PID)"
-
-    # Ensure CRS is killed when this script exits
-    trap 'kill "$CRS_PID" 2>/dev/null || true' EXIT INT TERM
-else
-    echo "⚠ yoda-crs build failed — CRS features will be unavailable"
+    BIND_ADDR="${BIND_ADDR:-0.0.0.0}" \
+    BIND_PORT="${BIND_PORT:-3000}" \
+    ./target/debug/yoda-api &
+    HOT_PID=$!
+    echo "Cached API running as PID $HOT_PID"
 fi
 
+# ── 4. Build updated backend (background while hot binary serves) ──────
+echo "Building updated Axum backend in background..."
+cargo build --bin yoda-api 2>&1
+BUILD_EXIT=$?
+
+if [ $BUILD_EXIT -ne 0 ]; then
+    echo "⚠ Backend build failed — keeping cached binary if running"
+    if [ -n "$HOT_PID" ]; then
+        wait $HOT_PID
+    fi
+    exit 1
+fi
+
+# ── 5. Swap: kill hot binary, start fresh one ─────────────────────────
+if [ -n "$HOT_PID" ]; then
+    echo "Build complete — swapping to updated binary..."
+    kill "$HOT_PID" 2>/dev/null || true
+    sleep 1
+fi
+
+# ── 6. Build and start CRS daemon (non-fatal) ─────────────────────────
+echo "Building YODA CRS daemon (release, background)..."
+(
+    if cargo build --release --bin yoda-crs 2>&1; then
+        CRS_PORT="${CUBE_API_PORT:-8081}"
+        pkill -x yoda-crs 2>/dev/null || true
+        fuser -k "${CRS_PORT}/tcp" 2>/dev/null || true
+        sleep 1
+        echo "Starting YODA CRS on port $CRS_PORT..."
+        CUBE_MODE=crs \
+        CUBE_API_PORT="$CRS_PORT" \
+        RUST_LOG="${RUST_LOG:-info}" \
+        ./target/release/yoda-crs &
+        echo "CRS daemon started (PID $!)"
+    else
+        echo "⚠ yoda-crs build failed — CRS features will be unavailable"
+    fi
+) &
+CRS_BUILD_PID=$!
+
+# Ensure CRS build process is cleaned up on exit
+trap 'kill "$CRS_BUILD_PID" 2>/dev/null; pkill -x yoda-crs 2>/dev/null || true' EXIT INT TERM
+
+# ── 7. Run updated API (foreground) ───────────────────────────────────
 echo "Starting YODA API server on ${BIND_ADDR:-0.0.0.0}:${BIND_PORT:-3000}"
-cargo run --bin yoda-api
+RUST_LOG="${RUST_LOG:-info}" \
+BIND_ADDR="${BIND_ADDR:-0.0.0.0}" \
+BIND_PORT="${BIND_PORT:-3000}" \
+./target/debug/yoda-api

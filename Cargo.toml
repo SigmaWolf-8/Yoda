@@ -70,3 +70,8 @@ tokio-test = "0.4"
 # with a [patch] section pointing to your local Ternary checkout.
 # See .cargo/config.toml.example
 ternary-math = { git = "https://github.com/SigmaWolf-8/Ternary" }
+
+[profile.dev]
+strip = "debuginfo"
+opt-level = 0
+codegen-units = 256

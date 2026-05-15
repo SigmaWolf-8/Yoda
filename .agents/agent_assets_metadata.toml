@@ -72,3 +72,9 @@ id = "_HbzUhfXDxnfF2U6mhHRn"
 uri = "file://yoda-frontend.zip"
 type = "unspecified"
 title = "YODA Frontend Source (src only, no node_modules)"
+
+[[outputs]]
+id = "UDpjGExCTzsyVH8fJSaAH"
+uri = "file://yoda-src.tar.gz"
+type = "unspecified"
+title = "YODA Project — Full Source (no build artifacts)"
