@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════════════════════════════════════
-// 🥋 KYOKUSHIN BROTHERS · PRODUCTION ORCHESTRATION ENGINE · FULL 4500+ LOC
+// KYOKUSHIN BROTHERS · PRODUCTION ORCHESTRATION ENGINE · 1602 LOC
 // ═══════════════════════════════════════════════════════════════════════════════════════════════
 //
 // Complete implementation:

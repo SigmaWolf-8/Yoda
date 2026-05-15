@@ -1,0 +1,303 @@
+# UPIID V1.1 Review | YODA Codebase
+
+**Reviewer:** ParaCalculi GeoPrimus
+**Date:** 2026-05-15
+**Scope:** 16,665 lines Rust | 52 files | 7 crates + 1 missing | SigmaWolf-8/Yoda
+**Verdict:** DOES NOT COMPILE -- 3 root causes, all structural
+
+---
+
+## COMPILATION BLOCKERS (in order of encounter)
+
+### BLOCKER 1 -- Missing workspace member
+
+`Cargo.toml` declares 8 workspace members. Only 7 exist.
+
+```
+tools/yoda-agent-compiler   <-- DIRECTORY DOES NOT EXIST
+```
+
+Cargo reads the workspace manifest first. If any member path is absent,
+workspace resolution fails before a single crate compiles. This alone
+freezes the build.
+
+**Fix:** Either create the crate or comment it out of the workspace.
+The `scripts/compile-agents.sh` script exists but the Rust crate it
+presumably wraps does not.
+
+---
+
+### BLOCKER 2 -- Private git dependency: ternary-math
+
+```toml
+ternary-math = { git = "https://github.com/SigmaWolf-8/Ternary" }
+```
+
+Pinned in Cargo.lock to commit `43678a714036c5a9136c572fbe07c5a9d5a6f283`.
+The Ternary repo is private. On Replit, if GitHub auth is not configured
+(SSH key or PAT in git config), cargo hangs waiting for credentials.
+If the repo is being restructured and that commit was force-pushed away,
+cargo fails even with valid auth.
+
+**Impact:** `ternary-math` blocks ALL 6 remaining crates:
+
+```
+ternary-math
+  └─ yoda-plenumnet-bridge
+       ├─ yoda-inference-router
+       │    ├─ yoda-orchestrator
+       │    │    ├─ yoda-task-bible
+       │    │    └─ yoda-api
+       │    ├─ yoda-knowledge-base
+       │    │    └─ yoda-api
+       │    └─ yoda-api
+       ├─ yoda-orchestrator
+       ├─ yoda-knowledge-base
+       ├─ yoda-task-bible
+       └─ yoda-api
+```
+
+Every crate depends on `yoda-plenumnet-bridge` (even inference-router).
+A single private git dep is a single point of failure for the entire workspace.
+
+**Fix options:**
+- Configure GitHub PAT on Replit: `git config --global url."https://<PAT>@github.com/".insteadOf "https://github.com/"`
+- Vendor ternary-math into the workspace as a path dependency
+- Add `.cargo/config.toml` with `[patch]` pointing to local checkout
+
+---
+
+### BLOCKER 3 -- Second private git dependency: inter-cube
+
+```toml
+# In yoda-crs/Cargo.toml
+inter-cube = { git = "https://github.com/SigmaWolf-8/Ternary", package = "inter-cube" }
+```
+
+Same private repo, different package. Same auth and commit-availability
+issues as ternary-math.
+
+---
+
+## CRATE-BY-CRATE REVIEW
+
+### yoda-plenumnet-bridge (1,138 lines | 6 files)
+
+The crypto bridge. Clean code. Five modules wrapping five ternary-math
+primitives (TIS-27, TL-DSA, Phase Encryption, TLSponge-385, TL-KEM).
+
+**Findings:**
+- Structurally sound. Good test coverage (7+ tests per module).
+- `kem.rs` calls `crate::encryption::derive_key_from_kem` -- verified, exists.
+- All ternary-math imports assume specific API surface:
+  `tl_dsa::{self, TlDsaVariant}`, `tlsponge385::hash_bulk_tis`,
+  `phase_encryption::{encrypt, decrypt, ...}`, `tl_kem::{keygen, encapsulate, ...}`.
+  If ternary-math's API changed during the restructure, these all break.
+- `ternary-math` itself depends on `wasm-bindgen`. This drags in the
+  entire WASM compilation toolchain on native builds unless gated behind
+  `#[cfg(target_arch = "wasm32")]`. Adds significant build time.
+
+**Risk:** Medium. Code is correct IF ternary-math API is stable.
+
+---
+
+### yoda-inference-router (1,303 lines | 7 files)
+
+Engine dispatch, censorship detection, health monitoring, diversity
+enforcement, structured output validation.
+
+**Findings:**
+- `dispatch.rs` (284 lines) -- clean async HTTP client. Proper error handling.
+- `censorship.rs` (197 lines) -- pattern matching for engine censorship. Good.
+- `diversity.rs` (221 lines) -- model lineage enforcement. Solid.
+- `health.rs` (263 lines) -- background health monitor. Clean tokio usage.
+- `validation.rs` (135 lines) -- uses `f64` for token estimation (`max_tokens as f64 * 0.9`).
+  This is below-gate formatting logic, not framework math -- acceptable.
+  Note: `serde_json` used for JSON validation check -- dep exists in Cargo.toml.
+- `config.rs` (104 lines) -- engine configuration. Clean.
+- Depends on plenumnet-bridge (hashing for TIS-27 digests on inference responses).
+
+**Risk:** Low. Well-structured.
+
+---
+
+### yoda-orchestrator (1,882 lines | 7 files)
+
+DAG execution, task decomposition, four-step adversarial protocol, assembly.
+
+**Findings:**
+- `agent.rs` (218 lines) -- AgentRegistry loads from JSON. Clean serde.
+- `dag.rs` (513 lines) -- DAG construction, cycle detection, topological sort.
+  Uses `HashMap` and `HashSet`. No external graph library. Correct.
+- `decomposer.rs` (392 lines) -- LLM-driven task decomposition. Calls inference-router.
+  Prompt construction looks reasonable.
+- `protocol.rs` (449 lines) -- four-step adversarial refinement.
+  `select_reviewer_count` dispatches by ReviewIntensity (Full=3, Medium=2, Light=1).
+  `dispatch_reviews` uses `tokio::try_join!` for parallel execution.
+- `assembly.rs` (422 lines) -- Yoda (reports) and Ronin (reports + code) assembly.
+  Code block extraction via regex. Functional.
+- `state.rs` (183 lines) -- execution state machine. Clean.
+
+**Risk:** Low. Core orchestration logic is solid.
+
+---
+
+### yoda-knowledge-base (1,390 lines | 7 files)
+
+Per-user cumulative intelligence. Search, tagging, embedding, retention.
+
+**Findings:**
+- `search.rs` (286 lines) -- hybrid search (BM25 + semantic). Uses sqlx.
+  `SearchWeights` struct controls keyword vs semantic blend.
+- `embedding.rs` (150 lines) -- calls inference engine for embeddings.
+  Uses yoda-inference-router EngineConfig. Clean.
+- `storage.rs` (218 lines) -- CRUD operations via sqlx. Correct.
+- `tagging.rs` (210 lines) -- auto-tagging via LLM. Clean.
+- `retention.rs` (158 lines) -- decay and archival logic. Uses `f64` for
+  boost_score decay -- this is application-level scoring, not framework math.
+- `context.rs` (296 lines) -- context assembly for RAG. Clean.
+
+**Risk:** Low. Standard knowledge base architecture.
+
+---
+
+### yoda-task-bible (42 lines | 3 files)
+
+**Findings:**
+- `lib.rs` (40 lines) -- defines `TaskBibleEntry` struct. Imports
+  `yoda_orchestrator::CodeBlock` and `yoda_plenumnet_bridge::signing::Signature`.
+- `crud.rs` (1 line) -- stub: `//! Implementation in Task B-10.`
+- `maestro.rs` (1 line) -- stub: `//! Implementation in Task B-10.`
+
+**Risk:** Low (it's a stub). The types compile if their deps compile.
+No actual database operations implemented yet.
+
+---
+
+### yoda-api (9,248 lines | 19 files)
+
+The main API server. Largest crate. Axum + PostgreSQL + all five internal crates.
+
+**Findings:**
+- `main.rs` (230 lines) -- clean entry point. CLI mode, agent loading,
+  PlenumLAN relay spawn, Kyokushin Brothers init. Well-structured.
+- `routes.rs` (1,740 lines) -- large route file. All API endpoints.
+  Could benefit from splitting into sub-modules per domain.
+- `kyokushin_brothers.rs` (1,602 lines) -- production orchestration engine.
+  Three-warrior concurrent execution (Alpha/Beta/Gamma).
+  "Full 4500+ LOC" comment but file is 1,602 lines -- comment is stale.
+- `array3_installation_engine.rs` (1,124 lines) -- Array-3 cube deployment.
+  Complex installation logic. Clean async.
+- `cube_relay.rs` (863 lines) -- PlenumLAN relay. WebSocket tunneling.
+  Uses tokio-tungstenite. Background health monitor.
+- `query.rs` (629 lines) -- query decomposition flow. Integrates orchestrator.
+- `agents.rs` (591 lines) -- agent management API. CRUD + sync.
+- `auth.rs` (581 lines) -- JWT auth, argon2 password hashing. Standard.
+- `security.rs` (498 lines) -- Phase Encryption key management.
+  Calls plenumnet-bridge for all crypto.
+- `capability.rs` (213 lines) -- engine capability detection.
+- `settings.rs` (217 lines) -- engine configuration API.
+- `websocket.rs` (209 lines) -- WebSocket upgrade handler.
+- `modes.rs` (178 lines) -- Yoda/Ronin mode management.
+- `kb.rs` (163 lines) -- Knowledge base API routes.
+- `audit.rs` (140 lines) -- audit log API.
+- `state.rs` (122 lines) -- AppState with db pool + agent registry + health state.
+- `error.rs` (60 lines) -- error types. Clean thiserror usage.
+- `bible.rs` (107 lines) -- Task Bible API routes.
+- `llm_agent_gateway.rs` (481 lines) -- LLM gateway for agent execution.
+
+**Risk:** Medium. The crate compiles IF all deps resolve.
+routes.rs at 1,740 lines should be split.
+kyokushin_brothers.rs stale LOC comment.
+
+---
+
+### yoda-crs (463 lines | 1 file)
+
+Cube Registration Service. Single binary.
+
+**Findings:**
+- Depends on `inter-cube` from private Ternary repo (separate package).
+- Same auth/availability problem as ternary-math.
+- Code not reviewed in detail due to time -- single file, likely compiles
+  if inter-cube is available.
+
+---
+
+### tools/yoda-agent-compiler (MISSING)
+
+Declared in workspace. Directory absent from archive. Referenced in
+Cargo.lock (has deps: anyhow, clap, serde). Build script
+`scripts/compile-agents.sh` exists and appears to call it.
+
+**This is the most likely cause of the frozen compile.**
+
+---
+
+## STRUCTURAL FINDINGS
+
+### Dependency fan-out from ternary-math
+
+Every crate in the workspace depends on yoda-plenumnet-bridge, which
+depends on ternary-math. This is a single point of failure:
+
+- If ternary-math can't be fetched: 0/7 crates compile
+- If ternary-math API changes: yoda-plenumnet-bridge breaks, then 0/7
+- The crypto functions (TIS-27 hash, TL-DSA sign) are used for integrity
+  and audit. They're called at runtime, not build-time. The compile-time
+  coupling could be loosened with a trait abstraction if needed.
+
+### wasm-bindgen in ternary-math
+
+Cargo.lock shows ternary-math depends on wasm-bindgen. On a native Linux
+build (Replit runs Linux), this compiles the entire wasm-bindgen toolchain
+even if no WASM target is used. This adds 2-5 minutes to a clean build
+and is likely contributing to the "frozen" perception.
+
+### No .cargo/config.toml
+
+The workspace Cargo.toml comments mention creating one for local
+development, but none exists. On Replit, without a config override,
+cargo must fetch from GitHub every time.
+
+---
+
+## IMMEDIATE FIX (get it compiling today)
+
+Three changes, in order:
+
+**1. Comment out the missing workspace member:**
+```toml
+members = [
+    "crates/yoda-orchestrator",
+    "crates/yoda-inference-router",
+    "crates/yoda-knowledge-base",
+    "crates/yoda-task-bible",
+    "crates/yoda-api",
+    "crates/yoda-plenumnet-bridge",
+    "crates/yoda-crs",
+    # "tools/yoda-agent-compiler",
+]
+```
+
+**2. Configure GitHub auth for Replit:**
+In Replit shell:
+```bash
+git config --global url."https://<YOUR_PAT>@github.com/".insteadOf "https://github.com/"
+```
+
+**3. If commit 43678a7 is gone from Ternary repo:**
+Update Cargo.toml to point to the current branch:
+```toml
+ternary-math = { git = "https://github.com/SigmaWolf-8/Ternary", branch = "main" }
+```
+Then delete Cargo.lock and run `cargo update`.
+
+After these three, `cargo check` should resolve the workspace and start
+compiling. The 16,665 lines of Rust code itself appears structurally
+sound -- the issues are all at the dependency/workspace resolution layer.
+
+---
+
+*Salvi Standard of Scrutiny: Impeachable and Impenetrable.*
+*Lo Sono Capomastro -- Così sia.*

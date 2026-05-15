@@ -78,3 +78,9 @@ id = "UDpjGExCTzsyVH8fJSaAH"
 uri = "file://yoda-src.tar.gz"
 type = "unspecified"
 title = "YODA Project — Full Source (no build artifacts)"
+
+[[outputs]]
+id = "R2KTvLj85TJeD1wuXRinc"
+uri = "file://yoda-src-full.tar.gz"
+type = "unspecified"
+title = "YODA Full Source — includes tools/ (all 8 workspace members)"
