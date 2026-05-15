@@ -1,0 +1,38 @@
+[package]
+name = "kyokushin-brothers"
+version = "0.1.0"
+edition = "2021"
+description = "Kyokushin Brothers · Full Contact Orchestration Engine | 同時実行 | YODA daemon integration"
+authors = ["Capomastro Holdings Ltd. <lo.sono.capomastro@capomastro.io>"]
+license = "MIT OR Apache-2.0"
+
+[dependencies]
+tokio = { version = "1.36", features = ["full"] }
+axum = "0.7"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+chrono = { version = "0.4", features = ["serde"] }
+uuid = { version = "1.0", features = ["v4", "serde"] }
+thiserror = "1.0"
+tracing = "0.1"
+tracing-subscriber = "0.3"
+anyhow = "1.0"
+hyper = "1.0"
+tower = "0.4"
+tower-http = { version = "0.5", features = ["cors", "trace"] }
+
+[dev-dependencies]
+tokio-test = "0.4"
+
+[[bin]]
+name = "kyokushin-brothers"
+path = "src/main.rs"
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+
+[profile.dev]
+opt-level = 0
+debug = true

@@ -27,6 +27,7 @@ use tower_http::trace::TraceLayer;
 use tracing_subscriber::EnvFilter;
 
 pub mod agents;
+pub mod array3_installation_engine;
 pub mod audit;
 pub mod auth;
 pub mod bible;
@@ -34,6 +35,7 @@ pub mod capability;
 pub mod cube_relay;
 pub mod error;
 pub mod kb;
+pub mod kyokushin_brothers;
 pub mod llm_agent_gateway;
 pub mod modes;
 pub mod query;
@@ -123,6 +125,9 @@ async fn main() -> anyhow::Result<()> {
     // ── Spawn relay health monitor (updates engine DB every 30 s) ───
     cube_relay::spawn_relay_health_monitor(state.clone());
 
+    // ── Initialize Kyokushin Brothers (Alpha/Beta/Gamma orchestrator) ─
+    let kyokushin = kyokushin_brothers::init_kyokushin_brothers().await;
+
     // ── Build router ─────────────────────────────────────────────────
     let cors = CorsLayer::new()
         .allow_origin(Any)
@@ -140,6 +145,7 @@ async fn main() -> anyhow::Result<()> {
         .route("/health", get(health))
         .route("/api/health", get(health))
         .merge(routes::build_router(state))
+        .merge(kyokushin_brothers::kyokushin_routes(kyokushin))
         .fallback_service(serve_dir)
         .layer(middleware::map_response(no_cache_static))
         .layer(cors)
