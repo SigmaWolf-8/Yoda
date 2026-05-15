@@ -32,6 +32,7 @@ import { CostTracker } from '../components/monitoring/CostTracker';
 import { CensorshipLog } from '../components/monitoring/CensorshipLog';
 import { NeighborTable } from '../components/monitoring/NeighborTable';
 import { DaemonLogsPanel } from '../components/monitoring/DaemonLogsPanel';
+import { LlmGatewayPanel } from '../components/monitoring/LlmGatewayPanel';
 import type { TaskReview } from '../types/task-review';
 import { usePageHeader } from '../context/PageHeader';
 
@@ -173,6 +174,11 @@ export function MonitoringPage() {
       {/* ── Engine health ── */}
       <PanelErrorBoundary label="Engine Health">
         <EngineHealthDashboard engines={engines ?? []} />
+      </PanelErrorBoundary>
+
+      {/* ── Cloud LLM Gateway (Alpha/Beta/Gamma) ── */}
+      <PanelErrorBoundary label="Cloud LLM Gateway">
+        <LlmGatewayPanel />
       </PanelErrorBoundary>
 
       {/* ── AI latency chart ── */}
