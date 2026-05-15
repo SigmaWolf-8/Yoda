@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { Outlet, NavLink } from 'react-router-dom';
 import {
   LayoutDashboard,
@@ -30,8 +30,17 @@ const MAIN_NAV = [
 /* Sidebar logo-area height in px — top bar must match this */
 export const HEADER_H = 144;
 
-function SidebarLogoVideo() {
+function SidebarLogoVideo({ collapsed }: { collapsed: boolean }) {
   const { sidebarRef, playSidebar } = useVideoPlay();
+  const wasCollapsed = useRef(collapsed);
+
+  useEffect(() => {
+    if (wasCollapsed.current && !collapsed) {
+      playSidebar();
+    }
+    wasCollapsed.current = collapsed;
+  }, [collapsed, playSidebar]);
+
   return (
     <video
       ref={sidebarRef}
@@ -160,7 +169,7 @@ export function AppShell() {
             ].join(', '),
           }}
         >
-          <SidebarLogoVideo />
+          <SidebarLogoVideo collapsed={collapsed} />
           {/* Mobile close button floats over the video */}
           <button
             className="absolute top-2 right-2 lg:hidden text-white/70 hover:text-white bg-black/30 rounded p-0.5"
