@@ -34,6 +34,7 @@ pub mod capability;
 pub mod cube_relay;
 pub mod error;
 pub mod kb;
+pub mod llm_agent_gateway;
 pub mod modes;
 pub mod query;
 pub mod routes;

@@ -129,6 +129,9 @@ pub fn build_router(state: AppState) -> Router {
         // Capability matrix (B7.1)
         .route("/api/settings/capabilities", get(get_capabilities))
 
+        // LLM Gateway health (Alpha/Beta/Gamma cloud agents)
+        .route("/api/health/llm", get(llm_health))
+
         // Agent roster and upstream sync
         .route("/api/agents", get(agents::list_agents))
         .route("/api/agents/sync-status", get(agents::sync_status))
@@ -155,6 +158,33 @@ pub fn build_router(state: AppState) -> Router {
 // ═══════════════════════════════════════════════════════════════════════
 // Inline handlers (kept here for routes that don't warrant their own module)
 // ═══════════════════════════════════════════════════════════════════════
+
+// ─── LLM Gateway health ───────────────────────────────────────────────
+
+async fn llm_health(
+    State(state): State<AppState>,
+) -> Json<serde_json::Value> {
+    match &state.llm_gateway {
+        Some(gateway) => {
+            let status = gateway.health_check().await;
+            Json(serde_json::json!({
+                "alpha": status.alpha,
+                "beta": status.beta,
+                "gamma": status.gamma,
+                "any_available": status.any_available,
+                "all_available": status.all_available,
+            }))
+        }
+        None => Json(serde_json::json!({
+            "alpha": false,
+            "beta": false,
+            "gamma": false,
+            "any_available": false,
+            "all_available": false,
+            "note": "Cloud LLM gateway not configured — set ANTHROPIC_API_KEY + OPENAI_API_KEY + TOGETHER_API_KEY"
+        })),
+    }
+}
 
 // ─── Lineages ────────────────────────────────────────────────────────
 

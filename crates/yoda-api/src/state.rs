@@ -9,6 +9,7 @@ use uuid::Uuid;
 use yoda_inference_router::health::SharedHealthState;
 use yoda_orchestrator::agent::AgentRegistry;
 
+use crate::llm_agent_gateway::LlmAgentGateway;
 use crate::websocket::PipelineChannels;
 use crate::cube_relay::{LiveCubePeer, PendingRelays, RelayTx};
 
@@ -48,6 +49,10 @@ pub struct AppState {
     /// Before spawning a new bg inference loop for a task, cancel the existing token
     /// (if any) and insert a fresh one. The bg loop checks this token between retries.
     pub task_cancel_tokens: Arc<RwLock<HashMap<Uuid, CancellationToken>>>,
+    /// Optional cloud LLM gateway (Alpha/Beta/Gamma agents over TLS 1.3 tunnels).
+    /// Initialised at startup when ANTHROPIC_API_KEY / OPENAI_API_KEY / TOGETHER_API_KEY
+    /// are present. None when no cloud keys are configured.
+    pub llm_gateway: Option<Arc<LlmAgentGateway>>,
 }
 
 impl AppState {
@@ -68,6 +73,31 @@ impl AppState {
         let lineages_path = std::env::var("MODEL_LINEAGES_PATH")
             .unwrap_or_else(|_| "./model_lineages.json".to_string());
 
+        // ── Optional cloud LLM gateway ──────────────────────────────────
+        // Initialise only when all three API keys are present in the environment.
+        // Missing keys are logged as INFO (not WARN/ERROR) — self-hosted-only
+        // deployments are fully supported without cloud credentials.
+        let llm_gateway = {
+            let alpha = std::env::var("ANTHROPIC_API_KEY").ok();
+            let beta  = std::env::var("OPENAI_API_KEY").ok();
+            let gamma = std::env::var("TOGETHER_API_KEY").ok();
+            match (alpha, beta, gamma) {
+                (Some(a), Some(b), Some(g)) => {
+                    tracing::info!("Cloud LLM keys present — initialising Alpha/Beta/Gamma gateway");
+                    Some(Arc::new(
+                        LlmAgentGateway::new_sync(a, b, g)
+                    ))
+                }
+                _ => {
+                    tracing::info!(
+                        "Cloud LLM gateway disabled — set ANTHROPIC_API_KEY + \
+                         OPENAI_API_KEY + TOGETHER_API_KEY to enable Alpha/Beta/Gamma agents"
+                    );
+                    None
+                }
+            }
+        };
+
         Self {
             db,
             jwt_secret,
@@ -86,6 +116,7 @@ impl AppState {
             pending_relays: crate::cube_relay::new_pending_relays(),
             live_cube_peer: crate::cube_relay::new_live_cube_peer(),
             task_cancel_tokens: Arc::new(RwLock::new(HashMap::new())),
+            llm_gateway,
         }
     }
 }
