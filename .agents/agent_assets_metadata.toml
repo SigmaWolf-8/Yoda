@@ -60,3 +60,15 @@ id = "YrOCOq7UcMR5vDi7Z8gIk"
 uri = "file://yoda-full.zip"
 type = "unspecified"
 title = "YODA Complete Source (518 files — frontend, backend, agents, docs, config)"
+
+[[outputs]]
+id = "kaLRIMvRRNqivT5M7STkX"
+uri = "file://yoda-daemon-files.zip"
+type = "unspecified"
+title = "YODA Daemon & Relay Source Files"
+
+[[outputs]]
+id = "_HbzUhfXDxnfF2U6mhHRn"
+uri = "file://yoda-frontend.zip"
+type = "unspecified"
+title = "YODA Frontend Source (src only, no node_modules)"
