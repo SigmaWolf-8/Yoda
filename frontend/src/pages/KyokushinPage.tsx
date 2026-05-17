@@ -268,6 +268,20 @@ function ResultCard({ result, index }: { result: UnifiedResponse; index: number 
   );
 }
 
+const STORAGE_KEY = 'kyokushin-results-v1';
+
+function loadStoredResults(): UnifiedResponse[] {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return [];
+    return JSON.parse(raw) as UnifiedResponse[];
+  } catch { return []; }
+}
+
+function saveResults(results: UnifiedResponse[]) {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(results.slice(0, 20))); } catch { /* quota */ }
+}
+
 /* ── Page ── */
 export function KyokushinPage() {
   const [health, setHealth] = useState<HealthStatus | null>(null);
@@ -276,7 +290,7 @@ export function KyokushinPage() {
   const [constraints, setConstraints] = useState<string[]>([]);
   const [newConstraint, setNewConstraint] = useState('');
   const [loading, setLoading] = useState(false);
-  const [results, setResults] = useState<UnifiedResponse[]>([]);
+  const [results, setResults] = useState<UnifiedResponse[]>(loadStoredResults);
   const [error, setError] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -312,7 +326,11 @@ export function KyokushinPage() {
       });
       if (!res.ok) throw new Error((await res.text()) || `HTTP ${res.status}`);
       const data: UnifiedResponse = await res.json();
-      setResults(prev => [data, ...prev.slice(0, 9)]);
+      setResults(prev => {
+        const next = [data, ...prev.slice(0, 19)];
+        saveResults(next);
+        return next;
+      });
       setQuery('');
       setContext('');
       setConstraints([]);
@@ -486,7 +504,12 @@ export function KyokushinPage() {
             <span className="ml-1 text-xs px-2 py-0.5 rounded-full" style={{ background: 'rgba(139,166,51,0.12)', color: '#8BA633', fontFamily: "'JetBrains Mono', monospace" }}>
               {results.length}
             </span>
-            <Clock className="w-3.5 h-3.5 ml-auto" style={{ color: '#6B655E' }} />
+            <button
+              onClick={() => { setResults([]); localStorage.removeItem(STORAGE_KEY); }}
+              className="ml-auto text-xs px-2 py-0.5 rounded"
+              style={{ color: '#6B655E', background: 'transparent', border: '1px solid #272220', cursor: 'pointer', fontFamily: "'JetBrains Mono', monospace" }}
+              title="Clear all results"
+            >clear</button>
           </div>
           {results.map((r, i) => <ResultCard key={r.task_id} result={r} index={i} />)}
         </div>
