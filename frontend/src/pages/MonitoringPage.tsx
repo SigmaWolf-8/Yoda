@@ -1,6 +1,6 @@
 import { useEffect, useState, Component } from 'react';
 import type { ReactNode } from 'react';
-import { BarChart3, Loader2, RefreshCw, AlertTriangle, Cpu, Activity, Network } from 'lucide-react';
+import { BarChart3, Loader2, RefreshCw, AlertTriangle, Network, Activity } from 'lucide-react';
 
 class PanelErrorBoundary extends Component<{ label: string; children: ReactNode }, { error: string | null }> {
   constructor(props: { label: string; children: ReactNode }) {
@@ -34,7 +34,6 @@ import { CensorshipLog } from '../components/monitoring/CensorshipLog';
 import { NeighborTable } from '../components/monitoring/NeighborTable';
 import { DaemonLogsPanel } from '../components/monitoring/DaemonLogsPanel';
 import { LlmGatewayPanel } from '../components/monitoring/LlmGatewayPanel';
-import { KyokushinPanel } from '../components/monitoring/KyokushinPanel';
 import type { TaskReview } from '../types/task-review';
 import { usePageHeader } from '../context/PageHeader';
 
@@ -69,12 +68,11 @@ async function crsGet<T>(path: string): Promise<T> {
   return res.json() as Promise<T>;
 }
 
-type Tab = 'array3' | 'kyokushin' | 'metrics';
+type Tab = 'array3' | 'metrics';
 
-const TABS: { id: Tab; label: string; icon: typeof Cpu }[] = [
-  { id: 'array3',     label: 'Array3 3D',  icon: Network },
-  { id: 'kyokushin',  label: 'Kyokushin',  icon: Cpu     },
-  { id: 'metrics',    label: 'Metrics',    icon: Activity },
+const TABS: { id: Tab; label: string; icon: typeof Network }[] = [
+  { id: 'array3',  label: 'Array3 3D', icon: Network  },
+  { id: 'metrics', label: 'Metrics',   icon: Activity },
 ];
 
 export function MonitoringPage() {
@@ -89,7 +87,7 @@ export function MonitoringPage() {
   usePageHeader({
     icon: BarChart3,
     title: 'Monitoring',
-    subtitle: 'Array3 · Kyokushin Brothers · node health · engine status',
+    subtitle: 'Array3 3D cluster view · node health · engine metrics',
   });
 
   useEffect(() => {
@@ -133,7 +131,7 @@ export function MonitoringPage() {
       {/* ── Tab bar ── */}
       <div
         className="flex items-center gap-1 px-6 pt-4 pb-0 border-b flex-shrink-0"
-        style={{ borderColor: 'rgba(255,255,255,0.07)', background: 'transparent' }}
+        style={{ borderColor: 'rgba(255,255,255,0.07)' }}
       >
         {TABS.map(({ id, label, icon: Icon }) => (
           <button
@@ -154,7 +152,7 @@ export function MonitoringPage() {
         <button
           onClick={() => refetch()}
           disabled={isFetching}
-          className="flex items-center gap-1.5 px-3 py-1.5 mb-1.5 rounded-lg text-sm border border-[var(--color-border-default)] bg-[var(--color-surface-secondary)] text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)] hover:border-[var(--color-border-strong)] transition-colors disabled:opacity-50"
+          className="flex items-center gap-1.5 px-3 py-1.5 mb-1.5 rounded-lg text-sm border border-[var(--color-border-default)] bg-[var(--color-surface-secondary)] text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)] transition-colors disabled:opacity-50"
         >
           <RefreshCw className={`w-3.5 h-3.5 ${isFetching ? 'animate-spin' : ''}`} />
           Refresh
@@ -173,18 +171,7 @@ export function MonitoringPage() {
         </div>
       )}
 
-      {/* ── Kyokushin tab ── */}
-      {activeTab === 'kyokushin' && (
-        <div className="flex-1 overflow-y-auto p-6 lg:p-8">
-          <div className="max-w-4xl mx-auto">
-            <PanelErrorBoundary label="Kyokushin Brothers">
-              <KyokushinPanel />
-            </PanelErrorBoundary>
-          </div>
-        </div>
-      )}
-
-      {/* ── Metrics tab — existing panels ── */}
+      {/* ── Metrics tab ── */}
       {activeTab === 'metrics' && (
         <div className="flex-1 overflow-y-auto p-6 lg:p-8">
           <div className="max-w-5xl mx-auto animate-fade-in space-y-5">

@@ -19,6 +19,7 @@ import { EngineSettingsPage } from './pages/settings/EngineSettingsPage';
 import { OrgSettingsPage } from './pages/settings/OrgSettingsPage';
 import { ApiKeyPage } from './pages/settings/ApiKeyPage';
 import { MonitoringPage } from './pages/MonitoringPage';
+import { KyokushinPage } from './pages/KyokushinPage';
 import { AgentsPage } from './pages/AgentsPage';
 import { AboutPage } from './pages/AboutPage';
 
@@ -82,6 +83,7 @@ export const router = createBrowserRouter([
           { path: 'settings/org', element: <OrgSettingsPage /> },
           { path: 'settings/api-keys', element: <ApiKeyPage /> },
           { path: 'monitoring', element: <MonitoringPage /> },
+          { path: 'kyokushin', element: <KyokushinPage /> },
           { path: 'agents', element: <AgentsPage /> },
           { path: 'about', element: <AboutPage /> },
         ],

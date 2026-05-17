@@ -12,6 +12,7 @@ import {
   Cpu,
   ChevronLeft,
   ChevronRight,
+  Zap,
 } from 'lucide-react';
 import { UserProfile } from '../auth/UserProfile';
 import { usePageHeaderCtx } from '../../context/PageHeader';
@@ -19,10 +20,11 @@ import { VideoPlayProvider, useVideoPlay } from '../../context/VideoPlay';
 
 /* ── Nav config ── */
 const MAIN_NAV = [
-  { to: '/',           icon: LayoutDashboard, label: 'Dashboard' },
-  { to: '/projects',   icon: FolderKanban,    label: 'Projects' },
+  { to: '/',                 icon: LayoutDashboard, label: 'Dashboard'  },
+  { to: '/projects',         icon: FolderKanban,    label: 'Projects'   },
   { to: '/agents',           icon: Users,           label: 'Agents'     },
   { to: '/settings/engines', icon: Cpu,             label: 'AI Engines' },
+  { to: '/kyokushin',        icon: Zap,             label: 'Kyokushin'  },
   { to: '/monitoring',       icon: BarChart3,       label: 'Monitoring' },
   { to: '/about',            icon: Info,            label: 'About'      },
 ] as const;
