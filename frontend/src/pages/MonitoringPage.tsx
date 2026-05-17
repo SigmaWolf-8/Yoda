@@ -1,6 +1,6 @@
 import { useEffect, useState, Component } from 'react';
 import type { ReactNode } from 'react';
-import { BarChart3, Loader2, RefreshCw, AlertTriangle } from 'lucide-react';
+import { BarChart3, Loader2, RefreshCw, AlertTriangle, Cpu, Activity, Network } from 'lucide-react';
 
 class PanelErrorBoundary extends Component<{ label: string; children: ReactNode }, { error: string | null }> {
   constructor(props: { label: string; children: ReactNode }) {
@@ -22,6 +22,7 @@ class PanelErrorBoundary extends Component<{ label: string; children: ReactNode 
     return this.props.children;
   }
 }
+
 import { useEngineConfigs } from '../api/hooks';
 import { NodeHealthStrip } from '../components/monitoring/NodeHealthStrip';
 import { NodeCard } from '../components/monitoring/NodeCard';
@@ -33,6 +34,7 @@ import { CensorshipLog } from '../components/monitoring/CensorshipLog';
 import { NeighborTable } from '../components/monitoring/NeighborTable';
 import { DaemonLogsPanel } from '../components/monitoring/DaemonLogsPanel';
 import { LlmGatewayPanel } from '../components/monitoring/LlmGatewayPanel';
+import { KyokushinPanel } from '../components/monitoring/KyokushinPanel';
 import type { TaskReview } from '../types/task-review';
 import { usePageHeader } from '../context/PageHeader';
 
@@ -67,8 +69,17 @@ async function crsGet<T>(path: string): Promise<T> {
   return res.json() as Promise<T>;
 }
 
+type Tab = 'array3' | 'kyokushin' | 'metrics';
+
+const TABS: { id: Tab; label: string; icon: typeof Cpu }[] = [
+  { id: 'array3',     label: 'Array3 3D',  icon: Network },
+  { id: 'kyokushin',  label: 'Kyokushin',  icon: Cpu     },
+  { id: 'metrics',    label: 'Metrics',    icon: Activity },
+];
+
 export function MonitoringPage() {
   const { data: engines, isLoading, refetch, isFetching } = useEngineConfigs({ refetchInterval: 30_000 });
+  const [activeTab, setActiveTab] = useState<Tab>('array3');
 
   const [crsStats,    setCrsStats]    = useState<CrsStats | null>(null);
   const [ftsStats,    setFtsStats]    = useState<FtsStats | null>(null);
@@ -78,36 +89,25 @@ export function MonitoringPage() {
   usePageHeader({
     icon: BarChart3,
     title: 'Monitoring',
-    subtitle: 'Node health · engine status · network view · AI metrics',
+    subtitle: 'Array3 · Kyokushin Brothers · node health · engine status',
   });
 
   useEffect(() => {
     let cancelled = false;
-
     async function fetchAll() {
-      // CRS stats (always try)
       try {
         const data = await crsGet<CrsStats>('/api/salvi/inter-cube/crs/stats');
         if (!cancelled) { setCrsStats(data); setCrsError(false); }
-      } catch {
-        if (!cancelled) setCrsError(true);
-      }
-
-      // FTS status
+      } catch { if (!cancelled) setCrsError(true); }
       try {
         const data = await crsGet<FtsStats>('/api/salvi/inter-cube/fts/status');
         if (!cancelled) setFtsStats(data);
-      } catch { /* FTS optional */ }
-
-      // Registered nodes → pick YODA node address (most recent heartbeat)
+      } catch { /* optional */ }
       try {
         const data = await crsGet<{ nodes: RegisteredNode[] }>('/api/monitoring/registered-nodes');
-        if (!cancelled && data.nodes.length > 0) {
-          setNodeAddress(data.nodes[0].address);
-        }
-      } catch { /* address optional */ }
+        if (!cancelled && data.nodes.length > 0) setNodeAddress(data.nodes[0].address);
+      } catch { /* optional */ }
     }
-
     fetchAll();
     const id = setInterval(fetchAll, 15_000);
     return () => { cancelled = true; clearInterval(id); };
@@ -115,97 +115,129 @@ export function MonitoringPage() {
 
   const metricsData: { timestamp: string; engine_a?: number; engine_b?: number; engine_c?: number }[] = [];
   const allReviews: TaskReview[] = [];
-
-  const crsReachable  = !crsError && crsStats !== null;
-  const crsHasNode    = crsReachable && (crsStats?.registeredCount ?? 0) > 0;
+  const crsReachable = !crsError && crsStats !== null;
+  const crsHasNode   = crsReachable && (crsStats?.registeredCount ?? 0) > 0;
 
   if (isLoading) {
     return (
       <div className="flex items-center gap-2 text-[var(--color-text-muted)] p-8 justify-center">
         <Loader2 className="w-4 h-4 animate-spin" />
-        <span className="text-sm">Loading engine status…</span>
+        <span className="text-sm">Loading…</span>
       </div>
     );
   }
 
   return (
-    <div className="p-6 lg:p-8 max-w-5xl mx-auto animate-fade-in space-y-5">
+    <div className="flex flex-col h-full">
 
-      {/* Refresh */}
-      <div className="flex items-center justify-end">
+      {/* ── Tab bar ── */}
+      <div
+        className="flex items-center gap-1 px-6 pt-4 pb-0 border-b flex-shrink-0"
+        style={{ borderColor: 'rgba(255,255,255,0.07)', background: 'transparent' }}
+      >
+        {TABS.map(({ id, label, icon: Icon }) => (
+          <button
+            key={id}
+            onClick={() => setActiveTab(id)}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-t-lg text-sm font-semibold transition-all border-b-2 -mb-px"
+            style={{
+              color: activeTab === id ? '#4A9EF5' : '#6B655E',
+              borderBottomColor: activeTab === id ? '#4A9EF5' : 'transparent',
+              background: activeTab === id ? 'rgba(74,158,245,0.06)' : 'transparent',
+            }}
+          >
+            <Icon className="w-4 h-4" />
+            {label}
+          </button>
+        ))}
+        <div className="flex-1" />
         <button
           onClick={() => refetch()}
           disabled={isFetching}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm border border-[var(--color-border-default)] bg-[var(--color-surface-secondary)] text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)] hover:border-[var(--color-border-strong)] transition-colors disabled:opacity-50"
+          className="flex items-center gap-1.5 px-3 py-1.5 mb-1.5 rounded-lg text-sm border border-[var(--color-border-default)] bg-[var(--color-surface-secondary)] text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)] hover:border-[var(--color-border-strong)] transition-colors disabled:opacity-50"
         >
           <RefreshCw className={`w-3.5 h-3.5 ${isFetching ? 'animate-spin' : ''}`} />
           Refresh
         </button>
       </div>
 
-      {/* ── Health strip ── */}
-      <PanelErrorBoundary label="Health Strip">
-        <NodeHealthStrip
-          engines={engines ?? []}
-          crsReachable={crsReachable}
-          crsHasNode={crsHasNode}
-        />
-      </PanelErrorBoundary>
-
-      {/* ── Node card + engine connections ── */}
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-5">
-        <div className="md:col-span-2">
-          <PanelErrorBoundary label="Node Card">
-            <NodeCard
-              stats={crsStats}
-              fts={ftsStats}
-              error={crsError}
-              nodeAddress={nodeAddress}
-            />
-          </PanelErrorBoundary>
+      {/* ── Array3 tab — full-height iframe ── */}
+      {activeTab === 'array3' && (
+        <div className="flex-1 min-h-0">
+          <iframe
+            src="/array3-monitor.html"
+            className="w-full h-full border-0"
+            title="Array3 Monitor — PlenumNET 3D Cluster View"
+            allow="autoplay"
+          />
         </div>
-        <div className="md:col-span-3">
-          <PanelErrorBoundary label="PlenumNET Panel">
-            <PlenumNetPanel engines={engines ?? []} />
-          </PanelErrorBoundary>
+      )}
+
+      {/* ── Kyokushin tab ── */}
+      {activeTab === 'kyokushin' && (
+        <div className="flex-1 overflow-y-auto p-6 lg:p-8">
+          <div className="max-w-4xl mx-auto">
+            <PanelErrorBoundary label="Kyokushin Brothers">
+              <KyokushinPanel />
+            </PanelErrorBoundary>
+          </div>
         </div>
-      </div>
+      )}
 
-      {/* ── Engine health ── */}
-      <PanelErrorBoundary label="Engine Health">
-        <EngineHealthDashboard engines={engines ?? []} />
-      </PanelErrorBoundary>
+      {/* ── Metrics tab — existing panels ── */}
+      {activeTab === 'metrics' && (
+        <div className="flex-1 overflow-y-auto p-6 lg:p-8">
+          <div className="max-w-5xl mx-auto animate-fade-in space-y-5">
 
-      {/* ── Cloud LLM Gateway (Alpha/Beta/Gamma) ── */}
-      <PanelErrorBoundary label="Cloud LLM Gateway">
-        <LlmGatewayPanel />
-      </PanelErrorBoundary>
+            <PanelErrorBoundary label="Health Strip">
+              <NodeHealthStrip engines={engines ?? []} crsReachable={crsReachable} crsHasNode={crsHasNode} />
+            </PanelErrorBoundary>
 
-      {/* ── AI latency chart ── */}
-      <PanelErrorBoundary label="Metrics Chart">
-        <InferenceMetricsChart data={metricsData} />
-      </PanelErrorBoundary>
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-5">
+              <div className="md:col-span-2">
+                <PanelErrorBoundary label="Node Card">
+                  <NodeCard stats={crsStats} fts={ftsStats} error={crsError} nodeAddress={nodeAddress} />
+                </PanelErrorBoundary>
+              </div>
+              <div className="md:col-span-3">
+                <PanelErrorBoundary label="PlenumNET Panel">
+                  <PlenumNetPanel engines={engines ?? []} />
+                </PanelErrorBoundary>
+              </div>
+            </div>
 
-      {/* ── Network neighbor view ── */}
-      <PanelErrorBoundary label="Network View">
-        <NeighborTable />
-      </PanelErrorBoundary>
+            <PanelErrorBoundary label="Engine Health">
+              <EngineHealthDashboard engines={engines ?? []} />
+            </PanelErrorBoundary>
 
-      {/* ── Cost + censorship ── */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-        <PanelErrorBoundary label="Cost Tracker">
-          <CostTracker engines={engines ?? []} />
-        </PanelErrorBoundary>
-        <PanelErrorBoundary label="Censorship Log">
-          <CensorshipLog reviews={allReviews} />
-        </PanelErrorBoundary>
-      </div>
+            <PanelErrorBoundary label="Cloud LLM Gateway">
+              <LlmGatewayPanel />
+            </PanelErrorBoundary>
 
-      {/* ── Daemon logs ── */}
-      <PanelErrorBoundary label="Daemon Logs">
-        <DaemonLogsPanel />
-      </PanelErrorBoundary>
+            <PanelErrorBoundary label="Metrics Chart">
+              <InferenceMetricsChart data={metricsData} />
+            </PanelErrorBoundary>
 
+            <PanelErrorBoundary label="Network View">
+              <NeighborTable />
+            </PanelErrorBoundary>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              <PanelErrorBoundary label="Cost Tracker">
+                <CostTracker engines={engines ?? []} />
+              </PanelErrorBoundary>
+              <PanelErrorBoundary label="Censorship Log">
+                <CensorshipLog reviews={allReviews} />
+              </PanelErrorBoundary>
+            </div>
+
+            <PanelErrorBoundary label="Daemon Logs">
+              <DaemonLogsPanel />
+            </PanelErrorBoundary>
+
+          </div>
+        </div>
+      )}
     </div>
   );
 }
