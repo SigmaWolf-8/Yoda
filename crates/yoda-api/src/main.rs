@@ -54,13 +54,20 @@ async fn no_cache_static(resp: Response) -> Response {
         .get(CONTENT_TYPE)
         .and_then(|v| v.to_str().ok())
         .unwrap_or("");
-    let is_revalidatable = ct.starts_with("text/html")
+    let is_html = ct.starts_with("text/html");
+    let is_revalidatable = is_html
         || ct.starts_with("application/javascript")
         || ct.starts_with("text/javascript");
     if !is_revalidatable {
         return resp;
     }
     let mut resp = resp;
+    // ServeDir returns 404 when serving the SPA index.html fallback.
+    // Replit's proxy blocks 404 responses — rewrite to 200 for HTML so
+    // React Router can handle client-side paths like /kyokushin.
+    if is_html && resp.status() == axum::http::StatusCode::NOT_FOUND {
+        *resp.status_mut() = axum::http::StatusCode::OK;
+    }
     resp.headers_mut().insert(
         CACHE_CONTROL,
         HeaderValue::from_static("no-cache, must-revalidate"),
