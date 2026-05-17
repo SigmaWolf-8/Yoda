@@ -97,16 +97,28 @@ function WarriorBadge({ kanji, name, subtitle, ready }: { kanji: string; name: s
   );
 }
 
+/* Strip "N. " or "N." prefixes the backend sometimes pre-attaches to list items */
+function stripLeadingNumber(s: string): string {
+  return s.replace(/^\d+\.\s*/, '');
+}
+
 /* ── Execution timeline bars ── */
 function TimeBar({ label, start, end, color, total }: { label: string; start: number; end: number; color: string; total: number }) {
-  const pct = (v: number) => total > 0 ? (v / total) * 100 : 0;
+  const duration = end - start;
+  // When total is 0 or all values are 0, fall back to a proportional display
+  // using a minimum visible width so completed work is always shown.
+  const effectiveTotal = total > 0 ? total : 1;
+  const leftPct  = (start / effectiveTotal) * 100;
+  const widthPct = total > 0
+    ? Math.max(duration > 0 ? 2 : 0, (duration / effectiveTotal) * 100)
+    : (duration >= 0 ? 100 : 0); // all bars full-width when total unknown
   return (
     <div className="flex items-center gap-3">
       <span className="w-12 text-right text-xs flex-shrink-0" style={{ color: '#998F82', fontFamily: "'JetBrains Mono', monospace" }}>{label}</span>
       <div className="flex-1 relative h-5 rounded-md overflow-hidden" style={{ background: 'rgba(255,255,255,0.04)' }}>
         <div
           className="absolute top-0 h-full rounded-md"
-          style={{ left: `${pct(start)}%`, width: `${pct(end - start)}%`, background: color, opacity: 0.75 }}
+          style={{ left: `${leftPct}%`, width: `${widthPct}%`, background: color, opacity: 0.75 }}
         />
         <span className="absolute right-2 top-0 h-full flex items-center text-xs" style={{ color: '#998F82', fontFamily: "'JetBrains Mono', monospace" }}>
           {(end - start).toFixed(0)} ms
@@ -192,7 +204,7 @@ function ResultCard({ result, index }: { result: UnifiedResponse; index: number 
               <ol className="space-y-1.5">
                 {result.analysis.decomposition_steps.map((s, i) => (
                   <li key={i} className="flex gap-2 text-sm" style={{ color: '#C9C1B4' }}>
-                    <span className="flex-shrink-0 w-5 text-right" style={{ color: '#4A9EF5', fontFamily: "'JetBrains Mono', monospace" }}>{i + 1}.</span>{s}
+                    <span className="flex-shrink-0 w-5 text-right" style={{ color: '#4A9EF5', fontFamily: "'JetBrains Mono', monospace" }}>{i + 1}.</span>{stripLeadingNumber(s)}
                   </li>
                 ))}
               </ol>
@@ -206,7 +218,7 @@ function ResultCard({ result, index }: { result: UnifiedResponse; index: number 
               <ol className="space-y-1.5">
                 {result.implementation.algorithm_outline.map((step, i) => (
                   <li key={i} className="flex gap-2 text-sm" style={{ color: '#C9C1B4' }}>
-                    <span className="flex-shrink-0 w-5 text-right" style={{ color: '#FFCC44', fontFamily: "'JetBrains Mono', monospace" }}>{i + 1}.</span>{step}
+                    <span className="flex-shrink-0 w-5 text-right" style={{ color: '#FFCC44', fontFamily: "'JetBrains Mono', monospace" }}>{i + 1}.</span>{stripLeadingNumber(step)}
                   </li>
                 ))}
               </ol>
@@ -221,7 +233,12 @@ function ResultCard({ result, index }: { result: UnifiedResponse; index: number 
                 ? <CheckCircle className="w-4 h-4 flex-shrink-0" style={{ color: '#8BA633' }} />
                 : <XCircle className="w-4 h-4 flex-shrink-0" style={{ color: '#ff6b6b' }} />}
               <span className="text-sm" style={{ color: '#C9C1B4' }}>
-                Confidence {(result.validation.confidence * 100).toFixed(0)}% · {result.validation.execution_ms.toFixed(0)} ms
+                {(() => {
+                  const c = result.validation.confidence;
+                  const pct = (typeof c === 'number' && isFinite(c)) ? `${(c * 100).toFixed(0)}%` : 'pending';
+                  const ms = (typeof result.validation.execution_ms === 'number') ? `${result.validation.execution_ms.toFixed(0)} ms` : '';
+                  return [pct, ms].filter(Boolean).join(' · ');
+                })()}
               </span>
             </div>
             {result.validation.issues?.length > 0 && (
