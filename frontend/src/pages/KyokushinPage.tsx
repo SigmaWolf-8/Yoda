@@ -32,9 +32,31 @@ interface ImplementationResponse {
   code_modules: string[];
 }
 
+interface CheckResult {
+  overall: 'PASS' | 'WARNING' | 'FAIL';
+  notes: string;
+}
+interface SecurityCheck extends CheckResult {
+  timing_safety: 'PASS' | 'WARNING' | 'FAIL';
+  side_channel_resistance: 'PASS' | 'WARNING' | 'FAIL';
+}
+interface CorrectnessCheck extends CheckResult {
+  algorithm_match: 'PASS' | 'WARNING' | 'FAIL';
+  complexity_valid: 'PASS' | 'WARNING' | 'FAIL';
+  completeness: 'PASS' | 'WARNING' | 'FAIL';
+}
+interface PerformanceCheck extends CheckResult {
+  runtime_acceptable: boolean;
+  memory_acceptable: boolean;
+  parallelism_efficient: boolean;
+  estimated_throughput: string;
+}
 interface ValidationResponse {
-  verified: boolean;
-  confidence: number;
+  gate_status: 'APPROVED' | 'REQUIRESREVISION' | 'BLOCKED';
+  security_check: SecurityCheck;
+  correctness_check: CorrectnessCheck;
+  performance_check: PerformanceCheck;
+  approval_notes: string;
   issues: string[];
   execution_ms: number;
 }
@@ -227,22 +249,65 @@ function ResultCard({ result, index }: { result: UnifiedResponse; index: number 
 
           {/* Gamma — validation */}
           <div>
-            <p className="text-xs font-mono mb-2" style={{ color: '#8BA633' }}>VALIDATION — γ GAMMA</p>
-            <div className="flex items-center gap-3 mb-2">
-              {result.validation.verified
-                ? <CheckCircle className="w-4 h-4 flex-shrink-0" style={{ color: '#8BA633' }} />
-                : <XCircle className="w-4 h-4 flex-shrink-0" style={{ color: '#ff6b6b' }} />}
-              <span className="text-sm" style={{ color: '#C9C1B4' }}>
-                {(() => {
-                  const c = result.validation.confidence;
-                  const pct = (typeof c === 'number' && isFinite(c)) ? `${(c * 100).toFixed(0)}%` : 'pending';
-                  const ms = (typeof result.validation.execution_ms === 'number') ? `${result.validation.execution_ms.toFixed(0)} ms` : '';
-                  return [pct, ms].filter(Boolean).join(' · ');
-                })()}
-              </span>
-            </div>
+            <p className="text-xs font-mono mb-3" style={{ color: '#8BA633' }}>VALIDATION — γ GAMMA</p>
+
+            {/* Gate status banner */}
+            {(() => {
+              const gs = result.validation.gate_status;
+              const approved = gs === 'APPROVED';
+              const blocked  = gs === 'BLOCKED';
+              const color    = approved ? '#8BA633' : blocked ? '#ff6b6b' : '#FFCC44';
+              const Icon     = approved ? CheckCircle : XCircle;
+              return (
+                <div className="flex items-center gap-3 mb-3 px-3 py-2 rounded-lg" style={{ background: `${color}18`, border: `1px solid ${color}40` }}>
+                  <Icon className="w-4 h-4 flex-shrink-0" style={{ color }} />
+                  <span className="text-sm font-mono" style={{ color }}>
+                    {gs ?? 'UNKNOWN'}
+                  </span>
+                  <span className="text-xs ml-auto" style={{ color: '#998F82', fontFamily: "'JetBrains Mono', monospace" }}>
+                    {typeof result.validation.execution_ms === 'number' ? `${result.validation.execution_ms.toFixed(2)} ms` : ''}
+                  </span>
+                </div>
+              );
+            })()}
+
+            {/* Approval notes */}
+            {result.validation.approval_notes && (
+              <p className="text-sm mb-3" style={{ color: '#C9C1B4' }}>{result.validation.approval_notes}</p>
+            )}
+
+            {/* Check grid */}
+            {result.validation.security_check && (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-2 mb-3">
+                {[
+                  { label: 'Security',    overall: result.validation.security_check?.overall,    notes: result.validation.security_check?.notes },
+                  { label: 'Correctness', overall: result.validation.correctness_check?.overall, notes: result.validation.correctness_check?.notes },
+                  { label: 'Performance', overall: result.validation.performance_check?.overall, notes: result.validation.performance_check?.notes },
+                ].map(({ label, overall, notes }) => {
+                  const color = overall === 'PASS' ? '#8BA633' : overall === 'WARNING' ? '#FFCC44' : '#ff6b6b';
+                  return (
+                    <div key={label} className="rounded-lg px-3 py-2" style={{ background: 'rgba(255,255,255,0.03)', border: `1px solid ${color}30` }}>
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-xs font-mono" style={{ color, fontFamily: "'JetBrains Mono', monospace" }}>{overall ?? '—'}</span>
+                        <span className="text-xs" style={{ color: '#998F82' }}>{label}</span>
+                      </div>
+                      {notes && <p className="text-xs" style={{ color: '#6B655E' }}>{notes}</p>}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Throughput */}
+            {result.validation.performance_check?.estimated_throughput && (
+              <p className="text-xs font-mono" style={{ color: '#998F82' }}>
+                throughput: <span style={{ color: '#C9C1B4' }}>{result.validation.performance_check.estimated_throughput}</span>
+              </p>
+            )}
+
+            {/* Issues */}
             {result.validation.issues?.length > 0 && (
-              <ul className="space-y-1">
+              <ul className="space-y-1 mt-2">
                 {result.validation.issues.map((iss, i) => (
                   <li key={i} className="text-sm" style={{ color: '#ff6b6b' }}>⚠ {iss}</li>
                 ))}
