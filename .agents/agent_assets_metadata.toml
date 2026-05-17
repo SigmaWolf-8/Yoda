@@ -84,3 +84,9 @@ id = "R2KTvLj85TJeD1wuXRinc"
 uri = "file://yoda-src-full.tar.gz"
 type = "unspecified"
 title = "YODA Full Source — includes tools/ (all 8 workspace members)"
+
+[[outputs]]
+id = "agbq4mIlpheeBPkRQTLIA"
+uri = "file://kyokushin-source.tar.gz"
+type = "unspecified"
+title = "Kyokushin Source (frontend + backend)"
