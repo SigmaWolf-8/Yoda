@@ -90,3 +90,9 @@ id = "agbq4mIlpheeBPkRQTLIA"
 uri = "file://kyokushin-source.tar.gz"
 type = "unspecified"
 title = "Kyokushin Source (frontend + backend)"
+
+[[outputs]]
+id = "vvayZdkTYQYxVPXwn1kj6"
+uri = "file://yoda-full.tar.gz"
+type = "unspecified"
+title = "YODA — Full Source (frontend + backend + migrations + scripts)"
