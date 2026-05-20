@@ -700,12 +700,14 @@ function transformNode(nodeData,ni){
   return result;
 }
 
-// [HOST-FIX] Default to local-capable for any non-relay origin. The page is
-// served from the user's own machine alongside the daemons in 99% of cases —
-// only force relay when we are *actually* on plenumnet.replit.app. The
-// zero-alive-nodes → relay fallback at line ~900 still covers genuine remote
-// users who configured a token.
-let useRelay=window.location.origin.includes('plenumnet.replit.app');
+// [HOST-FIX-v2] Direct daemon fetch only makes sense when EITHER (a) the page
+// is genuinely local (file:// or localhost/127.0.0.1) OR (b) the user has
+// explicitly supplied a reachable daemon host via the Daemon Config panel.
+// For any other remote origin — production relay AND the Replit dev URL
+// (*.picard.replit.dev, *.replit.dev, etc.) — the daemons are NOT reachable
+// at `window.location.hostname:11488`; that hostname is just the page's own
+// server. Default to relay routing in that case.
+let useRelay=!_isLocal && !DAEMON_HOST_OVERRIDE;
 let lastFetchDiagnostic=null;
 // [YODA-EMBED] When this HUD is embedded in a host that is NOT the relay
 // itself (e.g. served as /array3-monitor.html from the YODA app), always
@@ -1039,8 +1041,8 @@ connBtn.addEventListener('click',async()=>{
   }
 
   connStatus.textContent=useRelay
-    ?('Fetching from relay '+RELAY_URL+'\u2026')
-    :('Connecting to local daemons at '+DAEMON_HOST+':'+NODE_PORTS.join(',')+'\u2026');
+    ?('Routing through relay '+RELAY_URL+' (daemons are not at this page\u2019s URL)\u2026')
+    :('Connecting to daemons at '+DAEMON_HOST+':'+NODE_PORTS.join(',')+'\u2026');
   connStatus.style.color=CSS.blueActive;
   connBtn.disabled=true;connBtn.textContent='Connecting...';
 
@@ -1126,14 +1128,14 @@ async function applyConfigAndReconnect(){
     const d=lastFetchDiagnostic;
     if(d){
       if(d.reason==='no-token'){
-        msg='Saved — relay token required for remote mode. Add a token or start local daemons.';
+        msg='Page is remote ('+window.location.hostname+'). Either set a Daemon host you can reach from this browser, or provide a relay token so polling routes via '+RELAY_URL+'.';
       }else if(d.relayStatus===401){
         msg='Relay token rejected (401) — verify it matches the server RELAY_API_TOKEN.';
       }else if(d.relayReturnedEmpty){
-        msg='No nodes registered with relay — start a daemon or check the relay cluster.';
+        msg='Relay reachable but no daemons are registered with it. Start a daemon or check the relay cluster.';
       }else if(d.triedLocal&&d.localErrors&&d.localErrors.length===NODE_PORTS.length){
         const sample=d.localErrors[0]?(' ('+d.localErrors[0].type+': '+d.localErrors[0].error+')'):'';
-        msg='Cannot reach daemons at '+d.host+':'+d.ports.join(',')+sample+' — check daemons are running and bound to a routable interface.';
+        msg='Cannot reach daemons at '+d.host+':'+d.ports.join(',')+sample+' — check daemons are running and reachable from this browser at that address.';
       }else if(d.relayStatus){
         msg='Relay error '+d.relayStatus+' — see overlay for details.';
       }
