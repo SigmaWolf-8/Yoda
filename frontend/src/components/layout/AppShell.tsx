@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { Outlet, NavLink, useLocation } from 'react-router-dom';
+import { Outlet, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard,
   FolderKanban,
@@ -13,6 +13,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Zap,
+  ArrowLeft,
 } from 'lucide-react';
 import { UserProfile } from '../auth/UserProfile';
 import { usePageHeaderCtx } from '../../context/PageHeader';
@@ -97,6 +98,14 @@ export function AppShell() {
   const [isResizing, setIsResizing]   = useState(false);
   const { header }                    = usePageHeaderCtx();
   const location                      = useLocation();
+  const navigate                      = useNavigate();
+  const navCount                      = useRef(0);
+  const [canGoBack, setCanGoBack]     = useState(false);
+
+  useEffect(() => {
+    navCount.current += 1;
+    if (navCount.current > 1) setCanGoBack(true);
+  }, [location.pathname]);
 
   const startResizeX   = useRef(0);
   const startResizeW   = useRef(0);
@@ -324,6 +333,24 @@ export function AppShell() {
             ].join(', '),
           }}
         >
+          {/* Back button — disabled on the first page where there's no in-app history */}
+          <button
+            type="button"
+            onClick={() => navigate(-1)}
+            disabled={!canGoBack}
+            aria-label="Go back"
+            title="Go back"
+            className={[
+              'flex-shrink-0 p-2 rounded-lg transition-colors',
+              'focus:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(210,70%,65%)] focus-visible:ring-offset-2 focus-visible:ring-offset-[hsl(20,14%,8%)]',
+              canGoBack
+                ? 'text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)] hover:bg-white/5 cursor-pointer'
+                : 'text-white/20 cursor-not-allowed',
+            ].join(' ')}
+          >
+            <ArrowLeft className="w-5 h-5" />
+          </button>
+
           {/* Mobile hamburger */}
           <button
             className="md:hidden text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)] flex-shrink-0"
