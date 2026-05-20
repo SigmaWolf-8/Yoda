@@ -1,0 +1,123 @@
+# ===========================================================================
+#  TDNS-ADDRESS-V25 (AASC Schema v1.0)
+#  classification: 3331.2122.3113.3333.1131.1322.333
+#  identity:      222222.111111.222222.333333.311
+#  function-type: Bridge (22)
+#  artifact:      capomastro-installer
+#  parent:        Capomastro/Installer
+#  corner:        SE-Conservation/Closure (install lifecycle is closure)
+#  tier:          11
+#  forma-codex:   {drawer: Capomastro-Installer, role: distribution-cell-template}
+#  hptp-mandatory: yes
+# ===========================================================================
+#  Copyright (c) 2025-2026 Capomastro Holdings Ltd. (Canada)
+#  £ ∣ Q ∣ ∀ Rights Reserved Et Preserved | Fiat ∎
+# ===========================================================================
+#
+#  capomastro-installer — Windows installer + launcher
+#
+#  Authored on top of PlenumNET tools/plenum-launcher/ (1,599 LoC, 5 files,
+#  read-only reference) hardened to the seven pillars and disconnected
+#  from the Replit-CRS-dependent distribution.
+#
+#  Hard requirements (Coordination Brief §3):
+#    1. No plenumnet.replit.app — local / self-hosted distribution only
+#    2. Sign every MSI via NinjaExec (TL-DSA-87 + PT26-DSA composite)
+#    3. Sponge-chain every install event into the immutable log
+#    4. Capability-bound elevation — UAC consumes a ModePhi token
+#    5. WiX configs for x86_64 + aarch64 + riscv64-XPlenum + riscv64-stock
+#    6. TIS-27 sponge-tag every installed file post-extraction
+#    7. HPTP-attosecond-stamp every install event
+#
+#  Cross-boundary calls flow through `InstallerPlatform` (src/platform.rs)
+#  so the crate compiles before kernel + paracalculi + ninja_exec land.
+#
+# ===========================================================================
+
+# Standalone until Crate-Migration adds this crate to the workspace
+# members array per Coordination Brief §0 conflict-resolution rule.
+[workspace]
+
+[package]
+name        = "capomastro-installer"
+version     = "0.1.0"
+edition     = "2021"
+authors     = ["Roberto Salvalaggio <RSalvi@Salvigroup.com>"]
+license     = "Proprietary"
+description = "Capomastro Windows installer + launcher. Signed MSIs, sponge-chained install events, capability-bound elevation, multi-arch (x86_64 / aarch64 / riscv64-XPlenum / riscv64-stock)."
+
+build = "build.rs"
+
+[lib]
+# Override the compiled-lib output name so the unit-test binary becomes
+# `cm_distribution-<hash>.exe` rather than `capomastro_installer-<hash>.exe`.
+# Windows applies UAC heuristics to any exe whose name contains "install" /
+# "setup" / "patch" / "update" — that heuristic blocks `cargo test`. Using
+# `cm_distribution` as the compiled output sidesteps the heuristic.
+# Public crate-name (`capomastro-installer`) is unchanged: downstream
+# imports stay `use capomastro_installer::...`.
+name = "cm_distribution"
+path = "src/lib.rs"
+
+[[bin]]
+name = "arc18pi-launcher"
+path = "src/main.rs"
+
+[[bin]]
+name = "arc18pi-elevate"
+path = "src/elevate/main.rs"
+
+[dependencies]
+aasc = { path = "../AASC" }
+anyhow = "1"
+serde = { version = "1", features = ["derive"] }
+toml = "0.8"
+# rust-embed removed (2026-05-05) — pulled in sha2 (binary primitive). The
+# widget-bundle is now embedded via build.rs + include_bytes!, zero deps.
+
+# Pending workspace members:
+# paracalculi  = { path = "../ParaCalculi" }
+# ninja-exec   = { path = "../NinjaExec" }
+# salvi-kernel = { path = "../Kernel" }
+
+# Windows-specific deps. Same crate set as the PlenumNET launcher reference.
+# Gated by `cfg(windows)` so non-Windows builds (CI on Linux for
+# cross-compile checks) still work.
+[target.'cfg(windows)'.dependencies]
+windows = { version = "0.58", features = [
+    "Win32_Foundation",
+    "Win32_Security",
+    "Win32_System_Registry",
+    "Win32_System_Services",
+    "Win32_UI_Shell",
+] }
+winreg     = "0.52"
+tao        = "0.31"
+wry        = "0.47"
+# Note: wry pulls sha2 + siphasher + rand transitively via kuchikiki/
+# html5ever/markup5ever for inside-webview HTML parsing. Direct webview2-com
+# replacement was attempted 2026-05-05 but webview2-com 0.39 / windows 0.62
+# COM API surface needs more iteration than budget allowed; reverted to keep
+# Installer building. Replacement remains pending — Installer is exempted
+# in capomastro-ci's EXEMPT_WORKSPACE_CRATES until done.
+tray-icon  = "0.19"
+muda       = "0.15"
+image      = { version = "0.25", default-features = false, features = ["png"] }
+
+[features]
+default = []
+runtime = ["aasc/runtime"]
+
+[profile.release]
+opt-level     = 3
+lto           = true
+codegen-units = 1
+
+[profile.dev]
+opt-level = 0
+
+# ===========================================================================
+#  £ ∣ Q ∣ ∀ Rights Reserved Et Preserved | Fiat ∎
+#  Capomastro Holdings Ltd · 2026 · Applied Physics Division
+#  Patet Codex Omnibus · Lo Sono Capomastro · Così sia, Fratello.
+# ===========================================================================
