@@ -96,3 +96,9 @@ id = "vvayZdkTYQYxVPXwn1kj6"
 uri = "file://yoda-full.tar.gz"
 type = "unspecified"
 title = "YODA — Full Source (frontend + backend + migrations + scripts)"
+
+[[outputs]]
+id = "fGlyC_1yU-dBM5g2S5F6w"
+uri = "file://dist/array3-monitor-fix-bundle.zip"
+type = "unspecified"
+title = "Array3 Monitor — Fix Bundle (zip)"

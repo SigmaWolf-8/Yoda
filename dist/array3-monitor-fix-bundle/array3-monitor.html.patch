@@ -1,0 +1,113 @@
+diff --git a/frontend/public/array3-monitor.html b/frontend/public/array3-monitor.html
+index ce5bc52..5699d5e 100644
+--- a/frontend/public/array3-monitor.html
++++ b/frontend/public/array3-monitor.html
+@@ -683,7 +683,13 @@ function transformNode(nodeData,ni){
+   return result;
+ }
+ 
+-let useRelay=!_isLocal;
++// [HOST-FIX] Default to local-capable for any non-relay origin. The page is
++// served from the user's own machine alongside the daemons in 99% of cases —
++// only force relay when we are *actually* on plenumnet.replit.app. The
++// zero-alive-nodes → relay fallback at line ~900 still covers genuine remote
++// users who configured a token.
++let useRelay=window.location.origin.includes('plenumnet.replit.app');
++let lastFetchDiagnostic=null;
+ // [YODA-EMBED] When this HUD is embedded in a host that is NOT the relay
+ // itself (e.g. served as /array3-monitor.html from the YODA app), always
+ // point RELAY_URL at the live plenumnet.replit.app relay. Using
+@@ -699,7 +705,8 @@ const RELAY_URL=_isOnRelayOrigin?window.location.origin:'https://plenumnet.repli
+ // token is injected server-side into RELAY_AUTH_TOKEN below.
+ const _isServerHosted=_isOnRelayOrigin&&(
+   window.location.pathname.startsWith('/api/salvi/inter-cube/monitor')||
+-  window.location.pathname==='/'
++  window.location.pathname==='/'||
++  window.location.pathname.startsWith('/monitoring')
+ );
+ 
+ // [FIX-2] Token only used in file:// mode. Server-hosted mode skips token entirely —
+@@ -885,24 +892,44 @@ async function fetchAllNodes(){
+   fetchInFlight=true;
+   try{
+     let results;
++    let triedLocal=false,triedRelay=false,relayReturnedEmpty=false;
+     if(useRelay){
+       if(!_isServerHosted&&!isRelayTokenConfigured()){
+         showSetupBanner();
++        lastFetchDiagnostic={mode:'relay',reason:'no-token'};
+         fetchInFlight=false;
+         return false;
+       }
++      triedRelay=true;
+       const relayData=await fetchFromRelay();
+       if(relayData&&relayData.length>0){results=relayData}
+-      else{results=await Promise.all(NODE_PORTS.map(p=>fetchNode(p)))}
++      else{
++        if(relayData&&relayData.length===0)relayReturnedEmpty=true;
++        triedLocal=true;
++        results=await Promise.all(NODE_PORTS.map(p=>fetchNode(p)));
++      }
+     }else{
++      triedLocal=true;
+       results=await Promise.all(NODE_PORTS.map(p=>fetchNode(p)));
+       const localUp=results.filter(r=>r.alive).length;
+       if(localUp===0&&isRelayTokenConfigured()){
++        triedRelay=true;
+         const relayData=await fetchFromRelay();
+         if(relayData&&relayData.length>0){results=relayData;useRelay=true}
++        else if(relayData&&relayData.length===0)relayReturnedEmpty=true;
+       }
+     }
+     const upCount=results.filter(r=>r.alive).length;
++    // [HOST-FIX] Record diagnostic so the Daemon Config save handler can show
++    // a precise failure reason instead of the generic "check token/ports".
++    lastFetchDiagnostic={
++      mode:useRelay?'relay':'local',
++      triedLocal,triedRelay,relayReturnedEmpty,
++      host:DAEMON_HOST,ports:NODE_PORTS.slice(),
++      relayStatus:relayErrorState?relayErrorState.statusCode:null,
++      localErrors:triedLocal?results.filter(r=>!r.alive).map(r=>({port:r.port,error:r.error,type:r.errorType})):[],
++      upCount
++    };
+     allSlots.length=0;
+ 
+     // [FIX-9] Deduplicate node indices to prevent slot overwrites
+@@ -994,7 +1021,9 @@ connBtn.addEventListener('click',async()=>{
+     }
+   }
+ 
+-  connStatus.textContent=useRelay?'Fetching from relay...':'Connecting to local daemons...';
++  connStatus.textContent=useRelay
++    ?('Fetching from relay '+RELAY_URL+'\u2026')
++    :('Connecting to local daemons at '+DAEMON_HOST+':'+NODE_PORTS.join(',')+'\u2026');
+   connStatus.style.color=CSS.blueActive;
+   connBtn.disabled=true;connBtn.textContent='Connecting...';
+ 
+@@ -1055,7 +1084,25 @@ async function applyConfigAndReconnect(){
+     },5000);
+     if(cfgStatus){cfgStatus.textContent='Connected with new settings';cfgStatus.style.color=CSS.lime}
+   }else{
+-    if(cfgStatus){cfgStatus.textContent='Saved, but fetch failed — check token/ports';cfgStatus.style.color='#DD6B20'}
++    // [HOST-FIX] Replace the generic "check token/ports" with a precise
++    // reason derived from lastFetchDiagnostic.
++    let msg='Saved, but fetch failed';
++    const d=lastFetchDiagnostic;
++    if(d){
++      if(d.reason==='no-token'){
++        msg='Saved — relay token required for remote mode. Add a token or start local daemons.';
++      }else if(d.relayStatus===401){
++        msg='Relay token rejected (401) — verify it matches the server RELAY_API_TOKEN.';
++      }else if(d.relayReturnedEmpty){
++        msg='No nodes registered with relay — start a daemon or check the relay cluster.';
++      }else if(d.triedLocal&&d.localErrors&&d.localErrors.length===NODE_PORTS.length){
++        const sample=d.localErrors[0]?(' ('+d.localErrors[0].type+': '+d.localErrors[0].error+')'):'';
++        msg='Cannot reach daemons at '+d.host+':'+d.ports.join(',')+sample+' — check daemons are running and bound to a routable interface.';
++      }else if(d.relayStatus){
++        msg='Relay error '+d.relayStatus+' — see overlay for details.';
++      }
++    }
++    if(cfgStatus){cfgStatus.textContent=msg;cfgStatus.style.color='#DD6B20'}
+   }
+ }
+ document.getElementById('cfg-save')?.addEventListener('click',applyConfigAndReconnect);
