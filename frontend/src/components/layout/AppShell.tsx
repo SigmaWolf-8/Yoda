@@ -19,17 +19,36 @@ import { usePageHeaderCtx } from '../../context/PageHeader';
 import { VideoPlayProvider, useVideoPlay } from '../../context/VideoPlay';
 import { SystemStatusBanner } from '../common/SystemStatusBanner';
 
-/* ── Nav config ── */
-const MAIN_NAV = [
-  { to: '/',                 icon: LayoutDashboard, label: 'Dashboard'  },
-  { to: '/projects',         icon: FolderKanban,    label: 'Projects'   },
-  { to: '/agents',           icon: Users,           label: 'Agents'     },
-  { to: '/settings/engines', icon: Cpu,             label: 'AI Engines' },
-  { to: '/kyokushin',        icon: Zap,             label: 'Kyokushin'  },
-  { to: '/forge',            icon: Zap,             label: 'Forge'      },
-  { to: '/monitoring',       icon: BarChart3,       label: 'Monitoring' },
-  { to: '/about',            icon: Info,            label: 'About'      },
-] as const;
+/* ── Nav config ──
+ * Grouped into 3 sections. Footer keeps Settings + collapse toggle. */
+const NAV_GROUPS: ReadonlyArray<{
+  label: string;
+  items: ReadonlyArray<{ to: string; icon: any; label: string }>;
+}> = [
+  {
+    label: 'Workspace',
+    items: [
+      { to: '/',         icon: LayoutDashboard, label: 'Dashboard' },
+      { to: '/projects', icon: FolderKanban,    label: 'Projects'  },
+      { to: '/agents',   icon: Users,           label: 'Agents'    },
+    ],
+  },
+  {
+    label: 'Engines',
+    items: [
+      { to: '/settings/engines', icon: Cpu, label: 'AI Engines' },
+      { to: '/kyokushin',        icon: Zap, label: 'Kyokushin'  },
+      { to: '/forge',            icon: Zap, label: 'Forge'      },
+    ],
+  },
+  {
+    label: 'Insight',
+    items: [
+      { to: '/monitoring', icon: BarChart3, label: 'Monitoring' },
+      { to: '/about',      icon: Info,      label: 'About'      },
+    ],
+  },
+];
 
 /* Sidebar logo-area height in px — top bar must match this */
 export const HEADER_H = 144;
@@ -151,10 +170,10 @@ export function AppShell() {
           ].join(', '),
         }}
         className={[
-          'fixed lg:sticky top-0 left-0 z-40 h-screen flex-shrink-0 relative',
+          'fixed lg:sticky top-0 left-0 z-40 h-screen flex-shrink-0',
           'border-r border-[hsl(220,15%,86%)]',
           'flex flex-col overflow-hidden',
-          isResizing ? '' : 'transition-all duration-200',
+          isResizing ? '' : 'transition-[width] duration-200',
           sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0',
         ].filter(Boolean).join(' ')}
       >
@@ -184,19 +203,36 @@ export function AppShell() {
         </div>
 
         {/* Main nav */}
-        <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto" aria-label="Main navigation">
-          {MAIN_NAV.map(({ to, icon: Icon, label }) => (
-            <NavLink
-              key={to}
-              to={to}
-              end={to === '/'}
-              onClick={() => setSidebarOpen(false)}
-              className={navCls}
-              title={collapsed ? label : undefined}
-            >
-              <Icon className="w-[18px] h-[18px] flex-shrink-0" />
-              {!collapsed && label}
-            </NavLink>
+        <nav className="flex-1 px-3 py-4 overflow-y-auto" aria-label="Main navigation">
+          {NAV_GROUPS.map((group, gi) => (
+            <div key={group.label} className={gi > 0 ? 'mt-4' : ''}>
+              {!collapsed && (
+                <div
+                  className="px-3 pb-1.5 text-[10px] font-semibold tracking-[0.14em] uppercase text-[hsl(220,12%,48%)]"
+                  style={{ fontFamily: "'JetBrains Mono', monospace" }}
+                >
+                  {group.label}
+                </div>
+              )}
+              {collapsed && gi > 0 && (
+                <div className="mx-2 mb-1 border-t border-[hsl(220,15%,86%)]" aria-hidden="true" />
+              )}
+              <div className="space-y-1">
+                {group.items.map(({ to, icon: Icon, label }) => (
+                  <NavLink
+                    key={to}
+                    to={to}
+                    end={to === '/'}
+                    onClick={() => setSidebarOpen(false)}
+                    className={navCls}
+                    title={collapsed ? label : undefined}
+                  >
+                    <Icon className="w-[18px] h-[18px] flex-shrink-0" />
+                    {!collapsed && label}
+                  </NavLink>
+                ))}
+              </div>
+            </div>
           ))}
         </nav>
 

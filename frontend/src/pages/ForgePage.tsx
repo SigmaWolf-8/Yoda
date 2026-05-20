@@ -3210,7 +3210,7 @@ function TabBar({ tabs, active, onSelect }) {
           position: "relative",
         }}
       >
-        {/* All-sections dropdown trigger | always visible, always accessible */}
+        {/* All-sections dropdown trigger | primary at any width, always visible */}
         <button
           onClick={() => setMenuOpen(!menuOpen)}
           aria-label="Open sections menu"
@@ -3219,12 +3219,12 @@ function TabBar({ tabs, active, onSelect }) {
             background: menuOpen ? P.surface : "transparent",
             border: "none",
             borderRight: `1px solid ${P.iron}`,
-            padding: "0.6rem 1rem",
+            padding: "0.5rem 0.75rem",
             color: P.blue,
             cursor: "pointer",
             ...fDisplay,
-            fontSize: "0.85rem",
-            letterSpacing: "0.12em",
+            fontSize: "0.75rem",
+            letterSpacing: "0.08em",
             textTransform: "uppercase",
             fontWeight: 600,
             whiteSpace: "nowrap",
@@ -3234,51 +3234,64 @@ function TabBar({ tabs, active, onSelect }) {
           ☰ {activeTab.label} ▾
         </button>
 
-        {/* Scrollable tab list */}
-        <div
-          style={{
-            display: "flex",
-            overflowX: "auto",
-            overflowY: "hidden",
-            overscrollBehaviorX: "contain",
-            scrollbarWidth: "none",
-            msOverflowStyle: "none",
-            WebkitOverflowScrolling: "touch",
-            flex: "1 1 auto",
-            minWidth: 0,
-          }}
-        >
-          {tabs.map((t) => {
-            const isActive = active === t.key;
-            return (
-              <button
-                key={t.key}
-                onClick={() => onSelect(t.key)}
-                style={{
-                  background: isActive ? P.surface : "transparent",
-                  border: "none",
-                  borderRight: `1px solid ${P.border}`,
-                  borderBottom: isActive ? `2px solid ${P.blue}` : "2px solid transparent",
-                  marginBottom: "-1px",
-                  padding: "0.6rem 1rem",
-                  color: isActive ? P.heading : P.label,
-                  cursor: "pointer",
-                  ...fDisplay,
-                  fontSize: "0.85rem",
-                  letterSpacing: "0.1em",
-                  textTransform: "uppercase",
-                  fontWeight: 500,
-                  whiteSpace: "nowrap",
-                  transition: "all 0.18s ease",
-                  flex: "0 0 auto",
-                }}
-                onMouseEnter={(e) => { if (!isActive) e.currentTarget.style.color = P.nav; }}
-                onMouseLeave={(e) => { if (!isActive) e.currentTarget.style.color = P.label; }}
-              >
-                {t.label}
-              </button>
-            );
-          })}
+        {/* Scrollable tab list with right-edge fade hint */}
+        <div style={{ position: "relative", flex: "1 1 auto", minWidth: 0 }}>
+          <div
+            style={{
+              display: "flex",
+              overflowX: "auto",
+              overflowY: "hidden",
+              overscrollBehaviorX: "contain",
+              scrollbarWidth: "none",
+              msOverflowStyle: "none",
+              WebkitOverflowScrolling: "touch",
+            }}
+          >
+            {tabs.map((t) => {
+              const isActive = active === t.key;
+              return (
+                <button
+                  key={t.key}
+                  onClick={() => onSelect(t.key)}
+                  style={{
+                    background: isActive ? P.surface : "transparent",
+                    border: "none",
+                    borderRight: `1px solid ${P.border}`,
+                    borderBottom: isActive ? `2px solid ${P.blue}` : "2px solid transparent",
+                    marginBottom: "-1px",
+                    padding: "0.5rem 0.7rem",
+                    color: isActive ? P.heading : P.label,
+                    cursor: "pointer",
+                    ...fDisplay,
+                    fontSize: "0.72rem",
+                    letterSpacing: "0.06em",
+                    textTransform: "uppercase",
+                    fontWeight: 500,
+                    whiteSpace: "nowrap",
+                    transition: "color 0.15s ease, background 0.15s ease",
+                    flex: "0 0 auto",
+                  }}
+                  onMouseEnter={(e) => { if (!isActive) e.currentTarget.style.color = P.nav; }}
+                  onMouseLeave={(e) => { if (!isActive) e.currentTarget.style.color = P.label; }}
+                >
+                  {t.label}
+                </button>
+              );
+            })}
+          </div>
+          {/* Right-edge fade indicating more tabs scroll to the right */}
+          <div
+            aria-hidden="true"
+            style={{
+              position: "absolute",
+              top: 0,
+              right: 0,
+              height: "100%",
+              width: 32,
+              pointerEvents: "none",
+              background: `linear-gradient(to right, transparent, ${P.panel})`,
+            }}
+          />
         </div>
       </div>
 
