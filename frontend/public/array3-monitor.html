@@ -105,7 +105,7 @@
 <div id="panel">
   <div class="sec">
     <div class="stit">Connection</div>
-    <div id="port-readout" style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#E4DFD5;margin-bottom:6px">Ports — / — / —</div>
+    <div style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#E4DFD5;margin-bottom:6px">Ports 21124 · 21151 · 21178</div>
     <div style="margin-bottom:6px">
       <input type="text" id="inp-url" placeholder="Relay URL (for restart ops)" value="https://plenumnet.replit.app" style="width:100%;padding:6px 10px;background:var(--bg-surface);border:1px solid var(--bg-border);border-radius:5px;color:var(--text-body);font-family:'JetBrains Mono',monospace;font-size:11px;outline:none;margin-bottom:4px">
       <input type="password" id="inp-key" placeholder="API key (for ops commands)" style="width:100%;padding:6px 10px;background:var(--bg-surface);border:1px solid var(--bg-border);border-radius:5px;color:var(--text-body);font-family:'JetBrains Mono',monospace;font-size:11px;outline:none">
@@ -507,76 +507,8 @@ const STATUS={
 const _isLocal=window.location.protocol==='file:'||!window.location.hostname||window.location.hostname==='localhost'||window.location.hostname==='127.0.0.1';
 const DAEMON_HOST=_isLocal?'127.0.0.1':window.location.hostname;
 const DAEMON_PROTO=_isLocal?'http:':window.location.protocol;
-
-// ─── Daemon endpoint discovery ─────────────────────────────────────
-// The three Array3 daemons map one-to-one to engine slots 'a', 'b', 'c'
-// in the engine_configs table. The same slot scheme is the single source
-// of truth used by crates/yoda-api/src/routes.rs (get_local_crs_base etc.)
-// and frontend/src/components/settings/EngineSlot.tsx. We never hardcode
-// a port here — every probe URL is derived from each slot's
-// cube_endpoint_url, configured by the user on /settings/engines.
-const DAEMON_SLOTS=['a','b','c'];
-const ENGINES_URL=(_isLocal?'':'')+'/api/settings/engines'; // same-origin
-const ENDPOINTS_TTL_MS=30000;
-let _endpointsCache=null;        // {ts:number, endpoints:[{slot,baseUrl,port,configured}]}
-let _endpointsInFlight=null;
-
-function parseCubeEndpoint(raw){
-  if(!raw||typeof raw!=='string')return null;
-  try{
-    const u=new URL(raw);
-    const port=u.port?parseInt(u.port,10):(u.protocol==='https:'?443:80);
-    return{baseUrl:`${u.protocol}//${u.hostname}:${port}`,port};
-  }catch{
-    // Fallback parse for bare host:port strings
-    const m=raw.match(/^(?:([a-z]+):\/\/)?([^/:]+)(?::(\d+))?/i);
-    if(!m)return null;
-    const proto=m[1]||DAEMON_PROTO.replace(':','');
-    const host=m[2],port=parseInt(m[3]||'80',10);
-    return{baseUrl:`${proto}://${host}:${port}`,port};
-  }
-}
-
-function updatePortReadout(endpoints){
-  const el=document.getElementById('port-readout');
-  if(!el)return;
-  const parts=endpoints.map(e=>e.configured?String(e.port):'—');
-  el.textContent='Ports '+parts.join(' · ');
-}
-
-async function loadDaemonEndpoints(force){
-  const now=Date.now();
-  if(!force&&_endpointsCache&&(now-_endpointsCache.ts)<ENDPOINTS_TTL_MS){
-    return _endpointsCache.endpoints;
-  }
-  if(_endpointsInFlight)return _endpointsInFlight;
-  _endpointsInFlight=(async()=>{
-    let bySlot={};
-    try{
-      const resp=await fetch(ENGINES_URL,{credentials:'include'});
-      if(resp.ok){
-        const data=await resp.json();
-        (data.engines||[]).forEach(e=>{
-          if(DAEMON_SLOTS.includes(e.slot))bySlot[e.slot]=e.cube_endpoint_url||null;
-        });
-      }else{
-        console.warn('[monitor] /api/settings/engines returned',resp.status);
-      }
-    }catch(e){
-      console.warn('[monitor] failed to load engine configs:',e.message);
-    }
-    const endpoints=DAEMON_SLOTS.map(slot=>{
-      const parsed=parseCubeEndpoint(bySlot[slot]);
-      if(parsed)return{slot,baseUrl:parsed.baseUrl,port:parsed.port,configured:true};
-      return{slot,baseUrl:null,port:null,configured:false};
-    });
-    _endpointsCache={ts:Date.now(),endpoints};
-    updatePortReadout(endpoints);
-    return endpoints;
-  })();
-  try{return await _endpointsInFlight}
-  finally{_endpointsInFlight=null}
-}
+const NODE_PORTS=[21124,21151,21178];
+function nodeUrl(port,path){return `${DAEMON_PROTO}//${DAEMON_HOST}:${port}${path}`}
 
 let isLive=false,pollTimer=null;
 let relayUrl='https://plenumnet.replit.app',apiKey='';
@@ -584,34 +516,29 @@ const connStatus=document.getElementById('conn-status');
 const connBtn=document.getElementById('btn-connect');
 const nodeLastUpdated={};
 
-async function fetchNode(endpoint){
-  // endpoint = {slot, baseUrl, port, configured}
-  if(!endpoint.configured){
-    return{slots:null,health:null,port:0,alive:false,configured:false,slot:endpoint.slot,errorType:'unconfigured'};
-  }
+async function fetchNode(port){
   const timeout=ms=>new Promise((_,rej)=>setTimeout(()=>rej(new Error('timeout')),ms));
   const headers={};
   if(apiKey)headers['Authorization']=`Bearer ${apiKey}`;
-  const base=endpoint.baseUrl;
   try{
     const [slotsResp,healthResp]=await Promise.all([
-      Promise.race([fetch(base+'/api/salvi/inter-cube/slots',{headers}),timeout(3000)]),
-      Promise.race([fetch(base+'/health',{headers}),timeout(3000)])
+      Promise.race([fetch(nodeUrl(port,'/api/salvi/inter-cube/slots'),{headers}),timeout(3000)]),
+      Promise.race([fetch(nodeUrl(port,'/health'),{headers}),timeout(3000)])
     ]);
     if(slotsResp.status===401)throw new Error('auth-rejected');
     if(!slotsResp.ok)throw new Error(`server-${slotsResp.status}`);
     if(!healthResp.ok)throw new Error(`server-${healthResp.status}`);
     const slots=await slotsResp.json(),health=await healthResp.json();
-    nodeLastUpdated[endpoint.port]=new Date();
-    return{slots,health,port:endpoint.port,baseUrl:base,slot:endpoint.slot,configured:true,alive:true};
+    nodeLastUpdated[port]=new Date();
+    return{slots,health,port,alive:true};
   }catch(e){
     const msg=e.message;
     let errorType='unreachable';
     if(msg==='auth-rejected')errorType='auth';
     else if(msg==='timeout')errorType='timeout';
     else if(msg.startsWith('server-'))errorType='server';
-    console.warn(`[node:${endpoint.slot}@${endpoint.port}] Fetch failed (${errorType}):`,msg);
-    return{slots:null,health:null,port:endpoint.port,baseUrl:base,slot:endpoint.slot,configured:true,alive:false,error:msg,errorType};
+    console.warn(`[node:${port}] Fetch failed (${errorType}):`,msg);
+    return{slots:null,health:null,port,alive:false,error:msg,errorType};
   }
 }
 
@@ -649,18 +576,6 @@ function transformNode(nodeData,ni){
   const nodeName=`Node ${h.node_id||ni+1}`;
   const nodePort=nodeData.port;
   const isUp=nodeData.alive;
-  const unconfigured=nodeData.configured===false;
-  if(unconfigured){
-    for(let x=1;x<=3;x++)for(let y=1;y<=3;y++)for(let z=1;z<=3;z++){
-      result.push({
-        rc:[x,y,z],ni,nn:nodeName,np:0,occ:false,svc:null,
-        st:'available',statusLabel:'Not configured — set in /settings/engines',
-        ld:0,pt:0,up:'—',la:0,td:0,hb:0,
-        isPrimaryGW:false,mode:'unconfigured',version:'',address:'',
-      });
-    }
-    return result;
-  }
   if(nodeData.slots&&nodeData.slots.slots){
     nodeData.slots.slots.forEach(apiSlot=>{
       const [x,y,z]=apiSlot.address;
@@ -701,20 +616,16 @@ const _isServerHosted=!_isLocal&&(
   window.location.pathname.startsWith('/api/salvi/inter-cube/monitor')
 );
 
-// Token is read from localStorage on every relay call so a freshly-pasted
-// token takes effect without a reload. Server-hosted mode skips it entirely —
+// [FIX-2] Token only used in file:// mode. Server-hosted mode skips token entirely —
 // the relay authenticates by origin. Never embed secrets in client-served HTML.
-function getRelayToken(){
-  try{return (localStorage.getItem('RELAY_AUTH_TOKEN')||'').trim()}
-  catch{return ''}
-}
-function isRelayTokenConfigured(){
-  const t=getRelayToken();
-  return !!t&&t!=='<paste-your-relay-api-token-here>';
-}
+const RELAY_AUTH_TOKEN='<paste-your-relay-api-token-here>';
 
 let relayErrorState=null;
 let relayBackoffMs=0;
+
+function isRelayTokenConfigured(){
+  return RELAY_AUTH_TOKEN&&RELAY_AUTH_TOKEN!=='<paste-your-relay-api-token-here>';
+}
 
 function showRelayError(statusCode,errorObj){
   relayErrorState={statusCode,error:errorObj};
@@ -760,42 +671,22 @@ let setupBannerShown=false;
 function showSetupBanner(){
   if(setupBannerShown)return;
   setupBannerShown=true;
-  connStatus.textContent='\u{1F527} No Array3 daemons configured';
+  connStatus.textContent='\u{1F527} Setup required — paste your relay token';
   connStatus.style.color='#DD6B20';
   const banner=document.createElement('div');
   banner.id='setup-banner';
-  banner.style.cssText='position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:9999;background:rgba(24,20,17,0.98);border:2px solid #DD6B20;border-radius:12px;padding:32px 40px;max-width:520px;text-align:center;font-family:Inter,system-ui,sans-serif;';
+  banner.style.cssText='position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:9999;background:rgba(24,20,17,0.98);border:2px solid #DD6B20;border-radius:12px;padding:32px 40px;max-width:480px;text-align:center;font-family:Inter,system-ui,sans-serif;';
   banner.innerHTML=`
     <div style="font-size:36px;margin-bottom:12px">\u{1F527}</div>
-    <div style="font-size:18px;font-weight:700;color:#F0EDE8;margin-bottom:8px">No Array3 daemons configured</div>
-    <div style="font-size:13px;color:#C9C1B4;line-height:1.6;margin-bottom:18px">
-      None of the three engine slots (A, B, C) have a cube endpoint set. Configure the daemon URLs in <strong>AI Engines</strong> to start monitoring.
+    <div style="font-size:18px;font-weight:700;color:#F0EDE8;margin-bottom:8px">Relay Token Required</div>
+    <div style="font-size:13px;color:#C9C1B4;line-height:1.6;margin-bottom:16px">
+      To monitor Array3 nodes remotely, paste your <code style="background:rgba(74,158,245,0.12);color:#4A9EF5;padding:2px 6px;border-radius:3px;font-family:JetBrains Mono,monospace;font-size:12px">RELAY_API_TOKEN</code> into this file.<br><br>
+      Open <code style="background:rgba(74,158,245,0.12);color:#4A9EF5;padding:2px 6px;border-radius:3px;font-family:JetBrains Mono,monospace;font-size:12px">array3-monitor.html</code> and replace the placeholder value of <code style="background:rgba(74,158,245,0.12);color:#4A9EF5;padding:2px 6px;border-radius:3px;font-family:JetBrains Mono,monospace;font-size:12px">RELAY_AUTH_TOKEN</code>.
     </div>
-    <a href="/settings/engines" id="setup-open-engines" style="display:inline-block;padding:10px 22px;background:rgba(74,158,245,0.18);border:1px solid rgba(74,158,245,0.45);border-radius:6px;color:#4A9EF5;font-family:Inter,system-ui,sans-serif;font-size:13px;font-weight:600;text-decoration:none;cursor:pointer">Open AI Engines settings</a>
-    <div style="margin-top:18px;border-top:1px solid #272220;padding-top:12px">
-      <button id="setup-toggle-relay" style="background:none;border:none;color:#998F82;font-family:Inter,system-ui,sans-serif;font-size:11px;cursor:pointer;text-decoration:underline">Advanced: paste a relay token instead</button>
-      <div id="setup-relay-row" style="display:none;margin-top:10px">
-        <input type="password" id="setup-relay-token" placeholder="Paste RELAY_AUTH_TOKEN" style="width:100%;padding:7px 10px;background:#1D1915;border:1px solid #272220;border-radius:5px;color:#E4DFD5;font-family:JetBrains Mono,monospace;font-size:11px;outline:none;margin-bottom:6px">
-        <button id="setup-relay-save" style="padding:6px 14px;background:rgba(139,166,51,0.18);border:1px solid rgba(139,166,51,0.45);border-radius:5px;color:#8BA633;font-family:Inter,system-ui,sans-serif;font-size:12px;cursor:pointer">Save token</button>
-        <div style="font-size:10px;color:#6B655E;margin-top:6px">Saved locally in this browser (localStorage). Use only for remote relay mode.</div>
-      </div>
+    <div style="font-size:11px;color:#6B655E;border-top:1px solid #272220;padding-top:12px">
+      Local monitoring (file://) still works without a token when daemons are on localhost.
     </div>`;
   document.body.appendChild(banner);
-  const toggle=document.getElementById('setup-toggle-relay');
-  const row=document.getElementById('setup-relay-row');
-  toggle?.addEventListener('click',()=>{row.style.display=row.style.display==='none'?'block':'none'});
-  document.getElementById('setup-relay-save')?.addEventListener('click',()=>{
-    const v=(document.getElementById('setup-relay-token').value||'').trim();
-    if(!v)return;
-    try{localStorage.setItem('RELAY_AUTH_TOKEN',v)}catch{}
-    banner.remove();setupBannerShown=false;
-    fetchAllNodes().then(ok=>{if(ok)refreshScene()});
-  });
-}
-function hideSetupBanner(){
-  const b=document.getElementById('setup-banner');
-  if(b)b.remove();
-  setupBannerShown=false;
 }
 
 async function fetchRelayStatus(){
@@ -808,7 +699,7 @@ async function fetchRelayStatus(){
 
 async function fetchFromRelay(){
   if(!_isServerHosted&&!isRelayTokenConfigured()){
-    connStatus.textContent='\u{1F527} Relay token not configured';
+    connStatus.textContent='\u{1F527} Relay token not configured — set RELAY_AUTH_TOKEN';
     connStatus.style.color='#DD6B20';
     return null;
   }
@@ -831,7 +722,7 @@ async function fetchFromRelay(){
       :RELAY_URL+'/api/salvi/inter-cube/slots';
     const fetchOpts=_isServerHosted
       ?{}
-      :{headers:{'Authorization':'Bearer '+getRelayToken()}};
+      :{headers:{'Authorization':'Bearer '+RELAY_AUTH_TOKEN}};
     const resp=await Promise.race([
       fetch(fetchUrl,fetchOpts),
       new Promise((_,r)=>setTimeout(()=>r(new Error('timeout')),8000))
@@ -910,40 +801,25 @@ async function fetchAllNodes(){
   if(fetchInFlight)return false;
   fetchInFlight=true;
   try{
-    const endpoints=await loadDaemonEndpoints();
-    const configuredCount=endpoints.filter(e=>e.configured).length;
     let results;
     if(useRelay){
-      // Server-hosted mode: relay handles auth by origin. file:// mode needs a token.
       if(!_isServerHosted&&!isRelayTokenConfigured()){
-        // No relay token — fall back to direct probes if any slot is configured,
-        // otherwise show the "configure engines" setup card.
-        if(configuredCount===0){
-          showSetupBanner();
-          fetchInFlight=false;
-          return false;
-        }
-        results=await Promise.all(endpoints.map(e=>fetchNode(e)));
-      }else{
-        const relayData=await fetchFromRelay();
-        if(relayData&&relayData.length>0){results=relayData}
-        else{results=await Promise.all(endpoints.map(e=>fetchNode(e)))}
-      }
-    }else{
-      if(configuredCount===0){
         showSetupBanner();
         fetchInFlight=false;
         return false;
       }
-      hideSetupBanner();
-      results=await Promise.all(endpoints.map(e=>fetchNode(e)));
+      const relayData=await fetchFromRelay();
+      if(relayData&&relayData.length>0){results=relayData}
+      else{results=await Promise.all(NODE_PORTS.map(p=>fetchNode(p)))}
+    }else{
+      results=await Promise.all(NODE_PORTS.map(p=>fetchNode(p)));
       const localUp=results.filter(r=>r.alive).length;
       if(localUp===0&&isRelayTokenConfigured()){
         const relayData=await fetchFromRelay();
         if(relayData&&relayData.length>0){results=relayData;useRelay=true}
       }
     }
-    const upCount=results.filter(r=>r.alive&&r.configured!==false).length;
+    const upCount=results.filter(r=>r.alive).length;
     allSlots.length=0;
 
     // [FIX-9] Deduplicate node indices to prevent slot overwrites
@@ -960,7 +836,7 @@ async function fetchAllNodes(){
 
     // [v9.4.4] Separate telemetry fetch: slot-inventory has health.telemetry with cpu/mem
     // This runs in parallel — doesn't block the slot display
-    fetch(RELAY_URL+'/api/salvi/inter-cube/relay/slot-inventory',_isServerHosted?{}:{headers:{'Authorization':'Bearer '+getRelayToken()}})
+    fetch(RELAY_URL+'/api/salvi/inter-cube/relay/slot-inventory',_isServerHosted?{}:{headers:{'Authorization':'Bearer '+RELAY_AUTH_TOKEN}})
       .then(r=>{if(!r.ok)throw new Error(r.status);return r.json()})
       .then(inv=>{
         console.log('[monitor:telemetry] response keys:',Object.keys(inv),'first 500 chars:',JSON.stringify(inv).substring(0,500));
@@ -982,7 +858,6 @@ async function fetchAllNodes(){
       .catch(e=>console.log('[monitor:telemetry] slot-inventory fetch: '+e.message));
 
     const summaries=results.map((r,i)=>{
-      if(r.configured===false)return `N${i+1}:not-configured`;
       const lastOk=nodeLastUpdated[r.port];
       const lastOkStr=lastOk?' (last ok '+Math.round((Date.now()-lastOk.getTime())/1000)+'s ago)':'';
       if(!r.alive){
@@ -995,20 +870,8 @@ async function fetchAllNodes(){
       const occ=r.slots?r.slots.summary?.occupied||0:0;
       return `N${i+1}:${occ}svc`;
     });
-    connStatus.textContent=`Live · ${upCount}/3 Online · ${summaries.join(' · ')}`;
+    connStatus.textContent=`Live · ${upCount}/3 nodes · ${summaries.join(' · ')}`;
     connStatus.style.color=upCount===3?CSS.lime:upCount>0?CSS.blueActive:CSS.slate;
-    // Inline hint when 1-2 slots are unconfigured (full-zero case shows the Setup card instead)
-    const unconfiguredIdxs=results.map((r,i)=>r.configured===false?i+1:null).filter(v=>v!==null);
-    let hint=document.getElementById('partial-config-hint');
-    if(unconfiguredIdxs.length>0&&unconfiguredIdxs.length<3){
-      if(!hint){
-        hint=document.createElement('div');
-        hint.id='partial-config-hint';
-        hint.style.cssText='position:fixed;top:58px;left:50%;transform:translateX(-50%);z-index:90;background:rgba(24,20,17,0.95);border:1px solid #DD6B20;border-radius:6px;padding:6px 14px;font-family:Inter,system-ui,sans-serif;font-size:12px;color:#DD6B20;backdrop-filter:blur(8px);';
-        document.body.appendChild(hint);
-      }
-      hint.innerHTML=`Configure node${unconfiguredIdxs.length>1?'s':''} ${unconfiguredIdxs.map(n=>'N'+n).join(', ')} in <a href="/settings/engines" style="color:#4A9EF5;text-decoration:underline">AI Engines settings</a>`;
-    }else if(hint){hint.remove()}
     return true;
   }catch(e){
     console.warn('Fetch all nodes failed:',e.message);
@@ -1078,13 +941,9 @@ connBtn.addEventListener('click',async()=>{
       const f=await fetchAllNodes();if(f)refreshScene()
     },5000);
   }else{
-    const endpoints=(_endpointsCache&&_endpointsCache.endpoints)||DAEMON_SLOTS.map(slot=>({slot,baseUrl:null,port:null,configured:false}));
-    endpoints.forEach((ep,ni)=>{
-      const port=ep.port||0;
+    NODE_PORTS.forEach((port,ni)=>{
       for(let x=1;x<=3;x++)for(let y=1;y<=3;y++)for(let z=1;z<=3;z++){
-        allSlots.push({rc:[x,y,z],ni,nn:`Node ${ni+1}`,np:port,occ:false,svc:null,
-          st:'available',statusLabel:ep.configured?'Unassigned':'Not configured',
-          ld:0,pt:0,up:'—',la:0,td:0,hb:0});
+        allSlots.push({rc:[x,y,z],ni,nn:`Node ${ni+1}`,np:port,occ:false,svc:null,st:'available',statusLabel:'Unassigned',ld:0,pt:0,up:'—',la:0,td:0,hb:0});
       }
     });
     refreshScene();
@@ -1416,9 +1275,7 @@ const restartCancelBtn=document.getElementById('restart-cancel');
 let restartTarget=null,restartPollTimer=null;
 
 function showRestartDialog(slot){
-  const eps=(_endpointsCache&&_endpointsCache.endpoints)||[];
-  const baseUrl=eps[slot.ni]?.baseUrl||null;
-  restartTarget={slotIdx:slot.ni,nodeId:slot.ni+1,nodeName:slot.nn,svc:slot.svc||'daemon',port:slot.np,baseUrl};
+  restartTarget={slotIdx:slot.ni,nodeId:slot.ni+1,nodeName:slot.nn,svc:slot.svc||'daemon',port:slot.np};
   restartMsg.innerHTML=`Restart <strong>${restartTarget.svc}</strong> on <strong>${restartTarget.nodeName}</strong> (port ${restartTarget.port})?<br><br><span style="font-size:13px;color:#998F82">This sends a signed exec command through the relay to restart the service. NinjaExec (localhost:21027) will open for TL-DSA signing — you must approve the request in that window.</span>`;
   restartStatus.textContent='';restartStatus.style.color=CSS.label;
   restartConfirmBtn.disabled=false;restartConfirmBtn.textContent='Confirm restart';
@@ -1511,8 +1368,7 @@ async function handleRestartConfirm(){
       restartConfirmBtn.onclick=hideRestartDialog;return;
     }
     try{
-      const probeBase=restartTarget.baseUrl||`${DAEMON_PROTO}//${DAEMON_HOST}:${targetPort}`;
-      const healthResp=await fetch(probeBase+'/health');
+      const healthResp=await fetch(nodeUrl(targetPort,'/health'));
       if(healthResp.ok){
         const health=await healthResp.json();
         if(health.status==='ok'){
