@@ -149,7 +149,7 @@ export function AppShell() {
       {/* ── Mobile backdrop ── */}
       {sidebarOpen && (
         <div
-          className="fixed inset-0 z-30 bg-black/50 lg:hidden"
+          className="fixed inset-0 z-30 bg-black/50 md:hidden"
           onClick={() => setSidebarOpen(false)}
         />
       )}
@@ -170,11 +170,11 @@ export function AppShell() {
           ].join(', '),
         }}
         className={[
-          'fixed lg:sticky top-0 left-0 z-40 h-screen flex-shrink-0',
+          'fixed md:sticky top-0 left-0 z-40 h-screen flex-shrink-0',
           'border-r border-[hsl(220,15%,86%)]',
           'flex flex-col overflow-hidden',
           isResizing ? '' : 'transition-[width] duration-200',
-          sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0',
+          sidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0',
         ].filter(Boolean).join(' ')}
       >
         {/* Logo — height must match top bar (HEADER_H) */}
@@ -195,7 +195,7 @@ export function AppShell() {
           <SidebarLogoVideo collapsed={collapsed} />
           {/* Mobile close button floats over the video */}
           <button
-            className="absolute top-2 right-2 lg:hidden text-white/70 hover:text-white bg-black/30 rounded p-0.5"
+            className="absolute top-2 right-2 md:hidden text-white/70 hover:text-white bg-black/30 rounded p-0.5"
             onClick={() => setSidebarOpen(false)}
           >
             <X className="w-4 h-4" />
@@ -322,7 +322,7 @@ export function AppShell() {
         >
           {/* Mobile hamburger */}
           <button
-            className="lg:hidden text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)] flex-shrink-0"
+            className="md:hidden text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)] flex-shrink-0"
             onClick={() => setSidebarOpen(true)}
           >
             <Menu className="w-5 h-5" />
