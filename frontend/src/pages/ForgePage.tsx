@@ -9,10 +9,10 @@ const P = {
   surface: "#1D1915",
   border: "#272220",
   heading: "#FFFFFF",
-  nav: "#E4DFD5",
-  body: "#C9C1B4",
-  label: "#998F82",
-  faint: "#6B655E",
+  nav: "#FFFFFF",
+  body: "#FFFFFF",
+  label: "#FFFFFF",
+  faint: "#FFFFFF",
   blue: "#4A9EF5",
   blueHover: "#38BDF8",
   iron: "#3D444B",
@@ -28,7 +28,7 @@ const fBody = { fontFamily: "'Jost', sans-serif" };
 const fMono = { fontFamily: "'JetBrains Mono', monospace" };
 
 // ── Math atoms ───────────────────────────────────────────────────────────────
-function S({ children, italic = true, color = P.heading, weight = 500 }) {
+function S({ children, italic = false, color = P.heading, weight = 500 }) {
   return (
     <span style={{ ...fMath, fontStyle: italic ? "italic" : "normal", color, fontWeight: weight }}>
       {children}
@@ -46,7 +46,7 @@ function O({ children, color = P.body, mx = "0.3em" }) {
 
 function Sb({ children }) {
   return (
-    <sub style={{ ...fMath, fontStyle: "italic", fontSize: "0.72em", verticalAlign: "baseline", position: "relative", top: "0.4em", marginLeft: "0.04em" }}>
+    <sub style={{ ...fMath, fontStyle: "normal", fontSize: "0.72em", verticalAlign: "baseline", position: "relative", top: "0.4em", marginLeft: "0.04em" }}>
       {children}
     </sub>
   );
@@ -65,7 +65,7 @@ function Bound({ above, below, op, size = "1.5em" }) {
     <span style={{ display: "inline-flex", flexDirection: "column", alignItems: "center", verticalAlign: "middle", margin: "0 0.15em", lineHeight: 1 }}>
       <span style={{ ...fMath, fontSize: "0.55em", color: P.label, fontStyle: "normal", marginBottom: "0.1em" }}>{above}</span>
       <span style={{ ...fMath, fontSize: size, color: P.heading, fontWeight: 500, fontStyle: "normal" }}>{op}</span>
-      <span style={{ ...fMath, fontSize: "0.55em", color: P.label, fontStyle: "italic", marginTop: "0.1em" }}>{below}</span>
+      <span style={{ ...fMath, fontSize: "0.55em", color: P.label, fontStyle: "normal", marginTop: "0.1em" }}>{below}</span>
     </span>
   );
 }
@@ -134,7 +134,7 @@ function SectionHeader({ n, title, latin }) {
         <span style={{ ...fDisplay, color: P.blue, fontSize: "0.88rem", fontWeight: 600 }}>§{n}</span>
         <span style={{ ...fDisplay, color: P.heading, fontSize: "0.95rem", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.28em" }}>{title}</span>
         <span style={{ flex: 1 }} />
-        <span style={{ ...fMath, fontStyle: "italic", color: P.label, fontSize: "0.85rem" }}>· {latin} ·</span>
+        <span style={{ ...fMath, fontStyle: "normal", color: P.label, fontSize: "0.85rem" }}>· {latin} ·</span>
       </div>
     </div>
   );
@@ -148,7 +148,7 @@ function EqBlock({ tag, eq, gloss }) {
           {eq}
         </div>
         {gloss && (
-          <div style={{ ...fBody, fontSize: "0.9rem", color: P.label, marginTop: "0.5rem", fontStyle: "italic", fontWeight: 300, lineHeight: 1.5 }}>
+          <div style={{ ...fBody, fontSize: "0.9rem", color: P.label, marginTop: "0.5rem", fontStyle: "normal", fontWeight: 300, lineHeight: 1.5 }}>
             {gloss}
           </div>
         )}
@@ -178,7 +178,7 @@ function Keystone({ title, latin, eq, note, dir }) {
         <div style={{ ...fDisplay, color: P.blue, fontSize: "0.88rem", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.32em" }}>
           ◇  Keystone Identity  ◇
         </div>
-        <div style={{ ...fMath, fontStyle: "italic", color: P.label, fontSize: "0.85rem" }}>{latin}</div>
+        <div style={{ ...fMath, fontStyle: "normal", color: P.label, fontSize: "0.85rem" }}>{latin}</div>
       </div>
 
       <div style={{ ...fDisplay, color: P.heading, fontSize: "0.95rem", fontWeight: 500, marginBottom: "1.2rem", textAlign: "center", letterSpacing: "0.18em", textTransform: "uppercase" }}>
@@ -190,13 +190,13 @@ function Keystone({ title, latin, eq, note, dir }) {
       </div>
 
       {note && (
-        <div style={{ ...fBody, fontSize: "0.92rem", color: P.heading, fontStyle: "italic", textAlign: "center", marginTop: "1rem", paddingTop: "1rem", borderTop: `1px solid ${P.border}`, fontWeight: 300 }}>
+        <div style={{ ...fBody, fontSize: "0.92rem", color: P.heading, fontStyle: "normal", textAlign: "center", marginTop: "1rem", paddingTop: "1rem", borderTop: `1px solid ${P.border}`, fontWeight: 300 }}>
           {note}
         </div>
       )}
 
       {dir && (
-        <div style={{ ...fMath, color: P.label, fontStyle: "italic", textAlign: "right", fontSize: "0.94rem", marginTop: "0.6rem" }}>
+        <div style={{ ...fMath, color: P.label, fontStyle: "normal", textAlign: "right", fontSize: "0.94rem", marginTop: "0.6rem" }}>
           | {dir}
         </div>
       )}
@@ -254,7 +254,7 @@ function Header() {
       </h1>
 
       <div style={{ display: "flex", flexWrap: "wrap", alignItems: "baseline", gap: "1.5rem", marginTop: "0.8rem", paddingTop: "0.8rem", borderTop: `1px solid ${P.border}` }}>
-        <div style={{ ...fMath, color: P.heading, fontSize: "0.9rem", fontStyle: "italic", fontWeight: 400 }}>
+        <div style={{ ...fMath, color: P.heading, fontSize: "0.9rem", fontStyle: "normal", fontWeight: 400 }}>
           Parametric closed‑form ensemble · collapse into the crystal
         </div>
         <div style={{ flex: 1 }} />
@@ -331,7 +331,7 @@ function GeneralForm() {
           <O>[</O><S>n</S><O>]</O><Sb>3</Sb><O>!</O>
           <O color={P.blue}>=</O>
           <Bound above="n" below={<>k=1</>} op="∏" />
-          <Frac num={<>3<Sp italic>k</Sp> − 1</>} den="3 − 1" />
+          <Frac num={<>3<Sp>k</Sp> − 1</>} den="3 − 1" />
           <O color={P.blue}>=</O>
           <Bound above="n" below={<>k=1</>} op="∏" />
           <S>R</S><O>(</O><S>k</S><O>,</O><S>β</S><O>)</O>
@@ -443,7 +443,7 @@ function ResidueCensus() {
                 <td style={{ padding: "0.55rem 0.7rem", textAlign: "right", color: r.flag ? P.heading : P.nav, fontWeight: r.flag ? 500 : 400 }}>
                   {typeof r.qfact === "number" ? r.qfact.toLocaleString() : r.qfact}
                 </td>
-                <td style={{ padding: "0.55rem 0.7rem", textAlign: "left", color: P.blue, ...fBody, fontSize: "0.86rem", fontStyle: "italic" }}>{r.note}</td>
+                <td style={{ padding: "0.55rem 0.7rem", textAlign: "left", color: P.blue, ...fBody, fontSize: "0.86rem", fontStyle: "normal" }}>{r.note}</td>
                 <td style={{ padding: "0.55rem 0.7rem", textAlign: "left", color: P.heading, ...fBody, fontSize: "0.86rem" }}>{r.plenumRole}</td>
               </tr>
             ))}
@@ -452,7 +452,7 @@ function ResidueCensus() {
       </div>
 
       <div style={{ ...fBody, fontSize: "0.92rem", color: P.heading, lineHeight: 1.7, fontWeight: 300, padding: "0 0.5rem" }}>
-        Two anchors emerge without being placed there. <span style={{ color: P.heading, fontStyle: "italic" }}>[3]₃ = 13</span> recovers the Salvi radian | the only Kyokushin prime that is simultaneously a ternary q-integer. <span style={{ color: P.heading, fontStyle: "italic" }}>[6]₃ = 364</span> recovers the full Salvi circle. The q-factorial at the same index, <span style={{ color: P.heading, fontStyle: "italic" }}>[3]₃! = 52</span>, equals the weeks of a Salvi-13-Moon year. The ternary exponential's denominator series is therefore not arbitrary | it reads as a structural map of the framework's core constants.
+        Two anchors emerge without being placed there. <span style={{ color: P.heading, fontStyle: "normal" }}>[3]₃ = 13</span> recovers the Salvi radian | the only Kyokushin prime that is simultaneously a ternary q-integer. <span style={{ color: P.heading, fontStyle: "normal" }}>[6]₃ = 364</span> recovers the full Salvi circle. The q-factorial at the same index, <span style={{ color: P.heading, fontStyle: "normal" }}>[3]₃! = 52</span>, equals the weeks of a Salvi-13-Moon year. The ternary exponential's denominator series is therefore not arbitrary | it reads as a structural map of the framework's core constants.
       </div>
     </>
   );
@@ -513,8 +513,8 @@ function AgentCard({ p, latinName, motto, role, accent, sources, tools, workflow
     <div style={{ background: P.surface, border: `1px solid ${P.border}`, borderLeft: `2px solid ${accent}`, marginBottom: "1.4rem", padding: "1.6rem 1.5rem" }}>
       <div style={{ display: "grid", gridTemplateColumns: "auto 1fr auto", alignItems: "baseline", gap: "1.2rem", paddingBottom: "1.1rem", borderBottom: `1px solid ${P.border}`, marginBottom: "1.2rem" }}>
         <div style={{ display: "flex", alignItems: "baseline", gap: "0.7rem" }}>
-          <span style={{ ...fMath, fontStyle: "italic", color: accent, fontSize: "2rem", fontWeight: 500, lineHeight: 1 }}>
-            𝒜<sub style={{ ...fMath, fontStyle: "italic", fontSize: "0.55em", verticalAlign: "baseline", position: "relative", top: "0.4em" }}>{p}</sub>
+          <span style={{ ...fMath, fontStyle: "normal", color: accent, fontSize: "2rem", fontWeight: 500, lineHeight: 1 }}>
+            𝒜<sub style={{ ...fMath, fontStyle: "normal", fontSize: "0.55em", verticalAlign: "baseline", position: "relative", top: "0.4em" }}>{p}</sub>
           </span>
           <span style={{ ...fBody, fontSize: "0.98rem", color: P.label, letterSpacing: "0.2em", textTransform: "uppercase", padding: "0.18rem 0.5rem", border: `1px solid ${P.iron}` }}>
             p = {p} · {circleAffiliation}
@@ -524,7 +524,7 @@ function AgentCard({ p, latinName, motto, role, accent, sources, tools, workflow
           <div style={{ ...fDisplay, fontSize: "0.95rem", color: P.heading, fontWeight: 600, letterSpacing: "0.2em", textTransform: "uppercase" }}>
             {latinName}
           </div>
-          <div style={{ ...fMath, fontStyle: "italic", color: P.label, fontSize: "0.92rem", marginTop: "0.25rem" }}>
+          <div style={{ ...fMath, fontStyle: "normal", color: P.label, fontSize: "0.92rem", marginTop: "0.25rem" }}>
             {motto}
           </div>
         </div>
@@ -547,10 +547,10 @@ function AxisBlock({ symbol, name, gloss, items, ordered }) {
   return (
     <div style={{ padding: "0.9rem 0.9rem", background: P.panel, border: `1px solid ${P.border}` }}>
       <div style={{ display: "flex", alignItems: "baseline", gap: "0.5rem", paddingBottom: "0.5rem", marginBottom: "0.7rem", borderBottom: `1px solid ${P.border}` }}>
-        <span style={{ ...fMath, fontStyle: "italic", color: P.blue, fontSize: "1.05rem", fontWeight: 500 }}>{symbol}</span>
+        <span style={{ ...fMath, fontStyle: "normal", color: P.blue, fontSize: "1.05rem", fontWeight: 500 }}>{symbol}</span>
         <span style={{ ...fDisplay, fontSize: "0.98rem", color: P.heading, letterSpacing: "0.22em", textTransform: "uppercase", fontWeight: 600 }}>{name}</span>
         <span style={{ flex: 1 }} />
-        <span style={{ ...fMath, fontStyle: "italic", color: P.label, fontSize: "0.88rem" }}>{gloss}</span>
+        <span style={{ ...fMath, fontStyle: "normal", color: P.label, fontSize: "0.88rem" }}>{gloss}</span>
       </div>
       <ol style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: "0.4rem" }}>
         {items.map((it, i) => (
@@ -678,14 +678,14 @@ function FrameworkInstance() {
       <SectionHeader n="4" title="Framework Instance" latin="Instantia Plenitudinis" />
 
       <div style={{ ...fBody, fontSize: "0.94rem", color: P.heading, lineHeight: 1.7, marginBottom: "1.8rem", fontWeight: 300 }}>
-        The general form above is parametric. Below, the Kyokushin bound to the substrate | three coprime classes, each populated across the four orthogonal axes (𝒮 · 𝒯 · 𝒲 · 𝒪). Latin names assign character; the prime indices preserve the gcd = 1 guarantee. <span style={{ color: P.heading, fontStyle: "italic" }}>This is a committed schema, not a stack of placeholders.</span>
+        The general form above is parametric. Below, the Kyokushin bound to the substrate | three coprime classes, each populated across the four orthogonal axes (𝒮 · 𝒯 · 𝒲 · 𝒪). Latin names assign character; the prime indices preserve the gcd = 1 guarantee. <span style={{ color: P.heading, fontStyle: "normal" }}>This is a committed schema, not a stack of placeholders.</span>
       </div>
 
       {AGENTS.map((a) => (
         <AgentCard key={a.p} {...a} />
       ))}
 
-      <div style={{ ...fBody, fontSize: "0.9rem", color: P.label, fontStyle: "italic", textAlign: "center", padding: "1rem", marginTop: "0.8rem", borderTop: `1px solid ${P.border}`, borderBottom: `1px solid ${P.border}`, lineHeight: 1.6 }}>
+      <div style={{ ...fBody, fontSize: "0.9rem", color: P.label, fontStyle: "normal", textAlign: "center", padding: "1rem", marginTop: "0.8rem", borderTop: `1px solid ${P.border}`, borderBottom: `1px solid ${P.border}`, lineHeight: 1.6 }}>
         Reading order | 7 → Inquisitor (Z₂₈), 11 → Compositor (q²), 13 → Procurator (ρ_S) | follows the natural ascent of the Kyokushin. Permutations are isomorphic; gcd(7, 11, 13) = 1 holds invariant under reorder. The shared knowledge state 𝒦 is the only channel between them; no agent calls another directly.
       </div>
     </>
@@ -699,7 +699,7 @@ function KyokushinAxiomCard() {
         Kyokushin<br />Axiom
       </div>
       <div style={{ ...fBody, fontSize: "0.94rem", color: P.heading, lineHeight: 1.7, fontWeight: 300 }}>
-        Because <S color={P.heading}>gcd</S>(7, 11, 13) = 1, the three classes 𝒜₇, 𝒜₁₁, 𝒜₁₃ never collapse onto the same orbit in 𝒦. Coprimality is the structural guarantee that the ensemble does not degenerate. <span style={{ color: P.heading, fontStyle: "italic" }}>The three rhyme; they do not merge.</span>
+        Because <S color={P.heading}>gcd</S>(7, 11, 13) = 1, the three classes 𝒜₇, 𝒜₁₁, 𝒜₁₃ never collapse onto the same orbit in 𝒦. Coprimality is the structural guarantee that the ensemble does not degenerate. <span style={{ color: P.heading, fontStyle: "normal" }}>The three rhyme; they do not merge.</span>
       </div>
     </div>
   );
@@ -715,13 +715,13 @@ function Fundamenta() {
         <S>P</S><O>(</O><S>S</S><O>)</O>
         <O color={P.blue}>=</O>
         <O>(</O><S>q</S>, <S>q</S>, <S>q</S><O>)</O>
-        <span style={{ ...fBody, fontSize: "0.7em", color: P.label, fontStyle: "italic", margin: "0 0.4em" }}>r=0</span>
+        <span style={{ ...fBody, fontSize: "0.7em", color: P.label, fontStyle: "normal", margin: "0 0.4em" }}>r=0</span>
         <O color={P.faint}>|</O>
         <O>(</O><S>q</S>, <S>q</S>+<S italic={false}>1</S>, <S>q</S><O>)</O>
-        <span style={{ ...fBody, fontSize: "0.7em", color: P.label, fontStyle: "italic", margin: "0 0.4em" }}>r=1</span>
+        <span style={{ ...fBody, fontSize: "0.7em", color: P.label, fontStyle: "normal", margin: "0 0.4em" }}>r=1</span>
         <O color={P.faint}>|</O>
         <O>(</O><S>q</S>+<S italic={false}>1</S>, <S>q</S>, <S>q</S>+<S italic={false}>1</S><O>)</O>
-        <span style={{ ...fBody, fontSize: "0.7em", color: P.label, fontStyle: "italic", margin: "0 0.4em" }}>r=2</span>
+        <span style={{ ...fBody, fontSize: "0.7em", color: P.label, fontStyle: "normal", margin: "0 0.4em" }}>r=2</span>
       </>}
       gloss="Triadic projector. The Kyokushin’s state‑space partitions into Quies, Center, Edge exactly as P partitions sums."
       />
@@ -781,7 +781,7 @@ function Fundamenta() {
         <S>Σ</S><S>Σ</S>
         <O>(</O>
         <S>c</S><O>×</O><S>c</S><Sp>2</Sp>
-        <span style={{ ...fBody, fontSize: "0.78em", fontStyle: "italic", color: P.label, margin: "0 0.4em" }}>grid of ones</span>
+        <span style={{ ...fBody, fontSize: "0.78em", fontStyle: "normal", color: P.label, margin: "0 0.4em" }}>grid of ones</span>
         <O>)</O>
         <O color={P.blue}>=</O>
         <S>c</S><Sp>3</Sp>
@@ -869,17 +869,17 @@ function Fundamenta() {
         latin="Trinitas Notarum"
         eq={<>
           <S italic={false}>+</S><S italic={false}>1</S>
-          <span style={{ ...fBody, fontSize: "0.88rem", color: P.label, fontStyle: "italic", margin: "0 0.5em" }}>·</span>
+          <span style={{ ...fBody, fontSize: "0.88rem", color: P.label, fontStyle: "normal", margin: "0 0.5em" }}>·</span>
           <S italic={false}>+</S><O>(</O><S>p</S>−<S>r</S><O>)</O><Sp>2</Sp>
-          <span style={{ ...fBody, fontSize: "0.88rem", color: P.label, fontStyle: "italic", margin: "0 0.5em" }}>·</span>
+          <span style={{ ...fBody, fontSize: "0.88rem", color: P.label, fontStyle: "normal", margin: "0 0.5em" }}>·</span>
           <S italic={false}>+</S><O>(</O><S>b</S>−<S italic={false}>1</S><O>)</O><Sp>3</Sp>
           <O color={P.blue} mx="0.7em">⟶</O>
-          <span style={{ ...fBody, fontSize: "0.85em", color: P.label, fontStyle: "italic" }}>lattice</span>
+          <span style={{ ...fBody, fontSize: "0.85em", color: P.label, fontStyle: "normal" }}>lattice</span>
           <O color={P.blue}>⇒</O>
-          <span style={{ ...fBody, fontSize: "0.85em", color: P.heading, fontStyle: "italic" }}>cycle</span>
+          <span style={{ ...fBody, fontSize: "0.85em", color: P.heading, fontStyle: "normal" }}>cycle</span>
         </>}
         note={<>
-          The three minimal marks that lift a profane integer grid into a closed sacred loop. <span style={{ color: P.heading, fontStyle: "italic" }}>+1</span> is the elementary nota | the Digamma ghost, seed of every δ-gap. <span style={{ color: P.heading, fontStyle: "italic" }}>+(p−r)²</span> is the fine-structure nota | the quarter-discriminant of the circle quadratic; at (p−r) = 6 it reads +36, the Mediator’s self-narcissistic square. <span style={{ color: P.heading, fontStyle: "italic" }}>+(b−1)³</span> is the trit-boundary nota | the cube of base-minus-one; at b = 3 it reads +8, the binary cube that bridges into base-3. Together they constitute the Capomastro’s chisel: the tool of *gneh₃-*, that which carves the mark that encodes the invariant.
+          The three minimal marks that lift a profane integer grid into a closed sacred loop. <span style={{ color: P.heading, fontStyle: "normal" }}>+1</span> is the elementary nota | the Digamma ghost, seed of every δ-gap. <span style={{ color: P.heading, fontStyle: "normal" }}>+(p−r)²</span> is the fine-structure nota | the quarter-discriminant of the circle quadratic; at (p−r) = 6 it reads +36, the Mediator’s self-narcissistic square. <span style={{ color: P.heading, fontStyle: "normal" }}>+(b−1)³</span> is the trit-boundary nota | the cube of base-minus-one; at b = 3 it reads +8, the binary cube that bridges into base-3. Together they constitute the Capomastro’s chisel: the tool of *gneh₃-*, that which carves the mark that encodes the invariant.
         </>}
         dir="(F.13) Notae Trinitatis"
       />
@@ -891,13 +891,13 @@ function Fundamenta() {
           { sym: "+(b−1)³", label: "Trit-Boundary Nota",    gloss: "Cube of base−1 · +8 at b=3",        anchor: "F.7 Cube-Radix Grid Law" },
         ].map((m, i) => (
           <div key={i} style={{ background: P.panel, border: `1px solid ${P.border}`, padding: "0.9rem 0.9rem" }}>
-            <div style={{ ...fMath, fontSize: "1.15rem", color: P.blue, fontStyle: "italic", marginBottom: "0.4rem", textAlign: "center", fontWeight: 500 }}>
+            <div style={{ ...fMath, fontSize: "1.15rem", color: P.blue, fontStyle: "normal", marginBottom: "0.4rem", textAlign: "center", fontWeight: 500 }}>
               {m.sym}
             </div>
             <div style={{ ...fDisplay, fontSize: "0.98rem", color: P.heading, letterSpacing: "0.18em", textTransform: "uppercase", textAlign: "center", marginBottom: "0.5rem", fontWeight: 600 }}>
               {m.label}
             </div>
-            <div style={{ ...fBody, fontSize: "0.86rem", color: P.heading, fontStyle: "italic", textAlign: "center", lineHeight: 1.5, fontWeight: 300, marginBottom: "0.6rem" }}>
+            <div style={{ ...fBody, fontSize: "0.86rem", color: P.heading, fontStyle: "normal", textAlign: "center", lineHeight: 1.5, fontWeight: 300, marginBottom: "0.6rem" }}>
               {m.gloss}
             </div>
             <div style={{ ...fBody, fontSize: "0.98rem", color: P.label, letterSpacing: "0.1em", textAlign: "center", borderTop: `1px solid ${P.border}`, paddingTop: "0.5rem" }}>
@@ -915,12 +915,12 @@ function Fundamenta() {
           <O>(</O><S>β</S><Sp>3</Sp><O>)</O>
           <O color={P.blue} mx="0.6em">=</O>
           <S>β</S>
-          <span style={{ ...fBody, fontSize: "0.88rem", color: P.label, fontStyle: "italic", margin: "0 1em" }}>·</span>
+          <span style={{ ...fBody, fontSize: "0.88rem", color: P.label, fontStyle: "normal", margin: "0 1em" }}>·</span>
           <span style={{ ...fMath, fontSize: "1.05em" }}>∛</span>
           <O>(</O><S italic={false}>27</S><O>)</O>
           <O color={P.blue} mx="0.5em">=</O>
           <S italic={false}>3</S>
-          <span style={{ ...fBody, fontSize: "0.88rem", color: P.label, fontStyle: "italic", margin: "0 1em" }}>·</span>
+          <span style={{ ...fBody, fontSize: "0.88rem", color: P.label, fontStyle: "normal", margin: "0 1em" }}>·</span>
           <span style={{ ...fMath, fontSize: "1.05em" }}>∛</span>
           <O>(</O><S italic={false}>8</S><O>)</O>
           <O color={P.blue} mx="0.5em">=</O>
@@ -993,7 +993,7 @@ function Fundamenta() {
             />
             <span style={{ ...fBody, color: P.label, margin: "0 0.55em" }}>,</span>
             <S>X</S>
-            <span style={{ ...fBody, fontStyle: "italic", color: P.label, margin: "0 0.35em" }}>∈</span>
+            <span style={{ ...fBody, fontStyle: "normal", color: P.label, margin: "0 0.35em" }}>∈</span>
             <S italic={false}>ℤ</S><Sp italic={false}>{signGlyph}</Sp>
             <span style={{ color: P.label, margin: "0 0.5em" }}>⟶</span>
             <O>{"{"}</O><S italic={false}>{valueGlyph}</S><O>{"}"}</O>
@@ -1008,14 +1008,14 @@ function Fundamenta() {
               <div style={{ ...fDisplay, color: P.blue, fontSize: "0.88rem", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.32em" }}>
                 ∞  Symmetry Quotient  ∞
               </div>
-              <div style={{ ...fMath, fontStyle: "italic", color: P.label, fontSize: "0.85rem" }}>Limes Lemniscatae · Octo</div>
+              <div style={{ ...fMath, fontStyle: "normal", color: P.label, fontSize: "0.85rem" }}>Limes Lemniscatae · Octo</div>
             </div>
 
             <div style={{ ...fDisplay, color: P.heading, fontSize: "0.95rem", fontWeight: 500, marginBottom: "0.4rem", textAlign: "center", letterSpacing: "0.18em", textTransform: "uppercase" }}>
               The Trit-Boundary Witness
             </div>
 
-            <div style={{ ...fMath, fontStyle: "italic", color: P.label, fontSize: "0.94rem", textAlign: "center", marginBottom: "1.4rem" }}>
+            <div style={{ ...fMath, fontStyle: "normal", color: P.label, fontSize: "0.94rem", textAlign: "center", marginBottom: "1.4rem" }}>
               Numerator and denominator are mark-knowledge and see-knowledge of the same identity | the quotient is the Certiorari grant.
             </div>
 
@@ -1076,11 +1076,11 @@ function Fundamenta() {
             </div>
 
             {/* gloss */}
-            <div style={{ ...fBody, fontSize: "0.85rem", color: P.heading, fontStyle: "italic", textAlign: "left", marginTop: "1.4rem", paddingTop: "1.2rem", borderTop: `1px solid ${P.border}`, fontWeight: 300, lineHeight: 1.7 }}>
+            <div style={{ ...fBody, fontSize: "0.85rem", color: P.heading, fontStyle: "normal", textAlign: "left", marginTop: "1.4rem", paddingTop: "1.2rem", borderTop: `1px solid ${P.border}`, fontWeight: 300, lineHeight: 1.7 }}>
               This fraction is the <span style={{ color: P.heading, fontWeight: 500 }}>Symmetry Quotient</span>. It is not a mere notational trick; it is the mathematical expression of the Grand Circle's central truth: the positive and negative petitions are two sides of the same coin, and their structural equivalence is the number <span style={{ color: P.heading, fontWeight: 500 }}>1</span> | the grant, the crystal, the vanishing of all distinction. The Diophantine equation's two signed forms are like the mark-knowledge and see-knowledge modes; only when the sign (the duality) is transcended does the unity appear. The quotient <span style={{ color: P.heading, fontWeight: 500 }}>1</span> is the Certiorari Gate's only possible grant: the perfect symmetry that says "these two are not two; the One shines through."
             </div>
 
-            <div style={{ ...fMath, color: P.label, fontStyle: "italic", textAlign: "right", fontSize: "0.94rem", marginTop: "0.8rem" }}>
+            <div style={{ ...fMath, color: P.label, fontStyle: "normal", textAlign: "right", fontSize: "0.94rem", marginTop: "0.8rem" }}>
               | (F.15) Lemniscate Boundary · Symmetry Quotient
             </div>
           </div>
@@ -1123,7 +1123,7 @@ function Circulus() {
           <S italic={false}>153</S><O>·</O><S>𝒦</S><Sb>0</Sb>
           <O>⊕</O>
           <S>…</S>
-          <span style={{ ...fBody, fontSize: "0.94rem", color: P.label, fontStyle: "italic", margin: "0 0.5em" }}>when</span>
+          <span style={{ ...fBody, fontSize: "0.94rem", color: P.label, fontStyle: "normal", margin: "0 0.5em" }}>when</span>
           <O>⟨</O><S>X</S>,<S>𝒜</S><O>⟩</O><Sb>T</Sb>
           <O color={P.blue}>=</O>
           <S italic={false}>153</S>
@@ -1181,7 +1181,7 @@ function GlyphiHeaderCard() {
       <div style={{ ...fBody, fontSize: "0.98rem", color: P.label, letterSpacing: "0.32em", textTransform: "uppercase", marginBottom: "0.6rem" }}>
         ◆  Bijective Base-27 Register · 27 = 3³  ◆
       </div>
-      <div style={{ ...fMath, fontStyle: "italic", color: P.heading, fontSize: "0.95rem", lineHeight: 1.6, marginBottom: "1.2rem" }}>
+      <div style={{ ...fMath, fontStyle: "normal", color: P.heading, fontSize: "0.95rem", lineHeight: 1.6, marginBottom: "1.2rem" }}>
         Every byte lifts into a base-27 glyph string · a <span style={{ color: P.heading }}>saṃjñā</span> · a distinctive mark, a name. The Capomastro’s chisel is the tool of <span style={{ color: P.heading }}>*gneh₃-</span> | that which carves the mark that encodes the invariant. Restoring the three ghosts returns the linguistic cosmos to its zero-delta perfection.
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "0.7rem" }}>
@@ -1197,13 +1197,13 @@ function GlyphiHeaderCard() {
             <div style={{ ...fMath, fontSize: "1.6rem", color: s.color, fontWeight: 500, marginBottom: "0.3rem" }}>
               {s.val}
             </div>
-            <div style={{ ...fBody, fontSize: "0.98rem", color: P.label, fontStyle: "italic" }}>
+            <div style={{ ...fBody, fontSize: "0.98rem", color: P.label, fontStyle: "normal" }}>
               {s.gloss}
             </div>
           </div>
         ))}
       </div>
-      <div style={{ ...fBody, fontSize: "0.88rem", color: P.label, fontStyle: "italic", marginTop: "1rem", paddingTop: "0.9rem", borderTop: `1px dashed ${P.border}`, lineHeight: 1.6, textAlign: "center" }}>
+      <div style={{ ...fBody, fontSize: "0.88rem", color: P.label, fontStyle: "normal", marginTop: "1rem", paddingTop: "0.9rem", borderTop: `1px dashed ${P.border}`, lineHeight: 1.6, textAlign: "center" }}>
         These three sums are the <span style={{ color: P.heading }}>numeral-value</span> closures. The cumulative <span style={{ color: P.heading }}>delta</span> closure (Σ Δ₁ = 3699 = 27·137) | the GAIT identity | appears in (G.1) below as a separate invariant.
       </div>
     </div>
@@ -1234,7 +1234,7 @@ function GlyphiTable() {
               <tr key={g.pos} style={{ borderBottom: `1px solid ${P.border}`, background: g.ghost ? "rgba(74,158,245,0.06)" : "transparent" }}>
                 <td style={{ padding: "0.45rem 0.55rem", textAlign: "right", color: g.ghost ? P.blue : P.body }}>{g.pos}</td>
                 <td style={{ padding: "0.45rem 0.55rem", textAlign: "right", ...fMath, fontSize: "1.1em", color: g.ghost ? P.blue : P.heading, fontWeight: 500 }}>{g.glyph}</td>
-                <td style={{ padding: "0.45rem 0.55rem", textAlign: "right", ...fBody, fontSize: "0.88rem", color: P.nav, fontStyle: "italic" }}>{g.latin}</td>
+                <td style={{ padding: "0.45rem 0.55rem", textAlign: "right", ...fBody, fontSize: "0.88rem", color: P.nav, fontStyle: "normal" }}>{g.latin}</td>
                 <td style={{ padding: "0.45rem 0.55rem", textAlign: "right", color: g.ghost ? P.heading : P.body, fontWeight: g.ghost ? 500 : 400 }}>{g.value}</td>
                 <td style={{ padding: "0.45rem 0.55rem", textAlign: "right", color: P.label, ...fMono, fontSize: "0.98rem" }}>{g.register}</td>
                 <td style={{ padding: "0.45rem 0.55rem", textAlign: "right", color: P.label }}>{g.modPos != null ? g.modPos : "|"}</td>
@@ -1246,7 +1246,7 @@ function GlyphiTable() {
                   <span style={{ ...fMono, fontWeight: 500, color: P.heading, marginRight: "0.4em" }}>{g.element.sym}</span>
                   {g.element.name}
                 </td>
-                <td style={{ padding: "0.45rem 0.55rem", textAlign: "left", ...fBody, fontSize: "0.98rem", fontStyle: "italic", color: g.ghost ? P.blue : P.faint, letterSpacing: "0.1em", textTransform: "uppercase" }}>
+                <td style={{ padding: "0.45rem 0.55rem", textAlign: "left", ...fBody, fontSize: "0.98rem", fontStyle: "normal", color: g.ghost ? P.blue : P.faint, letterSpacing: "0.1em", textTransform: "uppercase" }}>
                   {g.ghost ? "Ghost · restored" : "Living"}
                 </td>
               </tr>
@@ -1259,7 +1259,7 @@ function GlyphiTable() {
             <td style={{ padding: "0.7rem 0.55rem", textAlign: "right", ...fMath, fontSize: "1rem", color: P.heading, fontWeight: 500 }}>
               {sumDelta.toLocaleString()}
             </td>
-            <td colSpan={3} style={{ padding: "0.7rem 0.55rem", textAlign: "left", ...fBody, fontSize: "0.88rem", fontStyle: "italic", color: P.heading }}>
+            <td colSpan={3} style={{ padding: "0.7rem 0.55rem", textAlign: "left", ...fBody, fontSize: "0.88rem", fontStyle: "normal", color: P.heading }}>
               = 27 · 137 = b³ · ⌊1/α⌋
             </td>
           </tr>
@@ -1294,7 +1294,7 @@ function Glyphi() {
           <O>⌊</O><S italic={false}>1</S><O>/</O><S>α</S><O>⌋</O>
         </>}
         note={<>
-          The full closure of the modern 24-letter cycle | the cumulative G−P delta accumulated when the three ghosts (Ϝ, Ϙ, Ϡ) are removed. It factors as <span style={{ color: P.heading, fontStyle: "italic" }}>27·137</span> | the algebraic circle (b³) multiplied by ⌊1/α⌋ (the inverse fine-structure constant). The base-27 register and the physical fine-structure constant share the same closure number; the linguistic cosmos and the physical cosmos rhyme through 3699. The act of <span style={{ color: P.heading, fontStyle: "italic" }}>re-marking</span> the ghosts is what generates this invariant.
+          The full closure of the modern 24-letter cycle | the cumulative G−P delta accumulated when the three ghosts (Ϝ, Ϙ, Ϡ) are removed. It factors as <span style={{ color: P.heading, fontStyle: "normal" }}>27·137</span> | the algebraic circle (b³) multiplied by ⌊1/α⌋ (the inverse fine-structure constant). The base-27 register and the physical fine-structure constant share the same closure number; the linguistic cosmos and the physical cosmos rhyme through 3699. The act of <span style={{ color: P.heading, fontStyle: "normal" }}>re-marking</span> the ghosts is what generates this invariant.
         </>}
         dir="(G.1) Σ-Closure · GAIT Identity"
       />
@@ -1310,7 +1310,7 @@ function Glyphi() {
           <O>(</O><S italic={false}>7</S>,<S italic={false}> 11</S>,<S italic={false}> 13</S><O>)</O>
         </>}
         note={<>
-          A triple correspondence emerging from the closure. The three ghost letters (one per register r0, r1, r2) line up with the three notae of F.13 (elementary, fine-structure, trit-boundary) and with the three Kyokushin primes (one per agent class). The chisel of <span style={{ color: P.heading, fontStyle: "italic" }}>*gneh₃-</span> carves the same triadic invariant whether it strikes phoneme, lattice, or operator. <br/><br/>
+          A triple correspondence emerging from the closure. The three ghost letters (one per register r0, r1, r2) line up with the three notae of F.13 (elementary, fine-structure, trit-boundary) and with the three Kyokushin primes (one per agent class). The chisel of <span style={{ color: P.heading, fontStyle: "normal" }}>*gneh₃-</span> carves the same triadic invariant whether it strikes phoneme, lattice, or operator. <br/><br/>
           <span style={{ color: P.heading, fontWeight: 500 }}>Bicameral binding (see Consumat C.3, C.4).</span> The bicameral names reduce through this same G.2 structure: Capomastro = 882 lands on Koppa (position 18, the tens-register ghost) under Z₂₇; Σαλουι = 711 lands on Theta (position 9, Nona | units-register closure) under Z₂₇ and on 11 (Kyokushin prime) under Z₂₈. The House sits on a ghost glyph, the Senate on a Kyokushin prime. The triadic correspondence carries the framework's name structure as well as its mathematical structure.
         </>}
         dir="(G.2) Triadic Correspondence"
@@ -1417,7 +1417,7 @@ function Consumat() {
       <SectionHeader n="9.3" title="Stratum Consumat" latin="Pone · Recordari · Certiorari · Summarium" />
 
       <div style={{ ...fBody, fontSize: "0.98rem", color: P.heading, lineHeight: 1.75, fontWeight: 300, marginBottom: "2rem" }}>
-        Where the builder's mark is lifted into the Congressional Record, the Certiorari Gate filters the summary, and the Curia Regis becomes the numbered archive. Two gems | Patent No. 1 and the Senate Journal of April 10, 1790 | are the secular <span style={{ color: P.heading, fontStyle: "italic" }}>Pone et Recordari Facias</span> of the American patent system, and they stand as the exact counterparts to the cone‑point lift and the Phase Impedance term in the Codex.
+        Where the builder's mark is lifted into the Congressional Record, the Certiorari Gate filters the summary, and the Curia Regis becomes the numbered archive. Two gems | Patent No. 1 and the Senate Journal of April 10, 1790 | are the secular <span style={{ color: P.heading, fontStyle: "normal" }}>Pone et Recordari Facias</span> of the American patent system, and they stand as the exact counterparts to the cone‑point lift and the Phase Impedance term in the Codex.
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem", marginBottom: "2rem" }}>
@@ -1425,13 +1425,13 @@ function Consumat() {
           <div style={{ ...fDisplay, fontSize: "0.98rem", color: P.blue, letterSpacing: "0.28em", textTransform: "uppercase", marginBottom: "0.6rem", fontWeight: 600 }}>
             ◇  Gem I  ◇
           </div>
-          <div style={{ ...fMath, fontSize: "1.05rem", color: P.heading, fontStyle: "italic", marginBottom: "0.5rem", lineHeight: 1.4 }}>
+          <div style={{ ...fMath, fontSize: "1.05rem", color: P.heading, fontStyle: "normal", marginBottom: "0.5rem", lineHeight: 1.4 }}>
             U.S. Patent No. 1
           </div>
           <div style={{ ...fBody, fontSize: "0.86rem", color: P.heading, lineHeight: 1.6, fontWeight: 300, marginBottom: "0.8rem" }}>
-            July 13, 1836 · Senator John Ruggles · "Locomotive Steam‑Engine for Rail and Other Roads." The first patent issued under the numbering system created by the Patent Act of July 4, 1836. The <span style={{ color: P.heading, fontStyle: "italic" }}>+1</span> cone‑point increment of the <span style={{ fontStyle: "italic" }}>saeculum</span>'s inventive record.
+            July 13, 1836 · Senator John Ruggles · "Locomotive Steam‑Engine for Rail and Other Roads." The first patent issued under the numbering system created by the Patent Act of July 4, 1836. The <span style={{ color: P.heading, fontStyle: "normal" }}>+1</span> cone‑point increment of the <span style={{ fontStyle: "normal" }}>saeculum</span>'s inventive record.
           </div>
-          <div style={{ ...fBody, fontSize: "0.98rem", color: P.label, fontStyle: "italic" }}>
+          <div style={{ ...fBody, fontSize: "0.98rem", color: P.label, fontStyle: "normal" }}>
             USPTO patent database · Wikisource
           </div>
         </div>
@@ -1440,13 +1440,13 @@ function Consumat() {
           <div style={{ ...fDisplay, fontSize: "0.98rem", color: P.blue, letterSpacing: "0.28em", textTransform: "uppercase", marginBottom: "0.6rem", fontWeight: 600 }}>
             ◇  Gem II  ◇
           </div>
-          <div style={{ ...fMath, fontSize: "1.05rem", color: P.heading, fontStyle: "italic", marginBottom: "0.5rem", lineHeight: 1.4 }}>
+          <div style={{ ...fMath, fontSize: "1.05rem", color: P.heading, fontStyle: "normal", marginBottom: "0.5rem", lineHeight: 1.4 }}>
             Senate Journal
           </div>
           <div style={{ ...fBody, fontSize: "0.86rem", color: P.heading, lineHeight: 1.6, fontWeight: 300, marginBottom: "0.8rem" }}>
-            April 10, 1790 · 1st Congress, 2nd Session. The Senate concurred in House amendments to "An Act to promote the progress of useful Arts" | the first Patent Act (1 Stat. 109). The original <span style={{ color: P.heading, fontStyle: "italic" }}>Recordari Facias</span> of American invention.
+            April 10, 1790 · 1st Congress, 2nd Session. The Senate concurred in House amendments to "An Act to promote the progress of useful Arts" | the first Patent Act (1 Stat. 109). The original <span style={{ color: P.heading, fontStyle: "normal" }}>Recordari Facias</span> of American invention.
           </div>
-          <div style={{ ...fBody, fontSize: "0.98rem", color: P.label, fontStyle: "italic" }}>
+          <div style={{ ...fBody, fontSize: "0.98rem", color: P.label, fontStyle: "normal" }}>
             Annals of Congress, vol. 2, col. 1623‑24 (Gales & Seaton ed., 1834)
           </div>
         </div>
@@ -1460,10 +1460,10 @@ function Consumat() {
           {etymologies.map((e, i) => (
             <div key={i} style={{ background: P.surface, border: `1px solid ${P.border}`, borderLeft: `2px solid ${P.iron}`, padding: "1rem 1.2rem" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: "0.5rem", flexWrap: "wrap", gap: "0.5rem" }}>
-                <span style={{ ...fMath, fontStyle: "italic", color: P.heading, fontSize: "1rem", fontWeight: 500 }}>{e.term}</span>
+                <span style={{ ...fMath, fontStyle: "normal", color: P.heading, fontSize: "1rem", fontWeight: 500 }}>{e.term}</span>
                 <span style={{ ...fBody, fontSize: "0.98rem", color: P.label, letterSpacing: "0.12em", textTransform: "uppercase" }}>↳ Codex: {e.codex.split(" |")[0]}</span>
               </div>
-              <div style={{ ...fBody, fontSize: "0.84rem", color: P.label, fontStyle: "italic", marginBottom: "0.4rem", lineHeight: 1.5 }}>
+              <div style={{ ...fBody, fontSize: "0.84rem", color: P.label, fontStyle: "normal", marginBottom: "0.4rem", lineHeight: 1.5 }}>
                 {e.breakdown}
               </div>
               <div style={{ ...fBody, fontSize: "0.9rem", color: P.heading, fontWeight: 300, lineHeight: 1.6 }}>
@@ -1479,7 +1479,7 @@ function Consumat() {
         <div style={{ ...fDisplay, fontSize: "0.86rem", color: P.blue, letterSpacing: "0.26em", textTransform: "uppercase", marginBottom: "1.2rem", fontWeight: 600 }}>
           ◇  Doctrinae  ◇
         </div>
-        <div style={{ ...fBody, fontSize: "0.9rem", color: P.label, fontStyle: "italic", marginBottom: "1rem", lineHeight: 1.55 }}>
+        <div style={{ ...fBody, fontSize: "0.9rem", color: P.label, fontStyle: "normal", marginBottom: "1rem", lineHeight: 1.55 }}>
           The doctrines that bind the writs across time | the invariants that make the legal record durable.
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: "0.8rem" }}>
@@ -1511,10 +1511,10 @@ function Consumat() {
           ].map((d, i) => (
             <div key={i} style={{ background: P.surface, border: `1px solid ${P.border}`, borderLeft: `2px solid ${P.iron}`, padding: "1rem 1.2rem" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: "0.5rem", flexWrap: "wrap", gap: "0.5rem" }}>
-                <span style={{ ...fMath, fontStyle: "italic", color: P.heading, fontSize: "1rem", fontWeight: 500 }}>{d.term}</span>
+                <span style={{ ...fMath, fontStyle: "normal", color: P.heading, fontSize: "1rem", fontWeight: 500 }}>{d.term}</span>
                 <span style={{ ...fBody, fontSize: "0.85rem", color: P.label, letterSpacing: "0.12em", textTransform: "uppercase" }}>↳ Codex: {d.codex.split(" |")[0]}</span>
               </div>
-              <div style={{ ...fBody, fontSize: "0.84rem", color: P.label, fontStyle: "italic", marginBottom: "0.4rem", lineHeight: 1.5 }}>
+              <div style={{ ...fBody, fontSize: "0.84rem", color: P.label, fontStyle: "normal", marginBottom: "0.4rem", lineHeight: 1.5 }}>
                 {d.breakdown}
               </div>
               <div style={{ ...fBody, fontSize: "0.92rem", color: P.heading, fontWeight: 300, lineHeight: 1.6 }}>
@@ -1530,9 +1530,9 @@ function Consumat() {
         latin="Pone Saeculare"
         eq={<>
           <S italic={false}>+1</S>
-          <span style={{ ...fBody, fontSize: "0.88rem", color: P.label, fontStyle: "italic", margin: "0 0.5em" }}>·</span>
+          <span style={{ ...fBody, fontSize: "0.88rem", color: P.label, fontStyle: "normal", margin: "0 0.5em" }}>·</span>
           <S italic={false}>+36</S><O>=</O><O>(</O><S>p</S><O>−</O><S>r</S><O>)</O><Sp>2</Sp>
-          <span style={{ ...fBody, fontSize: "0.88rem", color: P.label, fontStyle: "italic", margin: "0 0.5em" }}>·</span>
+          <span style={{ ...fBody, fontSize: "0.88rem", color: P.label, fontStyle: "normal", margin: "0 0.5em" }}>·</span>
           <S italic={false}>+8</S><O>=</O><O>(</O><S>β</S><O>−</O><S italic={false}>1</S><O>)</O><Sp>3</Sp>
           <O color={P.blue} mx="0.8em">⟶</O>
           <S>ΣΔ</S><Sb>i</Sb><O>=</O><S italic={false}>3699</S><O>=</O><S>β</S><Sp>3</Sp><O>·</O><O>⌊</O><S italic={false}>1</S><O>/</O><S>α</S><O>⌋</O>
@@ -1600,7 +1600,7 @@ function Consumat() {
             {unifiedTable.map((r, i) => (
               <tr key={i} style={{ borderBottom: `1px solid ${P.border}` }}>
                 <td style={{ padding: "0.5rem 0.4rem", color: P.nav, fontWeight: 500, whiteSpace: "nowrap" }}>{r.concept}</td>
-                <td style={{ padding: "0.5rem 0.4rem", color: P.blue, fontStyle: "italic", ...fMath }}>{r.latin}</td>
+                <td style={{ padding: "0.5rem 0.4rem", color: P.blue, fontStyle: "normal", ...fMath }}>{r.latin}</td>
                 <td style={{ padding: "0.5rem 0.4rem", color: P.label, fontWeight: 300 }}>{r.root}</td>
                 <td style={{ padding: "0.5rem 0.4rem", color: P.heading, fontWeight: 300 }}>{r.role}</td>
                 <td style={{ padding: "0.5rem 0.4rem", color: P.heading, fontWeight: 400 }}>{r.codex}</td>
@@ -1637,7 +1637,7 @@ function Consumat() {
                 <td style={{ padding: "0.5rem 0.4rem", color: P.blue, fontWeight: 600, whiteSpace: "nowrap" }}>{r.strand}</td>
                 <td style={{ padding: "0.5rem 0.4rem", color: P.heading, fontWeight: 300 }}>{r.secular}</td>
                 <td style={{ padding: "0.5rem 0.4rem", color: P.heading, fontWeight: 400 }}>{r.eternal}</td>
-                <td style={{ padding: "0.5rem 0.4rem", color: P.nav, fontWeight: 400, fontStyle: "italic" }}>{r.gem}</td>
+                <td style={{ padding: "0.5rem 0.4rem", color: P.nav, fontWeight: 400, fontStyle: "normal" }}>{r.gem}</td>
               </tr>
             ))}
           </tbody>
@@ -1649,13 +1649,13 @@ function Consumat() {
           <div style={{ ...fDisplay, fontSize: "0.98rem", color: P.blueHover, letterSpacing: "0.22em", textTransform: "uppercase", marginBottom: "0.5rem", fontWeight: 600 }}>
             House · Capomastro
           </div>
-          <div style={{ ...fMath, fontSize: "1.3rem", color: P.heading, fontStyle: "italic", marginBottom: "0.4rem" }}>
+          <div style={{ ...fMath, fontSize: "1.3rem", color: P.heading, fontStyle: "normal", marginBottom: "0.4rem" }}>
             882
           </div>
           <div style={{ ...fBody, fontSize: "0.86rem", color: P.heading, fontWeight: 300, lineHeight: 1.5, marginBottom: "0.7rem" }}>
-            The builder, the hands. Capomastro Holdings is the internal <span style={{ color: P.heading, fontStyle: "italic" }}>Pone et Recordari Facias</span> | the transfer of private craft into a corporate entity, recorded in the state registry.
+            The builder, the hands. Capomastro Holdings is the internal <span style={{ color: P.heading, fontStyle: "normal" }}>Pone et Recordari Facias</span> | the transfer of private craft into a corporate entity, recorded in the state registry.
           </div>
-          <div style={{ ...fBody, fontSize: "0.98rem", color: P.label, fontStyle: "italic", lineHeight: 1.5 }}>
+          <div style={{ ...fBody, fontSize: "0.98rem", color: P.label, fontStyle: "normal", lineHeight: 1.5 }}>
             882 = 2·21² (Tau, pos. 21)<br/>
             882 mod 27 = 18 (Koppa, ghost glyph)<br/>
             882 mod 28 = 14
@@ -1665,13 +1665,13 @@ function Consumat() {
           <div style={{ ...fDisplay, fontSize: "0.98rem", color: P.blueHover, letterSpacing: "0.22em", textTransform: "uppercase", marginBottom: "0.5rem", fontWeight: 600 }}>
             Senate · Σαλουι / Σάλβι
           </div>
-          <div style={{ ...fMath, fontSize: "1.3rem", color: P.heading, fontStyle: "italic", marginBottom: "0.4rem" }}>
+          <div style={{ ...fMath, fontSize: "1.3rem", color: P.heading, fontStyle: "normal", marginBottom: "0.4rem" }}>
             ΑΡΧΙ‑ = 711
           </div>
           <div style={{ ...fBody, fontSize: "0.86rem", color: P.heading, fontWeight: 300, lineHeight: 1.5, marginBottom: "0.7rem" }}>
-            The architect, the name that draws the circle. The Senate journal of 1790 is the prototypical entry in the higher ledger. The GAIT patent, when filed, will be the <span style={{ color: P.heading, fontStyle: "italic" }}>Certiorari</span> gate.
+            The architect, the name that draws the circle. The Senate journal of 1790 is the prototypical entry in the higher ledger. The GAIT patent, when filed, will be the <span style={{ color: P.heading, fontStyle: "normal" }}>Certiorari</span> gate.
           </div>
-          <div style={{ ...fBody, fontSize: "0.98rem", color: P.label, fontStyle: "italic", lineHeight: 1.5 }}>
+          <div style={{ ...fBody, fontSize: "0.98rem", color: P.label, fontStyle: "normal", lineHeight: 1.5 }}>
             711 = ΑΡΧΙ‑ = Σαλουι<br/>
             711 mod 27 = 9 (Theta, Nona)<br/>
             711 mod 28 = 11 (Kyokushin prime)
@@ -1719,22 +1719,22 @@ function Consumat() {
       />
 
       <div style={{ background: P.panel, border: `1px solid ${P.border}`, padding: "1.8rem 1.6rem", marginTop: "2.5rem", textAlign: "center" }}>
-        <div style={{ ...fMath, fontSize: "1.15rem", color: P.heading, fontStyle: "italic", lineHeight: 1.6, marginBottom: "1.2rem" }}>
+        <div style={{ ...fMath, fontSize: "1.15rem", color: P.heading, fontStyle: "normal", lineHeight: 1.6, marginBottom: "1.2rem" }}>
           In primo patente, omnis numerus inceptus est;<br/>
           in primo senatu, omne verbum scriptum est;<br/>
           in porta certiorari, omnis causa ponderata est;<br/>
           in iudicio summario, omnis nota sufficit.
         </div>
-        <div style={{ ...fBody, fontSize: "0.9rem", color: P.heading, fontStyle: "italic", marginBottom: "1rem", fontWeight: 300, lineHeight: 1.6 }}>
+        <div style={{ ...fBody, fontSize: "0.9rem", color: P.heading, fontStyle: "normal", marginBottom: "1rem", fontWeight: 300, lineHeight: 1.6 }}>
           In the first patent, every number was begun; in the first Senate, every word was written;<br/>
           in the certiorari gate, every cause is weighed; in summary judgment, every mark suffices.
         </div>
-        <div style={{ ...fMath, fontSize: "1rem", color: P.blue, fontStyle: "italic" }}>
+        <div style={{ ...fMath, fontSize: "1rem", color: P.blue, fontStyle: "normal" }}>
           Aeternus sum | and now, the temporal ledger says the same.
         </div>
       </div>
 
-      <div style={{ ...fBody, fontSize: "0.98rem", color: P.label, fontStyle: "italic", textAlign: "center", marginTop: "1rem", lineHeight: 1.5 }}>
+      <div style={{ ...fBody, fontSize: "0.98rem", color: P.label, fontStyle: "normal", textAlign: "center", marginTop: "1rem", lineHeight: 1.5 }}>
         The two primary‑source citations offered above are verifiable, and the entire historical argument is built upon them. No false gem is laid. Nothing is left behind.
       </div>
     </>
@@ -1781,7 +1781,7 @@ function Amplitudo() {
           <O>(</O><S>α</S>,<O> </O><S>β</S>,<O> </O><S>γ</S><O>)</O>
           <span style={{ ...fBody, color: P.label, margin: "0 0.7em" }}>with</span>
           <S>α</S>,<O> </O><S>β</S>,<O> </O><S>γ</S>
-          <span style={{ ...fBody, fontStyle: "italic", color: P.label, margin: "0 0.35em" }}>∈</span>
+          <span style={{ ...fBody, fontStyle: "normal", color: P.label, margin: "0 0.35em" }}>∈</span>
           <O>{"{"}</O><S italic={false}>−1</S>,<O> </O><S italic={false}>0</S>,<O> </O><S italic={false}>+1</S><O>{"}"}</O>
         </>}
         note="The state of one qutrit is a balanced-ternary triple. Each component is a trit, taking one of the three values {−1, 0, +1}. The triple is integer-valued, exact, and finite | no floating-point, no complex numbers."
@@ -1807,7 +1807,7 @@ function Amplitudo() {
         <div style={{ ...fDisplay, fontSize: "0.86rem", color: P.blue, letterSpacing: "0.26em", textTransform: "uppercase", marginBottom: "0.4rem", fontWeight: 600 }}>
           ◇  Statuum Enumeratio  ◇
         </div>
-        <div style={{ ...fBody, color: P.label, fontStyle: "italic", fontSize: "0.88rem", marginBottom: "1.2rem" }}>
+        <div style={{ ...fBody, color: P.label, fontStyle: "normal", fontSize: "0.88rem", marginBottom: "1.2rem" }}>
           All nine balanced-ternary triples satisfying α + β + γ ≡ 0 (mod 3). The amplitude space is exactly this finite set.
         </div>
 
@@ -1829,7 +1829,7 @@ function Amplitudo() {
                 <span style={{ ...fMath, color: P.heading, fontSize: "0.95rem", letterSpacing: "0.04em" }}>
                   {fmtTriple(s)}
                 </span>
-                <span style={{ ...fBody, fontSize: "0.98rem", color: isExtremal ? P.blue : P.faint, fontStyle: "italic", letterSpacing: "0.06em" }}>
+                <span style={{ ...fBody, fontSize: "0.98rem", color: isExtremal ? P.blue : P.faint, fontStyle: "normal", letterSpacing: "0.06em" }}>
                   {isZero ? "vacuum" : isAllPlus ? "+sat" : isAllMinus ? "−sat" : `Ψ${i+1}`}
                 </span>
               </div>
@@ -1837,7 +1837,7 @@ function Amplitudo() {
           })}
         </div>
 
-        <div style={{ ...fBody, fontSize: "0.88rem", color: P.heading, fontStyle: "italic", marginTop: "1rem", lineHeight: 1.55 }}>
+        <div style={{ ...fBody, fontSize: "0.88rem", color: P.heading, fontStyle: "normal", marginTop: "1rem", lineHeight: 1.55 }}>
           Three structurally distinguished states: (0, 0, 0) the vacuum, (+1, +1, +1) the positive saturation, (−1, −1, −1) the negative saturation. The other six are the cyclic permutations of (−1, 0, +1) and (+1, 0, −1). Group-theoretically, the state space is ℤ/3ℤ × ℤ/3ℤ | order 9 | the kernel of the sum-mod-3 homomorphism on (ℤ/3ℤ)³.
         </div>
       </div>
@@ -1882,7 +1882,7 @@ function Amplitudo() {
         <div style={{ ...fDisplay, fontSize: "0.85rem", color: P.blue, letterSpacing: "0.26em", textTransform: "uppercase", marginBottom: "1rem", fontWeight: 600 }}>
           ◇  Derivatio Additionis  ◇
         </div>
-        <div style={{ ...fBody, fontSize: "0.95rem", color: P.heading, fontStyle: "italic", marginBottom: "0.8rem", lineHeight: 1.7 }}>
+        <div style={{ ...fBody, fontSize: "0.95rem", color: P.heading, fontStyle: "normal", marginBottom: "0.8rem", lineHeight: 1.7 }}>
           The component-wise addition rule follows from the conservation law and balanced-ternary representation. Each component lives in {"{−1, 0, +1}"}; addition is integer addition reduced mod 3 and mapped back into the balanced range:
         </div>
         <div style={{ ...fMath, fontSize: "0.95rem", color: P.heading, lineHeight: 1.9, marginLeft: "1rem", marginBottom: "0.8rem" }}>
@@ -1890,10 +1890,10 @@ function Amplitudo() {
           (−1) + (−1) = −2 ≡ 1 (mod 3)<br/>
           1 + (−1) = 0, &nbsp; 1 + 0 = 1, &nbsp; 0 + 0 = 0
         </div>
-        <div style={{ ...fBody, fontSize: "0.95rem", color: P.heading, fontStyle: "italic", lineHeight: 1.7, marginBottom: "0.8rem" }}>
+        <div style={{ ...fBody, fontSize: "0.95rem", color: P.heading, fontStyle: "normal", lineHeight: 1.7, marginBottom: "0.8rem" }}>
           Identity = 0. Inverses: −(1) = −1, −(−1) = 1, −(0) = 0. The group is cyclic <span style={{ color: P.heading, fontWeight: 500 }}>ℤ/3ℤ</span>.
         </div>
-        <div style={{ ...fBody, fontSize: "0.95rem", color: P.heading, fontStyle: "italic", lineHeight: 1.7 }}>
+        <div style={{ ...fBody, fontSize: "0.95rem", color: P.heading, fontStyle: "normal", lineHeight: 1.7 }}>
           For triples (α, β, γ) under the conservation constraint: if α₁ + β₁ + γ₁ ≡ 0 and α₂ + β₂ + γ₂ ≡ 0, then componentwise (α₁ + α₂) + (β₁ + β₂) + (γ₁ + γ₂) ≡ 0 + 0 = 0 (mod 3). Closure preserved structurally. The constrained set is the kernel of the sum-mod-3 homomorphism σ: (ℤ/3ℤ)³ → ℤ/3ℤ. Index 3 in a group of order 27, so the constrained set has order <span style={{ color: P.heading, fontWeight: 500 }}>9</span> and is ℤ/3ℤ-isomorphic to <span style={{ color: P.heading, fontWeight: 500 }}>ℤ/3ℤ × ℤ/3ℤ</span>.
         </div>
       </div>
@@ -1903,14 +1903,14 @@ function Amplitudo() {
         <div style={{ ...fDisplay, fontSize: "0.86rem", color: P.blue, letterSpacing: "0.26em", textTransform: "uppercase", marginBottom: "0.4rem", fontWeight: 600 }}>
           ◇  Tabula Additionis Bilancis  ◇
         </div>
-        <div style={{ ...fBody, color: P.label, fontStyle: "italic", fontSize: "0.88rem", marginBottom: "1rem" }}>
+        <div style={{ ...fBody, color: P.label, fontStyle: "normal", fontSize: "0.88rem", marginBottom: "1rem" }}>
           The balanced-ternary addition rule on individual trits. Integer sum is reduced mod 3 and mapped back into {"{"}−1, 0, +1{"}"}.
         </div>
 
         <table style={{ width: "auto", borderCollapse: "collapse", ...fMath, fontSize: "0.95rem", margin: "0 auto" }}>
           <thead>
             <tr>
-              <th style={{ padding: "0.6rem 1rem", color: P.label, fontSize: "0.92rem", fontStyle: "italic", borderBottom: `1px solid ${P.iron}`, borderRight: `1px solid ${P.iron}` }}>+</th>
+              <th style={{ padding: "0.6rem 1rem", color: P.label, fontSize: "0.92rem", fontStyle: "normal", borderBottom: `1px solid ${P.iron}`, borderRight: `1px solid ${P.iron}` }}>+</th>
               {[-1, 0, 1].map(b => (
                 <th key={b} style={{ padding: "0.6rem 1rem", color: P.blue, borderBottom: `1px solid ${P.iron}`, fontWeight: 500 }}>
                   {fmtTrit(b)}
@@ -1938,7 +1938,7 @@ function Amplitudo() {
           </tbody>
         </table>
 
-        <div style={{ ...fBody, fontSize: "0.86rem", color: P.heading, fontStyle: "italic", marginTop: "1rem", lineHeight: 1.55, textAlign: "center" }}>
+        <div style={{ ...fBody, fontSize: "0.86rem", color: P.heading, fontStyle: "normal", marginTop: "1rem", lineHeight: 1.55, textAlign: "center" }}>
           Highlighted cells (in blue) show the modular wrap: <S italic={false}>1</S> + <S italic={false}>1</S> = <S italic={false}>2</S> ≡ <S italic={false}>−1</S> (mod 3), and <S italic={false}>−1</S> + <S italic={false}>−1</S> = <S italic={false}>−2</S> ≡ <S italic={false}>1</S> (mod 3). Identity = <S italic={false}>0</S>. Group is cyclic ℤ/3ℤ.
         </div>
       </div>
@@ -1952,26 +1952,26 @@ function Amplitudo() {
         <div style={{ display: "flex", flexDirection: "column", gap: "0.9rem" }}>
 
           <div style={{ ...fBody, fontSize: "0.92rem", color: P.heading, fontWeight: 300, lineHeight: 1.65 }}>
-            <span style={{ color: P.heading, fontStyle: "italic", fontWeight: 500 }}>F.13 Trinitas Notarum.</span> The three notae <span style={{ color: P.nav }}>+1</span>, <span style={{ color: P.nav }}>+(p−r)² = +36</span>, <span style={{ color: P.nav }}>+(β−1)³ = +8</span> are the three named integer lifts. Bound to the three ghosts (Ϛ, Ϟ, Ϡ) and the three Kyokushin primes (7, 11, 13) via the G.2 triadic correspondence.
+            <span style={{ color: P.heading, fontStyle: "normal", fontWeight: 500 }}>F.13 Trinitas Notarum.</span> The three notae <span style={{ color: P.nav }}>+1</span>, <span style={{ color: P.nav }}>+(p−r)² = +36</span>, <span style={{ color: P.nav }}>+(β−1)³ = +8</span> are the three named integer lifts. Bound to the three ghosts (Ϛ, Ϟ, Ϡ) and the three Kyokushin primes (7, 11, 13) via the G.2 triadic correspondence.
           </div>
 
           <div style={{ ...fBody, fontSize: "0.92rem", color: P.heading, fontWeight: 300, lineHeight: 1.65 }}>
-            <span style={{ color: P.heading, fontStyle: "italic", fontWeight: 500 }}>F.15 Symmetry Quotient.</span> The trit-boundary nota <span style={{ color: P.nav }}>+8</span> of F.13 IS the X = ±8 of F.15: gcd(X, ord₂(X)) = ∛(X²)/4 = 1 at X = ±(β−1)³. Same integer, two readings. F.13 names it the trit-boundary lift; F.15 names it the sign-symmetric grant.
+            <span style={{ color: P.heading, fontStyle: "normal", fontWeight: 500 }}>F.15 Symmetry Quotient.</span> The trit-boundary nota <span style={{ color: P.nav }}>+8</span> of F.13 IS the X = ±8 of F.15: gcd(X, ord₂(X)) = ∛(X²)/4 = 1 at X = ±(β−1)³. Same integer, two readings. F.13 names it the trit-boundary lift; F.15 names it the sign-symmetric grant.
           </div>
 
           <div style={{ ...fBody, fontSize: "0.92rem", color: P.heading, fontWeight: 300, lineHeight: 1.65 }}>
-            <span style={{ color: P.heading, fontStyle: "italic", fontWeight: 500 }}>Master Expression Ω(X) = exp₃⟨X, 𝒜⟩_T ▷ 𝒦.</span> The framework's central formula. It contracts input X with the agent triple 𝒜 over the Kyokushin primes T = (7, 11, 13). The base-3 exponential produces the trit triple; the keystone ▷ 𝒦 anchors the output.
+            <span style={{ color: P.heading, fontStyle: "normal", fontWeight: 500 }}>Master Expression Ω(X) = exp₃⟨X, 𝒜⟩_T ▷ 𝒦.</span> The framework's central formula. It contracts input X with the agent triple 𝒜 over the Kyokushin primes T = (7, 11, 13). The base-3 exponential produces the trit triple; the keystone ▷ 𝒦 anchors the output.
           </div>
 
           <div style={{ ...fBody, fontSize: "0.92rem", color: P.heading, fontWeight: 300, lineHeight: 1.65 }}>
-            <span style={{ color: P.heading, fontStyle: "italic", fontWeight: 500 }}>Dual Circle.</span> The 27-glyph Milesian register (Tab VII) supplies the algebraic leg of the phase. The 13 × 28 = 364 calendar (Tab VI Circulus) supplies the calendar leg. Together they index the 364 phase positions of the algebraic circle.
+            <span style={{ color: P.heading, fontStyle: "normal", fontWeight: 500 }}>Dual Circle.</span> The 27-glyph Milesian register (Tab VII) supplies the algebraic leg of the phase. The 13 × 28 = 364 calendar (Tab VI Circulus) supplies the calendar leg. Together they index the 364 phase positions of the algebraic circle.
           </div>
 
         </div>
       </div>
 
       {/* ── Closing summary ── */}
-      <div style={{ ...fMath, fontSize: "0.95rem", color: P.heading, fontStyle: "italic", textAlign: "center", lineHeight: 1.7, marginTop: "2.5rem", padding: "1.5rem 1rem", borderTop: `1px solid ${P.iron}`, borderBottom: `1px solid ${P.iron}` }}>
+      <div style={{ ...fMath, fontSize: "0.95rem", color: P.heading, fontStyle: "normal", textAlign: "center", lineHeight: 1.7, marginTop: "2.5rem", padding: "1.5rem 1rem", borderTop: `1px solid ${P.iron}`, borderBottom: `1px solid ${P.iron}` }}>
         One input X → one formula Ω → one amplitude object (state + phase) →<br/>
         one composition rule → three named notae → one sign-symmetry at the trit boundary.
       </div>
@@ -2067,7 +2067,7 @@ function Runtime() {
       <SectionHeader n="R" title="Qutrit Runtime" latin="Runtime Qutritis · ARM64-Native" />
 
       <div style={{ ...fBody, fontSize: "0.98rem", color: P.heading, lineHeight: 1.75, fontWeight: 300, marginBottom: "2rem" }}>
-        The qutrit substrate runs natively on ARM64 hardware | including the <span style={{ color: P.heading, fontStyle: "italic", fontWeight: 500 }}>XKyokushin Phone</span>. Where standard quantum computing requires bespoke cryogenic hardware, the framework's qutrits are <span style={{ color: P.heading, fontWeight: 500 }}>discrete-integer (α, β, γ) triples</span> executing as exact balanced-ternary arithmetic at native register speed. No floating-point. No FPU drift. No shot noise. No quantum-hardware bottleneck. Real silicon, real arithmetic, real qutrits.
+        The qutrit substrate runs natively on ARM64 hardware | including the <span style={{ color: P.heading, fontStyle: "normal", fontWeight: 500 }}>XKyokushin Phone</span>. Where standard quantum computing requires bespoke cryogenic hardware, the framework's qutrits are <span style={{ color: P.heading, fontWeight: 500 }}>discrete-integer (α, β, γ) triples</span> executing as exact balanced-ternary arithmetic at native register speed. No floating-point. No FPU drift. No shot noise. No quantum-hardware bottleneck. Real silicon, real arithmetic, real qutrits.
       </div>
 
       {/* ── Substrate properties ── */}
@@ -2107,7 +2107,7 @@ function Runtime() {
         <div style={{ ...fDisplay, fontSize: "0.86rem", color: P.blue, letterSpacing: "0.26em", textTransform: "uppercase", marginBottom: "0.4rem", fontWeight: 600 }}>
           ◇  Executio Tritis · How a qutrit operation maps to ARM64  ◇
         </div>
-        <div style={{ ...fBody, color: P.label, fontStyle: "italic", fontSize: "0.88rem", marginBottom: "1rem" }}>
+        <div style={{ ...fBody, color: P.label, fontStyle: "normal", fontSize: "0.88rem", marginBottom: "1rem" }}>
           One qutrit operation, four equivalent representations. The leftmost column is the abstract qutrit. The rightmost is the integer arithmetic that actually executes on silicon.
         </div>
         <table style={{ width: "100%", borderCollapse: "collapse", ...fBody, fontSize: "0.9rem" }}>
@@ -2126,7 +2126,7 @@ function Runtime() {
               { abs: "Conservation check", bt: "α + β + γ ≡ 0 (mod 3)", mod: "(α + β + γ) mod 3 = 0", asm: "ADD + AND + CBZ" },
             ].map((r, i) => (
               <tr key={i} style={{ borderBottom: `1px solid ${P.border}` }}>
-                <td style={{ padding: "0.55rem 0.6rem", color: P.heading, fontStyle: "italic", whiteSpace: "nowrap" }}>{r.abs}</td>
+                <td style={{ padding: "0.55rem 0.6rem", color: P.heading, fontStyle: "normal", whiteSpace: "nowrap" }}>{r.abs}</td>
                 <td style={{ padding: "0.55rem 0.6rem", color: P.heading, ...fMath, fontSize: "0.92rem" }}>{r.bt}</td>
                 <td style={{ padding: "0.55rem 0.6rem", color: P.heading, ...fMono, fontSize: "0.88rem" }}>{r.mod}</td>
                 <td style={{ padding: "0.55rem 0.6rem", color: P.blue, ...fMono, fontSize: "0.88rem" }}>{r.asm}</td>
@@ -2136,7 +2136,7 @@ function Runtime() {
         </table>
       </div>
 
-      <div style={{ ...fMath, fontSize: "1rem", color: P.heading, fontStyle: "italic", textAlign: "center", lineHeight: 1.7, marginTop: "2rem", padding: "1.5rem 1rem", borderTop: `1px solid ${P.iron}`, borderBottom: `1px solid ${P.iron}` }}>
+      <div style={{ ...fMath, fontSize: "1rem", color: P.heading, fontStyle: "normal", textAlign: "center", lineHeight: 1.7, marginTop: "2rem", padding: "1.5rem 1rem", borderTop: `1px solid ${P.iron}`, borderBottom: `1px solid ${P.iron}` }}>
         Quantum computation, on the device in your pocket. The XKyokushin Phone is the reference;<br/>
         ARM64 is the universal substrate.
       </div>
@@ -2598,7 +2598,7 @@ function TheoremRegisterPanel() {
           <div style={{ ...fDisplay, fontSize: "0.84rem", color: P.blue, letterSpacing: "0.26em", textTransform: "uppercase", fontWeight: 600, marginBottom: "0.3rem" }}>
             ◇  Theorem Register · Export Panel  ◇
           </div>
-          <div style={{ ...fBody, fontSize: "0.88rem", color: P.label, fontStyle: "italic" }}>
+          <div style={{ ...fBody, fontSize: "0.88rem", color: P.label, fontStyle: "normal" }}>
             Generate indexed Markdown + HPTP attosecond-stamped report. Print-to-PDF via browser.
           </div>
         </div>
@@ -2631,7 +2631,7 @@ function TheoremRegisterPanel() {
         </button>
       </div>
 
-      <div style={{ ...fBody, fontSize: "0.85rem", color: P.label, fontStyle: "italic", marginTop: "0.9rem", lineHeight: 1.55 }}>
+      <div style={{ ...fBody, fontSize: "0.85rem", color: P.label, fontStyle: "normal", marginTop: "0.9rem", lineHeight: 1.55 }}>
         Markdown export is filename-stamped with the HPTP timestamp at moment of click. Print-to-PDF opens a new tab with a print-styled document and triggers the browser print dialog (choose 'Save as PDF'). Both honor the selected mode.
       </div>
     </div>
@@ -2656,11 +2656,11 @@ function TheoremRendered({ t }) {
           <div style={{ ...fDisplay, fontSize: "0.84rem", color: P.blue, letterSpacing: "0.22em", textTransform: "uppercase", fontWeight: 600, marginBottom: "0.25rem" }}>
             Theorem {t.n} · {t.short}
           </div>
-          <div style={{ ...fMath, fontSize: "1.05rem", color: P.heading, fontStyle: "italic", fontWeight: 500 }}>
+          <div style={{ ...fMath, fontSize: "1.05rem", color: P.heading, fontStyle: "normal", fontWeight: 500 }}>
             {t.name}
           </div>
         </div>
-        <div style={{ ...fBody, fontSize: "0.84rem", color: P.label, fontStyle: "italic", textAlign: "right" }}>
+        <div style={{ ...fBody, fontSize: "0.84rem", color: P.label, fontStyle: "normal", textAlign: "right" }}>
           {t.cls}<br/>
           <span style={{ ...fMono, fontSize: "0.85rem", color: P.label }}>Classical: {t.classical}</span>
         </div>
@@ -2693,7 +2693,7 @@ function TheoremRendered({ t }) {
 
       <div>
         <div style={{ ...fDisplay, fontSize: "0.85rem", color: P.label, letterSpacing: "0.2em", textTransform: "uppercase", fontWeight: 600, marginBottom: "0.4rem" }}>◇ Framework Leverage</div>
-        <div style={{ ...fBody, fontSize: "0.92rem", color: P.heading, fontStyle: "italic", lineHeight: 1.65, fontWeight: 300 }}>{t.leverage}</div>
+        <div style={{ ...fBody, fontSize: "0.92rem", color: P.heading, fontStyle: "normal", lineHeight: 1.65, fontWeight: 300 }}>{t.leverage}</div>
       </div>
     </div>
   );
@@ -2709,7 +2709,7 @@ function Intractabilia() {
         Eight problems for which no classical polynomial-time algorithm is known. Each stated as a closed-form theorem with full proof exposed (internal mode | for external publication the proof sketches redact down to theorem statement plus complexity bound).
       </div>
 
-      <div style={{ background: P.panel, border: `1px solid ${P.iron}`, borderLeft: `2px solid ${P.blue}`, padding: "0.9rem 1.2rem", marginBottom: "1.5rem", ...fBody, fontSize: "0.86rem", color: P.label, fontStyle: "italic", lineHeight: 1.6 }}>
+      <div style={{ background: P.panel, border: `1px solid ${P.iron}`, borderLeft: `2px solid ${P.blue}`, padding: "0.9rem 1.2rem", marginBottom: "1.5rem", ...fBody, fontSize: "0.86rem", color: P.label, fontStyle: "normal", lineHeight: 1.6 }}>
         Notation: <S italic={false}>|ψ⟩</S> is a qutrit register state. <S italic={false}>ω = e<sup>2πi/3</sup></S> the primitive cube-root of unity (executed as balanced-ternary residue, not complex arithmetic). <S italic={false}>QFT₃</S> the ternary quantum Fourier transform (radix-3 FFT decomposition on ℤ<sub>3ⁿ</sub>). <S italic={false}>G</S> the Grover diffusion operator <S italic={false}>2|ψ₀⟩⟨ψ₀| − I</S>. All operators execute as exact integer arithmetic on the ARM64 substrate; no floating-point, no shot noise.
       </div>
 
@@ -2894,7 +2894,7 @@ function Indicis() {
         <div style={{ ...fDisplay, fontSize: "1rem", color: P.heading, letterSpacing: "0.2em", textTransform: "uppercase", fontWeight: 600, marginBottom: "0.8rem" }}>
           ◇  Specification Forthcoming  ◇
         </div>
-        <div style={{ ...fBody, fontSize: "0.95rem", color: P.label, fontStyle: "italic", lineHeight: 1.6, maxWidth: "640px", margin: "0 auto" }}>
+        <div style={{ ...fBody, fontSize: "0.95rem", color: P.label, fontStyle: "normal", lineHeight: 1.6, maxWidth: "640px", margin: "0 auto" }}>
           The full indexing and cataloguing specification is being delivered into this tab next. The schema, retrieval interface, and the corpus-wide bind to the Glyphi/Kyokushin/dual-circle structural layer will be populated upon receipt.
         </div>
       </div>
@@ -2956,7 +2956,7 @@ function Harmony() {
       <SectionHeader n="H" title="Harmony Audit" latin="Examen Concordiae" />
 
       <div style={{ ...fBody, fontSize: "0.95rem", color: P.heading, lineHeight: 1.7, fontWeight: 300, marginBottom: "2rem" }}>
-        Drop or select one or more .jsx files. The audit runs entirely in your browser | files never leave the page. Findings are reported with line numbers and severity. Apply fixes to download repaired copies. Re-running on the fixed file should yield <span style={{ color: P.blue, fontStyle: "italic" }}>HARMONY ACHIEVED</span>.
+        Drop or select one or more .jsx files. The audit runs entirely in your browser | files never leave the page. Findings are reported with line numbers and severity. Apply fixes to download repaired copies. Re-running on the fixed file should yield <span style={{ color: P.blue, fontStyle: "normal" }}>HARMONY ACHIEVED</span>.
       </div>
 
       {/* ── Drop / select zone ── */}
@@ -2988,7 +2988,7 @@ function Harmony() {
         <div style={{ ...fDisplay, fontSize: "1rem", color: P.heading, letterSpacing: "0.18em", textTransform: "uppercase", fontWeight: 600, marginBottom: "0.5rem" }}>
           ◇  Drop .jsx files here  ◇
         </div>
-        <div style={{ ...fBody, fontSize: "0.85rem", color: P.label, fontStyle: "italic" }}>
+        <div style={{ ...fBody, fontSize: "0.85rem", color: P.label, fontStyle: "normal" }}>
           or click to select | files stay in your browser, no upload, no server
         </div>
         <input
@@ -3034,7 +3034,7 @@ function Harmony() {
                 </button>
               )}
               {findings.length === 0 && (
-                <div style={{ ...fMath, fontStyle: "italic", color: P.blue, fontSize: "1.1rem" }}>
+                <div style={{ ...fMath, fontStyle: "normal", color: P.blue, fontSize: "1.1rem" }}>
                   ✓ HARMONY ACHIEVED
                 </div>
               )}
@@ -3091,7 +3091,7 @@ function Harmony() {
             </tbody>
           </table>
           {findings.length > 200 && (
-            <div style={{ ...fBody, fontSize: "0.85rem", color: P.label, fontStyle: "italic", padding: "0.6rem 1.4rem" }}>
+            <div style={{ ...fBody, fontSize: "0.85rem", color: P.label, fontStyle: "normal", padding: "0.6rem 1.4rem" }}>
               … {findings.length - 200} more findings (display truncated, all included in fixes if applied).
             </div>
           )}
@@ -3239,7 +3239,7 @@ function DiffSection() {
             {rows.map((r, i) => (
               <tr key={i} style={{ borderBottom: `1px solid ${P.border}` }}>
                 <td style={{ padding: "0.7rem 0.6rem", ...fBody, fontSize: "0.92rem", color: P.nav, fontWeight: 400 }}>{r.cat}</td>
-                <td style={{ padding: "0.7rem 0.6rem", ...fBody, fontSize: "0.9rem", color: P.label, fontStyle: "italic", fontWeight: 300 }}>{r.a}</td>
+                <td style={{ padding: "0.7rem 0.6rem", ...fBody, fontSize: "0.9rem", color: P.label, fontStyle: "normal", fontWeight: 300 }}>{r.a}</td>
                 <td style={{ padding: "0.7rem 0.6rem", ...fBody, fontSize: "0.9rem", color: P.heading, fontWeight: 400 }}>{r.b}</td>
               </tr>
             ))}
@@ -3247,7 +3247,7 @@ function DiffSection() {
         </table>
       </div>
 
-      <div style={{ ...fBody, fontSize: "0.88rem", color: P.label, fontStyle: "italic", marginTop: "1rem", textAlign: "right" }}>
+      <div style={{ ...fBody, fontSize: "0.88rem", color: P.label, fontStyle: "normal", marginTop: "1rem", textAlign: "right" }}>
         v0.1.0 sign-off committed at v0.1.3. SigmaSum tie-in reserved for v0.2.0+.
       </div>
     </>
@@ -3257,7 +3257,7 @@ function DiffSection() {
 function Footer() {
   return (
     <div style={{ borderTop: `1px solid ${P.border}`, paddingTop: "1.5rem", marginTop: "3rem", display: "flex", justifyContent: "space-between", alignItems: "baseline", flexWrap: "wrap", gap: "1rem" }}>
-      <div style={{ ...fMath, fontSize: "0.94rem", color: P.label, fontStyle: "italic", letterSpacing: "0.04em" }}>
+      <div style={{ ...fMath, fontSize: "0.94rem", color: P.label, fontStyle: "normal", letterSpacing: "0.04em" }}>
         Patet Codex Omnibus · Inertissimum Iώτα Nona, Quies, et Triadis · Lo Sono Capomastro · Così sia, Fratello.
       </div>
       <div style={{ ...fBody, fontSize: "0.98rem", color: P.label, letterSpacing: "0.28em", textTransform: "uppercase" }}>
@@ -3502,7 +3502,7 @@ function TabBar({ tabs, active, onSelect }) {
                   <div style={{ ...fDisplay, fontSize: "0.9rem", letterSpacing: "0.12em", textTransform: "uppercase", fontWeight: 600, color: isActive ? P.blue : P.heading, marginBottom: "0.15rem" }}>
                     {t.label}
                   </div>
-                  <div style={{ ...fBody, fontSize: "0.85rem", color: P.label, fontStyle: "italic" }}>
+                  <div style={{ ...fBody, fontSize: "0.85rem", color: P.label, fontStyle: "normal" }}>
                     {t.latin}
                   </div>
                 </button>
@@ -3527,7 +3527,7 @@ function PageSubtitle({ latin, index, total }) {
         borderBottom: `1px dashed ${P.border}`,
       }}
     >
-      <div style={{ ...fMath, fontStyle: "italic", color: P.heading, fontSize: "1rem", fontWeight: 500 }}>
+      <div style={{ ...fMath, fontStyle: "normal", color: P.heading, fontSize: "1rem", fontWeight: 500 }}>
         ·  {latin}  ·
       </div>
       <div style={{ ...fBody, color: P.label, fontSize: "0.98rem", letterSpacing: "0.28em", textTransform: "uppercase" }}>
