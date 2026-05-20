@@ -1,4 +1,3 @@
-// @ts-nocheck
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 
@@ -3927,4 +3926,3 @@ export default function KyokushinTripleExpressionV11131() {
     </div>
   );
 }
-export { KyokushinTripleExpressionV11131 as ForgePage };
