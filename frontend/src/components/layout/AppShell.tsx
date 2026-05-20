@@ -378,12 +378,12 @@ export function AppShell() {
 
           <UserProfile />
 
-          {/* ── Full-width geometric underline ── always mounted so its
-               shimmer + bracket-pulse animations run continuously and are
-               NOT re-synced to page navigation. Visibility fades with the
-               page header context. */}
+          {/* ── Full-width geometric underline ── keyed on the current
+               pathname so the shimmer + bracket-pulse + diamond-spin
+               animations restart from frame 0 on every page navigation
+               and then come to rest. They do NOT run continuously. */}
           <svg
-            data-always-on="true"
+            key={location.pathname}
             aria-hidden="true"
             viewBox="0 0 1000 16"
             preserveAspectRatio="none"

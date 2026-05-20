@@ -224,9 +224,13 @@ code, pre { font-family: var(--font-mono); }
   0%   { transform-origin: 104px 8px; transform: rotate(0deg); }
   100% { transform-origin: 104px 8px; transform: rotate(360deg); }
 }
-.header-line-sweep   { animation: headerLineSweep   4s linear infinite; }
-.header-bracket-pulse{ animation: headerBracketPulse 2.4s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
-.header-diamond-spin { animation: headerDiamondSpin 9s linear infinite; transform-box: view-box; }
+/* Header decorations play ONCE per page navigation (the SVG is keyed on
+   location.pathname so it remounts and restarts these animations on every
+   route change). `forwards` keeps the final state so nothing flickers
+   while the user reads the page. */
+.header-line-sweep   { animation: headerLineSweep   900ms linear           1 forwards; }
+.header-bracket-pulse{ animation: headerBracketPulse 700ms ease-in-out      1 forwards; transform-box: fill-box; transform-origin: center; }
+.header-diamond-spin { animation: headerDiamondSpin  900ms linear           1 forwards; transform-box: view-box; }
 
 /* ═══ Cube page-flip transition ═══ */
 @keyframes cubeFlipIn {
