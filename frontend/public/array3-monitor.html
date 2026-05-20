@@ -163,6 +163,7 @@
     <div class="stit">Daemon Config</div>
     <div id="ports-display" style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#E4DFD5;margin-bottom:6px">Ports —</div>
     <input type="password" id="cfg-token" placeholder="Relay token (RELAY_API_TOKEN)" autocomplete="off" style="width:100%;padding:6px 10px;background:var(--bg-surface);border:1px solid var(--bg-border);border-radius:5px;color:var(--text-body);font-family:'JetBrains Mono',monospace;font-size:11px;outline:none;margin-bottom:6px">
+    <input type="text" id="cfg-host" placeholder="Daemon host (blank = this page's origin; e.g. 100.64.1.2 or https://tunnel.ngrok.io)" autocomplete="off" spellcheck="false" style="width:100%;padding:6px 10px;background:var(--bg-surface);border:1px solid var(--bg-border);border-radius:5px;color:var(--text-body);font-family:'JetBrains Mono',monospace;font-size:11px;outline:none;margin-bottom:6px">
     <div style="display:flex;gap:4px;margin-bottom:6px">
       <input type="number" id="cfg-p1" min="1" max="65535" placeholder="N1 port" style="width:33%;padding:6px 6px;background:var(--bg-surface);border:1px solid var(--bg-border);border-radius:5px;color:var(--text-body);font-family:'JetBrains Mono',monospace;font-size:11px;outline:none;text-align:center">
       <input type="number" id="cfg-p2" min="1" max="65535" placeholder="N2 port" style="width:33%;padding:6px 6px;background:var(--bg-surface);border:1px solid var(--bg-border);border-radius:5px;color:var(--text-body);font-family:'JetBrains Mono',monospace;font-size:11px;outline:none;text-align:center">
@@ -575,8 +576,24 @@ const STATUS={
 // LIVE DATA LAYER
 // ═══════════════════════════════════════════════════════
 const _isLocal=window.location.protocol==='file:'||!window.location.hostname||window.location.hostname==='localhost'||window.location.hostname==='127.0.0.1';
-const DAEMON_HOST=_isLocal?'127.0.0.1':window.location.hostname;
-const DAEMON_PROTO=_isLocal?'http:':window.location.protocol;
+// Daemon host/protocol — user-overridable via Daemon Config panel.
+// If the user has saved an explicit host (e.g. a Tailscale IP, ngrok URL,
+// or public DNS name) we use it verbatim. Otherwise we fall back to the
+// page's own origin (which only works when the browser is on the same
+// machine as the daemons, e.g. served from localhost).
+function _parseHost(raw){
+  if(!raw)return null;
+  const s=String(raw).trim();if(!s)return null;
+  // Allow "1.2.3.4", "host.example.com", "https://host:8443", "http://host"
+  if(/^https?:\/\//i.test(s)){
+    try{const u=new URL(s);return{proto:u.protocol,host:u.hostname,portOverride:u.port||null}}catch{return null}
+  }
+  return{proto:_isLocal?'http:':window.location.protocol,host:s,portOverride:null};
+}
+let DAEMON_HOST_OVERRIDE=null;
+try{DAEMON_HOST_OVERRIDE=_parseHost(localStorage.getItem('a3m.daemonHost'))}catch{}
+let DAEMON_HOST=DAEMON_HOST_OVERRIDE?.host||(_isLocal?'127.0.0.1':window.location.hostname);
+let DAEMON_PROTO=DAEMON_HOST_OVERRIDE?.proto||(_isLocal?'http:':window.location.protocol);
 const NODE_PORTS_DEFAULT=[21124,21151,21178];
 let NODE_PORTS=(()=>{
   try{const s=JSON.parse(localStorage.getItem('a3m.nodePorts')||'null');
@@ -1023,6 +1040,8 @@ function renderPortsDisplay(){
 }
 function hydrateConfigInputs(){
   const t=document.getElementById('cfg-token');if(t)t.value=RELAY_AUTH_TOKEN||'';
+  const h=document.getElementById('cfg-host');
+  if(h)h.value=localStorage.getItem('a3m.daemonHost')||'';
   const ids=['cfg-p1','cfg-p2','cfg-p3'];
   ids.forEach((id,i)=>{const el=document.getElementById(id);if(el)el.value=NODE_PORTS[i]});
   renderPortsDisplay();
@@ -1036,10 +1055,27 @@ async function applyConfigAndReconnect(){
     return;
   }
   const newToken=(tokenEl?tokenEl.value:'').trim();
+  const hostEl=document.getElementById('cfg-host');
+  const newHostRaw=(hostEl?hostEl.value:'').trim();
+  const parsedHost=_parseHost(newHostRaw);
+  if(newHostRaw&&!parsedHost){
+    if(cfgStatus){cfgStatus.textContent='Invalid host — use IP, hostname, or http(s)://… URL';cfgStatus.style.color='#E24B4A'}
+    return;
+  }
   RELAY_AUTH_TOKEN=newToken;
   NODE_PORTS=ports;
+  if(parsedHost){
+    DAEMON_HOST=parsedHost.host;DAEMON_PROTO=parsedHost.proto;
+  }else{
+    DAEMON_HOST=_isLocal?'127.0.0.1':window.location.hostname;
+    DAEMON_PROTO=_isLocal?'http:':window.location.protocol;
+  }
   try{localStorage.setItem('a3m.relayToken',newToken)}catch{}
   try{localStorage.setItem('a3m.nodePorts',JSON.stringify(ports))}catch{}
+  try{
+    if(newHostRaw)localStorage.setItem('a3m.daemonHost',newHostRaw);
+    else localStorage.removeItem('a3m.daemonHost');
+  }catch{}
   renderPortsDisplay();
   // Remove any stale relay-error overlay from a previous bad config
   clearRelayError();
