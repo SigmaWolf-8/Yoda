@@ -144,7 +144,9 @@ export function AppShell() {
 
   return (
     <VideoPlayProvider>
-    <div className="flex min-h-screen w-full bg-[var(--color-surface-primary)]">
+    {/* Galaxy backdrop — fixed, behind everything */}
+    <div className="galaxy-bg" aria-hidden="true" />
+    <div className="galaxy-active flex min-h-screen w-full bg-transparent">
       <a href="#main-content" className="skip-nav">Skip to main content</a>
 
       {/* ── Mobile backdrop ── */}
@@ -375,25 +377,29 @@ export function AppShell() {
 
           <UserProfile />
 
-          {/* ── Full-width geometric underline ── absolutely positioned so it
-               spans the entire header width, anchored near the bottom */}
-          {header && (
-            <svg
-              aria-hidden="true"
-              viewBox="0 0 1000 16"
-              preserveAspectRatio="none"
-              fill="none"
-              style={{
-                position: 'absolute',
-                bottom: 14,
-                left: 0,
-                right: 0,
-                width: '100%',
-                height: 16,
-                pointerEvents: 'none',
-                color: 'hsl(210,70%,65%)',
-              }}
-            >
+          {/* ── Full-width geometric underline ── always mounted so its
+               shimmer + bracket-pulse animations run continuously and are
+               NOT re-synced to page navigation. Visibility fades with the
+               page header context. */}
+          <svg
+            data-always-on="true"
+            aria-hidden="true"
+            viewBox="0 0 1000 16"
+            preserveAspectRatio="none"
+            fill="none"
+            style={{
+              position: 'absolute',
+              bottom: 14,
+              left: 0,
+              right: 0,
+              width: '100%',
+              height: 16,
+              pointerEvents: 'none',
+              color: 'hsl(210,70%,65%)',
+              opacity: header ? 1 : 0.35,
+              transition: 'opacity 240ms ease',
+            }}
+          >
               <defs>
                 <linearGradient id="headerSweepGrad" x1="0" y1="0" x2="1" y2="0">
                   <stop offset="0%"   stopColor="currentColor" stopOpacity="0" />
@@ -423,7 +429,6 @@ export function AppShell() {
               <line className="header-bracket-pulse" x1="862"  y1="2"  x2="862"  y2="14" stroke="currentColor" strokeWidth="1.5" opacity="0.45" style={{ animationDelay: '0.8s' }} />
               <line className="header-bracket-pulse" x1="1000" y1="1"  x2="1000" y2="15" stroke="currentColor" strokeWidth="2"   opacity="0.8"  style={{ animationDelay: '1s' }}   />
             </svg>
-          )}
         </header>
 
         <SystemStatusBanner />

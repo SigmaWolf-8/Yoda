@@ -246,3 +246,94 @@ code, pre { font-family: var(--font-mono); }
   will-change: transform, opacity;
   animation: cubeFlipIn 520ms cubic-bezier(0.22, 0.61, 0.36, 1);
 }
+
+/* ═══ Galaxy backdrop (fixed, lives behind the entire app) ═══ */
+.galaxy-bg {
+  position: fixed;
+  inset: 0;
+  z-index: -10;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 80% 50% at 20% 30%, rgba(80, 30, 180, 0.35), transparent 60%),
+    radial-gradient(ellipse 60% 40% at 80% 70%, rgba(20, 90, 200, 0.30), transparent 60%),
+    radial-gradient(ellipse 50% 40% at 50% 90%, rgba(200, 30, 120, 0.18), transparent 60%),
+    radial-gradient(circle at 50% 50%, #0b0820 0%, #050310 70%, #000 100%);
+  overflow: hidden;
+}
+.galaxy-bg::before,
+.galaxy-bg::after {
+  content: '';
+  position: absolute;
+  inset: -50%;
+  background-image:
+    radial-gradient(1px 1px at 20% 30%, #fff, transparent 50%),
+    radial-gradient(1px 1px at 70% 80%, #cfd8ff, transparent 50%),
+    radial-gradient(1.5px 1.5px at 40% 60%, #fff, transparent 50%),
+    radial-gradient(1px 1px at 90% 20%, #aab8ff, transparent 50%),
+    radial-gradient(1px 1px at 10% 80%, #fff, transparent 50%),
+    radial-gradient(2px 2px at 60% 40%, #ffe0a0, transparent 50%),
+    radial-gradient(1px 1px at 30% 10%, #fff, transparent 50%),
+    radial-gradient(1px 1px at 85% 65%, #d0e0ff, transparent 50%),
+    radial-gradient(1.5px 1.5px at 25% 75%, #fff, transparent 50%),
+    radial-gradient(1px 1px at 55% 25%, #ffb0d0, transparent 50%);
+  background-size: 350px 350px;
+  background-repeat: repeat;
+  animation: galaxyDrift 120s linear infinite;
+  opacity: 0.85;
+}
+.galaxy-bg::after {
+  background-size: 220px 220px;
+  animation: galaxyDrift 200s linear infinite reverse, galaxyTwinkle 6s ease-in-out infinite;
+  opacity: 0.55;
+}
+@keyframes galaxyDrift {
+  0%   { transform: translate3d(0,0,0) rotate(0deg); }
+  100% { transform: translate3d(-350px,-350px,0) rotate(0.001deg); }
+}
+@keyframes galaxyTwinkle {
+  0%,100% { filter: brightness(0.85); }
+  50%     { filter: brightness(1.4); }
+}
+
+/* When the galaxy is active, let the page content sit on transparent glass
+   so the galaxy is visible during the 3D cube flip. */
+.galaxy-active main#main-content { background: transparent !important; }
+
+/* ═══ Upgraded cube page-flip — recedes into space then snaps back ═══ */
+@keyframes cubeFlipIn {
+  0% {
+    transform: rotateY(-92deg) translateZ(-600px) scale(0.55);
+    opacity: 0;
+    filter: blur(4px) brightness(0.6);
+    box-shadow: 0 0 80px 20px rgba(80,150,255,0.6);
+  }
+  35% {
+    transform: rotateY(-55deg) translateZ(-380px) scale(0.7);
+    opacity: 0.7;
+    filter: blur(2px) brightness(0.85);
+  }
+  70% {
+    transform: rotateY(-12deg) translateZ(-80px) scale(0.94);
+    opacity: 1;
+    filter: blur(0.5px) brightness(1.05);
+  }
+  100% {
+    transform: rotateY(0deg) translateZ(0) scale(1);
+    opacity: 1;
+    filter: blur(0) brightness(1);
+    box-shadow: 0 0 0 0 rgba(80,150,255,0);
+  }
+}
+.cube-flip-stage {
+  perspective: 1800px;
+  perspective-origin: 50% 50%;
+  position: relative;
+}
+.cube-flip-face {
+  transform-style: preserve-3d;
+  backface-visibility: hidden;
+  will-change: transform, opacity, filter;
+  animation: cubeFlipIn 720ms cubic-bezier(0.22, 0.61, 0.36, 1);
+  border-radius: 4px;
+  box-shadow: 0 24px 80px rgba(0,0,0,0.55), 0 4px 18px rgba(0,0,0,0.4);
+}

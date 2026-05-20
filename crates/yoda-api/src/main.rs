@@ -152,6 +152,11 @@ async fn main() -> anyhow::Result<()> {
     let app = Router::new()
         .route("/health", get(health))
         .route("/api/health", get(health))
+        // R-MON: serve array3-monitor.html with the RELAY_AUTH_TOKEN placeholder
+        // string-replaced from the RELAY_API_TOKEN env var, so the static file
+        // never carries the secret on disk.  Falls through to the original file
+        // (placeholder unchanged) when the env var is unset.
+        .route("/array3-monitor.html", get(serve_array3_monitor))
         .merge(routes::build_router(state))
         .merge(kyokushin_brothers::kyokushin_routes(kyokushin))
         .merge(forge_routes::forge_router())
@@ -171,6 +176,50 @@ async fn main() -> anyhow::Result<()> {
     axum::serve(listener, app).await?;
 
     Ok(())
+}
+
+/// Serve the Array3 monitor HTML with the RELAY_AUTH_TOKEN placeholder
+/// substituted from the RELAY_API_TOKEN env var (or RELAY_AUTH_TOKEN as
+/// a fallback name).  Keeps the secret server-side; the on-disk file
+/// still contains the placeholder so it can be committed safely.
+async fn serve_array3_monitor() -> axum::response::Response {
+    use axum::http::{header, StatusCode};
+    use axum::response::IntoResponse;
+
+    let path = std::env::var("FRONTEND_DIST_PATH")
+        .unwrap_or_else(|_| "./frontend/dist".to_string());
+    let file = format!("{}/array3-monitor.html", path);
+
+    let body = match tokio::fs::read_to_string(&file).await {
+        Ok(s) => s,
+        Err(e) => {
+            tracing::warn!(file = %file, err = %e, "array3-monitor.html read failed");
+            return (StatusCode::NOT_FOUND, "monitor file not found").into_response();
+        }
+    };
+
+    let token = std::env::var("RELAY_API_TOKEN")
+        .or_else(|_| std::env::var("RELAY_AUTH_TOKEN"))
+        .ok();
+
+    let body = if let Some(t) = token.as_deref() {
+        body.replace("<paste-your-relay-api-token-here>", t)
+    } else {
+        body
+    };
+
+    let mut resp = (
+        [(header::CONTENT_TYPE, "text/html; charset=utf-8"),
+         (header::CACHE_CONTROL, "no-cache, must-revalidate")],
+        body,
+    ).into_response();
+    if token.is_none() {
+        resp.headers_mut().insert(
+            "x-relay-token-status",
+            axum::http::HeaderValue::from_static("missing"),
+        );
+    }
+    resp
 }
 
 /// Health check endpoint.
