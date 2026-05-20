@@ -1,0 +1,154 @@
+unning database migrations...
+error: migration 20260321000001 was previously applied but has been modified
+⚠ Migration failed or sqlx-cli not available. Continuing...
+Frontend dist/ exists — skipping rebuild (set REBUILD_FRONTEND=1 to force)
+Hot-starting cached binary so port 3000 opens immediately...
+Cached API running as PID 10606
+Building updated Axum backend in background...
+{"timestamp":"2026-05-20T13:21:50.625761Z","level":"INFO","fields":{"message":"YODA API Server starting"},"target":"yoda_api"}
+{"timestamp":"2026-05-20T13:21:50.625925Z","level":"INFO","fields":{"message":"Connecting to PostgreSQL..."},"target":"yoda_api"}
+{"timestamp":"2026-05-20T13:21:50.633709Z","level":"INFO","fields":{"message":"Database connected"},"target":"yoda_api"}
+{"timestamp":"2026-05-20T13:21:50.642687Z","level":"WARN","fields":{"message":"Agent system prompt exceeds maximum length — skipping","agent_id":"specialized-healthcare-marketing-compliance","len":33743,"max":32768},"target":"yoda_orchestrator::agent"}
+{"timestamp":"2026-05-20T13:21:50.645550Z","level":"INFO","fields":{"message":"Loaded 153 agent configs"},"target":"yoda_orchestrator::agent"}
+{"timestamp":"2026-05-20T13:21:50.645582Z","level":"INFO","fields":{"message":"Agent configs loaded","count":153},"target":"yoda_api"}
+{"timestamp":"2026-05-20T13:21:50.645641Z","level":"INFO","fields":{"message":"Cloud LLM gateway disabled — set ANTHROPIC_API_KEY + OPENAI_API_KEY + TOGETHER_API_KEY to enable Alpha/Beta/Gamma agents"},"target":"yoda_api::state"}
+🥋 KYOKUSHIN BROTHERS INITIALIZED | 不屈 · 大道無門 · 同時実行 · 全力
+{"timestamp":"2026-05-20T13:21:50.798452Z","level":"INFO","fields":{"message":"CRS registration: registered neighbor addresses","count":0,"neighbors":"[]"},"target":"yoda_api::cube_relay"}
+{"timestamp":"2026-05-20T13:21:50.798860Z","level":"INFO","fields":{"message":"Registered with PlenumLAN CRS","address":"2011201210120"},"target":"yoda_api::cube_relay"}
+    Blocking waiting for file lock on build directory
+{"timestamp":"2026-05-20T13:21:51.030991Z","level":"INFO","fields":{"message":"Relay challenge received — responding","nonce":"fc799026de08d7c8"},"target":"yoda_api::cube_relay"}
+{"timestamp":"2026-05-20T13:21:51.037842Z","level":"WARN","fields":{"message":"Unexpected auth handshake message — ignoring","msg":"{\"type\":\"error\",\"error\":\"ERR_NOT_AUTHENTICATED\",\"message\":\"Must authenticate first\",\"offendingType\":\"challenge_response\"}"},"target":"yoda_api::cube_relay"}
+{"timestamp":"2026-05-20T13:21:51.039608Z","level":"INFO","fields":{"message":"PlenumLAN relay authenticated","address":"2011201210120"},"target":"yoda_api::cube_relay"}
+{"timestamp":"2026-05-20T13:21:51.039668Z","level":"INFO","fields":{"message":"Live cube peers after auth_ok","count":0},"target":"yoda_api::cube_relay"}
+{"timestamp":"2026-05-20T13:21:51.039734Z","level":"INFO","fields":{"message":"PlenumLAN relay armed — inference requests will route through CRS"},"target":"yoda_api::cube_relay"}
+{"timestamp":"2026-05-20T13:21:51.039793Z","level":"INFO","fields":{"message":"Probing Array3 daemon addresses","count":3,"addresses":"[\"1111111111111\", \"2111111111111\", \"3111111111111\"]"},"target":"yoda_api::cube_relay"}
+{"timestamp":"2026-05-20T13:21:51.529698Z","level":"INFO","fields":{"message":"Listening on 0.0.0.0:3000"},"target":"yoda_api"}
+{"timestamp":"2026-05-20T13:22:51.042318Z","level":"INFO","fields":{"message":"Re-probing Array3 addresses for offline daemons","live":0,"backoff_secs":60,"fail_cycle":0},"target":"yoda_api::cube_relay"}
+{"timestamp":"2026-05-20T13:24:51.044837Z","level":"INFO","fields":{"message":"Re-probing Array3 addresses for offline daemons","live":0,"backoff_secs":120,"fail_cycle":1},"target":"yoda_api::cube_relay"}
+warning: unused import: `SharedSecret as NativeSharedSecret`
+  --> crates/yoda-plenumnet-bridge/src/kem.rs:18:5
+   |
+18 |     SharedSecret as NativeSharedSecret,
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` on by default
+
+warning: unused import: `hash_bulk_tis`
+  --> crates/yoda-plenumnet-bridge/src/key_derivation.rs:10:54
+   |
+10 | use ternary_math::tlsponge385::{derive_key_bulk_tis, hash_bulk_tis};
+   |                                                      ^^^^^^^^^^^^^
+
+warning: `yoda-plenumnet-bridge` (lib) generated 2 warnings (run `cargo fix --lib -p yoda-plenumnet-bridge` to apply 2 suggestions)
+   Compiling yoda-api v0.1.0 (/home/runner/workspace/crates/yoda-api)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 4m 18s
+Build complete — swapping to updated binary...
+Building YODA CRS daemon (release, background)...
+Starting YODA API server on 0.0.0.0:3000
+{"timestamp":"2026-05-20T13:26:10.467412Z","level":"INFO","fields":{"message":"YODA API Server starting"},"target":"yoda_api"}
+{"timestamp":"2026-05-20T13:26:10.467583Z","level":"INFO","fields":{"message":"Connecting to PostgreSQL..."},"target":"yoda_api"}
+{"timestamp":"2026-05-20T13:26:10.476757Z","level":"INFO","fields":{"message":"Database connected"},"target":"yoda_api"}
+{"timestamp":"2026-05-20T13:26:10.485821Z","level":"WARN","fields":{"message":"Agent system prompt exceeds maximum length — skipping","agent_id":"specialized-healthcare-marketing-compliance","len":33743,"max":32768},"target":"yoda_orchestrator::agent"}
+{"timestamp":"2026-05-20T13:26:10.488646Z","level":"INFO","fields":{"message":"Loaded 153 agent configs"},"target":"yoda_orchestrator::agent"}
+{"timestamp":"2026-05-20T13:26:10.488690Z","level":"INFO","fields":{"message":"Agent configs loaded","count":153},"target":"yoda_api"}
+{"timestamp":"2026-05-20T13:26:10.488721Z","level":"INFO","fields":{"message":"Cloud LLM gateway disabled — set ANTHROPIC_API_KEY + OPENAI_API_KEY + TOGETHER_API_KEY to enable Alpha/Beta/Gamma agents"},"target":"yoda_api::state"}
+🥋 KYOKUSHIN BROTHERS INITIALIZED | 不屈 · 大道無門 · 同時実行 · 全力
+{"timestamp":"2026-05-20T13:26:10.547929Z","level":"INFO","fields":{"message":"CRS registration: registered neighbor addresses","count":0,"neighbors":"[]"},"target":"yoda_api::cube_relay"}
+{"timestamp":"2026-05-20T13:26:10.548005Z","level":"INFO","fields":{"message":"Registered with PlenumLAN CRS","address":"2011201210120"},"target":"yoda_api::cube_relay"}
+{"timestamp":"2026-05-20T13:26:10.683616Z","level":"INFO","fields":{"message":"Relay challenge received — responding","nonce":"bad6c76b21111d19"},"target":"yoda_api::cube_relay"}
+{"timestamp":"2026-05-20T13:26:10.693426Z","level":"WARN","fields":{"message":"Unexpected auth handshake message — ignoring","msg":"{\"type\":\"error\",\"error\":\"ERR_NOT_AUTHENTICATED\",\"message\":\"Must authenticate first\",\"offendingType\":\"challenge_response\"}"},"target":"yoda_api::cube_relay"}
+{"timestamp":"2026-05-20T13:26:10.694011Z","level":"INFO","fields":{"message":"PlenumLAN relay authenticated","address":"2011201210120"},"target":"yoda_api::cube_relay"}
+{"timestamp":"2026-05-20T13:26:10.694074Z","level":"INFO","fields":{"message":"Live cube peers after auth_ok","count":0},"target":"yoda_api::cube_relay"}
+{"timestamp":"2026-05-20T13:26:10.694162Z","level":"INFO","fields":{"message":"PlenumLAN relay armed — inference requests will route through CRS"},"target":"yoda_api::cube_relay"}
+{"timestamp":"2026-05-20T13:26:10.696296Z","level":"INFO","fields":{"message":"Probing Array3 daemon addresses","count":3,"addresses":"[\"1111111111111\", \"2111111111111\", \"3111111111111\"]"},"target":"yoda_api::cube_relay"}
+    Finished `release` profile [optimized] target(s) in 0.32s
+{"timestamp":"2026-05-20T13:26:11.368193Z","level":"INFO","fields":{"message":"Listening on 0.0.0.0:3000"},"target":"yoda_api"}
+Starting YODA CRS on port 8081...
+CRS daemon started (PID 11053)
+2026-05-20T13:26:11.828947Z  INFO yoda_crs: [yoda-crs] Connected to PostgreSQL
+2026-05-20T13:26:11.839308Z  INFO yoda_crs: [yoda-crs] Listening on 0.0.0.0:8081
+{"timestamp":"2026-05-20T13:27:10.708239Z","level":"INFO","fields":{"message":"Re-probing Array3 addresses for offline daemons","live":0,"backoff_secs":60,"fail_cycle":0},"target":"yoda_api::cube_relay"}
+{"timestamp":"2026-05-20T13:29:10.711415Z","level":"INFO","fields":{"message":"Re-probing Array3 addresses for offline daemons","live":0,"backoff_secs":120,"fail_cycle":1},"target":"yoda_api::cube_relay"}
+{"timestamp":"2026-05-20T13:31:11.681730Z","level":"WARN","fields":{"message":"PlenumLAN relay session error","error":"WebSocket protocol error: Connection reset without closing handshake"},"target":"yoda_api::cube_relay"}
+{"timestamp":"2026-05-20T13:31:11.681850Z","level":"INFO","fields":{"message":"PlenumLAN relay reconnecting...","backoff_secs":2},"target":"yoda_api::cube_relay"}
+{"timestamp":"2026-05-20T13:31:13.711995Z","level":"INFO","fields":{"message":"CRS registration: registered neighbor addresses","count":0,"neighbors":"[]"},"target":"yoda_api::cube_relay"}
+{"timestamp":"2026-05-20T13:31:13.712159Z","level":"INFO","fields":{"message":"Registered with PlenumLAN CRS","address":"2011201210120"},"target":"yoda_api::cube_relay"}
+{"timestamp":"2026-05-20T13:31:13.921575Z","level":"INFO","fields":{"message":"Relay challenge received — responding","nonce":"d705a8f4e0042ae6"},"target":"yoda_api::cube_relay"}
+{"timestamp":"2026-05-20T13:31:13.931964Z","level":"INFO","fields":{"message":"PlenumLAN relay authenticated","address":"2011201210120"},"target":"yoda_api::cube_relay"}
+{"timestamp":"2026-05-20T13:31:13.932082Z","level":"INFO","fields":{"message":"Live cube peers after auth_ok","count":0},"target":"yoda_api::cube_relay"}
+{"timestamp":"2026-05-20T13:31:13.932205Z","level":"INFO","fields":{"message":"PlenumLAN relay armed — inference requests will route through CRS"},"target":"yoda_api::cube_relay"}
+{"timestamp":"2026-05-20T13:31:13.933252Z","level":"INFO","fields":{"message":"Probing Array3 daemon addresses","count":3,"addresses":"[\"1111111111111\", \"2111111111111\", \"3111111111111\"]"},"target":"yoda_api::cube_relay"}
+{"timestamp":"2026-05-20T13:31:13.936010Z","level":"INFO","fields":{"message":"Unrecognised relay message — logging for peer discovery debug","kind":"error","raw":"{\"type\":\"error\",\"error\":\"ERR_UNKNOWN_MSG_TYPE\",\"message\":\"Unknown message type\",\"offendingType\":\"challenge_response\"}"},"target":"yoda_api::cube_relay"}
+{"timestamp":"2026-05-20T13:32:13.936436Z","level":"INFO","fields":{"message":"Re-probing Array3 addresses for offline daemons","live":0,"backoff_secs":60,"fail_cycle":0},"target":"yoda_api::cube_relay"}
+{"timestamp":"2026-05-20T13:34:13.939717Z","level":"INFO","fields":{"message":"Re-probing Array3 addresses for offline daemons","live":0,"backoff_secs":120,"fail_cycle":1},"target":"yoda_api::cube_relay"}
+{"timestamp":"2026-05-20T13:36:14.918734Z","level":"WARN","fields":{"message":"PlenumLAN relay session error","error":"WebSocket protocol error: Connection reset without closing handshake"},"target":"yoda_api::cube_relay"}
+{"timestamp":"2026-05-20T13:36:14.918844Z","level":"INFO","fields":{"message":"PlenumLAN relay reconnecting...","backoff_secs":4},"target":"yoda_api::cube_relay"}
+{"timestamp":"2026-05-20T13:36:18.965258Z","level":"INFO","fields":{"message":"CRS registration: registered neighbor addresses","count":0,"neighbors":"[]"},"target":"yoda_api::cube_relay"}
+{"timestamp":"2026-05-20T13:36:18.965367Z","level":"INFO","fields":{"message":"Registered with PlenumLAN CRS","address":"2011201210120"},"target":"yoda_api::cube_relay"}
+{"timestamp":"2026-05-20T13:36:19.133376Z","level":"INFO","fields":{"message":"Relay challenge received — responding","nonce":"f4764f13999c6e76"},"target":"yoda_api::cube_relay"}
+{"timestamp":"2026-05-20T13:36:19.139247Z","level":"WARN","fields":{"message":"Unexpected auth handshake message — ignoring","msg":"{\"type\":\"error\",\"error\":\"ERR_NOT_AUTHENTICATED\",\"message\":\"Must authenticate first\",\"offendingType\":\"challenge_response\"}"},"target":"yoda_api::cube_relay"}
+{"timestamp":"2026-05-20T13:36:19.140533Z","level":"INFO","fields":{"message":"PlenumLAN relay authenticated","address":"2011201210120"},"target":"yoda_api::cube_relay"}
+{"timestamp":"2026-05-20T13:36:19.140608Z","level":"INFO","fields":{"message":"Live cube peers after auth_ok","count":0},"target":"yoda_api::cube_relay"}
+{"timestamp":"2026-05-20T13:36:19.140676Z","level":"INFO","fields":{"message":"PlenumLAN relay armed — inference requests will route through CRS"},"target":"yoda_api::cube_relay"}
+{"timestamp":"2026-05-20T13:36:19.141355Z","level":"INFO","fields":{"message":"Probing Array3 daemon addresses","count":3,"addresses":"[\"1111111111111\", \"2111111111111\", \"3111111111111\"]"},"target":"yoda_api::cube_relay"}
+{"timestamp":"2026-05-20T13:37:19.144392Z","level":"INFO","fields":{"message":"Re-probing Array3 addresses for offline daemons","live":0,"backoff_secs":60,"fail_cycle":0},"target":"yoda_api::cube_relay"}
+{"timestamp":"2026-05-20T13:39:19.147403Z","level":"INFO","fields":{"message":"Re-probing Array3 addresses for offline daemons","live":0,"backoff_secs":120,"fail_cycle":1},"target":"yoda_api::cube_relay"}
+{"timestamp":"2026-05-20T13:41:20.130894Z","level":"WARN","fields":{"message":"PlenumLAN relay session error","error":"WebSocket protocol error: Connection reset without closing handshake"},"target":"yoda_api::cube_relay"}
+{"timestamp":"2026-05-20T13:41:20.131035Z","level":"INFO","fields":{"message":"PlenumLAN relay reconnecting...","backoff_secs":8},"target":"yoda_api::cube_relay"}
+{"timestamp":"2026-05-20T13:41:28.155908Z","level":"INFO","fields":{"message":"CRS registration: registered neighbor addresses","count":0,"neighbors":"[]"},"target":"yoda_api::cube_relay"}
+{"timestamp":"2026-05-20T13:41:28.156018Z","level":"INFO","fields":{"message":"Registered with PlenumLAN CRS","address":"2011201210120"},"target":"yoda_api::cube_relay"}
+{"timestamp":"2026-05-20T13:41:28.334213Z","level":"INFO","fields":{"message":"Relay challenge received — responding","nonce":"2b054bcbd196834f"},"target":"yoda_api::cube_relay"}
+{"timestamp":"2026-05-20T13:41:28.347516Z","level":"WARN","fields":{"message":"Unexpected auth handshake message — ignoring","msg":"{\"type\":\"error\",\"error\":\"ERR_NOT_AUTHENTICATED\",\"message\":\"Must authenticate first\",\"offendingType\":\"challenge_response\"}"},"target":"yoda_api::cube_relay"}
+{"timestamp":"2026-05-20T13:41:28.348551Z","level":"INFO","fields":{"message":"PlenumLAN relay authenticated","address":"2011201210120"},"target":"yoda_api::cube_relay"}
+{"timestamp":"2026-05-20T13:41:28.348637Z","level":"INFO","fields":{"message":"Live cube peers after auth_ok","count":0},"target":"yoda_api::cube_relay"}
+{"timestamp":"2026-05-20T13:41:28.348726Z","level":"INFO","fields":{"message":"PlenumLAN relay armed — inference requests will route through CRS"},"target":"yoda_api::cube_relay"}
+{"timestamp":"2026-05-20T13:41:28.349740Z","level":"INFO","fields":{"message":"Probing Array3 daemon addresses","count":3,"addresses":"[\"1111111111111\", \"2111111111111\", \"3111111111111\"]"},"target":"yoda_api::cube_relay"}
+{"timestamp":"2026-05-20T13:42:28.351555Z","level":"INFO","fields":{"message":"Re-probing Array3 addresses for offline daemons","live":0,"backoff_secs":60,"fail_cycle":0},"target":"yoda_api::cube_relay"}
+{"timestamp":"2026-05-20T13:44:28.353973Z","level":"INFO","fields":{"message":"Re-probing Array3 addresses for offline daemons","live":0,"backoff_secs":120,"fail_cycle":1},"target":"yoda_api::cube_relay"}
+{"timestamp":"2026-05-20T13:46:29.332433Z","level":"WARN","fields":{"message":"PlenumLAN relay session error","error":"WebSocket protocol error: Connection reset without closing handshake"},"target":"yoda_api::cube_relay"}
+{"timestamp":"2026-05-20T13:46:29.332538Z","level":"INFO","fields":{"message":"PlenumLAN relay reconnecting...","backoff_secs":16},"target":"yoda_api::cube_relay"}
+{"timestamp":"2026-05-20T13:46:45.378703Z","level":"INFO","fields":{"message":"CRS registration: registered neighbor addresses","count":0,"neighbors":"[]"},"target":"yoda_api::cube_relay"}
+{"timestamp":"2026-05-20T13:46:45.378872Z","level":"INFO","fields":{"message":"Registered with PlenumLAN CRS","address":"2011201210120"},"target":"yoda_api::cube_relay"}
+{"timestamp":"2026-05-20T13:46:45.554916Z","level":"INFO","fields":{"message":"Relay challenge received — responding","nonce":"6be51076a0d9c160"},"target":"yoda_api::cube_relay"}
+{"timestamp":"2026-05-20T13:46:45.560943Z","level":"WARN","fields":{"message":"Unexpected auth handshake message — ignoring","msg":"{\"type\":\"error\",\"error\":\"ERR_NOT_AUTHENTICATED\",\"message\":\"Must authenticate first\",\"offendingType\":\"challenge_response\"}"},"target":"yoda_api::cube_relay"}
+{"timestamp":"2026-05-20T13:46:45.561534Z","level":"INFO","fields":{"message":"PlenumLAN relay authenticated","address":"2011201210120"},"target":"yoda_api::cube_relay"}
+{"timestamp":"2026-05-20T13:46:45.561625Z","level":"INFO","fields":{"message":"Live cube peers after auth_ok","count":0},"target":"yoda_api::cube_relay"}
+{"timestamp":"2026-05-20T13:46:45.561690Z","level":"INFO","fields":{"message":"PlenumLAN relay armed — inference requests will route through CRS"},"target":"yoda_api::cube_relay"}
+{"timestamp":"2026-05-20T13:46:45.562666Z","level":"INFO","fields":{"message":"Probing Array3 daemon addresses","count":3,"addresses":"[\"1111111111111\", \"2111111111111\", \"3111111111111\"]"},"target":"yoda_api::cube_relay"}
+{"timestamp":"2026-05-20T13:47:45.565490Z","level":"INFO","fields":{"message":"Re-probing Array3 addresses for offline daemons","live":0,"backoff_secs":60,"fail_cycle":0},"target":"yoda_api::cube_relay"}
+{"timestamp":"2026-05-20T13:49:45.568025Z","level":"INFO","fields":{"message":"Re-probing Array3 addresses for offline daemons","live":0,"backoff_secs":120,"fail_cycle":1},"target":"yoda_api::cube_relay"}
+{"timestamp":"2026-05-20T13:51:46.553917Z","level":"WARN","fields":{"message":"PlenumLAN relay session error","error":"WebSocket protocol error: Connection reset without closing handshake"},"target":"yoda_api::cube_relay"}
+{"timestamp":"2026-05-20T13:51:46.554022Z","level":"INFO","fields":{"message":"PlenumLAN relay reconnecting...","backoff_secs":32},"target":"yoda_api::cube_relay"}
+{"timestamp":"2026-05-20T13:52:18.584256Z","level":"INFO","fields":{"message":"CRS registration: registered neighbor addresses","count":0,"neighbors":"[]"},"target":"yoda_api::cube_relay"}
+{"timestamp":"2026-05-20T13:52:18.584365Z","level":"INFO","fields":{"message":"Registered with PlenumLAN CRS","address":"2011201210120"},"target":"yoda_api::cube_relay"}
+{"timestamp":"2026-05-20T13:52:18.768097Z","level":"INFO","fields":{"message":"Relay challenge received — responding","nonce":"4fc1837b5e894dad"},"target":"yoda_api::cube_relay"}
+{"timestamp":"2026-05-20T13:52:18.775496Z","level":"WARN","fields":{"message":"Unexpected auth handshake message — ignoring","msg":"{\"type\":\"error\",\"error\":\"ERR_NOT_AUTHENTICATED\",\"message\":\"Must authenticate first\",\"offendingType\":\"challenge_response\"}"},"target":"yoda_api::cube_relay"}
+{"timestamp":"2026-05-20T13:52:18.778407Z","level":"INFO","fields":{"message":"PlenumLAN relay authenticated","address":"2011201210120"},"target":"yoda_api::cube_relay"}
+{"timestamp":"2026-05-20T13:52:18.778460Z","level":"INFO","fields":{"message":"Live cube peers after auth_ok","count":0},"target":"yoda_api::cube_relay"}
+{"timestamp":"2026-05-20T13:52:18.778514Z","level":"INFO","fields":{"message":"PlenumLAN relay armed — inference requests will route through CRS"},"target":"yoda_api::cube_relay"}
+{"timestamp":"2026-05-20T13:52:18.779690Z","level":"INFO","fields":{"message":"Probing Array3 daemon addresses","count":3,"addresses":"[\"1111111111111\", \"2111111111111\", \"3111111111111\"]"},"target":"yoda_api::cube_relay"}
+{"timestamp":"2026-05-20T13:53:18.782183Z","level":"INFO","fields":{"message":"Re-probing Array3 addresses for offline daemons","live":0,"backoff_secs":60,"fail_cycle":0},"target":"yoda_api::cube_relay"}
+{"timestamp":"2026-05-20T13:55:18.785047Z","level":"INFO","fields":{"message":"Re-probing Array3 addresses for offline daemons","live":0,"backoff_secs":120,"fail_cycle":1},"target":"yoda_api::cube_relay"}
+{"timestamp":"2026-05-20T13:57:19.762863Z","level":"WARN","fields":{"message":"PlenumLAN relay session error","error":"WebSocket protocol error: Connection reset without closing handshake"},"target":"yoda_api::cube_relay"}
+{"timestamp":"2026-05-20T13:57:19.763004Z","level":"INFO","fields":{"message":"PlenumLAN relay reconnecting...","backoff_secs":60},"target":"yoda_api::cube_relay"}
+{"timestamp":"2026-05-20T13:58:19.797355Z","level":"INFO","fields":{"message":"CRS registration: registered neighbor addresses","count":0,"neighbors":"[]"},"target":"yoda_api::cube_relay"}
+{"timestamp":"2026-05-20T13:58:19.797465Z","level":"INFO","fields":{"message":"Registered with PlenumLAN CRS","address":"2011201210120"},"target":"yoda_api::cube_relay"}
+{"timestamp":"2026-05-20T13:58:20.100546Z","level":"INFO","fields":{"message":"Relay challenge received — responding","nonce":"077bdb5f125e0e96"},"target":"yoda_api::cube_relay"}
+{"timestamp":"2026-05-20T13:58:20.107600Z","level":"WARN","fields":{"message":"Unexpected auth handshake message — ignoring","msg":"{\"type\":\"error\",\"error\":\"ERR_NOT_AUTHENTICATED\",\"message\":\"Must authenticate first\",\"offendingType\":\"challenge_response\"}"},"target":"yoda_api::cube_relay"}
+{"timestamp":"2026-05-20T13:58:20.109801Z","level":"INFO","fields":{"message":"PlenumLAN relay authenticated","address":"2011201210120"},"target":"yoda_api::cube_relay"}
+{"timestamp":"2026-05-20T13:58:20.109872Z","level":"INFO","fields":{"message":"Live cube peers after auth_ok","count":0},"target":"yoda_api::cube_relay"}
+{"timestamp":"2026-05-20T13:58:20.109939Z","level":"INFO","fields":{"message":"PlenumLAN relay armed — inference requests will route through CRS"},"target":"yoda_api::cube_relay"}
+{"timestamp":"2026-05-20T13:58:20.112152Z","level":"INFO","fields":{"message":"Probing Array3 daemon addresses","count":3,"addresses":"[\"1111111111111\", \"2111111111111\", \"3111111111111\"]"},"target":"yoda_api::cube_relay"}
+{"timestamp":"2026-05-20T13:59:20.124804Z","level":"INFO","fields":{"message":"Re-probing Array3 addresses for offline daemons","live":0,"backoff_secs":60,"fail_cycle":0},"target":"yoda_api::cube_relay"}
+{"timestamp":"2026-05-20T14:01:20.127726Z","level":"INFO","fields":{"message":"Re-probing Array3 addresses for offline daemons","live":0,"backoff_secs":120,"fail_cycle":1},"target":"yoda_api::cube_relay"}
+{"timestamp":"2026-05-20T14:03:21.098568Z","level":"WARN","fields":{"message":"PlenumLAN relay session error","error":"WebSocket protocol error: Connection reset without closing handshake"},"target":"yoda_api::cube_relay"}
+{"timestamp":"2026-05-20T14:03:21.098685Z","level":"INFO","fields":{"message":"PlenumLAN relay reconnecting...","backoff_secs":60},"target":"yoda_api::cube_relay"}
+{"timestamp":"2026-05-20T14:04:21.133026Z","level":"INFO","fields":{"message":"CRS registration: registered neighbor addresses","count":0,"neighbors":"[]"},"target":"yoda_api::cube_relay"}
+{"timestamp":"2026-05-20T14:04:21.133199Z","level":"INFO","fields":{"message":"Registered with PlenumLAN CRS","address":"2011201210120"},"target":"yoda_api::cube_relay"}
+{"timestamp":"2026-05-20T14:04:21.315448Z","level":"INFO","fields":{"message":"Relay challenge received — responding","nonce":"acd36fa824d6bd59"},"target":"yoda_api::cube_relay"}
+{"timestamp":"2026-05-20T14:04:21.322327Z","level":"WARN","fields":{"message":"Unexpected auth handshake message — ignoring","msg":"{\"type\":\"error\",\"error\":\"ERR_NOT_AUTHENTICATED\",\"message\":\"Must authenticate first\",\"offendingType\":\"challenge_response\"}"},"target":"yoda_api::cube_relay"}
+{"timestamp":"2026-05-20T14:04:21.322489Z","level":"INFO","fields":{"message":"PlenumLAN relay authenticated","address":"2011201210120"},"target":"yoda_api::cube_relay"}
+{"timestamp":"2026-05-20T14:04:21.322544Z","level":"INFO","fields":{"message":"Live cube peers after auth_ok","count":0},"target":"yoda_api::cube_relay"}
+{"timestamp":"2026-05-20T14:04:21.322587Z","level":"INFO","fields":{"message":"PlenumLAN relay armed — inference requests will route through CRS"},"target":"yoda_api::cube_relay"}
+{"timestamp":"2026-05-20T14:04:21.323549Z","level":"INFO","fields":{"message":"Probing Array3 daemon addresses","count":3,"addresses":"[\"1111111111111\", \"2111111111111\", \"3111111111111\"]"},"target":"yoda_api::cube_relay"}
+{"timestamp":"2026-05-20T14:05:21.327415Z","level":"INFO","fields":{"message":"Re-probing Array3 addresses for offline daemons","live":0,"backoff_secs":60,"fail_cycle":0},"target":"yoda_api::cube_relay"}

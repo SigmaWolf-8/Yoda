@@ -95,8 +95,11 @@ pub fn slot_to_cube_address(slot: &str) -> &'static str {
 ///      tracks whatever real nodes are live right now.
 ///   2. The `ARRAY3_PROBE_ADDRESSES` env var (comma-separated 13-trit
 ///      addresses) — manual override for environments without DB heartbeats.
-///   3. The original Array3 testbed triple (A/B/C) as a final fallback so
-///      first-boot before any node has registered still attempts a probe.
+///
+/// If neither source yields any address we return an empty Vec rather than
+/// fabricate a fake hardcoded triple — probing nonexistent addresses just
+/// spams the CRS with traffic that will never be answered and pollutes the
+/// monitoring UI with phantom nodes.
 async fn all_daemon_addresses(db: &sqlx::PgPool) -> Vec<String> {
     let rows = sqlx::query_as::<_, (String,)>(
         "SELECT DISTINCT address_str FROM crs_registrations \
@@ -121,11 +124,7 @@ async fn all_daemon_addresses(db: &sqlx::PgPool) -> Vec<String> {
             return parsed;
         }
     }
-    vec![
-        "1111111111111".to_string(),
-        "2111111111111".to_string(),
-        "3111111111111".to_string(),
-    ]
+    Vec::new()
 }
 
 // ── Constants ─────────────────────────────────────────────────────────────
@@ -374,7 +373,13 @@ async fn run_relay_session(
             }
         }
 
-        tracing::info!(count = probed_now.len(), addresses = ?probed_now, "Probing Array3 daemon addresses");
+        if probed_now.is_empty() {
+            tracing::info!(
+                "No Array3 daemon addresses to probe — no live CRS registrations and ARRAY3_PROBE_ADDRESSES is unset. Skipping probe."
+            );
+        } else {
+            tracing::info!(count = probed_now.len(), addresses = ?probed_now, "Probing Array3 daemon addresses");
+        }
         for target in &probed_now {
             let probe_uuid = Uuid::new_v4();
             let probe_id = probe_uuid.to_string();
