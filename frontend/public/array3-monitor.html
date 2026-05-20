@@ -105,13 +105,29 @@
 <div id="panel">
   <div class="sec">
     <div class="stit">Connection</div>
-    <div style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#E4DFD5;margin-bottom:6px">Ports 21124 · 21151 · 21178</div>
+    <div id="ports-display" style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#E4DFD5;margin-bottom:6px">Ports —</div>
     <div style="margin-bottom:6px">
       <input type="text" id="inp-url" placeholder="Relay URL (for restart ops)" value="https://plenumnet.replit.app" style="width:100%;padding:6px 10px;background:var(--bg-surface);border:1px solid var(--bg-border);border-radius:5px;color:var(--text-body);font-family:'JetBrains Mono',monospace;font-size:11px;outline:none;margin-bottom:4px">
       <input type="password" id="inp-key" placeholder="API key (for ops commands)" style="width:100%;padding:6px 10px;background:var(--bg-surface);border:1px solid var(--bg-border);border-radius:5px;color:var(--text-body);font-family:'JetBrains Mono',monospace;font-size:11px;outline:none">
     </div>
     <button id="btn-connect" style="width:100%;padding:6px;background:rgba(74,158,245,0.12);border:1px solid rgba(74,158,245,0.3);color:var(--accent-blue);border-radius:5px;cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:11px;transition:all 0.15s">Refresh cluster</button>
     <div id="conn-status" style="font-size:10px;color:var(--text-faint);margin-top:6px;text-align:center">Auto-connecting to local daemons...</div>
+  </div>
+  <div class="sec">
+    <div class="stit">Daemon Config</div>
+    <div style="font-size:11px;color:var(--text-label);margin-bottom:4px">Relay token (Bearer)</div>
+    <input type="password" id="cfg-token" placeholder="RELAY_API_TOKEN" autocomplete="off" style="width:100%;padding:6px 10px;background:var(--bg-surface);border:1px solid var(--bg-border);border-radius:5px;color:var(--text-body);font-family:'JetBrains Mono',monospace;font-size:11px;outline:none;margin-bottom:8px">
+    <div style="font-size:11px;color:var(--text-label);margin-bottom:4px">Daemon ports (N1 · N2 · N3)</div>
+    <div style="display:flex;gap:4px;margin-bottom:8px">
+      <input type="number" id="cfg-p1" min="1" max="65535" style="width:33%;padding:6px 8px;background:var(--bg-surface);border:1px solid var(--bg-border);border-radius:5px;color:var(--text-body);font-family:'JetBrains Mono',monospace;font-size:11px;outline:none;text-align:center">
+      <input type="number" id="cfg-p2" min="1" max="65535" style="width:33%;padding:6px 8px;background:var(--bg-surface);border:1px solid var(--bg-border);border-radius:5px;color:var(--text-body);font-family:'JetBrains Mono',monospace;font-size:11px;outline:none;text-align:center">
+      <input type="number" id="cfg-p3" min="1" max="65535" style="width:33%;padding:6px 8px;background:var(--bg-surface);border:1px solid var(--bg-border);border-radius:5px;color:var(--text-body);font-family:'JetBrains Mono',monospace;font-size:11px;outline:none;text-align:center">
+    </div>
+    <div style="display:flex;gap:4px">
+      <button id="cfg-save" style="flex:1;padding:6px;background:rgba(74,158,245,0.12);border:1px solid rgba(74,158,245,0.3);color:var(--accent-blue);border-radius:5px;cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:11px;transition:all 0.15s">Save &amp; Reconnect</button>
+      <button id="cfg-reset" title="Reset to defaults (21124/21151/21178)" style="padding:6px 10px;background:transparent;border:1px solid var(--bg-border);color:var(--text-label);border-radius:5px;cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:11px">Reset</button>
+    </div>
+    <div id="cfg-status" style="font-size:10px;color:var(--text-faint);margin-top:6px;text-align:center;min-height:12px"></div>
   </div>
   <div class="sec"><div class="stit">Focus Node</div>
     <div class="node-tabs">
@@ -507,7 +523,13 @@ const STATUS={
 const _isLocal=window.location.protocol==='file:'||!window.location.hostname||window.location.hostname==='localhost'||window.location.hostname==='127.0.0.1';
 const DAEMON_HOST=_isLocal?'127.0.0.1':window.location.hostname;
 const DAEMON_PROTO=_isLocal?'http:':window.location.protocol;
-const NODE_PORTS=[21124,21151,21178];
+const NODE_PORTS_DEFAULT=[21124,21151,21178];
+let NODE_PORTS=(()=>{
+  try{const s=JSON.parse(localStorage.getItem('a3m.nodePorts')||'null');
+    if(Array.isArray(s)&&s.length===3&&s.every(n=>Number.isInteger(n)&&n>0&&n<65536))return s;
+  }catch{}
+  return NODE_PORTS_DEFAULT.slice();
+})();
 function nodeUrl(port,path){return `${DAEMON_PROTO}//${DAEMON_HOST}:${port}${path}`}
 
 let isLive=false,pollTimer=null;
@@ -628,13 +650,13 @@ const _isServerHosted=_isOnRelayOrigin&&(
 
 // [FIX-2] Token only used in file:// mode. Server-hosted mode skips token entirely —
 // the relay authenticates by origin. Never embed secrets in client-served HTML.
-const RELAY_AUTH_TOKEN='<paste-your-relay-api-token-here>';
+let RELAY_AUTH_TOKEN=localStorage.getItem('a3m.relayToken')||'';
 
 let relayErrorState=null;
 let relayBackoffMs=0;
 
 function isRelayTokenConfigured(){
-  return RELAY_AUTH_TOKEN&&RELAY_AUTH_TOKEN!=='<paste-your-relay-api-token-here>';
+  return !!RELAY_AUTH_TOKEN;
 }
 
 function showRelayError(statusCode,errorObj){
@@ -677,26 +699,23 @@ function clearRelayError(){
   if(overlay)overlay.remove();
 }
 
-let setupBannerShown=false;
 function showSetupBanner(){
-  if(setupBannerShown)return;
-  setupBannerShown=true;
-  connStatus.textContent='\u{1F527} Setup required — paste your relay token';
+  // Frozen centered modal removed. Instead: surface the message in the
+  // status line and auto-open the side panel so the user lands on the
+  // Daemon Config inputs (token + ports) and can fix things in place.
+  connStatus.textContent='\u{1F527} Setup required — open the \u2699 panel and set your token / ports';
   connStatus.style.color='#DD6B20';
-  const banner=document.createElement('div');
-  banner.id='setup-banner';
-  banner.style.cssText='position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:9999;background:rgba(24,20,17,0.98);border:2px solid #DD6B20;border-radius:12px;padding:32px 40px;max-width:480px;text-align:center;font-family:Inter,system-ui,sans-serif;';
-  banner.innerHTML=`
-    <div style="font-size:36px;margin-bottom:12px">\u{1F527}</div>
-    <div style="font-size:18px;font-weight:700;color:#F0EDE8;margin-bottom:8px">Relay Token Required</div>
-    <div style="font-size:13px;color:#C9C1B4;line-height:1.6;margin-bottom:16px">
-      To monitor Array3 nodes remotely, paste your <code style="background:rgba(74,158,245,0.12);color:#4A9EF5;padding:2px 6px;border-radius:3px;font-family:JetBrains Mono,monospace;font-size:12px">RELAY_API_TOKEN</code> into this file.<br><br>
-      Open <code style="background:rgba(74,158,245,0.12);color:#4A9EF5;padding:2px 6px;border-radius:3px;font-family:JetBrains Mono,monospace;font-size:12px">array3-monitor.html</code> and replace the placeholder value of <code style="background:rgba(74,158,245,0.12);color:#4A9EF5;padding:2px 6px;border-radius:3px;font-family:JetBrains Mono,monospace;font-size:12px">RELAY_AUTH_TOKEN</code>.
-    </div>
-    <div style="font-size:11px;color:#6B655E;border-top:1px solid #272220;padding-top:12px">
-      Local monitoring (file://) still works without a token when daemons are on localhost.
-    </div>`;
-  document.body.appendChild(banner);
+  const panel=document.getElementById('panel');
+  const toggle=document.getElementById('panel-toggle');
+  if(panel&&panel.classList.contains('hidden')){
+    panel.classList.remove('hidden');
+    if(toggle)toggle.classList.add('active');
+  }
+  const cfgStatus=document.getElementById('cfg-status');
+  if(cfgStatus){
+    cfgStatus.textContent='Paste your relay token below, then Save & Reconnect.';
+    cfgStatus.style.color='#DD6B20';
+  }
 }
 
 async function fetchRelayStatus(){
@@ -940,6 +959,60 @@ connBtn.addEventListener('click',async()=>{
     isLive=false;connBtn.textContent='Retry';connBtn.disabled=false;
   }
 });
+
+// ═══════════════════════════════════════════════════════
+// DAEMON CONFIG PANEL — token + ports, persisted to localStorage
+// ═══════════════════════════════════════════════════════
+function renderPortsDisplay(){
+  const d=document.getElementById('ports-display');
+  if(d)d.textContent='Ports '+NODE_PORTS.join(' · ');
+}
+function hydrateConfigInputs(){
+  const t=document.getElementById('cfg-token');if(t)t.value=RELAY_AUTH_TOKEN||'';
+  const ids=['cfg-p1','cfg-p2','cfg-p3'];
+  ids.forEach((id,i)=>{const el=document.getElementById(id);if(el)el.value=NODE_PORTS[i]});
+  renderPortsDisplay();
+}
+async function applyConfigAndReconnect(){
+  const cfgStatus=document.getElementById('cfg-status');
+  const tokenEl=document.getElementById('cfg-token');
+  const ports=['cfg-p1','cfg-p2','cfg-p3'].map(id=>parseInt(document.getElementById(id).value,10));
+  if(ports.some(p=>!Number.isInteger(p)||p<1||p>65535)){
+    if(cfgStatus){cfgStatus.textContent='Invalid port — must be 1–65535';cfgStatus.style.color='#E24B4A'}
+    return;
+  }
+  const newToken=(tokenEl?tokenEl.value:'').trim();
+  RELAY_AUTH_TOKEN=newToken;
+  NODE_PORTS=ports;
+  try{localStorage.setItem('a3m.relayToken',newToken)}catch{}
+  try{localStorage.setItem('a3m.nodePorts',JSON.stringify(ports))}catch{}
+  renderPortsDisplay();
+  // Remove any stale relay-error overlay from a previous bad config
+  clearRelayError();
+  if(cfgStatus){cfgStatus.textContent='Saved. Reconnecting…';cfgStatus.style.color=CSS.blueActive}
+  // Trigger a fresh fetch using the new config
+  if(pollTimer){clearInterval(pollTimer);pollTimer=null}
+  const ok=await fetchAllNodes();
+  if(ok){
+    isLive=true;refreshScene();connectRelayWss();
+    pollTimer=setInterval(async()=>{
+      if(relayBackoffMs>0){await new Promise(r=>setTimeout(r,relayBackoffMs))}
+      const f=await fetchAllNodes();if(f)refreshScene();
+    },5000);
+    if(cfgStatus){cfgStatus.textContent='Connected with new settings';cfgStatus.style.color=CSS.lime}
+  }else{
+    if(cfgStatus){cfgStatus.textContent='Saved, but fetch failed — check token/ports';cfgStatus.style.color='#DD6B20'}
+  }
+}
+document.getElementById('cfg-save')?.addEventListener('click',applyConfigAndReconnect);
+document.getElementById('cfg-reset')?.addEventListener('click',()=>{
+  document.getElementById('cfg-p1').value=NODE_PORTS_DEFAULT[0];
+  document.getElementById('cfg-p2').value=NODE_PORTS_DEFAULT[1];
+  document.getElementById('cfg-p3').value=NODE_PORTS_DEFAULT[2];
+  const cfgStatus=document.getElementById('cfg-status');
+  if(cfgStatus){cfgStatus.textContent='Defaults loaded — click Save & Reconnect to apply';cfgStatus.style.color=CSS.label}
+});
+hydrateConfigInputs();
 
 // [FIX-6] Auto-connect IIFE now also establishes WSS relay
 (async()=>{
