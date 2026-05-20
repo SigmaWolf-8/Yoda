@@ -55,6 +55,9 @@ export const router = createBrowserRouter([
     ],
   },
 
+  // ── Public Forge page (no auth, no AppShell — has its own chrome) ──
+  { path: '/forge', element: <ForgePage /> },
+
   // ── Protected routes (wrapped in AppShell) ──
   {
     element: <ProtectedRoute />,
@@ -87,7 +90,6 @@ export const router = createBrowserRouter([
           { path: 'settings/install', element: <InstallPage /> },
           { path: 'monitoring', element: <MonitoringPage /> },
           { path: 'kyokushin', element: <KyokushinPage /> },
-          { path: 'forge', element: <ForgePage /> },
           { path: 'agents', element: <AgentsPage /> },
           { path: 'about', element: <AboutPage /> },
         ],
