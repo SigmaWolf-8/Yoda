@@ -608,12 +608,22 @@ function transformNode(nodeData,ni){
 }
 
 let useRelay=!_isLocal;
-const RELAY_URL=_isLocal?'https://plenumnet.replit.app':window.location.origin;
+// [YODA-EMBED] When this HUD is embedded in a host that is NOT the relay
+// itself (e.g. served as /array3-monitor.html from the YODA app), always
+// point RELAY_URL at the live plenumnet.replit.app relay. Using
+// window.location.origin would hit the YODA Rust server, which has no
+// /api/salvi/inter-cube routes — those requests get the SPA fallback HTML,
+// the JSON parse fails, and the UI freezes on the loading panel.
+const _isOnRelayOrigin=window.location.origin.includes('plenumnet.replit.app');
+const RELAY_URL=_isOnRelayOrigin?window.location.origin:'https://plenumnet.replit.app';
 
-// [FIX-4] _isServerHosted: detect Replit by origin as well as pathname
-const _isServerHosted=!_isLocal&&(
-  window.location.origin.includes('plenumnet.replit.app')||
-  window.location.pathname.startsWith('/api/salvi/inter-cube/monitor')
+// [FIX-4] _isServerHosted: only true when this HTML is actually served BY the
+// relay itself (cookie/origin auth available). When the YODA app serves the
+// file, we are cross-origin to the relay and must use bearer-token auth — the
+// token is injected server-side into RELAY_AUTH_TOKEN below.
+const _isServerHosted=_isOnRelayOrigin&&(
+  window.location.pathname.startsWith('/api/salvi/inter-cube/monitor')||
+  window.location.pathname==='/'
 );
 
 // [FIX-2] Token only used in file:// mode. Server-hosted mode skips token entirely —
