@@ -15,7 +15,7 @@
 use futures_util::{SinkExt, StreamExt};
 use rand::RngCore;
 use serde::Deserialize;
-use std::{collections::{HashMap, HashSet}, sync::Arc, time::Duration};
+use std::{collections::{HashMap, HashSet}, sync::{Arc, atomic::{AtomicUsize, Ordering}}, time::Duration};
 use tokio::sync::{mpsc, oneshot, RwLock};
 use tokio_tungstenite::{connect_async, tungstenite::Message};
 use uuid::Uuid;
@@ -313,6 +313,13 @@ async fn run_relay_session(
     // Probe IDs are tracked so that replies to probes (which are NOT registered
     // in pending_relays) don't trigger spurious "No pending relay" WARNs.
     let mut probe_ids: HashSet<Uuid> = HashSet::new();
+    // Counter of relay_ack(delivered=false) messages we *expect* to receive in
+    // response to probe / mesh_ping sends.  CRS sends these acks with an empty
+    // payload (no requestId), so we cannot correlate them to a specific probe
+    // by ID — instead, every time we send N probes we increment by N, and on
+    // the receive side we decrement and log at debug.  This stops the
+    // startup "Relay message undelivered" WARN spam from masking real failures.
+    let expected_probe_acks: Arc<AtomicUsize> = Arc::new(AtomicUsize::new(0));
     {
         let mut probed_now: Vec<&str> = Vec::new();
         // First: probe the CRS-registered neighbors (may include YODA itself)
@@ -349,7 +356,9 @@ async fn run_relay_session(
                 "payload": probe_payload.to_string(),
             });
             tracing::debug!(to = %target, probe_id = %probe_id, "Sending startup probe");
-            let _ = sink.send(Message::Text(probe_envelope.to_string().into())).await;
+            if sink.send(Message::Text(probe_envelope.to_string().into())).await.is_ok() {
+                expected_probe_acks.fetch_add(1, Ordering::SeqCst);
+            }
         }
     }
 
@@ -422,7 +431,7 @@ async fn run_relay_session(
                                 reprobe_secs = 60;
                                 reprobe_deadline = tokio::time::Instant::now() + Duration::from_secs(10);
                             }
-                            handle_inbound(state, &text, address, &probe_ids).await;
+                            handle_inbound(state, &text, address, &probe_ids, &expected_probe_acks).await;
                         }
                     }
                     Some(Ok(Message::Pong(_))) => {
@@ -476,6 +485,9 @@ async fn run_relay_session(
                             });
                             if sink.send(Message::Text(ping_envelope.to_string().into())).await.is_ok() {
                                 any_sent = true;
+                                // Each mesh_ping to an offline daemon will trigger a relay_ack
+                                // with delivered=false from the CRS — pre-account for it.
+                                expected_probe_acks.fetch_add(1, Ordering::SeqCst);
                             }
                         }
                     }
@@ -557,7 +569,7 @@ struct InferenceErrorPayload {
     error: String,
 }
 
-async fn handle_inbound(state: &AppState, text: &str, own_address: &str, probe_ids: &HashSet<Uuid>) {
+async fn handle_inbound(state: &AppState, text: &str, own_address: &str, probe_ids: &HashSet<Uuid>, expected_probe_acks: &AtomicUsize) {
     let env: RelayEnvelope = match serde_json::from_str(text) {
         Ok(e) => e,
         Err(_) => {
@@ -648,6 +660,14 @@ async fn handle_inbound(state: &AppState, text: &str, own_address: &str, probe_i
                         // Startup probe reply — probes are intentionally not registered in
                         // pending_relays, so this is expected.  The `from` field above has
                         // already recorded this peer as live.
+                        // Also decrement expected_probe_acks: this probe was delivered, so
+                        // the CRS will NOT send a relay_ack(delivered=false) for it.  Leaving
+                        // the counter elevated would silently consume (and downgrade to debug)
+                        // a later real undelivered-ack WARN.
+                        let _ = expected_probe_acks.fetch_update(
+                            Ordering::SeqCst, Ordering::SeqCst,
+                            |n| if n > 0 { Some(n - 1) } else { None },
+                        );
                         tracing::debug!(request_id = %request_id, "Startup probe: peer replied with inference_response — peer alive");
                     } else {
                         tracing::warn!(request_id = %request_id, "No pending relay for inference_response");
@@ -674,6 +694,13 @@ async fn handle_inbound(state: &AppState, text: &str, own_address: &str, probe_i
                     } else if probe_ids.contains(&request_id) {
                         // Startup probe replied with error — peer is offline or not running
                         // an inference-capable model.  Not a fault condition.
+                        // Decrement expected_probe_acks (same reason as the inference_response
+                        // branch above): the probe reached the peer and produced a typed reply,
+                        // so no relay_ack(delivered=false) will arrive to balance the counter.
+                        let _ = expected_probe_acks.fetch_update(
+                            Ordering::SeqCst, Ordering::SeqCst,
+                            |n| if n > 0 { Some(n - 1) } else { None },
+                        );
                         tracing::debug!(request_id = %request_id, error = %payload.error,
                             "Startup probe: peer returned inference_error — peer offline or model not ready");
                     } else {
@@ -701,16 +728,32 @@ async fn handle_inbound(state: &AppState, text: &str, own_address: &str, probe_i
                         tracing::warn!(request_id = %request_id, "Relay message undelivered — failed specific request");
                     }
                 } else {
-                    // Cannot identify which request failed — do NOT drain all pending relays.
-                    // Log the raw payload (R3-5) so the actual CRS field names are visible
-                    // in logs, which reveals the correct spelling if it changes in a future
-                    // CRS release.  Individual requests time out naturally after 90 s.
-                    tracing::warn!(
-                        payload = %payload_str,
-                        "Relay message undelivered — requestId not found in ack; \
-                         logged raw payload so CRS wire format is visible; \
-                         letting individual requests time out after 90 s"
-                    );
+                    // No requestId in the ack.  If we have outstanding probe / mesh_ping
+                    // sends, attribute this ack to one of them and log at debug — these
+                    // are expected and benign (probes to offline daemons always fail to
+                    // deliver).  Only emit a WARN when the counter is exhausted, which
+                    // indicates a real undelivered request whose ID we cannot recover;
+                    // in that case the raw payload is logged so the CRS wire format
+                    // (which may differ between releases) is visible.  Real requests
+                    // time out naturally after 90 s.
+                    let consumed = expected_probe_acks
+                        .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |n| {
+                            if n > 0 { Some(n - 1) } else { None }
+                        })
+                        .is_ok();
+                    if consumed {
+                        tracing::debug!(
+                            payload = %payload_str,
+                            "Probe / mesh_ping undelivered (peer offline) — expected, quiet"
+                        );
+                    } else {
+                        tracing::warn!(
+                            payload = %payload_str,
+                            "Relay message undelivered — requestId not found in ack; \
+                             logged raw payload so CRS wire format is visible; \
+                             letting individual requests time out after 90 s"
+                        );
+                    }
                 }
             }
         }

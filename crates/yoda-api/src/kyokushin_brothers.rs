@@ -238,7 +238,7 @@ pub struct SATInstance {
 }
 
 impl SATInstance {
-    pub fn from_text(text: &str, num_vars: usize, num_clauses: usize) -> Self {
+    pub fn from_text(_text: &str, num_vars: usize, num_clauses: usize) -> Self {
         // Simplified: generate random clauses for demo
         let mut clauses = Vec::new();
         for _ in 0..num_clauses {
@@ -363,7 +363,7 @@ impl OracleBuilder {
         Ok(())
     }
 
-    pub fn build_factorization_oracle(instance: &FactorizationInstance, period: u64, state: &mut QuantumState) -> Result<(), KyokushinError> {
+    pub fn build_factorization_oracle(_instance: &FactorizationInstance, period: u64, state: &mut QuantumState) -> Result<(), KyokushinError> {
         // Shor's algorithm: period extraction for a^x mod N
         // Simplified phase shift based on period
         if period > 1 && period % 2 == 0 {
@@ -593,6 +593,8 @@ pub struct KyokushinQuery {
 // ═════════════════════════════════════════════════════════════════════════════════════════════════
 
 pub struct AlphaAgent {
+    // Held for future per-agent tracing/observability; read indirectly via Debug logs only today.
+    #[allow(dead_code)]
     id: String,
 }
 
@@ -693,6 +695,8 @@ impl Default for AlphaAgent {
 // ═════════════════════════════════════════════════════════════════════════════════════════════════
 
 pub struct BetaAgent {
+    // Held for future per-agent tracing/observability; read indirectly via Debug logs only today.
+    #[allow(dead_code)]
     id: String,
 }
 
@@ -771,6 +775,8 @@ impl Default for BetaAgent {
 // ═════════════════════════════════════════════════════════════════════════════════════════════════
 
 pub struct GammaAgent {
+    // Held for future per-agent tracing/observability; read indirectly via Debug logs only today.
+    #[allow(dead_code)]
     id: String,
 }
 
@@ -783,7 +789,7 @@ impl GammaAgent {
 
     pub async fn validate(
         &self,
-        analysis: &AnalysisResponse,
+        _analysis: &AnalysisResponse,
         implementation: &ImplementationResponse,
     ) -> Result<ValidationResponse, KyokushinError> {
         let start = Instant::now();

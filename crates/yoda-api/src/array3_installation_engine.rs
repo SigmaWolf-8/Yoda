@@ -826,7 +826,7 @@ impl Array3ErrorRecovery {
     }
 
     /// Attempt to use a pre-compiled binary if available
-    pub async fn try_use_precompiled(&self, node: &DaemonNodeInfo) -> Result<(), Array3InstallationError> {
+    pub async fn try_use_precompiled(&self, _node: &DaemonNodeInfo) -> Result<(), Array3InstallationError> {
         eprintln!("[Recovery] Attempting to use pre-compiled binary...");
 
         // Check common download mirrors
@@ -850,7 +850,7 @@ impl Array3ErrorRecovery {
         eprintln!("[Recovery] Checking available disk space...");
 
         // On most systems, a Rust compilation needs 2-5 GB
-        let required_gb = 5;
+        let _required_gb = 5;
 
         #[cfg(target_os = "windows")]
         {
@@ -1042,7 +1042,7 @@ pub async fn install_array3_with_recovery(
         eprintln!("[Setup] Requesting elevation...");
         if let Err(e) = permission_checker.request_elevation().await {
             recovery.log_error("PermissionCheck", &Array3InstallationError::PermissionDenied {
-                reason: "Could not elevate privileges".to_string(),
+                reason: format!("Could not elevate privileges: {}", e),
             }, "Run with sudo or as administrator").await;
         }
     } else {
