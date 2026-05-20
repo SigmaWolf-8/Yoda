@@ -1,17 +1,29 @@
+import { HEADER_H } from '../components/layout/AppShell';
+
 export function MonitoringPage() {
   return (
-    <iframe
-      src="/array3-monitor.html"
-      title="Array3 Monitor v9.4.6"
+    <div
       style={{
-        position: 'fixed',
-        inset: 0,
-        width: '100vw',
-        height: '100vh',
-        border: 'none',
+        position: 'relative',
+        width: '100%',
+        height: `calc(100vh - ${HEADER_H}px)`,
         background: '#000',
-        zIndex: 0,
+        overflow: 'hidden',
       }}
-    />
+    >
+      <iframe
+        src="/array3-monitor.html"
+        title="Array3 Monitor v9.4.6"
+        style={{
+          position: 'absolute',
+          inset: 0,
+          width: '100%',
+          height: '100%',
+          border: 'none',
+          background: '#000',
+          display: 'block',
+        }}
+      />
+    </div>
   );
 }
