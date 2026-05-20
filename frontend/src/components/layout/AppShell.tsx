@@ -144,9 +144,10 @@ export function AppShell() {
 
   return (
     <VideoPlayProvider>
-    {/* Galaxy backdrop — fixed, behind everything */}
+    {/* Black-star galaxy backdrop — fixed, behind everything. Only
+        visible during the 90° edge-on moment of the cube page-flip. */}
     <div className="galaxy-bg" aria-hidden="true" />
-    <div className="galaxy-active flex min-h-screen w-full bg-transparent">
+    <div className="flex min-h-screen w-full bg-[var(--color-surface-primary)]">
       <a href="#main-content" className="skip-nav">Skip to main content</a>
 
       {/* ── Mobile backdrop ── */}

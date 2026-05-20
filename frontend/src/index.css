@@ -247,17 +247,15 @@ code, pre { font-family: var(--font-mono); }
   animation: cubeFlipIn 520ms cubic-bezier(0.22, 0.61, 0.36, 1);
 }
 
-/* ═══ Galaxy backdrop (fixed, lives behind the entire app) ═══ */
+/* ═══ Galaxy backdrop (fixed, lives behind the entire app) ═══
+   Pure black space with white stars — no nebula tint. Only visible for
+   the brief 90° edge-on moment of the page-flip. */
 .galaxy-bg {
   position: fixed;
   inset: 0;
   z-index: -10;
   pointer-events: none;
-  background:
-    radial-gradient(ellipse 80% 50% at 20% 30%, rgba(80, 30, 180, 0.35), transparent 60%),
-    radial-gradient(ellipse 60% 40% at 80% 70%, rgba(20, 90, 200, 0.30), transparent 60%),
-    radial-gradient(ellipse 50% 40% at 50% 90%, rgba(200, 30, 120, 0.18), transparent 60%),
-    radial-gradient(circle at 50% 50%, #0b0820 0%, #050310 70%, #000 100%);
+  background: #000;
   overflow: hidden;
 }
 .galaxy-bg::before,
@@ -295,45 +293,30 @@ code, pre { font-family: var(--font-mono); }
   50%     { filter: brightness(1.4); }
 }
 
-/* When the galaxy is active, let the page content sit on transparent glass
-   so the galaxy is visible during the 3D cube flip. */
-.galaxy-active main#main-content { background: transparent !important; }
-
-/* ═══ Upgraded cube page-flip — recedes into space then snaps back ═══ */
+/* ═══ Pure cube page-flip — page rotates 180° edge-on past 90°,
+   exposing the black-star galaxy behind for the split-second the face is
+   perpendicular to the camera. No scale, no translateZ, no recolouring —
+   the page keeps its own opaque background so the galaxy is ONLY visible
+   in that single moment of the rotation. */
 @keyframes cubeFlipIn {
-  0% {
-    transform: rotateY(-92deg) translateZ(-600px) scale(0.55);
-    opacity: 0;
-    filter: blur(4px) brightness(0.6);
-    box-shadow: 0 0 80px 20px rgba(80,150,255,0.6);
-  }
-  35% {
-    transform: rotateY(-55deg) translateZ(-380px) scale(0.7);
-    opacity: 0.7;
-    filter: blur(2px) brightness(0.85);
-  }
-  70% {
-    transform: rotateY(-12deg) translateZ(-80px) scale(0.94);
-    opacity: 1;
-    filter: blur(0.5px) brightness(1.05);
-  }
-  100% {
-    transform: rotateY(0deg) translateZ(0) scale(1);
-    opacity: 1;
-    filter: blur(0) brightness(1);
-    box-shadow: 0 0 0 0 rgba(80,150,255,0);
-  }
+  0%   { transform: rotateY(-90deg); }
+  100% { transform: rotateY(0deg); }
 }
 .cube-flip-stage {
   perspective: 1800px;
   perspective-origin: 50% 50%;
   position: relative;
+  /* Stage itself must NOT paint a background — only the face does. */
+  background: transparent;
 }
 .cube-flip-face {
+  width: 100%;
+  min-height: 100%;
   transform-style: preserve-3d;
   backface-visibility: hidden;
-  will-change: transform, opacity, filter;
-  animation: cubeFlipIn 720ms cubic-bezier(0.22, 0.61, 0.36, 1);
-  border-radius: 4px;
-  box-shadow: 0 24px 80px rgba(0,0,0,0.55), 0 4px 18px rgba(0,0,0,0.4);
+  will-change: transform;
+  animation: cubeFlipIn 700ms cubic-bezier(0.22, 0.61, 0.36, 1);
+  /* Keep the original page surface opaque so the galaxy stays hidden
+     except during the 90° edge-on instant. */
+  background: var(--color-surface-primary);
 }
