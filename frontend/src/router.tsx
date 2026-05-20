@@ -58,6 +58,9 @@ export const router = createBrowserRouter([
   // ── Public Forge page (no auth, no AppShell — has its own chrome) ──
   { path: '/forge', element: <ForgePage /> },
 
+  // ── Public Monitoring page (full-viewport iframe of the v9.4.6 HUD) ──
+  { path: '/monitoring', element: <MonitoringPage /> },
+
   // ── Protected routes (wrapped in AppShell) ──
   {
     element: <ProtectedRoute />,
@@ -88,7 +91,6 @@ export const router = createBrowserRouter([
           { path: 'settings/org', element: <OrgSettingsPage /> },
           { path: 'settings/api-keys', element: <ApiKeyPage /> },
           { path: 'settings/install', element: <InstallPage /> },
-          { path: 'monitoring', element: <MonitoringPage /> },
           { path: 'kyokushin', element: <KyokushinPage /> },
           { path: 'agents', element: <AgentsPage /> },
           { path: 'about', element: <AboutPage /> },
