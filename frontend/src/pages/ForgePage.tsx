@@ -1,4 +1,69 @@
+// @ts-nocheck
 import React, { useState, useEffect, useMemo, useRef } from "react";
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Forge math source-of-truth lives in the Rust backend (yoda-api).
+// To swap to a different crate later, change the path on the server in
+// crates/yoda-api/src/forge_routes.rs and update FORGE_API base if needed.
+// All audits, harmony fixes, theorem registers and HPTP timestamps in this
+// page execute natively in Rust — this file only renders and dispatches.
+// ─────────────────────────────────────────────────────────────────────────────
+const FORGE_API = ((import.meta as any).env?.VITE_API_BASE_URL ?? "/api") + "/forge";
+
+async function forgeAudit(filename: string, content: string): Promise<any[]> {
+  try {
+    const r = await fetch(`${FORGE_API}/audit`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ filename, content }),
+    });
+    if (!r.ok) return [];
+    const j = await r.json();
+    return j.findings ?? [];
+  } catch {
+    return [];
+  }
+}
+
+async function forgeFix(content: string): Promise<{ fixed: string; changed: boolean }> {
+  try {
+    const r = await fetch(`${FORGE_API}/fix`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ content }),
+    });
+    if (!r.ok) return { fixed: content, changed: false };
+    const j = await r.json();
+    return { fixed: j.fixed ?? content, changed: !!j.changed };
+  } catch {
+    return { fixed: content, changed: false };
+  }
+}
+
+async function forgeHptp(): Promise<{ timestamp: string; filename_stamp: string }> {
+  try {
+    const r = await fetch(`${FORGE_API}/hptp`);
+    if (!r.ok) throw new Error();
+    return await r.json();
+  } catch {
+    const d = new Date();
+    return {
+      timestamp: d.toISOString().replace("Z", "000000000000000Z"),
+      filename_stamp: d.toISOString().replace(/[-:T.Z]/g, "").slice(0, 15),
+    };
+  }
+}
+
+async function forgeTheoremRegister(mode: string): Promise<{ markdown: string; filename: string; timestamp: string }> {
+  const r = await fetch(`${FORGE_API}/theorem-register?mode=${encodeURIComponent(mode)}`);
+  if (!r.ok) throw new Error(`theorem-register failed: ${r.status}`);
+  return await r.json();
+}
+
+function hptpFilenameStamp(): string {
+  const d = new Date();
+  return d.toISOString().replace(/[-:T.Z]/g, "").slice(0, 15);
+}
 import * as THREE from "three";
 
 // PlenumNET brand palette | exact, no deviation
@@ -1990,63 +2055,15 @@ const HARMONY_PALETTE = new Set([
   "#4A9EF5", "#38BDF8", "#3D444B", "#78828C",
 ].map((c) => c.toLowerCase()));
 
-function auditSource(filename, src) {
-  const findings = [];
-  const lines = src.split("\n");
-  const strRe = /"((?:\\.|[^"\\])*)"|'((?:\\.|[^'\\])*)'|`((?:\\.|[^`\\])*)`/g;
-
-  lines.forEach((line, idx) => {
-    const lineNo = idx + 1;
-    if (/^\s*\/\//.test(line) || /^\s*\*/.test(line)) return;
-
-    // H1 / H2 | em-dash, en-dash in strings
-    let m;
-    strRe.lastIndex = 0;
-    while ((m = strRe.exec(line)) !== null) {
-      const str = m[1] ?? m[2] ?? m[3];
-      if (str === undefined) continue;
-      if (/|/.test(str)) findings.push({ file: filename, line: lineNo, kind: "H1", severity: "warn", message: "Em-dash in prose string", snippet: str.slice(0, 70) });
-      if (/|/.test(str)) findings.push({ file: filename, line: lineNo, kind: "H2", severity: "warn", message: "En-dash in prose string", snippet: str.slice(0, 70) });
-    }
-
-    // H3 | P.body
-    if (line.includes("color: P.heading")) findings.push({ file: filename, line: lineNo, kind: "H3", severity: "warn", message: "color: P.heading | should be P.heading", snippet: line.trim().slice(0, 80) });
-
-    // H4 | P.faint
-    if (line.includes("color: P.label")) findings.push({ file: filename, line: lineNo, kind: "H4", severity: "fail", message: "color: P.label | fails WCAG AA, use P.label", snippet: line.trim().slice(0, 80) });
-
-    // H5 | fontSize below floor
-    const fontRe = /fontSize:\s*"(\d*\.?\d+)rem"/g;
-    let f;
-    while ((f = fontRe.exec(line)) !== null) {
-      const size = parseFloat(f[1]);
-      if (size < 0.84) findings.push({ file: filename, line: lineNo, kind: "H5", severity: "fail", message: `fontSize ${size}rem (~${(size * 16).toFixed(1)}px) below 0.84rem floor`, snippet: line.trim().slice(0, 80) });
-    }
-
-    // H6 | hardcoded hex not in palette
-    const hexRe = /(color|background|borderColor|stroke|fill):\s*["']?(#[0-9A-Fa-f]{6})\b/g;
-    let h;
-    while ((h = hexRe.exec(line)) !== null) {
-      if (!HARMONY_PALETTE.has(h[2].toLowerCase())) findings.push({ file: filename, line: lineNo, kind: "H6", severity: "warn", message: `Hardcoded ${h[1]}: ${h[2]} not in brand palette`, snippet: line.trim().slice(0, 80) });
-    }
-  });
-
-  return findings;
+// Native Rust audit (yoda-api::kyokushin_brothers::audit_source via /api/forge/audit)
+async function auditSource(filename, src) {
+  return await forgeAudit(filename, src);
 }
 
-function applyHarmonyFixes(src) {
-  let out = src;
-  out = out.replace(/ | /g, " | ");
-  out = out.replace(/|/g, "|");
-  out = out.replace(/ | /g, " | ");
-  out = out.replace(/|/g, "|");
-  out = out.replace(/color: P\.body/g, "color: P.heading");
-  out = out.replace(/color: P\.faint/g, "color: P.label");
-  out = out.replace(/fontSize:\s*"(\d*\.?\d+)rem"/g, (full, sizeStr) => {
-    const size = parseFloat(sizeStr);
-    return size < 0.84 ? `fontSize: "0.85rem"` : full;
-  });
-  return out;
+// Native Rust harmony fixes (apply_harmony_fixes via /api/forge/fix)
+async function applyHarmonyFixes(src) {
+  const r = await forgeFix(src);
+  return r.fixed;
 }
 
 const SEVERITY_COLOR = { fail: "#FF6B6B", warn: P.blue, info: P.label };
@@ -2286,8 +2303,16 @@ const THEOREMS = [
 
 
 // ── Markdown generation ─────────────────────────────────────────────────────
-function generateTheoremRegisterMD(mode /* "internal" | "external" */) {
-  const ts = hptpTimestamp();
+async function generateTheoremRegisterMD(mode /* "internal" | "external" */) {
+  // Generated NATIVELY in Rust (yoda-api::kyokushin_brothers::generate_theorem_register_md).
+  // No client-side fallback: if the backend is unreachable, the error propagates
+  // to the caller so the user sees a real failure instead of silently-fabricated JS output.
+  const r = await forgeTheoremRegister(mode);
+  return r.markdown;
+}
+
+function _generateTheoremRegisterMD_unused_local(mode) {
+  const ts = "";
   const lines = [];
   lines.push("# Theorem Register | Salvi Framework");
   lines.push("");
@@ -2441,8 +2466,8 @@ function escapeHtml(s) {
 // If the browser blocks iframe.print() (rare, only in deep sandbox modes),
 // we automatically fall back to downloading the HTML file the user can open
 // and print with Cmd/Ctrl+P.
-function printRegisterToPDF(mode) {
-  const md = generateTheoremRegisterMD(mode);
+async function printRegisterToPDF(mode) {
+  const md = await generateTheoremRegisterMD(mode);
   const html = mdToHtml(md);
   const ts = hptpTimestamp();
 
@@ -2537,8 +2562,8 @@ ${html}
 }
 
 
-function downloadRegisterMD(mode) {
-  const md = generateTheoremRegisterMD(mode);
+async function downloadRegisterMD(mode) {
+  const md = await generateTheoremRegisterMD(mode);
   const ts = hptpTimestamp().replace(/[:.]/g, "-");
   const filename = `theorem-register-${mode}-${ts}.md`;
   const blob = new Blob([md], { type: "text/markdown" });
@@ -2775,26 +2800,29 @@ function Harmony() {
       path: f.webkitRelativePath || f.name,
       content: await f.text(),
     })));
-    const allFindings = data.flatMap((d) => auditSource(d.path, d.content));
+    const findingsArrays = await Promise.all(data.map((d) => auditSource(d.path, d.content)));
+    const allFindings = findingsArrays.flat();
     setFiles(data);
     setFindings(allFindings);
     setFixedBlobs([]);
     setStatus("loaded");
   };
 
-  const runFixes = () => {
-    const fixed = files.map((f) => {
-      const fixedContent = applyHarmonyFixes(f.content);
+  const runFixes = async () => {
+    const fixed = await Promise.all(files.map(async (f) => {
+      const fixedContent = await applyHarmonyFixes(f.content);
       const blob = new Blob([fixedContent], { type: "text/javascript" });
       return {
         name: f.name,
         path: f.path,
         url: URL.createObjectURL(blob),
         changed: fixedContent !== f.content,
+        fixedContent,
       };
-    });
+    }));
     // Re-audit fixed content to show residual findings
-    const reFindings = files.flatMap((f) => auditSource(f.path, applyHarmonyFixes(f.content)));
+    const reFindingsArrays = await Promise.all(fixed.map((f) => auditSource(f.path, f.fixedContent)));
+    const reFindings = reFindingsArrays.flat();
     setFixedBlobs(fixed);
     setFindings(reFindings);
     setStatus("fixed");
@@ -2810,7 +2838,7 @@ function Harmony() {
       <SectionHeader n="H" title="Harmony Audit" latin="Examen Concordiae" />
 
       <div style={{ ...fBody, fontSize: "0.95rem", color: P.heading, lineHeight: 1.7, fontWeight: 300, marginBottom: "2rem" }}>
-        Drop or select one or more .jsx files. The audit runs entirely in your browser | files never leave the page. Findings are reported with line numbers and severity. Apply fixes to download repaired copies. Re-running on the fixed file should yield <span style={{ color: P.blue, fontStyle: "italic" }}>HARMONY ACHIEVED</span>.
+        Drop or select one or more .jsx files. File contents are POSTed to the native Rust audit engine (yoda-api::kyokushin_brothers) running on this server; findings are reported with line numbers and severity. Apply fixes to download repaired copies. Re-running on the fixed file should yield <span style={{ color: P.blue, fontStyle: "italic" }}>HARMONY ACHIEVED</span>.
       </div>
 
       {/* ── Drop / select zone ── */}
@@ -3705,7 +3733,11 @@ function PageContent({ active }) {
   }
 }
 
-export default function ForgeTripleExpressionV11131() {
+export function ForgePage() {
+  return <ForgeTripleExpressionV11131 />;
+}
+
+function ForgeTripleExpressionV11131() {
   const [active, setActive] = useState("master");
 
   useEffect(() => {

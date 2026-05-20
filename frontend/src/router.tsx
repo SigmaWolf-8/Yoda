@@ -21,6 +21,7 @@ import { ApiKeyPage } from './pages/settings/ApiKeyPage';
 import { InstallPage } from './pages/settings/InstallPage';
 import { MonitoringPage } from './pages/MonitoringPage';
 import { KyokushinPage } from './pages/KyokushinPage';
+import { ForgePage } from './pages/ForgePage';
 import { AgentsPage } from './pages/AgentsPage';
 import { AboutPage } from './pages/AboutPage';
 
@@ -86,6 +87,7 @@ export const router = createBrowserRouter([
           { path: 'settings/install', element: <InstallPage /> },
           { path: 'monitoring', element: <MonitoringPage /> },
           { path: 'kyokushin', element: <KyokushinPage /> },
+          { path: 'forge', element: <ForgePage /> },
           { path: 'agents', element: <AgentsPage /> },
           { path: 'about', element: <AboutPage /> },
         ],

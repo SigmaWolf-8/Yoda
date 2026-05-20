@@ -26,6 +26,7 @@ const MAIN_NAV = [
   { to: '/agents',           icon: Users,           label: 'Agents'     },
   { to: '/settings/engines', icon: Cpu,             label: 'AI Engines' },
   { to: '/kyokushin',        icon: Zap,             label: 'Kyokushin'  },
+  { to: '/forge',            icon: Zap,             label: 'Forge'      },
   { to: '/monitoring',       icon: BarChart3,       label: 'Monitoring' },
   { to: '/about',            icon: Info,            label: 'About'      },
 ] as const;

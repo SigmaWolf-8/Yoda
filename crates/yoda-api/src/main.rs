@@ -36,6 +36,7 @@ pub mod cube_relay;
 pub mod error;
 pub mod kb;
 pub mod kyokushin_brothers;
+pub mod forge_routes;
 pub mod llm_agent_gateway;
 pub mod modes;
 pub mod query;
@@ -153,6 +154,7 @@ async fn main() -> anyhow::Result<()> {
         .route("/api/health", get(health))
         .merge(routes::build_router(state))
         .merge(kyokushin_brothers::kyokushin_routes(kyokushin))
+        .merge(forge_routes::forge_router())
         .fallback_service(serve_dir)
         .layer(middleware::map_response(no_cache_static))
         .layer(cors)
