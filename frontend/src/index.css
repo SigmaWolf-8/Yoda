@@ -265,15 +265,15 @@ code, pre { font-family: var(--font-mono); }
   inset: -50%;
   background-image:
     radial-gradient(1px 1px at 20% 30%, #fff, transparent 50%),
-    radial-gradient(1px 1px at 70% 80%, #cfd8ff, transparent 50%),
+    radial-gradient(1px 1px at 70% 80%, #fff, transparent 50%),
     radial-gradient(1.5px 1.5px at 40% 60%, #fff, transparent 50%),
-    radial-gradient(1px 1px at 90% 20%, #aab8ff, transparent 50%),
+    radial-gradient(1px 1px at 90% 20%, #fff, transparent 50%),
     radial-gradient(1px 1px at 10% 80%, #fff, transparent 50%),
-    radial-gradient(2px 2px at 60% 40%, #ffe0a0, transparent 50%),
+    radial-gradient(2px 2px at 60% 40%, #fff, transparent 50%),
     radial-gradient(1px 1px at 30% 10%, #fff, transparent 50%),
-    radial-gradient(1px 1px at 85% 65%, #d0e0ff, transparent 50%),
+    radial-gradient(1px 1px at 85% 65%, #fff, transparent 50%),
     radial-gradient(1.5px 1.5px at 25% 75%, #fff, transparent 50%),
-    radial-gradient(1px 1px at 55% 25%, #ffb0d0, transparent 50%);
+    radial-gradient(1px 1px at 55% 25%, #fff, transparent 50%);
   background-size: 350px 350px;
   background-repeat: repeat;
   animation: galaxyDrift 120s linear infinite;
