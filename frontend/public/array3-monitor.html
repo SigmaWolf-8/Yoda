@@ -728,12 +728,9 @@ const _isServerHosted=_isOnRelayOrigin&&(
   window.location.pathname.startsWith('/monitoring')
 );
 
-// [TOKEN-INJECT] Prefer the server-injected token (window.__RELAY_AUTH_TOKEN__,
-// populated by serve_array3_monitor from the RELAY_API_TOKEN env secret) over
-// any value the user pasted into the Daemon Config panel. Falls back to
-// localStorage so file:// users and offline cached pages still work.
-let RELAY_AUTH_TOKEN=(typeof window!=='undefined'&&window.__RELAY_AUTH_TOKEN__)
-  ||localStorage.getItem('a3m.relayToken')||'';
+// [FIX-2] Token only used in file:// mode. Server-hosted mode skips token entirely —
+// the relay authenticates by origin. Never embed secrets in client-served HTML.
+let RELAY_AUTH_TOKEN=localStorage.getItem('a3m.relayToken')||'';
 
 let relayErrorState=null;
 let relayBackoffMs=0;

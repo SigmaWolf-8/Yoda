@@ -202,33 +202,8 @@ async fn serve_array3_monitor() -> axum::response::Response {
         .or_else(|_| std::env::var("RELAY_AUTH_TOKEN"))
         .ok();
 
-    // Inject the relay token (from server env) into the page as a global
-    // window.__RELAY_AUTH_TOKEN__ before any other script runs. The page
-    // prefers this over localStorage so the user never has to paste a
-    // secret that already exists in the server environment.
     let body = if let Some(t) = token.as_deref() {
-        let escaped = t
-            .replace('\\', "\\\\")
-            .replace('"', "\\\"")
-            .replace('<', "\\u003c")
-            .replace('>', "\\u003e")
-            .replace('\n', "\\n")
-            .replace('\r', "\\r");
-        let inject = format!(
-            "<script>window.__RELAY_AUTH_TOKEN__=\"{}\";</script>",
-            escaped
-        );
-        // Insert immediately after <head> if present, else prepend.
-        if let Some(idx) = body.find("<head>") {
-            let cut = idx + "<head>".len();
-            let mut out = String::with_capacity(body.len() + inject.len());
-            out.push_str(&body[..cut]);
-            out.push_str(&inject);
-            out.push_str(&body[cut..]);
-            out
-        } else {
-            format!("{}{}", inject, body)
-        }
+        body.replace("<paste-your-relay-api-token-here>", t)
     } else {
         body
     };
