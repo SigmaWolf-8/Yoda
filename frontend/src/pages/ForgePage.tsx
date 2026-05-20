@@ -1,6 +1,5 @@
 // @ts-nocheck
 import React, { useState, useEffect, useMemo, useRef } from "react";
-import { KyokushinSubmitPanel } from "../components/kyokushin/KyokushinSubmitPanel";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Forge math source-of-truth lives in the Rust backend (yoda-api).
@@ -3152,7 +3151,6 @@ function Footer() {
 
 // ── Tabbed shelf ─────────────────────────────────────────────────────────────
 const TABS = [
-  { key: "execute",   label: "Execute",   latin: "Submissio Problematum" },
   { key: "master",    label: "Master",    latin: "Forma Magistri" },
   { key: "forma",     label: "Forma",     latin: "Forma Generalis" },
   { key: "census",    label: "Census",    latin: "Census Residuorum" },
@@ -3722,12 +3720,6 @@ function LegendRow({ swatch, dashed, children }) {
 
 function PageContent({ active }) {
   switch (active) {
-    case "execute":
-      return (
-        <div style={{ background: "#0a0807", padding: "2rem", borderRadius: 12, border: `1px solid ${P.border}` }}>
-          <KyokushinSubmitPanel />
-        </div>
-      );
     case "master":
       return (
         <>
@@ -3759,7 +3751,7 @@ export function ForgePage() {
 }
 
 function ForgeTripleExpressionV11131() {
-  const [active, setActive] = useState("execute");
+  const [active, setActive] = useState("master");
 
   useEffect(() => {
     if (typeof window !== "undefined") {
