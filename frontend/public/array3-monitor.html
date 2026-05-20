@@ -104,30 +104,28 @@
 <div id="panel-toggle" title="Toggle panel (P)">⚙</div>
 <div id="panel">
   <div class="sec">
-    <div class="stit">Connection</div>
-    <div id="ports-display" style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#E4DFD5;margin-bottom:6px">Ports —</div>
-    <div style="margin-bottom:6px">
-      <input type="text" id="inp-url" placeholder="Relay URL (for restart ops)" value="https://plenumnet.replit.app" style="width:100%;padding:6px 10px;background:var(--bg-surface);border:1px solid var(--bg-border);border-radius:5px;color:var(--text-body);font-family:'JetBrains Mono',monospace;font-size:11px;outline:none;margin-bottom:4px">
-      <input type="password" id="inp-key" placeholder="API key (for ops commands)" style="width:100%;padding:6px 10px;background:var(--bg-surface);border:1px solid var(--bg-border);border-radius:5px;color:var(--text-body);font-family:'JetBrains Mono',monospace;font-size:11px;outline:none">
-    </div>
-    <button id="btn-connect" style="width:100%;padding:6px;background:rgba(74,158,245,0.12);border:1px solid rgba(74,158,245,0.3);color:var(--accent-blue);border-radius:5px;cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:11px;transition:all 0.15s">Refresh cluster</button>
-    <div id="conn-status" style="font-size:10px;color:var(--text-faint);margin-top:6px;text-align:center">Auto-connecting to local daemons...</div>
-  </div>
-  <div class="sec">
     <div class="stit">Daemon Config</div>
-    <div style="font-size:11px;color:var(--text-label);margin-bottom:4px">Relay token (Bearer)</div>
-    <input type="password" id="cfg-token" placeholder="RELAY_API_TOKEN" autocomplete="off" style="width:100%;padding:6px 10px;background:var(--bg-surface);border:1px solid var(--bg-border);border-radius:5px;color:var(--text-body);font-family:'JetBrains Mono',monospace;font-size:11px;outline:none;margin-bottom:8px">
-    <div style="font-size:11px;color:var(--text-label);margin-bottom:4px">Daemon ports (N1 · N2 · N3)</div>
-    <div style="display:flex;gap:4px;margin-bottom:8px">
-      <input type="number" id="cfg-p1" min="1" max="65535" style="width:33%;padding:6px 8px;background:var(--bg-surface);border:1px solid var(--bg-border);border-radius:5px;color:var(--text-body);font-family:'JetBrains Mono',monospace;font-size:11px;outline:none;text-align:center">
-      <input type="number" id="cfg-p2" min="1" max="65535" style="width:33%;padding:6px 8px;background:var(--bg-surface);border:1px solid var(--bg-border);border-radius:5px;color:var(--text-body);font-family:'JetBrains Mono',monospace;font-size:11px;outline:none;text-align:center">
-      <input type="number" id="cfg-p3" min="1" max="65535" style="width:33%;padding:6px 8px;background:var(--bg-surface);border:1px solid var(--bg-border);border-radius:5px;color:var(--text-body);font-family:'JetBrains Mono',monospace;font-size:11px;outline:none;text-align:center">
+    <div id="ports-display" style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#E4DFD5;margin-bottom:6px">Ports —</div>
+    <input type="password" id="cfg-token" placeholder="Relay token (RELAY_API_TOKEN)" autocomplete="off" style="width:100%;padding:6px 10px;background:var(--bg-surface);border:1px solid var(--bg-border);border-radius:5px;color:var(--text-body);font-family:'JetBrains Mono',monospace;font-size:11px;outline:none;margin-bottom:6px">
+    <div style="display:flex;gap:4px;margin-bottom:6px">
+      <input type="number" id="cfg-p1" min="1" max="65535" placeholder="N1 port" style="width:33%;padding:6px 6px;background:var(--bg-surface);border:1px solid var(--bg-border);border-radius:5px;color:var(--text-body);font-family:'JetBrains Mono',monospace;font-size:11px;outline:none;text-align:center">
+      <input type="number" id="cfg-p2" min="1" max="65535" placeholder="N2 port" style="width:33%;padding:6px 6px;background:var(--bg-surface);border:1px solid var(--bg-border);border-radius:5px;color:var(--text-body);font-family:'JetBrains Mono',monospace;font-size:11px;outline:none;text-align:center">
+      <input type="number" id="cfg-p3" min="1" max="65535" placeholder="N3 port" style="width:33%;padding:6px 6px;background:var(--bg-surface);border:1px solid var(--bg-border);border-radius:5px;color:var(--text-body);font-family:'JetBrains Mono',monospace;font-size:11px;outline:none;text-align:center">
     </div>
     <div style="display:flex;gap:4px">
       <button id="cfg-save" style="flex:1;padding:6px;background:rgba(74,158,245,0.12);border:1px solid rgba(74,158,245,0.3);color:var(--accent-blue);border-radius:5px;cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:11px;transition:all 0.15s">Save &amp; Reconnect</button>
       <button id="cfg-reset" title="Reset to defaults (21124/21151/21178)" style="padding:6px 10px;background:transparent;border:1px solid var(--bg-border);color:var(--text-label);border-radius:5px;cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:11px">Reset</button>
     </div>
     <div id="cfg-status" style="font-size:10px;color:var(--text-faint);margin-top:6px;text-align:center;min-height:12px"></div>
+  </div>
+  <div class="sec">
+    <div class="stit">Connection (ops)</div>
+    <div style="margin-bottom:6px">
+      <input type="text" id="inp-url" placeholder="Relay URL (for restart ops)" value="https://plenumnet.replit.app" style="width:100%;padding:6px 10px;background:var(--bg-surface);border:1px solid var(--bg-border);border-radius:5px;color:var(--text-body);font-family:'JetBrains Mono',monospace;font-size:11px;outline:none;margin-bottom:4px">
+      <input type="password" id="inp-key" placeholder="API key (for ops commands)" style="width:100%;padding:6px 10px;background:var(--bg-surface);border:1px solid var(--bg-border);border-radius:5px;color:var(--text-body);font-family:'JetBrains Mono',monospace;font-size:11px;outline:none">
+    </div>
+    <button id="btn-connect" style="width:100%;padding:6px;background:rgba(74,158,245,0.12);border:1px solid rgba(74,158,245,0.3);color:var(--accent-blue);border-radius:5px;cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:11px;transition:all 0.15s">Refresh cluster</button>
+    <div id="conn-status" style="font-size:10px;color:var(--text-faint);margin-top:6px;text-align:center">Auto-connecting to local daemons...</div>
   </div>
   <div class="sec"><div class="stit">Focus Node</div>
     <div class="node-tabs">
