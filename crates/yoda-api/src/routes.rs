@@ -54,7 +54,8 @@ pub fn build_router(state: AppState) -> Router {
         .route("/api/salvi/inter-cube/node/info", get(node_info))
         .route("/api/monitoring/registered-nodes", get(monitoring_registered_nodes))
         .route("/api/yoda/crs/session/{token}", get(crs_session))
-        .route("/api/relay/status", get(relay_status));
+        .route("/api/relay/status", get(relay_status))
+        .route("/api/system/status", get(system_status));
 
     // ── Protected routes (JWT or API key) ────────────────────────────
     let protected = Router::new()
@@ -1736,5 +1737,53 @@ async fn relay_status(State(state): State<AppState>) -> Json<serde_json::Value> 
         "armed": armed,
         "livePeerCount": peers.len(),
         "livePeers": peers,
+    }))
+}
+
+/// GET /api/system/status
+/// Returns honest system-wide status: what is working, what is not, and why.
+/// Public — no auth required. Consumed by the frontend SystemStatusBanner.
+async fn system_status(State(state): State<AppState>) -> Json<serde_json::Value> {
+    let llm_enabled = state.llm_gateway.is_some();
+    let agent_count = state.agents.count();
+
+    let relay_armed = state.relay_tx.read().await.is_some();
+    let live_peers: Vec<String> = state.live_cube_peer.read().await.iter().cloned().collect();
+
+    let mut issues: Vec<serde_json::Value> = Vec::new();
+
+    if !llm_enabled {
+        issues.push(serde_json::json!({
+            "id": "llm_gateway_disabled",
+            "severity": "critical",
+            "title": "AI agents are offline",
+            "detail": "ANTHROPIC_API_KEY, OPENAI_API_KEY, and TOGETHER_API_KEY must all be set as environment variables before Alpha, Beta, and Gamma can process queries.",
+            "action": "Add the three API keys in Settings → API Keys, then restart the server."
+        }));
+    }
+
+    if live_peers.is_empty() {
+        issues.push(serde_json::json!({
+            "id": "no_cube_peers",
+            "severity": "warning",
+            "title": "No Array3 cube daemons reachable",
+            "detail": "The PlenumLAN relay is armed but no cube peers have connected. Queries will fall back to cloud LLM only.",
+            "action": "Start at least one Array3 daemon and ensure it can reach this server's CRS address."
+        }));
+    }
+
+    Json(serde_json::json!({
+        "ok": issues.iter().all(|i| i["severity"] != "critical"),
+        "llm_gateway": {
+            "enabled": llm_enabled,
+        },
+        "relay": {
+            "armed": relay_armed,
+            "live_peer_count": live_peers.len(),
+        },
+        "agents": {
+            "loaded": agent_count,
+        },
+        "issues": issues,
     }))
 }

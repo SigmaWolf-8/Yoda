@@ -350,6 +350,7 @@ function saveResults(results: UnifiedResponse[]) {
 /* ── Page ── */
 export function KyokushinPage() {
   const [health, setHealth] = useState<HealthStatus | null>(null);
+  const [llmEnabled, setLlmEnabled] = useState<boolean | null>(null);
   const [query, setQuery] = useState('');
   const [context, setContext] = useState('');
   const [constraints, setConstraints] = useState<string[]>([]);
@@ -366,13 +367,19 @@ export function KyokushinPage() {
   });
 
   useEffect(() => {
-    const load = () =>
+    const loadHealth = () =>
       fetch(`${BASE}/health/kyokushin`)
         .then(r => r.json())
         .then(setHealth)
         .catch(() => {});
-    load();
-    const id = setInterval(load, 10_000);
+    const loadSysStatus = () =>
+      fetch(`${BASE}/api/system/status`)
+        .then(r => r.json())
+        .then((s: { llm_gateway?: { enabled: boolean } }) => setLlmEnabled(s?.llm_gateway?.enabled ?? false))
+        .catch(() => {});
+    loadHealth();
+    loadSysStatus();
+    const id = setInterval(() => { loadHealth(); loadSysStatus(); }, 10_000);
     return () => clearInterval(id);
   }, []);
 
@@ -435,10 +442,22 @@ export function KyokushinPage() {
           <WarriorBadge kanji="柔" name="Beta"  subtitle="Synthesis · O(n²)"    ready={health?.beta_ready  ?? false} />
           <WarriorBadge kanji="空" name="Gamma" subtitle="Validation · O(n)"    ready={health?.gamma_ready ?? false} />
         </div>
-        {health && !allReady && (
+        {llmEnabled === false && (
+          <div className="mt-3 rounded-xl border px-4 py-3 flex gap-3" style={{ background: 'rgba(200,40,40,0.07)', borderColor: 'rgba(200,40,40,0.22)' }}>
+            <XCircle className="w-4 h-4 flex-shrink-0 mt-0.5" style={{ color: '#E05050' }} />
+            <div>
+              <p className="text-xs font-semibold" style={{ color: '#E4A0A0' }}>AI gateway is offline — queries will not run</p>
+              <p className="text-xs mt-1 leading-relaxed" style={{ color: '#9A7070', fontFamily: "'JetBrains Mono', monospace" }}>
+                ANTHROPIC_API_KEY, OPENAI_API_KEY, and TOGETHER_API_KEY are all required.
+                Go to <strong>Settings → API Keys</strong> and add them, then restart the server.
+              </p>
+            </div>
+          </div>
+        )}
+        {health && !allReady && llmEnabled !== false && (
           <p className="mt-3 text-xs flex items-center gap-2" style={{ color: '#6B655E', fontFamily: "'JetBrains Mono', monospace" }}>
             <AlertTriangle className="w-3.5 h-3.5" />
-            Connect LLM engines in AI Engines to activate warriors
+            One or more warriors are not responding — check server logs
           </p>
         )}
       </div>

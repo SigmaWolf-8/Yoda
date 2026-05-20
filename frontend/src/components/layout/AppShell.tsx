@@ -17,6 +17,7 @@ import {
 import { UserProfile } from '../auth/UserProfile';
 import { usePageHeaderCtx } from '../../context/PageHeader';
 import { VideoPlayProvider, useVideoPlay } from '../../context/VideoPlay';
+import { SystemStatusBanner } from '../common/SystemStatusBanner';
 
 /* ── Nav config ── */
 const MAIN_NAV = [
@@ -369,6 +370,7 @@ export function AppShell() {
           )}
         </header>
 
+        <SystemStatusBanner />
         <main id="main-content" className="flex-1 overflow-y-auto" aria-label="Page content">
           <Outlet />
         </main>
