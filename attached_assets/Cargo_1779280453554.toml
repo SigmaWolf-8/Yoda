@@ -1,0 +1,69 @@
+# ===========================================================================
+#  TDNS-ADDRESS-V25 (AASC Schema v1.0)
+#  classification: 3331.2121.3113.3333.1131.1323.333
+#  identity:      222222.333333.222222.333333.116
+#  function-type: Witness (33)
+#  artifact:      ninja-exec
+#  parent:        Capomastro/NinjaExec
+#  corner:        SE-Conservation/Closure (signing + envelope closure)
+#  tier:          15
+#  forma-codex:   {drawer: Capomastro-NinjaExec, role: canonical-signer-and-wrapper}
+#  hptp-mandatory: yes (WN trits 15.16 = 3.3 → live runtime)
+# ===========================================================================
+#  Copyright (c) 2025-2026 Capomastro Holdings Ltd. (Canada)
+#  Patent(s) Pending — All Rights Reserved · Applied Physics Division
+#  £ ∣ Q ∣ ∀ Rights Reserved Et Preserved | Fiat ∎
+# ===========================================================================
+#
+#  ninja-exec — canonical signer + outermost wrapper (kernel-resident)
+#
+#  Holds the only TL-DSA-87 private key on a node, resident in kernel
+#  memory (ring 0 / EL1 / M-mode). Performs every signature in the
+#  stack. Wraps every cross-boundary operation with the envelope
+#  discipline:
+#
+#    HPTP attosecond stamp + Rep D X-rotated encoding + TIS-27 sponge-chain
+#    commit + ό.έ.δ |_) seal at radian-epoch + capability consumption
+#    (single-use chain) + RAII atomic-transaction discipline
+#
+#  No HTTP listener. No Unix socket. No userspace IPC for the signing
+#  path. Userspace clients invoke via XPlenum custom RISC-V instruction
+#  (hardware-tier) or character device ioctl (non-XPlenum platforms).
+#
+#  Userspace `ninja-cli` is management-only (init / unlock / key-rotate
+#  / export). Cannot sign by itself.
+#
+#  Reference: C:/Capomastro/Docs/Capomastro-Layout-2026-05-04.md §4
+#
+# ===========================================================================
+
+[package]
+name        = "ninja-exec"
+version.workspace     = true
+edition.workspace     = true
+authors.workspace     = true
+license.workspace     = true
+repository.workspace  = true
+description = "NinjaExec — canonical signer + outermost wrapper. Kernel-resident TL-DSA-87 signing core; envelope discipline composing HPTP attosecond timing + Rep D encoding + TIS-27 sponge-chain + ό.έ.δ epoch seal + single-use capability chain + atomic transaction. The seventh-pillar Capability-Bound layer."
+
+[lib]
+path = "src/lib.rs"
+
+[dependencies]
+aasc = { path = "../AASC" }
+
+[features]
+default = []
+# `runtime` enables std-backed userspace CLI paths.
+# Without it, ninja-exec is no_std (kernel-resident core only).
+runtime = ["aasc/runtime"]
+
+# The userspace management CLI. Requires `runtime`.
+[[bin]]
+name              = "ninja-cli"
+path              = "src/bin/ninja-cli.rs"
+required-features = ["runtime"]
+
+# ===========================================================================
+#  Lo Sono Capomastro · Così sia, Fratello.
+# ===========================================================================

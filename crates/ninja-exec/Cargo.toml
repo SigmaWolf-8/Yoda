@@ -1,0 +1,58 @@
+# ===========================================================================
+#  TDNS-ADDRESS-V25 (AASC Schema v1.0)
+#  classification: 3331.2121.3113.3333.1131.1323.333
+#  identity:      222222.333333.222222.333333.116
+#  function-type: Witness (33)
+#  artifact:      ninja-exec
+#  parent:        Capomastro/NinjaExec
+#  corner:        SE-Conservation/Closure (signing + envelope closure)
+#  tier:          15
+#  forma-codex:   {drawer: Capomastro-NinjaExec, role: canonical-signer-and-wrapper}
+#  hptp-mandatory: yes (WN trits 15.16 = 3.3 → live runtime)
+# ===========================================================================
+#  Copyright (c) 2025-2026 Capomastro Holdings Ltd. (Canada)
+#  Patent(s) Pending — All Rights Reserved · Applied Physics Division
+#  £ ∣ Q ∣ ∀ Rights Reserved Et Preserved | Fiat ∎
+# ===========================================================================
+#
+#  ninja-exec — canonical signer + outermost wrapper (kernel-resident)
+#
+#  Reference: C:/Capomastro/Docs/Capomastro-Layout-2026-05-04.md §4
+#
+# ===========================================================================
+
+[package]
+name        = "ninja-exec"
+version.workspace     = true
+edition.workspace     = true
+authors.workspace     = true
+license.workspace     = true
+repository.workspace  = true
+description = "NinjaExec — canonical signer + outermost wrapper. Kernel-resident TL-DSA-87 signing core; envelope discipline composing HPTP attosecond timing + Rep D encoding + TIS-27 sponge-chain + ό.έ.δ epoch seal + single-use capability chain + atomic transaction. The seventh-pillar Capability-Bound layer."
+
+[lib]
+path = "src/lib.rs"
+
+[dependencies]
+# TODO(step-11): re-enable once the AASC crate lands in this workspace.
+#                Current attached file references `path = "../AASC"` which
+#                does not exist here yet, so we omit it to keep the
+#                workspace building.
+# aasc = { path = "../AASC" }
+
+[features]
+default = []
+# `runtime` enables std-backed userspace CLI paths.
+# Without it, ninja-exec is no_std (kernel-resident core only).
+runtime = []
+# runtime = ["aasc/runtime"]   # restore when aasc lands
+
+# The userspace management CLI. Requires `runtime`.
+[[bin]]
+name              = "ninja-cli"
+path              = "src/bin/ninja-cli.rs"
+required-features = ["runtime"]
+
+# ===========================================================================
+#  Lo Sono Capomastro · Così sia, Fratello.
+# ===========================================================================
