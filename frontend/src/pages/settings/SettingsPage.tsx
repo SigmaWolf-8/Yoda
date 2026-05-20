@@ -1,5 +1,5 @@
 import { NavLink, Outlet } from 'react-router-dom';
-import { Cpu, Building2, Key, Settings as SettingsIcon } from 'lucide-react';
+import { Cpu, Building2, Key, Download, Settings as SettingsIcon } from 'lucide-react';
 import { usePageHeader } from '../../context/PageHeader';
 import { BevelBox } from '../../components/ui/BevelBox';
 
@@ -7,6 +7,7 @@ const SETTINGS_NAV = [
   { to: '/settings/engines',  icon: Cpu,       label: 'AI Engines' },
   { to: '/settings/org',      icon: Building2, label: 'Organization' },
   { to: '/settings/api-keys', icon: Key,       label: 'API Keys' },
+  { to: '/settings/install',  icon: Download,  label: 'Local Install' },
 ] as const;
 
 export function SettingsPage() {
