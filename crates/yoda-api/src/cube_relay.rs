@@ -86,11 +86,46 @@ pub fn slot_to_cube_address(slot: &str) -> &'static str {
     }
 }
 
-/// All three Array3 daemon addresses, ordered A/B/C.
-/// Used for startup probing so all daemons are discovered even if CRS
-/// registration returns no neighbors.
-fn all_daemon_addresses() -> [&'static str; 3] {
-    ["1111111111111", "2111111111111", "3111111111111"]
+/// Array3 daemon addresses to probe at startup and on the re-probe interval.
+///
+/// Source of truth, in priority order:
+///   1. The `crs_registrations` DB table — addresses that have heartbeated
+///      in the last 5 minutes. This is what the monitoring UI shows on
+///      `/api/monitoring/registered-nodes`, so the probe set automatically
+///      tracks whatever real nodes are live right now.
+///   2. The `ARRAY3_PROBE_ADDRESSES` env var (comma-separated 13-trit
+///      addresses) — manual override for environments without DB heartbeats.
+///   3. The original Array3 testbed triple (A/B/C) as a final fallback so
+///      first-boot before any node has registered still attempts a probe.
+async fn all_daemon_addresses(db: &sqlx::PgPool) -> Vec<String> {
+    let rows = sqlx::query_as::<_, (String,)>(
+        "SELECT DISTINCT address_str FROM crs_registrations \
+         WHERE last_heartbeat > NOW() - INTERVAL '5 minutes' \
+         ORDER BY address_str",
+    )
+    .fetch_all(db)
+    .await;
+    if let Ok(rows) = rows {
+        let live: Vec<String> = rows.into_iter().map(|(a,)| a).collect();
+        if !live.is_empty() {
+            return live;
+        }
+    }
+    if let Ok(raw) = std::env::var("ARRAY3_PROBE_ADDRESSES") {
+        let parsed: Vec<String> = raw
+            .split(',')
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty())
+            .collect();
+        if !parsed.is_empty() {
+            return parsed;
+        }
+    }
+    vec![
+        "1111111111111".to_string(),
+        "2111111111111".to_string(),
+        "3111111111111".to_string(),
+    ]
 }
 
 // ── Constants ─────────────────────────────────────────────────────────────
@@ -328,12 +363,14 @@ async fn run_relay_session(
                 probed_now.push(neighbor.as_str());
             }
         }
-        // Second: always probe all three known Array3 addresses regardless of
-        // CRS response, so we don't miss any daemon that is online but whose
-        // registration hasn't appeared in the CRS neighbor list yet.
-        for &known_addr in all_daemon_addresses().iter() {
-            if known_addr != address && !probed_now.contains(&known_addr) {
-                probed_now.push(known_addr);
+        // Second: always probe the addresses that have heartbeated recently
+        // (per crs_registrations) — that's the same set the monitoring UI
+        // surfaces, so the probe automatically tracks whichever real nodes
+        // are alive right now instead of a fixed hardcoded triple.
+        let configured = all_daemon_addresses(&state.db).await;
+        for known_addr in &configured {
+            if known_addr != address && !probed_now.iter().any(|p| *p == known_addr.as_str()) {
+                probed_now.push(known_addr.as_str());
             }
         }
 
@@ -364,8 +401,8 @@ async fn run_relay_session(
 
     // Track probed addresses for the re-probe interval logic.
     let mut probed: HashSet<String> = neighbors.iter().cloned().collect();
-    for &a in all_daemon_addresses().iter() {
-        probed.insert(a.to_string());
+    for a in all_daemon_addresses(&state.db).await {
+        probed.insert(a);
     }
 
     // ── Main loop ──────────────────────────────────────────────────────────
@@ -473,8 +510,8 @@ async fn run_relay_session(
                                    "Re-probing Array3 addresses for offline daemons");
                     let live_now = state.live_cube_peer.read().await.clone();
                     let mut any_sent = false;
-                    for &known_addr in all_daemon_addresses().iter() {
-                        if known_addr != address && !live_now.contains(known_addr) {
+                    for known_addr in all_daemon_addresses(&state.db).await {
+                        if known_addr != address && !live_now.contains(known_addr.as_str()) {
                             // Use mesh_ping — lighter weight, relay does not queue pings for
                             // offline targets (returns undelivered immediately).
                             let ping_envelope = serde_json::json!({
