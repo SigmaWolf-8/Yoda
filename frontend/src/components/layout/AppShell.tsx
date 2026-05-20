@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { Outlet, NavLink } from 'react-router-dom';
+import { Outlet, NavLink, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard,
   FolderKanban,
@@ -96,6 +96,7 @@ export function AppShell() {
   const [sidebarWidth, setSidebarWidth] = useState(loadSidebarWidth);
   const [isResizing, setIsResizing]   = useState(false);
   const { header }                    = usePageHeaderCtx();
+  const location                      = useLocation();
 
   const startResizeX   = useRef(0);
   const startResizeW   = useRef(0);
@@ -393,23 +394,44 @@ export function AppShell() {
                 color: 'hsl(210,70%,65%)',
               }}
             >
+              <defs>
+                <linearGradient id="headerSweepGrad" x1="0" y1="0" x2="1" y2="0">
+                  <stop offset="0%"   stopColor="currentColor" stopOpacity="0" />
+                  <stop offset="45%"  stopColor="currentColor" stopOpacity="0.85" />
+                  <stop offset="55%"  stopColor="#ffffff"      stopOpacity="1" />
+                  <stop offset="65%"  stopColor="currentColor" stopOpacity="0.85" />
+                  <stop offset="100%" stopColor="currentColor" stopOpacity="0" />
+                </linearGradient>
+              </defs>
+              {/* base baseline */}
               <line x1="0"    y1="8"  x2="1000" y2="8"  stroke="currentColor" strokeWidth="1"   opacity="0.25" />
-              <line x1="0"    y1="1"  x2="0"    y2="15" stroke="currentColor" strokeWidth="2"   opacity="0.8"  />
-              <line x1="60"   y1="2"  x2="60"   y2="14" stroke="currentColor" strokeWidth="1.5" opacity="0.55" />
-              <line x1="72"   y1="2"  x2="72"   y2="14" stroke="currentColor" strokeWidth="1.5" opacity="0.55" />
-              <polygon points="90,8 104,2 118,8 104,14" stroke="currentColor" strokeWidth="1" fill="none" opacity="0.4" />
+              {/* animated shimmer riding along the baseline */}
+              <rect
+                className="header-line-sweep"
+                x="-300" y="6.5" width="300" height="3"
+                fill="url(#headerSweepGrad)"
+              />
+              {/* end caps + brackets, gently pulsing */}
+              <line className="header-bracket-pulse" x1="0"    y1="1"  x2="0"    y2="15" stroke="currentColor" strokeWidth="2"   opacity="0.8"  />
+              <line className="header-bracket-pulse" x1="60"   y1="2"  x2="60"   y2="14" stroke="currentColor" strokeWidth="1.5" opacity="0.55" style={{ animationDelay: '0.2s' }} />
+              <line className="header-bracket-pulse" x1="72"   y1="2"  x2="72"   y2="14" stroke="currentColor" strokeWidth="1.5" opacity="0.55" style={{ animationDelay: '0.4s' }} />
+              {/* rotating diamond */}
+              <polygon className="header-diamond-spin" points="90,8 104,2 118,8 104,14" stroke="currentColor" strokeWidth="1" fill="none" opacity="0.6" />
               <line x1="400"  y1="4"  x2="400"  y2="12" stroke="currentColor" strokeWidth="1"   opacity="0.3"  />
               <line x1="500"  y1="4"  x2="500"  y2="12" stroke="currentColor" strokeWidth="1"   opacity="0.3"  />
-              <line x1="850"  y1="2"  x2="850"  y2="14" stroke="currentColor" strokeWidth="1.5" opacity="0.45" />
-              <line x1="862"  y1="2"  x2="862"  y2="14" stroke="currentColor" strokeWidth="1.5" opacity="0.45" />
-              <line x1="1000" y1="1"  x2="1000" y2="15" stroke="currentColor" strokeWidth="2"   opacity="0.8"  />
+              <line className="header-bracket-pulse" x1="850"  y1="2"  x2="850"  y2="14" stroke="currentColor" strokeWidth="1.5" opacity="0.45" style={{ animationDelay: '0.6s' }} />
+              <line className="header-bracket-pulse" x1="862"  y1="2"  x2="862"  y2="14" stroke="currentColor" strokeWidth="1.5" opacity="0.45" style={{ animationDelay: '0.8s' }} />
+              <line className="header-bracket-pulse" x1="1000" y1="1"  x2="1000" y2="15" stroke="currentColor" strokeWidth="2"   opacity="0.8"  style={{ animationDelay: '1s' }}   />
             </svg>
           )}
         </header>
 
         <SystemStatusBanner />
-        <main id="main-content" className="flex-1 overflow-y-auto" aria-label="Page content">
-          <Outlet />
+        <main id="main-content" className="flex-1 overflow-y-auto cube-flip-stage" aria-label="Page content">
+          {/* `key` forces remount on path change → cube-flip animation plays */}
+          <div key={location.pathname} className="cube-flip-face">
+            <Outlet />
+          </div>
         </main>
       </div>
     </div>
