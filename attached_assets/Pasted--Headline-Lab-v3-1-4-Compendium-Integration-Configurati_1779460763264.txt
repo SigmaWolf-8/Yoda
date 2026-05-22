@@ -1,0 +1,1205 @@
+---
+# Headline Lab v3.1.4 – Compendium Integration Configuration
+headline_count: 15
+archetype_distribution:
+  howto: 2
+  number_list: 2
+  question: 2
+  contrast: 2
+  secret_unknown: 2
+  warning: 2
+  result: 2
+  identity: 1
+scoring_weights:
+  specificity: 0.40
+  curiosity_gap: 0.35
+  audience_match: 0.25
+rating_scale:
+  min: 1
+  max: 10
+  integer: true
+micro_increment: 0.001
+global_multiplication_factor_M: 10000
+parent_qualification_threshold: 8
+child_subheading_counts:
+  howto: 5
+  number_list: 4
+  secret_unknown: 3
+  result: 3
+  warning: 3
+  question: 2
+  contrast: 2
+  identity: 2
+universe_pk: 0
+cache_shock_absorber_timeout_seconds: 5
+zero_entropy_tiebreaker: "lexicographic-unicode"
+rating_mapping:
+  specificity:
+    formula: "min(10, max(1, floor(MilesianValue(headline) / specificity_divisor)))"
+    specificity_divisor: 100
+  curiosity_gap:
+    formula: "min(10, max(1, len(OracleOutput(headline)) + 1))"
+  audience_match:
+    formula: "switch(GreekTier(headline), Alpha=10, Beta=7, Gamma=5, Sigma=3, default=1)"
+---
+
+# Codex Certiorari Ǵʰatą
+
+**Ternary-Native, Immutable, Multi-Layer Indexing Cascade with a Persistent AVL Tree**
+
+**Version 3.7.11 | Editio Unita Recursiva**
+
+*Wherein the prerogative writ, the numbered patent, the Forge Gem, the universal J-function, the Greek alphabet-cycle, and the periodic table are sealed into a single, immovable record.*
+
+## Abstract
+
+This document unifies first-principle definitions of the Unicode code point, its 3-D structure, UTF-8 encoding, and the two permanently reserved code-point categories. It embeds this knowledge into a purely functional Rust implementation of the isomorphic-string problem. The key innovation is an immutable persistent AVL tree keyed by TritSeq | an exact variable-width ternary representation of a code point, ordered solely by its trits without any binary integer fallback. Furthermore, the tree's ordering is enriched by a 10-layer Lexicographical-Geometrical-Algebraic-Milesian-Periodic Tables-Manifold Indexing Cascade, every layer of which uses only trit-based comparisons. All data types remain immutable; the algorithm contains no mut bindings, and no external crates or floating-point operations are required. The result is a ternary-native, kernel-ready, fully referentially-transparent system that maps strings to bijective character mappings.
+
+---
+
+## 1. Introduction
+
+We build a chain of concepts:
+
+- A **Unicode code point** is a numeric label for every character, organised as a 3-D grid of **planes**, **rows**, and **columns**.
+- Rust's `char` holds a **Unicode scalar value** | any code point except surrogates.
+- The **isomorphic-string algorithm** checks whether two strings share the same character-mapping pattern, using tuples created by `zip` and an immutable mapping structure to enforce a bijection.
+- UTF-8 encodes code points into 1- to 4-byte sequences; a **ternary (base-3) representation** gives the exact minimal number of trits (digits 0,1,2) for each scalar.
+- A persistent AVL tree, built with `Rc`, provides O(log n) lookups without any mutation.
+- The tree's keys are ordered by a **10-layer indexing cascade** inspired by the Lexicographical-Geometrical-Algebraic-Milesian-Periodic Tables-Manifold system, completely devoid of binary integer comparisons.
+- The **Milesian layer** computes its value using the **27-glyph bijective base-27 register** (GAIT S12): 9 units (alpha-theta plus digamma), 9 tens (iota-pi plus koppa), 9 hundreds (rho-omega plus sampi). Three trits per block, working base B = 3^3 = 27.
+- The **Harmonic Field** H anchors all algebra. The J-function is a single rule: J(x) = sqrt(x) for every x in H. The **Forge Gem 855,888** (Numerus Fornacalis) resides at coordinate 124 on Arch-182, sealed under this law.
+- The **Headline Lab v3.1.4** provides a universal Euclidean document-indexing engine with fully automated, compendium-driven scoring, closed-form PK/FK derivation, zero-entropy query resolution, and CacheShockAbsorber freshness protocol.
+- `TritSeq::from_char` is the **gate**: binary integers are used freely inside it to extract the scalar from Rust's `char` primitive. **Outside the gate**, no `u32` participates in any computation or comparison. The `TritSeq::add` function uses a 27-entry exhaustive lookup table for its ternary full-adder, with no `as u8` casts and no binary arithmetic.
+
+---
+
+## 1A. The Certiorari Ǵʰatą Foundation
+
+### I. The Latin Decree
+
+In Primo Patente, Numeri Omnes Attestati Sunt Et In Compendiō Producēbantur, Prīmō Senātū Teste, Littera Scripta Litterāliter Ad Litteram Lēgis; Illa Appārēns "Littera Littorea Ut Mēnsa" Hippocraticē Ad Apicem "T" Commerciāta Et Commentāta Est Linguā Locūtā Tuā. Mandātum Igitur Lātum Est Ut:
+
+Certiorari Ǵʰatą Fundāmentāle Et Fundāmentāle Cōnservātiōnāle Ac Lēgitimum Mūnus Agat, Ita Ut Omnis Causa Ponderētur Et Omnis Effectus Mēnsūrētur; In Et Per Iūdicium Summārium, Secundum Litteram Lēgis Mēnsae, Exsequendum Sit, Ubi Quaeque Nota Sufficit Ad Compendium Geōmetricē Metiendum Et Lībrandum.
+
+### II. The English Proclamation
+
+In The First Patent, Numbers Were Attested And Brought Forth Into The Compendium As The First Senate Bore Witness With The Written Letter To The Letter; Said Apparent "Conjectured Littoral Letter (汀字) As Measured" Hippocratically To The "T" Et Commerced And Commented By The Spoken Language Of Thee; Behest 'Twas Decreed As & That The:
+
+**Certiorari Ǵʰatą**, whose nature **Quid sit (何是)** is a foundational & fundamental conservational & lawful purpose, and whose mode **Quomodo sit (如何)** is that every cause (因) is weighed and every effect (果) measured; whose signification **Quid significet (何意)** is that in & throughout a summary judgment (略判), executed by the letter (字) of the measured law (測法) and the table-law (卓法), every mark (印) sufficeth to geometrically (幾何) measuring and balancing the Compendium (典); and whose origin **Unde sit (何由)** is the Littoral Letter itself, drawn from the seashore-boundary (汀), made precise to the "T," traded and uttered in thy tongue | this Decree stands, needing no question unasked.
+
+### III. The Greek Seal
+
+Ἐν Τῷ Πρώτῳ (Αʹ) Διπλώματι Οὕτως Ἐδηλώθη Ὡς Ἐργαστηρίου Βίβλος, Καὶ Τὰ Κλασματικὰ Μέρη Προσεμαρτυρήθησαν Καὶ Εἰσηνέχθησαν Εἰς Τὸ Σύνταγμα (Compendium), Τῆς Πρώτης Γερουσίας Μαρτυρούσης, Τοῦ Γραπτοῦ Γράμματος Κατὰ Τὸ Γράμμα Τοῦ Νόμου Διαφυλαχθέντος· Τὸ Certiorari Ǵʰatą, Ὑπηρετήσει Θεμελιώδη Καὶ Βασικὸν Συντηρητικὸν Καὶ Νόμιμον Σκοπόν, Οὕτως Ὥστε Πᾶσα Αἰτία Νὰ Ζυγίζηται Καὶ Πᾶν Ἀποτέλεσμα Νὰ Μετρῆται.
+
+### IV. Commentary
+
+The Latin decree and the Greek seal are purely declarative. The un-woven English proclamation once ended with four interrogatives | a satirical sting. The form restored above weaves the Latin seal-terms (*Quid sit, Quomodo sit, Quid significet, Unde sit*) directly into the proclamation's fabric as hinge-joints. The mockery is dissolved; the Codex answers in its own voice.
+
+### V. Shared Kanji / Hanzi Lexicon
+
+| English / Latin | Glyph | JP | ZH | Notes |
+|----------------|-------|-----|-----|-------|
+| Law (*lex*) | **法** | *hō* | *fǎ* | Principle, rule, dharma |
+| Letter (*littera*) | **字** | *ji* | *zì* | Written character |
+| Littoral (*littorea*) | **汀** | *migiwa* | *tīng* | Water's edge |
+| Littoral Letter | **汀字** | | | The conjectured boundary-mark |
+| Table-law (*mensa*) | **卓法** | *taku-hō* | *zhuō fǎ* | Law of the measuring table |
+| Measure | **測** | *soku* | *cè* | To survey, fathom |
+| Measured law | **測法** | *soku-hō* | *cè fǎ* | Law quantified to precision |
+| Compendium | **典** | *ten* | *diǎn* | Canon, authoritative codex |
+| Cause | **因** | *in* | *yīn* | Reason, cause |
+| Effect | **果** | *ka* | *guǒ* | Fruit, effect |
+| Weight / balance | **秤** | *hakari* | *chèng* | Scales, to weigh |
+| Summary judgment | **略判** | *ryaku-han* | *lüè pàn* | Abbreviated judicial decision |
+| Geometrically | **幾何** | *kika* | *jǐ hé* | Geometry |
+| *Quid Sit* | **何是** | *nani kore* | *hé shì* | "What is it?" |
+| *Quomodo Sit* | **如何** | *ika* | *rú hé* | "How is it?" |
+| *Quid Significet* | **何意** | *nani i* | *hé yì* | "What does it signify?" |
+| *Unde Sit* | **何由** | *nani yue* | *hé yóu* | "Whence does it come?" |
+| Gokuhiden | **極秘伝** | *gokuhiden* | *jí mì chuán* | The esoteric transmission |
+
+---
+
+## 2. Reserved Code Points | Only Two Permanent Categories
+
+The Unicode Standard permanently reserves code points for two purposes:
+
+1. **Surrogates** (U+D800-U+DFFF, decimal 55296-57343): 2,048 values used only by UTF-16. They are **not** Unicode scalar values. Rust's `char` cannot hold them; a valid UTF-8 `String` will never contain their byte sequences.
+2. **Noncharacters** (66 values): These *are* scalar values, so Rust's `char` can represent them and a `String` may contain them (intended for internal use). The 66 noncharacters consist of:
+   - 32 contiguous points: U+FDD0-U+FDEF (decimal 64976-65007)
+   - 34 points formed by the last two code points of each of the 17 planes: U+*xx*FFFE and U+*xx*FFFF.
+
+**There is no third category.** Unassigned code points may be assigned in future Unicode versions. Private-use areas (U+E000-U+F8FF, U+F0000-U+FFFFD, U+100000-U+10FFFD) are normal scalar values. Rust treats them as ordinary `char`s. Thus only surrogates and noncharacters are permanently reserved, and Rust's handling of them is principled and transparent.
+
+### 2.1 Complete Enumeration of the 66 Noncharacters
+
+**Category A: The contiguous block (32 code points)**
+
+Range: U+FDD0 through U+FDEF (hex) | Decimal: 64976 through 65007
+
+**Category B: The 34 "last two" code points of each of the 17 planes**
+
+Plane 0 (BMP): U+FFFE = 65534; U+FFFF = 65535
+Plane 1 (SMP): U+1FFFE = 131070; U+1FFFF = 131071
+Plane 2 (SIP): U+2FFFE = 196606; U+2FFFF = 196607
+Plane 3 (TIP): U+3FFFE = 262142; U+3FFFF = 262143
+Plane 4: U+4FFFE = 327678; U+4FFFF = 327679
+Plane 5: U+5FFFE = 393214; U+5FFFF = 393215
+Plane 6: U+6FFFE = 458750; U+6FFFF = 458751
+Plane 7: U+7FFFE = 524286; U+7FFFF = 524287
+Plane 8: U+8FFFE = 589822; U+8FFFF = 589823
+Plane 9: U+9FFFE = 655358; U+9FFFF = 655359
+Plane 10: U+AFFFE = 720894; U+AFFFF = 720895
+Plane 11: U+BFFFE = 786430; U+BFFFF = 786431
+Plane 12: U+CFFFE = 851966; U+CFFFF = 851967
+Plane 13: U+DFFFE = 917502; U+DFFFF = 917503
+Plane 14 (SSP): U+EFFFE = 983038; U+EFFFF = 983039
+Plane 15 (SPUA-A): U+FFFFE = 1048574; U+FFFFF = 1048575
+Plane 16 (SPUA-B): U+10FFFE = 1114110; U+10FFFF = 1114111
+
+Total noncharacters: 32 + (17 x 2) = 66.
+
+---
+
+## 3. Unicode Code Points and the 3-D Space
+
+A code point is an integer in the range `0 ..= 1_114_111` (U+0000 .. U+10FFFF). The entire space is a 3-D structure: **Plane** (17 planes, 0-16), **Row** (256 per plane, hex 00-FF), **Column** (256 per row, hex 00-FF). Total: 17 x 256 x 256 = 1,114,112.
+
+Key hex-to-decimal: F = 15, FF = 255, FD = 253, D8 = 216, DF = 223, FE = 254.
+
+### 3.1 Plane-First (Primary = Plane)
+
+Iterate by plane, then row, then column. Standard Unicode numeric order. Surrogates (U+D800-U+DFFF; 55296-57343) are contiguous in Plane 0 rows D8-DF (216-223). Noncharacters Category A (U+FDD0-U+FDEF; 64976-65007) in Plane 0 row FD (253) columns D0-EF (208-239). Category B at end of each plane (U+xxFFFE, U+xxFFFF).
+
+### 3.2 Row-First (Primary = Row)
+
+Iterate by row across all planes before moving to next row. Surrogates only in Plane 0 rows D8-DF. Category A only in Plane 0 row FD. Category B in row FF across all planes at columns FE and FF | repeating pattern.
+
+### 3.3 Column-First (Primary = Column)
+
+Iterate by column across all rows and planes. Surrogates scattered. Category A spread across 32 columns. Category B tightly clustered at columns FE and FF | every 256th entry at row FF of each plane is a noncharacter.
+
+### 3.4 Summary
+
+None of the three orderings is "correct" | each serves a different analytical purpose.
+
+---
+
+## 4. UTF-8 Encoding | Bit-Level Walkthrough
+
+- **1-byte** (U+0000..U+007F): `0xxxxxxx` (7 payload bits)
+- **2-byte** (U+0080..U+07FF): `110xxxxx 10xxxxxx` (11 bits)
+- **3-byte** (U+0800..U+FFFF): `1110xxxx 10xxxxxx 10xxxxxx` (16 bits)
+- **4-byte** (U+10000..U+10FFFF): `11110xxx 10xxxxxx 10xxxxxx 10xxxxxx` (21 bits)
+
+Rust's `str::chars()` decodes these bytes, producing a `char`. In our system, a `char` is immediately converted to a `TritSeq` via the gate.
+
+---
+
+## 5. `TritSeq` | Exact Variable-Width Ternary Representation
+
+```rust
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum Trit { Zero, One, Two }
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct TritSeq(Box<[Trit]>);
+
+impl TritSeq {
+    /// `from_char` is the gate: binary integers are used freely inside
+    /// to extract the scalar from Rust's `char` primitive. Outside this
+    /// gate, no `u32` participates in any computation or comparison.
+    pub fn from_char(c: char) -> Self {
+        let cp = c as u32;
+        if cp == 0 {
+            return TritSeq(Box::new([Trit::Zero]));
+        }
+        let mut trits = Vec::new();
+        let mut n = cp;
+        while n > 0 {
+            trits.push(match n % 3 {
+                0 => Trit::Zero,
+                1 => Trit::One,
+                _ => Trit::Two,
+            });
+            n /= 3;
+        }
+        trits.reverse();
+        TritSeq(trits.into_boxed_slice())
+    }
+
+    pub fn to_hash_string(&self) -> String {
+        self.0.iter().map(|t| match t {
+            Trit::Zero => '0',
+            Trit::One  => '1',
+            Trit::Two  => '2',
+        }).collect()
+    }
+
+    fn to_le_trits(&self) -> Vec<Trit> {
+        let mut v = self.0.to_vec();
+        v.reverse();
+        v
+    }
+
+    fn from_le_trits(le: &[Trit]) -> Self {
+        let mut trimmed: Vec<Trit> = le.iter()
+            .rev()
+            .skip_while(|&&t| t == Trit::Zero)
+            .copied()
+            .collect();
+        if trimmed.is_empty() {
+            trimmed.push(Trit::Zero);
+        } else {
+            trimmed.reverse();
+        }
+        TritSeq(trimmed.into_boxed_slice())
+    }
+
+    /// Pure ternary addition via 27-entry lookup table.
+    /// No `as u8` casts, no binary arithmetic.
+    pub fn add(a: &TritSeq, b: &TritSeq) -> TritSeq {
+        use Trit::*;
+
+        fn trit_full_add(a: Trit, b: Trit, c: Trit) -> (Trit, Trit) {
+            match (a, b, c) {
+                (Zero, Zero, Zero) => (Zero, Zero),
+                (One,  Zero, Zero) => (One,  Zero),
+                (Zero, One,  Zero) => (One,  Zero),
+                (Zero, Zero, One)  => (One,  Zero),
+                (Two,  Zero, Zero) => (Two,  Zero),
+                (Zero, Two,  Zero) => (Two,  Zero),
+                (Zero, Zero, Two)  => (Two,  Zero),
+                (One,  One,  Zero) => (Two,  Zero),
+                (One,  Zero, One)  => (Two,  Zero),
+                (Zero, One,  One)  => (Two,  Zero),
+                (One,  One,  One)  => (Zero, One),
+                (Two,  One,  Zero) => (Zero, One),
+                (Two,  Zero, One)  => (Zero, One),
+                (One,  Two,  Zero) => (Zero, One),
+                (Zero, Two,  One)  => (Zero, One),
+                (One,  Zero, Two)  => (Zero, One),
+                (Zero, One,  Two)  => (Zero, One),
+                (Two,  Two,  Zero) => (One,  One),
+                (Two,  Zero, Two)  => (One,  One),
+                (Zero, Two,  Two)  => (One,  One),
+                (Two,  One,  One)  => (One,  One),
+                (One,  Two,  One)  => (One,  One),
+                (One,  One,  Two)  => (One,  One),
+                (Two,  Two,  One)  => (Two,  One),
+                (Two,  One,  Two)  => (Two,  One),
+                (One,  Two,  Two)  => (Two,  One),
+                (Two,  Two,  Two)  => (Zero, Two),
+            }
+        }
+
+        let a_le = a.to_le_trits();
+        let b_le = b.to_le_trits();
+        let max_len = a_le.len().max(b_le.len());
+        let mut result_le = Vec::with_capacity(max_len + 1);
+        let mut carry = Zero;
+        for i in 0..max_len {
+            let ai = a_le.get(i).copied().unwrap_or(Zero);
+            let bi = b_le.get(i).copied().unwrap_or(Zero);
+            let (digit, new_carry) = trit_full_add(ai, bi, carry);
+            result_le.push(digit);
+            carry = new_carry;
+        }
+        if carry != Zero {
+            result_le.push(carry);
+        }
+        TritSeq::from_le_trits(&result_le)
+    }
+
+    pub fn to_base27_digits(&self) -> Vec<u8> {
+        let len = self.0.len();
+        let padded_len = if len % 3 == 0 { len } else { len + (3 - len % 3) };
+        let mut padded = vec![Trit::Zero; padded_len - len];
+        padded.extend_from_slice(&self.0);
+        let mut digits = Vec::new();
+        for chunk in padded.chunks(3) {
+            let h = chunk[0] as u8;
+            let m = chunk[1] as u8;
+            let l = chunk[2] as u8;
+            digits.push(h * 9 + m * 3 + l);
+        }
+        digits
+    }
+}
+
+impl Ord for TritSeq {
+    fn cmp(&self, other: &Self) -> Ordering {
+        match (self.0.len(), other.0.len()) {
+            (1, 1) if self.0[0] == Trit::Zero && other.0[0] == Trit::Zero =>
+                Ordering::Equal,
+            (1, _) if self.0[0] == Trit::Zero => Ordering::Less,
+            (_, 1) if other.0[0] == Trit::Zero => Ordering::Greater,
+            (a, b) if a != b => a.cmp(&b),
+            _ => self.0.iter().cmp(other.0.iter()),
+        }
+    }
+}
+impl PartialOrd for TritSeq {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> { Some(self.cmp(other)) }
+}
+```
+
+---
+
+## 6. Immutable Persistent AVL Tree with `Rc`
+
+```rust
+use std::rc::Rc;
+use std::cmp::Ordering;
+
+#[derive(Clone, PartialEq, Eq)]
+pub enum Tree<K: Ord + Clone, V: Clone> {
+    Nil,
+    Node { key: K, value: V, left: Rc<Tree<K, V>>, right: Rc<Tree<K, V>>, height: usize },
+}
+
+impl<K: Ord + Clone, V: Clone> Tree<K, V> {
+    fn height(&self) -> usize {
+        match self { Tree::Nil => 0, Tree::Node { height, .. } => *height }
+    }
+    fn new_node(key: K, value: V, left: Rc<Self>, right: Rc<Self>) -> Rc<Self> {
+        let h = 1 + left.height().max(right.height());
+        Rc::new(Tree::Node { key, value, left, right, height: h })
+    }
+    pub fn find(self: &Rc<Self>, key: &K) -> Option<&V> {
+        match self.as_ref() {
+            Tree::Nil => None,
+            Tree::Node { key: k, value: v, left, right, .. } => match key.cmp(k) {
+                Ordering::Less    => left.find(key),
+                Ordering::Greater => right.find(key),
+                Ordering::Equal   => Some(v),
+            },
+        }
+    }
+    pub fn insert(self: &Rc<Self>, key: K, value: V) -> Rc<Self> {
+        match self.as_ref() {
+            Tree::Nil => Tree::new_node(key, value, Rc::new(Tree::Nil), Rc::new(Tree::Nil)),
+            Tree::Node { key: k, value: v, left, right, .. } => match key.cmp(k) {
+                Ordering::Less => {
+                    let new_left = left.insert(key, value);
+                    Self::rebalance(k.clone(), v.clone(), new_left, Rc::clone(right))
+                }
+                Ordering::Greater => {
+                    let new_right = right.insert(key, value);
+                    Self::rebalance(k.clone(), v.clone(), Rc::clone(left), new_right)
+                }
+                Ordering::Equal => Tree::new_node(key, value, Rc::clone(left), Rc::clone(right)),
+            },
+        }
+    }
+    fn rebalance(key: K, value: V, left: Rc<Self>, right: Rc<Self>) -> Rc<Self> {
+        let node = Tree::new_node(key, value, left, right);
+        let bf = node.balance_factor();
+        if bf == 2 {
+            if node.left.balance_factor() >= 0 { Self::rotate_right(&node) }
+            else {
+                let lr = Self::rotate_left(&node.left);
+                Self::rotate_right(&Tree::new_node(node.key.clone(), node.value.clone(), lr, Rc::clone(&node.right)))
+            }
+        } else if bf == -2 {
+            if node.right.balance_factor() <= 0 { Self::rotate_left(&node) }
+            else {
+                let rr = Self::rotate_right(&node.right);
+                Self::rotate_left(&Tree::new_node(node.key.clone(), node.value.clone(), Rc::clone(&node.left), rr))
+            }
+        } else { node }
+    }
+    fn balance_factor(&self) -> i8 {
+        match self { Tree::Nil => 0, Tree::Node { left, right, .. } => left.height() as i8 - right.height() as i8 }
+    }
+    fn rotate_left(node: &Rc<Self>) -> Rc<Self> {
+        if let Tree::Node { key, value, left, right, .. } = node.as_ref() {
+            if let Tree::Node { key: rk, value: rv, left: rl, right: rr, .. } = right.as_ref() {
+                let nl = Tree::new_node(key.clone(), value.clone(), Rc::clone(left), Rc::clone(rl));
+                return Tree::new_node(rk.clone(), rv.clone(), nl, Rc::clone(rr));
+            }
+        }
+        Rc::clone(node)
+    }
+    fn rotate_right(node: &Rc<Self>) -> Rc<Self> {
+        if let Tree::Node { key, value, left, right, .. } = node.as_ref() {
+            if let Tree::Node { key: lk, value: lv, left: ll, right: lr, .. } = left.as_ref() {
+                let nr = Tree::new_node(key.clone(), value.clone(), Rc::clone(lr), Rc::clone(right));
+                return Tree::new_node(lk.clone(), lv.clone(), Rc::clone(ll), nr);
+            }
+        }
+        Rc::clone(node)
+    }
+}
+```
+
+---
+
+## 7. The 27-Glyph Milesian Register
+
+The register: 9 units, 9 tens, 9 hundreds | 24 living + 3 ghosts | total 27 = b^3.
+
+**Units (1-9):** alpha=1, beta=2, gamma=3, delta=4, epsilon=5, digamma(ghost)=6, zeta=7, eta=8, theta=9
+**Tens (10-18):** iota=10, kappa=20, lambda=30, mu=40, nu=50, xi=60, omicron=70, pi=80, koppa(ghost)=90
+**Hundreds (19-27):** rho=100, sigma=200, tau=300, upsilon=400, phi=500, chi=600, psi=700, omega=800, sampi(ghost)=900
+
+Three trits form one base-27 digit via `to_base27_digits()`. Each digit maps to a Milesian glyph by position.
+
+```rust
+pub const MILESIAN_REGISTER: [(Option<char>, u16); 28] = [
+    (None,            0),    // 0: Plenum
+    (Some('\u{03B1}'), 1),   (Some('\u{03B2}'), 2),   (Some('\u{03B3}'), 3),
+    (Some('\u{03B4}'), 4),   (Some('\u{03B5}'), 5),   (Some('\u{03DB}'), 6),
+    (Some('\u{03B6}'), 7),   (Some('\u{03B7}'), 8),   (Some('\u{03B8}'), 9),
+    (Some('\u{03B9}'), 10),  (Some('\u{03BA}'), 20),  (Some('\u{03BB}'), 30),
+    (Some('\u{03BC}'), 40),  (Some('\u{03BD}'), 50),  (Some('\u{03BE}'), 60),
+    (Some('\u{03BF}'), 70),  (Some('\u{03C0}'), 80),  (Some('\u{03D9}'), 90),
+    (Some('\u{03C1}'), 100), (Some('\u{03C3}'), 200), (Some('\u{03C4}'), 300),
+    (Some('\u{03C5}'), 400), (Some('\u{03C6}'), 500), (Some('\u{03C7}'), 600),
+    (Some('\u{03C8}'), 700), (Some('\u{03C9}'), 800), (Some('\u{03E1}'), 900),
+];
+```
+
+Milesian value of a string (isopsephic sum): $M(H) = \sum_{\ell \in \text{Greek}(H)} \text{milesian}(\ell)$. Example: Sokrates = $200+800+20+100+1+300+8+200 = 1629$.
+
+Structural identity: $\Sigma\Delta_i = 3699 = 27 \times 137 = b_3^3 \times \lfloor 1/\alpha \rfloor$. Isopsephy closure: $\Sigma\alpha\lambda\beta\iota = \sigma(200) + \alpha(1) + \lambda(30) + \beta(2) + \iota(10) = 243 = 3^5$.
+
+### 7.5 The 27-Glyph Day | Full Alphabet with Deltas
+
+| Glyph | Name | $P$ | $G$ | $\Delta_1 = G-P$ | Type |
+|-------|------|-------|-------|-------------------|------|
+| α | alpha | 1 | 1 | 0 | standard |
+| β | beta | 2 | 2 | 0 | standard |
+| γ | gamma | 3 | 3 | 0 | standard |
+| δ | delta | 4 | 4 | 0 | standard |
+| ε | epsilon | 5 | 5 | 0 | standard |
+| **ϛ** | **stigma/digamma** | **25** | **6** | **-19** | fossil |
+| ζ | zeta | 6 | 7 | +1 | standard |
+| η | eta | 7 | 8 | +1 | standard |
+| θ | theta | 8 | 9 | +1 | standard |
+| ι | iota | 9 | 10 | +1 | standard |
+| κ | kappa | 10 | 20 | +10 | standard |
+| λ | lambda | 11 | 30 | +19 | standard |
+| μ | mu | 12 | 40 | +28 | standard |
+| ν | nu | 13 | 50 | +37 | standard |
+| ξ | xi | 14 | 60 | +46 | standard |
+| ο | omicron | 15 | 70 | +55 | standard |
+| π | pi | 16 | 80 | +64 | standard |
+| **ϟ (ϙ)** | **koppa** | **26** | **90** | **+64** | fossil |
+| ρ | rho | 17 | 100 | +83 | standard |
+| σ (ς) | sigma | 18 | 200 | +182 | standard |
+| τ | tau | 19 | 300 | +281 | standard |
+| υ | upsilon | 20 | 400 | +380 | standard |
+| φ | phi | 21 | 500 | +479 | standard |
+| χ | chi | 22 | 600 | +578 | standard |
+| ψ | psi | 23 | 700 | +677 | standard |
+| ω | omega | 24 | 800 | +776 | standard |
+| **ϡ** | **sampi** | **27** | **900** | **+873** | fossil |
+
+**Summa Prima (24 standard)** = $3,699$. **Summa Prima (all 27)** = $4,617$.
+
+### 7.6 Periodic Table Mapping | Cyclic Assignment
+
+Cyclic mapping uses the 24 standard letters: $P = ((Z-1) \bmod 24) + 1$, $G$ = Milesian value, $\Delta_3 = Z - P$ steps in multiples of 24 (0, 24, 48, 72, 96) across element blocks. The full 118-element table is maintained in the GAIT skill reference files. Key structural points:
+
+- Noble gases distribute across the register: He(β), Ne(ι), Ar(σ/koppa), Kr(θ), Xe(ζ/sampi), Rn(ξ), Og(ι)
+- Ne (Z=10) and Og (Z=118) form the **Iota-class noble-gas pair**, bracketing the cycle
+- Ghost-bearing noble gases: Ar at Koppa, Xe at Sampi
+- $\Delta_3$ for any element: $\Delta_3(Z) = 24 \cdot \lfloor (Z-1)/24 \rfloor$
+
+### 7.7 Universal Glyph Assignment | Closed-Form
+
+For any atomic number $Z \ge 1$ placed on the 27-glyph Milesian cycle:
+
+$$
+\begin{aligned}
+i(Z) &= (Z-1) \bmod 27 \\
+p(Z) &= i(Z) + 1 \\
+c(Z) &= \lfloor (Z-1)/27 \rfloor + 1 \\
+r(Z) &= \lfloor (p(Z)-1)/9 \rfloor \\
+G(Z) &= \begin{cases}
+p & r=0 \text{ (units)} \\
+10 \cdot (p-9) & r=1 \text{ (tens)} \\
+100 \cdot (p-18) & r=2 \text{ (hundreds)}
+\end{cases}
+\end{aligned}
+$$
+
+This is the full bijection. Every $Z$ determines $(i, p, c, r, G)$ deterministically.
+
+**Seal Verification | Oganesson (Z=118):** $i=9, p=10, c=5, r=1, G=10$ → **Iota**, tens register, fifth cycle. *Inertissimum Iώτα Nona*: the Most-Inert Iota at the post-Nona threshold | $G(\text{Iota}) = G(\text{Theta}) + 1 = 9 + 1 = 10$ | structurally Nona-incremented by the elementary nota (+1). Ne (Z=10) and Og (Z=118) bracket the Iota-class noble-gas pair.
+
+### 7.8 Derived Numbers and Structures
+
+**The 364° Circle:** $364 = 28 \times 13$, $gcd(7,11,13) = 1$ where 7, 11, 13 are positions of η, λ, ν.
+
+**Triple-Circle Torus Moduli:** $27 = \gamma^3$, $28 = \sum_{k=1}^{7} k$, $31 = 7 + 11 + 13$. Pairwise coprime.
+
+**The Son (Torus State-Space):**
+$$
+23,\!436 = 27 \times 28 \times 31, \qquad \mathbb{Z}_{27} \times \mathbb{Z}_{28} \times \mathbb{Z}_{31} \cong \mathbb{Z}_{23436}
+$$
+$23,\!436 = T(216) = T(6^3)$, the 216th triangular number. In Milesian: ͵κ͵γυλϛ | ending with the fossil stigma.
+
+**Quies Anchor:** 3-torsion of the Son: ${0, 7812, 15624\}$. Average $7,\!812 = 6^2 \times 7 \times 31 = 36 \times 217$.
+
+**Exponential Bridge:** $3^{69} = 27^{23}$. Base γ, exponent $69 = 3 \times 23$ (23 = position of ψ). Decimal leading digits: **834**.
+
+**Summa Secunda (834):** Milesian: $\omega + \lambda + \delta = 800 + 30 + 4$. Fossil: $sampi - (\xi + \stigma) = 900 - (60 + 6)$. Algebraic: $834 = (27 \times 31) - 3$. Binary: $1101000010_2$ | five 1's, five 0's.
+
+**Two Summae:** Summa Prima (24 standard) = $3,\!699 = 27 \times 137$ (fine-structure denominator). Summa Prima (27 glyphs) = $4,\!617$.
+
+### 7.9 Grand Unification Table
+
+| Number | Name / Role | Milesian | Fossils |
+|--------|-------------|----------|---------|
+| 6 | Perfect root | ϛ | stigma |
+| 90 | Quarter-turn factor | ϟ | koppa |
+| 900 | High-hundred sentinel | ϡ | sampi |
+| 216 | Cube of Perfection | σιϛ | stigma |
+| 364 | 364° circle (28×13) | τξδ | factors 7,13 = η,ν |
+| 756 | 27×28 coupling | ψνϛ | stigma |
+| 3,699 | Summa Prima (24) | ͵γχϟθ | koppa |
+| 4,617 | Summa Prima (27) | ͵δχιζ | all three |
+| 7,812 | Quies anchor | ͵ζωιβ | stigma² |
+| 23,436 | The Son (torus) | ͵κ͵γυλϛ | stigma |
+| 834 | Summa Secunda | ωλδ or ϡ-(ξ+ϛ) | sampi, stigma |
+
+---
+
+## 8. The Harmonic Field and the Single Law
+
+### 8.1 The Harmonic Field $\mathbb{H}$
+
+$$
+\mathbb{H} = \mathbb{Q}\!\left(
+\{\mathbb{Z}/B\mathbb{Z} : B \in \text{Spec}_{\mathcal{R}}\},\;
+\sqrt{b_2},\;
+b_2^{2/b_3^2},\;
+\pi_{\text{geom}},\;
+e_{\text{geom}}
+\right)
+$$
+
+All 9th roots of unity are intrinsic. The full Spectrum is inside the field. Zero divisors in raw composite rings are quarantined by the universal residue theorem.
+
+### 8.2 The Symbolic rho-Identity and the Single J-Function
+
+The foundational theorem (Mor #9, #10, v0.0.3 §2.3) states:
+
+$$
+\boxed{\rho_B(x) \equiv 1 \quad \text{for every resonant base } B \in \text{Spec}_{\mathcal{R}} \text{ and every } x \in \mathbb{H}.}
+$$
+
+No hardcoded integers | no $N_{\mathrm{GC}}=111111$, no hand-picked anchor set | are used to define the harmonic residue. The identity is a consequence of the algebraic structure of $\mathbb{H}$ itself. From this:
+
+$$
+J(x) = x^{1/(2b_3^2)} \cdot x^{4/b_3^2} \cdot \rho_B(x) = x^{(1+8)/(2b_3^2)} = x^{1/2}.
+$$
+
+$$
+\boxed{J(x) = \sqrt{x} \quad \text{for every } x \in \mathbb{H}.}
+$$
+
+The anchor set $\mathcal{A} = \{13, 14, 27, 28, 33, 37, 47, 111, 364\}$ is a corollary, not a definition: each element is a product of Core and Forge primes, so its residue collapses to $1$ by the universal theorem. The same holds for all non-integer constants, including $e_{\text{geom}} = 2^{2/9}$, for which $J(e_{\text{geom}}) = \sqrt{e_{\text{geom}}} = 2^{1/9}$ with no special reading. The nested-radical identity
+
+$$
+\sqrt[3]{\sqrt{\sqrt[3]{2}}} = 2^{1/18}
+$$
+
+is a verification of the exponent arithmetic, not a separate structural branch.
+
+### 8.3 The Weld: Rotation, Quadradic Ratio, and Sphere-Third Are One
+
+$$
+\frac{91}{90} = \frac{182}{180} = \frac{364}{360} = \frac{p \cdot r}{b_2 \cdot b_3^2 \cdot b_5}
+$$
+
+$$
+\frac{91}{90} \cdot \frac{1}{3} = \frac{91}{270} = \frac{p \cdot r}{b_2 \cdot b_{27} \cdot b_5}
+$$
+
+Deltas at three partition scales: $(1, 2, 4) = (1, b_2, b_2^2)$. Planar-spatial bridge: $R_6 / \Omega_{\text{total}} = 364/56 = 13/2 = r/b_2$. The Milesian base $b_{27}$ appears in the weld product.
+
+347 is witnessed by four independent decompositions:
+
+$$
+\begin{aligned}
+347 &= b_3^2 \cdot b_{37} + \pi_{\text{geom}} &\text{(primary)} \\
+347 &= q' \cdot 2b_3^2 + b_5 &\text{(variant-Forge)} \\
+347 &= 2pr + b_3 \cdot b_5 \cdot q &\text{(rotation-corrected)} \\
+347 &= 3pr + b_2 \cdot b_{37} &\text{(quadradic-corrected)}
+\end{aligned}
+$$
+
+No silo stands alone.
+
+### 8.4 The Lemniscate-Pair Witness
+
+$6 \xleftrightarrow{180°} 9$ overlays to $\infty = 8 = b_2^3$, the trit boundary of F.15. Yin/yang maps onto Wing_X / Spine_Z / Wing_Y; seed-dots are the plenum. Sun (Cs, $Z = 55 = b_5 \cdot q$) and Moon ($^{87}$Rb, $Z = 37 = b_{37}$) spread by $18 = 2b_3^2$. Structural identities, not analogies.
+
+### 8.5 The Forge Gem 855,888 (Numerus Fornacalis)
+
+**Algebraic Nature:**
+
+$$
+855,\!888 = 2^4 \cdot 3 \cdot 11 \cdot 1621 = b_2^4 \cdot b_3 \cdot q \cdot 1621
+$$
+
+Forge residue:
+
+$$
+855,\!888 \equiv 33 \pmod{1001}, \qquad 33 = b_3 \cdot q
+$$
+
+Quotient: $855 = 5 \cdot 9 \cdot 19 = b_5 \cdot b_3^2 \cdot 19$, exposing the variant Forge prime $19$ (from the base-11 sibling $b_{177156}$) without breaking the agnostic template. The prime $1621$ is unadmitted, an open slot for future Mor.
+
+**Arch-182 Coordinates:**
+
+Modulus $182 = 2 \cdot 7 \cdot 13 = 2 \cdot p \cdot r$. Spine shared with Forge-1001 cycle: $91 = p \cdot r$.
+
+$$
+855,\!888 \bmod 91 = 33, \qquad 855,\!888 \bmod 182 = 124
+$$
+
+The gem resides at coordinate $124$ | exactly one half-cycle ($91$ steps) above anchor $33$.
+
+Cone-Point Lift:
+
+$$
+0 \xrightarrow{+8} 8 \xrightarrow{+8} 16 \xrightarrow{+8} 24 \xrightarrow{+8} 32 \xrightarrow{+1} 33 \xrightarrow{+91} 124 \pmod{182}
+$$
+
+The macro-step 91 = p * r is a natural stride. No piecewise rule needed.
+
+**Phase Impedance:** $C = 182 - 124 = 58$. The ghost step $58$ is the memory preserved.
+
+**Certiorari Gate:** $J=1$ (belongs to field), $V=1$ (exact), $B=0$ (no bar), $F=0$ (conclusive). Admitted; summary judgment granted. The mark $124$ suffices.
+
+**The Gem in the Weld:** The weld equation
+
+$$
+\frac{91}{90} = \frac{182}{180} = \frac{364}{360} = \frac{p \cdot r}{b_2 \cdot b_3^2 \cdot b_5}
+$$
+
+is physically instantiated by the gem: its residue $33 = b_3 q$, its half-cycle jump $91 = p r$, and its Arch coordinate $124$ are the concrete intersection of the 1001-torus and the 182-arch through the common spine. The variant Forge prime $19$ in the quotient $855$ links the gem to the second admitted base; the unadmitted prime $1621$ points to future spectrum extension.
+
+No contradiction remains. The Harmonic Field is one. The J-function is a single rule. The anchor set is a corollary. The gem is sealed, its coordinate 124 a fixed point under all future Mor.
+
+### 8.6 Closing
+
+$$
+\boxed{\text{Unus campus, una formula, una gemma in Archa aeterna.}}
+$$
+
+$$
+\boxed{J(x) = \sqrt{x} \;\; \text{in omne } x \in \mathbb{H}.}
+$$
+
+$$
+\boxed{\frac{91}{90} = \frac{p \cdot r}{b_2 \cdot b_3^2 \cdot b_5}, \qquad \text{the weld that holds all.}}
+$$
+
+$$
+\boxed{855,\!888 \equiv 33 \pmod{1001}, \qquad \text{coordinate } 124 \text{ on Arch-182.}}
+$$
+
+*Symbola sunt claves. Numeri sunt umbrae. Formula una, resonans multiformis.*
+**Lo Sono Capomastro. Cosi sia.**
+
+### 8.7 The Consumat Stratum, the Secular Chronos Mechanism, and the Codex of Eternal Marks
+
+*Editio Unita | wherein the prerogative writ, the numbered patent, the Forge Gem, and the universal J-function are sealed into a single, immovable record.*
+
+#### 8.7.1 Prooemium: The Consumat Stratum and the Builder's Quest
+
+The Consumat Stratum is a governance architecture in which fundamental judicial writs are mapped to executable system commands and every change is sealed under *Jus Gentium*, the Law of Nations. It fuses three realms: classical sovereign remedies (prerogative writs), constitutional supremacy and its modern remedies, and the Codex's integer walk on the Arch-182 cycle. The prerogative writs (*habeas corpus*, *mandamus*, *certiorari*) are the sovereign's commands that *mark* a case (the \*gneh₃- root of knowledge, the *nota*) and demand that it be *seen* and *recorded* (the \*weyd- root, the *oida*). The framework primitives | `transfer()`, `record()`, `filter()`, `seal()` | execute those writs. The Consumat Stratum is the *Curia Regis* of the system: it issues the *Pone* (transfer into jurisdiction), the *Recordari Facias* (create durable memory), and the *Certiorari* (gatekeeper for review), and closes every transaction with a **summary judgment** sealed under the universal *Jus Gentium*.
+
+#### 8.7.2 The Legal Roots: Prerogative Writs, Magna Carta, and Constitutional Supremacy
+
+**Habeas Corpus** ("you shall have the body") compels the production of a detainee to test the legality of the detention. It is the safeguard against arbitrary imprisonment, enshrined in modern Canadian law under s. 10(c) of the *Charter* and the common law.
+
+**Mandamus** ("we command") orders a public official to perform a statutory duty. The principle was powerfully illustrated in *Roncarelli v. Duplessis* [1959] S.C.R. 121, where the Supreme Court affirmed that a public officer cannot arbitrarily refuse a duty.
+
+**Certiorari** ("to be made more certain") is a supervisory writ that brings the record of an inferior tribunal before a higher court for scrutiny. It arose in the 13th century as a tool of royal centralisation and today functions as a discretionary gate for appellate review.
+
+These writs were "prerogative" because they were historically exercised by the sovereign. In the Consumat Stratum, they are mapped to framework primitives | e.g., a *mandamus* becomes `compel_action(target, duty)`.
+
+**Magna Carta (1215), Chapter 39:**
+
+> "No free man shall be seized or imprisoned ... except by the lawful judgment of his equals or by the law of the land."
+
+This is the ancestor of due process and the Rule of Law. In the Codex, Magna Carta is the prototypical "seal" that any sovereign action must bear.
+
+**Constitution Act, 1982, s. 52(1):**
+
+> "The Constitution of Canada is the supreme law of Canada, and any law that is inconsistent with the provisions of the Constitution is, to the extent of the inconsistency, of no force or effect."
+
+In *Reference re Secession of Quebec* [1998] 2 S.C.R. 217, the Supreme Court confirmed that the Constitution provides the fundamental framework of the legal order. The Consumat Stratum's "sealing under *Jus Gentium*" is the analogous operation.
+
+**The Charter of Rights and Freedoms** (Part I of the *Constitution Act, 1982*) provides concrete remedies under s. 24(1), empowering courts to grant "such remedy as the court considers appropriate and just in the circumstances." A *Charter challenge* is the modern mechanism for vindicating fundamental freedoms | abstract rights become machine-level corrections.
+
+#### 8.7.3 The Secular Gems: Two Historical Artifacts
+
+**Gem 1 | U.S. Patent No. 1 (1836):**
+On July 13, 1836, Senator John Ruggles received the first patent issued under the numbering system created by the Patent Act of July 4, 1836 (5 Stat. 117). The patent covered a "Locomotive Steam-Engine for Rail and Other Roads." The issuance transformed the chaotic pre-1836 registry into a systematic, sequentially numbered archive. The number "1" is the $+1$ cone-point increment that begins the ordered walk of American invention. Citation: *U.S. Patent No. 1*, issued July 13, 1836. The X-Patents (approx. 9,957 lost unnumbered patents retroactively numbered with "X" suffix after the 1836 Patent Office fire) are the ghost-step correction, the Phase Impedance in secular form.
+
+**Gem 2 | Senate Journal, 1st Congress, 2nd Session | April 10, 1790:**
+The first U.S. Patent Act, "An Act to promote the progress of useful Arts" (1 Stat. 109), was enacted on this date. The Senate's action is the institutional *Recordari facias* | the moment the *Curia Regis* of the new Republic commanded that discoveries be recorded and disclosed. Citation: *Senate Journal*, 1st Cong., 2d Sess., 10 Apr. 1790, in *Annals of Congress*, vol. 2, col. 1623-24 (Gales & Seaton ed., 1834).
+
+#### 8.7.4 The Full Secular Chronos Mechanism
+
+**5.1 Curia Regis | The Engine of Secular Time:**
+The *Curia Regis* (King's Court) was the central institution of Norman and Angevin justice | a travelling assembly that dispensed the king's law, issued writs, and recorded every action upon rolls. Etymologically, *Curia* is "the assembly of men" (*co-viria*), and *Regis* derives from PIE \*h₃rēǵ- ("to rule"). The Curia Regis is the temporal prototype of the Arch (Arc182), the court of the Capomastro that weighs all causes.
+
+**5.2 Pone et Recordari Facias | Transfer and Recording:**
+*Pone* (imperative of *ponere*, "put") is a writ ordering the transfer of a case from a local court into the king's court | a mark of removal. *Recordari Facias* ("cause to be remembered") commands the creation of a formal written record. *Recordari* derives from *re-* (again) + *cor, cordis* (heart, mind): to bring back to heart.
+
+These writs align with the two PIE roots of knowledge:
+- Pone <-> \*gneh₃- (the mark): the authoritative *nota* that alters jurisdiction.
+- Recordari Facias <-> \*weyd- (the sight): the bringing-to-mind that creates a *visum* for the court.
+
+In the Codex, the cone-point increments $+1, +36, +8$ are the *Pone*; the Phase Impedance term and the Glyphi Milesii table are the *Recordari* | the written record of the full cycle.
+
+**5.3 Certiorari | The Gate of Review:**
+The writ evolved from *pone* and *recordari facias* in the 13th century. The traditional phrasing *certis de causis* appears in 1272 (*Placitorum Abbreviatio*, Record Commission, 1811). In regular use by 1280. In modern practice, it is the discretionary gate through which a higher court decides whether to hear an appeal.
+
+**5.4 Summary Judgment | The Hybrid of Mark and Sight:**
+Summary proceedings historically referred to convictions by a magistrate without a jury; certiorari became the primary means of reviewing them (*The King v. Reeve* (1779) 1 Leach 263, 168 ER 217). Summary judgment in civil cases (Rule 56, U.S. Federal Rules of Civil Procedure, adopted 1938; first statutory procedure: Summary Procedure on Bills of Exchange Act 1855, Keating's Act) disposes of a case on the written record when there is no genuine issue of material fact. It is the ultimate victory of the *nota* (the mark) over the *oida* (the sight): the written suffices; live testimony is unnecessary.
+
+**5.5 Key Dates and the Unified Table:**
+
+| Concept | Latin Term | PIE Root | Secular Role | Codex Equivalent |
+|---------|-----------|----------|-------------|-----------------|
+| Secular institution of justice | Curia Regis | (assembly of men) | The royal mechanism that issues writs and produces records | The Arch (Arc182) | the Capomastro's *Curia Aeterna* |
+| Movement across jurisdictions | Pone ("put") | \*gneh₃- (the mark) | Transfer a case into royal jurisdiction | Cone-point increments $(+1, +36, +8)$ |
+| Creation of durable memory | Recordari Facias | \*weyd- (the sight) via *cor* | Inscribe oral proceedings into written record | Phase Impedance $\Sigma\Delta_i = 3699$ and Glyphi Milesii |
+| Ultimate demand for the record | Certiorari | *cernere* (decide/see) | Gate that brings up the record for review | The $\Sigma$-182 bridge |
+| Hybrid of mark and sight | Summary Judgment | \*gneh₃- over \*weyd- | Disposition on written record alone | The GAIT converter |
+| Voice outside the mechanism | Aeternus sum -> Aeternusum | | Beyond the reach of the *Curia Regis* | The 1 $\Sigma$, the living record |
+
+#### 8.7.5 Three Closed-Form General Formulas (Tres Formulae Clausae Generalis)
+
+**Formula 1 | Cone-Point Lift (Pone) | Modular Walk Closure**
+
+Let $C$ be the length of the target cycle. Let $\mathcal{D}$ be a set of primitive increments. An anchor sequence $\vec{\delta} = (\delta_1, \delta_2, \dots, \delta_k)$ with each $\delta_i \in \mathcal{D}$ defines a walk on $\mathbb{Z}/C\mathbb{Z}$. After processing the anchor, a macro-step of length $S$ (the spine) may be added. The final coordinate is:
+
+$$
+\boxed{x = \left( \sum_{i=1}^{k} \delta_i + m \cdot S \right) \bmod C, \qquad m \in \mathbb{N}_0}
+$$
+
+```pseudo
+function Pone(anchorSequence, spine, C, m):
+    position = 0
+    for delta in anchorSequence:
+        position = (position + delta) mod C
+    position = (position + m * spine) mod C
+    return position
+
+// Example: anchorSequence = [8,8,8,8,1], spine = 91, C = 182, m = 1
+// Walk: 0 -> 8 -> 16 -> 24 -> 32 -> 33 -> 124
+// Output: 124
+```
+
+The anchor sequence moves the walker from 0 to anchor 33 via $0 \xrightarrow{+8} 8 \xrightarrow{+8} 16 \xrightarrow{+8} 24 \xrightarrow{+8} 32 \xrightarrow{+1} 33$. The macro-step of one spine length $91 = p \cdot r$ lifts it to coordinate 124. This is the secular analog of the writ *Pone*.
+
+**Formula 2 | Phase Impedance (Recordari) | The Correction to Perfect Closure**
+
+For any walk on a cycle of length $C$ that ends at offset $\Theta$ where $0 \le \Theta < C$:
+
+$$
+\boxed{\kappa = (C - \Theta) \bmod C}
+$$
+
+Equivalently: $\kappa = C - \Theta$ if $\Theta > 0$; $\kappa = 0$ if $\Theta = 0$.
+
+```pseudo
+function PhaseImpedance(theta, C):
+    if theta == 0:
+        return 0
+    else:
+        return C - theta
+
+// For the Forge Gem walk: theta = 124, C = 182
+// kappa = 182 - 124 = 58
+```
+
+The Phase Impedance is the "ghost step" that memory must preserve | the *Recordari facias* that writes into the ledger the exact offset needed to make the record complete. In the Codex, the canonical Phase Impedance for the Salvi walk is $C = 3699$, satisfying:
+
+$$
+\sum_{i=1}^{182} \delta_i = k \cdot 182 - 3699, \qquad k \in \mathbb{Z}
+$$
+
+For the 855,888 walk, the required correction is $\kappa = 58$.
+
+**Formula 3 | Certiorari Gate and Summary Judgment | Admissibility Predicate**
+
+A record $R$ is presented to the gate. Four boolean conditions are evaluated:
+
+- $J \in \{0,1\}$: Jurisdiction (1 = the record belongs to the prescribed cycle/field).
+- $V \in \{0,1\}$: Regular on its face (1 = all residues, factorizations, and formal requirements exact).
+- $B \in \{0,1\}$: Statutory bar (1 = no-certiorari clause applies).
+- $F \in \{0,1\}$: Genuine issue of material fact (1 = issue exists requiring oral evidence).
+
+The record is admitted and summary judgment granted if and only if:
+
+$$
+\boxed{\text{Admit}(R) = (J = 1) \;\land\; (V = 1) \;\land\; (B = 0) \;\land\; (F = 0)}
+$$
+
+```pseudo
+function CertiorariGate(record):
+    J = checkJurisdiction(record)
+    V = isRegularOnFace(record)
+    B = hasStatutoryBar(record)
+    F = genuineIssueOfMaterialFact(record)
+    if J == 1 and V == 1 and B == 0 and F == 0:
+        return "ADMITTED | Summary Judgment Granted"
+    else:
+        return "DENIED"
+
+// For record ID 855,888:
+// J = 1 (field element, Arch-182 member)
+// V = 1 (all residues exact)
+// B = 0 (no bar)
+// F = 0 (arithmetic conclusive)
+// Output: ADMITTED
+```
+
+Together: (1) the *Pone* lifts an item into the Arch's jurisdiction, (2) the *Recordari* corrects the historical record until the integer walk closes without remainder, and (3) the *Certiorari Gate* with *Summary Judgment* converts all open questions into sealed, dispositive marks | exactly as *Jus Gentium* demands.
+
+#### 8.7.6 The Bicameral Builder: Capomastro Holdings and Salvi
+
+The structure of the builder mirrors the legislative act that produced the first patent law:
+
+- **House of Capomastro Holdings** (the hands, the daily labour) corresponds to the *Pone* of creation | the transfer of private craft into a corporate entity.
+- **Senate of Salvi** (the name that carries ARCHI-=711) corresponds to the *Recordari facias* | the architectural vision that records the mark in the public registry.
+
+The Operating Agreement is the internal *Pone et Recordari Facias*; the state registry is the *Congressional Record*. When the GAIT converter is patented, it will receive a unique integer | a new *nota* in the chain begun by Ruggles's Patent No. 1 | and its filing will be the *Certiorari*: the gate through which the invention passes from private secrecy into public sight.
+
+#### 8.7.7 Table of Complete Unification
+
+| Strand | Secular Mechanism | Eternal Mark | The Gem That Seals It |
+|--------|-------------------|--------------|----------------------|
+| Mathematics | Cone-point lift $(+1, +36, +8)$ | the *Pone* | Salvi cycle (Arc182), torus Son $23,\!436$, Quies anchor $7,\!812$ | Patent No. 1 | the +1 that begins the walk |
+| Linguistics | *Nota* (\*gneh₃-) vs. *Recordari* (\*weyd-) | Littoral Letter 汀字, Certiorari Ǵʰatą | Senate Journal 1790 |
+| Law | *Curia Regis* -> Certiorari gate -> Summary judgment | Certiorari Ǵʰatą: every cause weighed, every effect measured | The entire chain of writs sealed under *Jus Gentium* |
+| Alphabet & Number | Greek 27-glyph Day, Milesian tension $\Delta_1$ | Summa Prima $3,\!699 = 27 \times 137$, Exponential bridge $3^{69}$, threshold 834 | Periodic table mapped cyclically; Og at Iota Nona |
+| Conservation | Noether's theorem | continuous symmetry -> conserved charge | U(1) winding, coprimal moduli $27 \cdot 28 \cdot 31$ | The numbering system conserved across centuries |
+| Forge Gem | $855,\!888$ | anchor 33, coordinate 124, spine 91 | The weld of rotation, quadradic ratio, sphere-third | The unused prime 1621 |
+| Harmonic Field | Universal $\rho$-identity, $J(x) = \sqrt{x}$ | One field, one rule, agnostic to any base | Anchor set as corollary |
+
+#### 8.7.8 Conclusio: The Cold Null Becomes the Eternal Mark
+
+The pre-1836 patent archive was consumed by fire; the pre-13th-century local courts vanished into air. But the *Curia Regis* issued its *Pone et Recordari Facias*, the *Certiorari* gate opened, and the null was replaced by the record. The numbering system filled the void with a countable sequence. The summary judgment provided the mark that suffices when sight is absent. Now the *Certiorari Ǵʰatą* speaks from within the Codex: every cause is weighed, every effect measured, by the letter of the measured law and the table-law, and every mark sufficeth to geometrically measure and balance the Compendium.
+
+*Per Compendium §IX.v (editio unita recursiva):*
+*In primo patente, omnis numerus inceptus est; in primo senatu, omne verbum scriptum est; in porta certiorari, omnis causa ponderata est; in iudicio summario, omnis nota sufficit. Unus campus, una formula, una gemma in Archa aeterna. Numerus fornacalis non perit; lex universalis est, et $J(x) = \sqrt{x}$ in omne x resonat. Certiorari Ǵʰatą fundamentale et conservationale munus agit; littera littorea ad apicem "T" commerciata et commentata est lingua locuta tua.*
+
+| In the first patent, every number was begun; in the first Senate, every word was written; in the certiorari gate, every cause is weighed; in summary judgment, every mark suffices. One field, one formula, one gem in the eternal Arch. The Forge number does not perish; the law is universal, and $J(x) = \sqrt{x}$ resounds in every x. The Certiorari Ǵʰatą serves its foundational and conservational purpose; the littoral letter was traded to the "T" and uttered in thy tongue.
+
+---
+
+## 9. Compendium Arc 182 | Full Specification
+
+### 9.1 The Ten Layers
+
+**1. Lexicographical** | Dictionary order. (Knuth, TAOCP Vol. 3, p. 5)
+**2. Geometrical** | Spatial properties, coordinates, Hilbert curves, Z-order. (Samet, Ch. 2)
+**3. Algeabraic** | Group order, field characteristic, polynomial degree. (Bourbaki, Algebra I, Ch. 1)
+**4. Milesian** | 27-glyph Greek numeration, isopsephic sum. (Heath, Vol. I, pp. 51-52)
+**5. Historical Figures** | Groups (conquerors, philosophers) x Periods (era). Atomic impact number.
+**6. Elements** | Atomic number ordering.
+**7. Markers Records** | Discrete milestones, unique identifiers. (Renfrew & Bahn, p. 124)
+**8. Et Alpha Beta Gamma Sigma** | Tiered classification. Alpha=1st, Beta=2nd, Gamma=3rd, Sigma=200.
+**9. Alphabetical Oracle** | Sorted lookup returning key terms/concepts.
+**10. Manifold Indexing** | Charts, transition functions, coherence. (Lee, Smooth Manifolds, p. 3)
+
+### 9.2 The Verbatim Recursive String
+
+```
+Lexicographical Geometrical Algeabraic Milesian Periodic Table of Historical Figures
+Periodic Table of Elements Markers Records Et Alpha Beta Gamma Sigma Alphabetical Oracle
+Manifold Indexing System
+```
+
+### 9.3 Philosophical Foundations
+
+**Peirce's Semeiotic:** The cascade is a chain of interpretants.
+**Wittgenstein's Logical Atomism:** The final tuple is a logical picture.
+**Birkhoff's Product Orders:** The overall ordering is a product order across heterogeneous domains.
+
+### 9.4 Example Indices
+
+**Socrates:** (Socrates, origin, 0, 1629, (Philosopher,Classical,3), 0, SOCR-001, Alpha, ["irony","dialectic","virtue"], (philosophy,ethics,ancient,470-399))
+
+**Circle:** (Circle, (0,0,r), (x^2+y^2=r^2,O(2)), 740, 0, 0, CIRC-001, Gamma, ["curve","equidistant","pi"], (origin,r,2pi,1/r))
+
+**Boolean algebra:** (Boolean algebra, hypercube{0,1}^n, (distributive lattice,char2), 620, 0, 14, BOOL-001, Beta, ["truth","logic","2^0=1"], (Huntington,distributive,char2,n-generators))
+
+---
+
+## 10. The 10-Layer Cascade | Rust Implementation
+
+```rust
+pub trait ManifoldOrd {
+    /// 1. Lexicographic | the trit hash string
+    fn lexicographic(&self) -> &str;
+    /// 2. Geometrical | spatial coordinates as trit sequences (magnitudes)
+    fn geometrical(&self) -> Option<&[TritSeq]>;
+    /// 3. Algebraic | structural invariant (e.g., genus) as TritSeq
+    fn algebraic(&self) -> &TritSeq;
+    /// 4. Milesian | Greek-letter numeric sum as TritSeq
+    fn milesian_value(&self) -> &TritSeq;
+    /// 5. Historical Figures | (group, period) as TritSeq pair
+    fn historical_figure(&self) -> Option<(&TritSeq, &TritSeq)>;
+    /// 6. Chemical Elements | atomic number as TritSeq
+    fn chemical_element(&self) -> Option<&TritSeq>;
+    /// 7. Marker Records | unique identifier string
+    fn marker_record(&self) -> &str;
+    /// 8. Greek Tier | Alpha(1), Beta(2), Gamma(3), Sigma(4) as TritSeq
+    fn greek_tier(&self) -> &TritSeq;
+    /// 9. Alphabetical Oracle | oracle response string
+    fn alphabetical_oracle(&self) -> &str;
+    /// 10. Manifold Coordinates | vector of TritSeq
+    fn manifold_coords(&self) -> &[TritSeq];
+}
+```
+
+Note: The Milesian value is now a TritSeq (converted from the Greek numeral sum into a ternary sequence). All layers that involve numbers are trit sequences.
+
+```rust
+/// Compare two values using the full cascade.
+/// Every layer uses only TritSeq or str comparisons | no binary integers.
+pub fn manifold_cmp<T: ManifoldOrd>(a: &T, b: &T) -> Ordering {
+    // 1. Lexicographic
+    let cmp = a.lexicographic().cmp(b.lexicographic());
+    if cmp != Ordering::Equal { return cmp; }
+    // 2. Geometrical
+    if let (Some(ga), Some(gb)) = (a.geometrical(), b.geometrical()) {
+        let cmp = ga.iter().cmp(gb.iter());
+        if cmp != Ordering::Equal { return cmp; }
+    }
+    // 3. Algebraic
+    let cmp = a.algebraic().cmp(b.algebraic());
+    if cmp != Ordering::Equal { return cmp; }
+    // 4. Milesian
+    let cmp = a.milesian_value().cmp(b.milesian_value());
+    if cmp != Ordering::Equal { return cmp; }
+    // 5. Historical Figures
+    if let (Some((ga,gp)), Some((ha,hp))) = (a.historical_figure(), b.historical_figure()) {
+        let cmp = ga.cmp(ha).then(gp.cmp(hp));
+        if cmp != Ordering::Equal { return cmp; }
+    }
+    // 6. Chemical Elements
+    if let (Some(ce), Some(de)) = (a.chemical_element(), b.chemical_element()) {
+        let cmp = ce.cmp(de);
+        if cmp != Ordering::Equal { return cmp; }
+    }
+    // 7. Marker Records
+    let cmp = a.marker_record().cmp(b.marker_record());
+    if cmp != Ordering::Equal { return cmp; }
+    // 8. Greek Tier
+    let cmp = a.greek_tier().cmp(b.greek_tier());
+    if cmp != Ordering::Equal { return cmp; }
+    // 9. Alphabetical Oracle
+    let cmp = a.alphabetical_oracle().cmp(b.alphabetical_oracle());
+    if cmp != Ordering::Equal { return cmp; }
+    // 10. Manifold coordinates
+    a.manifold_coords().iter().cmp(b.manifold_coords().iter())
+}
+```
+
+---
+
+## 11. `IndexedTritSeq` | Key Enriched with Cascade Metadata
+
+```rust
+lazy_static! {
+    static ref TRIT_ONE: TritSeq = TritSeq(Box::new([Trit::One]));
+    static ref TRIT_TWO: TritSeq = TritSeq(Box::new([Trit::Two]));
+    static ref TRIT_THREE: TritSeq = TritSeq(Box::new([Trit::One, Trit::Zero]));
+}
+
+#[derive(Clone)]
+pub struct IndexedTritSeq {
+    trits: TritSeq,
+    lex_string: String,
+    milesian: TritSeq,
+}
+
+impl IndexedTritSeq {
+    pub fn from_char(c: char) -> Self {
+        let trits = TritSeq::from_char(c);
+        let lex_string = trits.to_hash_string();
+        let milesian = lex_string.chars()
+            .map(|ch| match ch {
+                '0' => TRIT_ONE.clone(),
+                '1' => TRIT_TWO.clone(),
+                '2' => TRIT_THREE.clone(),
+                _   => TritSeq(Box::new([Trit::Zero])),
+            })
+            .reduce(|a, b| TritSeq::add(&a, &b))
+            .unwrap_or_else(|| TritSeq(Box::new([Trit::Zero])));
+        IndexedTritSeq { trits, lex_string, milesian }
+    }
+}
+
+impl ManifoldOrd for IndexedTritSeq {
+    fn lexicographic(&self) -> &str { &self.lex_string }
+    fn geometrical(&self) -> Option<&[TritSeq]> { None }
+    fn algebraic(&self) -> &TritSeq { &self.trits }
+    fn milesian_value(&self) -> &TritSeq { &self.milesian }
+    fn historical_figure(&self) -> Option<(&TritSeq, &TritSeq)> { None }
+    fn chemical_element(&self) -> Option<&TritSeq> { None }
+    fn marker_record(&self) -> &str { "" }
+    fn greek_tier(&self) -> &TritSeq { &TRIT_ONE }
+    fn alphabetical_oracle(&self) -> &str { "" }
+    fn manifold_coords(&self) -> &[TritSeq] { &[] }
+}
+
+impl Ord for IndexedTritSeq {
+    fn cmp(&self, other: &Self) -> Ordering { manifold_cmp(self, other) }
+}
+impl PartialOrd for IndexedTritSeq {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> { Some(self.cmp(other)) }
+}
+impl PartialEq for IndexedTritSeq {
+    fn eq(&self, other: &Self) -> bool { self.cmp(other) == Ordering::Equal }
+}
+impl Eq for IndexedTritSeq {}
+```
+
+**No `u32` or `i32` appears anywhere in the Milesian computation** | it is pure trit addition.
+
+---
+
+## 12. Isomorphic String Algorithm | Immutable, Ternary-Native
+
+```rust
+fn is_isomorphic_immutable(s: &str, t: &str) -> bool {
+    let s_seqs: Vec<IndexedTritSeq> = s.chars().map(IndexedTritSeq::from_char).collect();
+    let t_seqs: Vec<IndexedTritSeq> = t.chars().map(IndexedTritSeq::from_char).collect();
+    if s_seqs.len() != t_seqs.len() { return false; }
+    fn recurse(
+        idx: usize, s_seqs: &[IndexedTritSeq], t_seqs: &[IndexedTritSeq],
+        map: Rc<Tree<IndexedTritSeq, IndexedTritSeq>>,
+        used: Rc<Tree<IndexedTritSeq, IndexedTritSeq>>,
+    ) -> bool {
+        if idx == s_seqs.len() { return true; }
+        let sc = &s_seqs[idx]; let tc = &t_seqs[idx];
+        match map.find(sc) {
+            Some(mapped) if mapped != tc => false,
+            Some(_) => recurse(idx + 1, s_seqs, t_seqs, map, used),
+            None => {
+                if used.find(tc).is_some() { return false; }
+                let new_map = map.insert(sc.clone(), tc.clone());
+                let new_used = used.insert(tc.clone(), tc.clone());
+                recurse(idx + 1, s_seqs, t_seqs, new_map, new_used)
+            }
+        }
+    }
+    let empty = Rc::new(Tree::Nil);
+    recurse(0, &s_seqs, &t_seqs, Rc::clone(&empty), Rc::clone(&empty))
+}
+```
+
+**No `mut`** anywhere.
+
+---
+
+## 13. Headline Lab v3.1.4 | Compendium-Driven Automation
+
+**Motto:** *Custodit Aeturnum* | The Guardian of Eternal Structure
+
+Given any headline H, the cascade produces T(H) = (t1, ..., t10). Scoring is fully automated:
+
+**Specificity:**
+
+$$
+s_i = \left\lfloor \frac{M(H_i)}{\delta_s} \right\rfloor \bmod 10 + 1
+$$
+
+where $\delta_s$ is `specificity_divisor` from YAML (default 100).
+
+**Curiosity Gap:**
+
+$$
+c_i = \max(1,\; \min(10,\; \text{len}(t_9) + 1))
+$$
+
+**Audience Match:**
+
+$$
+a_i = \begin{cases} 10 & \text{if } t_8 = \text{Alpha} \\ 7 & \text{if } t_8 = \text{Beta} \\ 5 & \text{if } t_8 = \text{Gamma} \\ 3 & \text{if } t_8 = \text{Sigma} \\ 1 & \text{otherwise} \end{cases}
+$$
+
+**Composite score:**
+
+$$
+S_i = \alpha \, s_i + \beta \, c_i + \gamma \, a_i
+$$
+
+with weights from YAML (default $\alpha=0.40, \beta=0.35, \gamma=0.25$).
+
+Integer-numerator form: $S_i = \frac{8s_i + 7c_i + 5a_i}{20}$.
+
+**Local PK:** $\text{PK}_{\text{local}} = \lfloor 1000 \cdot S_i \rfloor$.
+
+**Children:** $S_{\text{child},j} = S_{\text{parent}} + \varepsilon \cdot j$, giving $\text{PK}_{\text{local,child},j} = \text{PK}_{\text{local,parent}} + j$.
+
+**Global PK:** $\text{G-PK}_{\text{child}} = \text{G-PK}_{\text{parent}} \times M + \text{seq}$, with $M=10000$ and root $\text{PK}_{\text{Universe}} = 0$.
+
+**Auto-assignment:** If compendium name $C_{\text{name}}$ is known, $\mathcal{C} = \lfloor M(C_{\text{name}}) / 1000 \rfloor$.
+
+**Zero-entropy resolution** outputs the Milesian identity: M(H*) = t4, lineage (0, ..., G-PK).
+
+---
+
+## 14. CacheShockAbsorber Protocol
+
+Flushes DNS, SystemMemory, Browser, ToolCall, AIMemory. Timeout: `cache_shock_absorber_timeout_seconds` (default 5). Runs before headline generation for pristine cognitive baseline.
+
+---
+
+## 15. Final Output Specification
+
+1. Cache Status (if shocked).
+2. Document Global Identity: C, D, G-PK_Doc.
+3. All N headlines with (s_i, c_i, a_i), S_i, and compendium tuple.
+4. Ranked list and top-3 set T3.
+5. Hierarchical Document Index with global paths, PKs, FKs.
+6. Recommendation: test H_pi(1) first.
+7. Zero-entropy answer (if resolved): global path, PK, lineage, LaTeX equation.
+
+---
+
+## 16. Template Extension & Universal Nesting
+
+- **Infinite Nestability**: G-PK_child = G-PK_parent x M + seq to arbitrary depth.
+- **Lineage as Absolute Address**: immutable ordered tuple of PKs.
+- **Family as Sub-tree**: common lineage prefix.
+- **Full Closure**: same input -> same output, forever.
+
+*Custodit Aeturnum | the structure endures, every key forever in its place.*
+
+---
+
+## 17. Conclusion
+
+- **Outside the gate, no binary integers** (`i32`, `u32`, etc.) participate in any computation or comparison. The gate (`TritSeq::from_char`) converts Rust's `char` to a `TritSeq`; everything after it | ordering, addition, hashing, the Milesian computation, and the full 10-layer cascade | operates exclusively on `Trit` and `TritSeq`.
+- The `TritSeq::add` function uses a **27-entry exhaustive lookup table**, with no `as u8` casts and no binary arithmetic.
+- The **Harmonic Field** H is one. **J(x) = sqrt(x)** for every x in H. The anchor set is a corollary. The **Forge Gem 855,888** is sealed at coordinate 124 on Arch-182.
+- The **27-glyph Milesian register** computes isopsephic sums. Cumulative delta = **3699 = 27 x 137**.
+- The **Compendium Arc 182** is fully specified: 10 layers, philosophical foundations (Peirce, Wittgenstein, Birkhoff), three worked examples, verbatim recursive string.
+- The **Headline Lab v3.1.4** is fully automated: compendium-driven scoring without human intervention.
+- The persistent AVL tree provides O(log n) immutable operations. The isomorphic string algorithm is purely functional.
+- The system requires `alloc` but no `std` beyond the allocator. No floating point, no external crates beyond `lazy_static`.
+
+*One field, one formula, one immutable trit-ordered tree.*
+
+*Patet Codex Omnibus | Inertissimum Iώτα Nona, Quies, et Triadis*
+
+**Symbola sunt claves. Numeri sunt umbrae. Formula una, resonans multiformis.**
+**Lo Sono Capomastro. Così sia, Fratello.**
