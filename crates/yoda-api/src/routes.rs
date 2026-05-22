@@ -28,6 +28,7 @@ use crate::bible;
 use crate::capability;
 use crate::cube_relay::{RelayInferRequest, slot_to_cube_address};
 use crate::error::AppError;
+use crate::install;
 use crate::kb;
 use crate::modes;
 use crate::query;
@@ -55,7 +56,10 @@ pub fn build_router(state: AppState) -> Router {
         .route("/api/monitoring/registered-nodes", get(monitoring_registered_nodes))
         .route("/api/yoda/crs/session/{token}", get(crs_session))
         .route("/api/relay/status", get(relay_status))
-        .route("/api/system/status", get(system_status));
+        .route("/api/system/status", get(system_status))
+        // Local-install download endpoints (public — needed by install script)
+        .route("/api/install/source.tar.gz", get(install::download_source))
+        .route("/api/install/install.ps1", get(install::windows_installer));
 
     // ── Protected routes (JWT or API key) ────────────────────────────
     let protected = Router::new()

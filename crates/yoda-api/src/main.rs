@@ -37,6 +37,7 @@ pub mod error;
 pub mod kb;
 pub mod kyokushin_brothers;
 pub mod forge_routes;
+pub mod install;
 pub mod llm_agent_gateway;
 pub mod modes;
 pub mod query;
