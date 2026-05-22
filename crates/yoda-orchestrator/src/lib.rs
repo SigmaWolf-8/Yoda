@@ -20,7 +20,10 @@ pub mod assembly;
 pub mod dag;
 pub mod decomposer;
 pub mod protocol;
+pub mod scratchpad;
 pub mod state;
+
+pub use scratchpad::Scratchpad;
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};

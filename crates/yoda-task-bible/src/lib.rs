@@ -12,6 +12,9 @@
 
 pub mod crud;
 pub mod maestro;
+pub mod number_index;
+
+pub use number_index::TaskNumberIndex;
 
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;

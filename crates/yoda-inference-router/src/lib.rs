@@ -20,7 +20,10 @@ pub mod config;
 pub mod dispatch;
 pub mod diversity;
 pub mod health;
+pub mod response_cache;
 pub mod validation;
+
+pub use response_cache::ResponseCache;
 
 use serde::{Deserialize, Serialize};
 

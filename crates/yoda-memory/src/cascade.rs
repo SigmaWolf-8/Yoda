@@ -17,7 +17,7 @@ pub trait ManifoldOrd {
     fn algebraic(&self) -> &TritSeq;
     /// 4. Milesian — Greek-letter numeric sum as TritSeq
     fn milesian_value(&self) -> &TritSeq;
-    /// 5. Historical Figures — (group, period) as TritSeq pair
+    /// 5. Historical Figures — (group, position) as TritSeq pair
     fn historical_figure(&self) -> Option<(&TritSeq, &TritSeq)>;
     /// 6. Chemical Elements — atomic number as TritSeq
     fn chemical_element(&self) -> Option<&TritSeq>;
@@ -35,11 +35,11 @@ pub trait ManifoldOrd {
 ///
 /// Every layer uses only TritSeq or str comparisons — no binary integers.
 ///
-/// **Total-order over optional layers**: when only one side has the
-/// enrichment, we fall back to `Option`'s natural order (`None < Some`),
-/// matching `#[derive(Ord)]` on `Option<T>`. This preserves antisymmetry
-/// and transitivity, which is required because this comparator is the
-/// `Ord` impl used as the AVL key for `IndexedTritSeq`.
+/// **Total-order over optional layers**: when a layer returns `Option` and
+/// only one side is `Some`, we fall back to `Option`'s natural order
+/// (`None < Some`), matching `#[derive(Ord)]` on `Option<T>`. This is
+/// defensive: `IndexedTritSeq` itself uses the plenum convention and never
+/// returns `None`, but foreign impls of `ManifoldOrd` may.
 pub fn manifold_cmp<T: ManifoldOrd>(a: &T, b: &T) -> Ordering {
     let cmp = a.lexicographic().cmp(b.lexicographic());
     if cmp != Ordering::Equal { return cmp; }

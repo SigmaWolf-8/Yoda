@@ -8,10 +8,13 @@
 
 pub mod context;
 pub mod embedding;
+pub mod memory_cache;
 pub mod retention;
 pub mod search;
 pub mod storage;
 pub mod tagging;
+
+pub use memory_cache::MemoryCache;
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};

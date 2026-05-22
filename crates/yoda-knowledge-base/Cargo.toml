@@ -8,6 +8,7 @@ license.workspace = true
 [dependencies]
 yoda-plenumnet-bridge = { path = "../yoda-plenumnet-bridge" }
 yoda-inference-router = { path = "../yoda-inference-router" }
+yoda-memory = { path = "../yoda-memory" }
 tokio.workspace = true
 serde.workspace = true
 serde_json.workspace = true
