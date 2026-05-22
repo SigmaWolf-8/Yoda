@@ -21,7 +21,11 @@ function parsePorts(raw: string): { ports: number[]; error: string | null } {
   return { ports, error: null };
 }
 
-export function DaemonsSettings() {
+export interface DaemonsSettingsProps {
+  onSaved?: (config: { host: string; ports: number[] }) => void;
+}
+
+export function DaemonsSettings({ onSaved }: DaemonsSettingsProps = {}) {
   const { data, isLoading } = useDaemons();
   const updateMutation = useUpdateDaemons();
 
@@ -52,7 +56,8 @@ export function DaemonsSettings() {
     }
     try {
       await updateMutation.mutateAsync({ host: trimmedHost, ports });
-      setStatus({ kind: 'ok', msg: 'Saved — the Array3 monitor will pick this up on its next reload.' });
+      onSaved?.({ host: trimmedHost, ports });
+      setStatus({ kind: 'ok', msg: 'Saved — applied to the live monitor.' });
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : 'Save failed';
       setStatus({ kind: 'err', msg });

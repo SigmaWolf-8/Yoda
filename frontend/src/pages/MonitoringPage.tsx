@@ -1,10 +1,20 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Settings as SettingsIcon, ChevronDown, ChevronUp } from 'lucide-react';
 import { HEADER_H } from '../components/layout/AppShell';
 import { DaemonsSettings } from '../components/settings/DaemonsSettings';
 
 export function MonitoringPage() {
   const [showConfig, setShowConfig] = useState(false);
+  const iframeRef = useRef<HTMLIFrameElement>(null);
+
+  const handleDaemonsSaved = () => {
+    // [TASK-27] Tell the embedded Array3 monitor to re-fetch
+    // /api/settings/engines/daemons and rebuild its node grid in place.
+    iframeRef.current?.contentWindow?.postMessage(
+      { type: 'a3m:reload-daemon-settings' },
+      '*',
+    );
+  };
 
   return (
     <div
@@ -17,6 +27,7 @@ export function MonitoringPage() {
       }}
     >
       <iframe
+        ref={iframeRef}
         src="/array3-monitor.html"
         title="Array3 Monitor"
         style={{
@@ -57,7 +68,7 @@ export function MonitoringPage() {
 
         {showConfig && (
           <div className="mt-2">
-            <DaemonsSettings />
+            <DaemonsSettings onSaved={handleDaemonsSaved} />
           </div>
         )}
       </div>

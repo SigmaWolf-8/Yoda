@@ -1255,6 +1255,39 @@ hydrateConfigInputs();
   }
 })();
 
+// [TASK-27] Hot-reload daemon settings when the host page saves new
+// host/ports — the embedding React app posts {type:'a3m:reload-daemon-settings'}
+// to this iframe so users don't have to refresh.
+async function reloadDaemonSettings(){
+  await fetchDaemonSettings();
+  if(!settingsLoaded)return;
+  clearRelayError();
+  if(pollTimer){clearInterval(pollTimer);pollTimer=null}
+  const ok=await fetchAllNodes();
+  if(ok){
+    isLive=true;refreshScene();connectRelayWss();
+    pollTimer=setInterval(async()=>{
+      if(relayBackoffMs>0){await new Promise(r=>setTimeout(r,relayBackoffMs))}
+      const f=await fetchAllNodes();if(f)refreshScene();
+    },5000);
+  }else{
+    allSlots.length=0;
+    const ports=NODE_PORTS.length?NODE_PORTS:[0,0,0];
+    ports.forEach((port,ni)=>{
+      for(let x=1;x<=3;x++)for(let y=1;y<=3;y++)for(let z=1;z<=3;z++){
+        allSlots.push({rc:[x,y,z],ni,nn:`Node ${ni+1}`,np:port,occ:false,svc:null,st:'available',statusLabel:'Unassigned',ld:0,pt:0,up:'—',la:0,td:0,hb:0});
+      }
+    });
+    refreshScene();
+  }
+}
+window.addEventListener('message',(ev)=>{
+  const d=ev&&ev.data;
+  if(d&&typeof d==='object'&&d.type==='a3m:reload-daemon-settings'){
+    reloadDaemonSettings();
+  }
+});
+
 // Panel toggle
 const panelEl=document.getElementById('panel'),toggleBtn=document.getElementById('panel-toggle');
 let panelVis=true;
