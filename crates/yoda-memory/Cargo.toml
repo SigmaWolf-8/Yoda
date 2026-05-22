@@ -1,0 +1,12 @@
+[package]
+name = "yoda-memory"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Ternary-native persistent AVL memory store with 10-layer indexing cascade for YODA agent state"
+
+[dependencies]
+lazy_static = "1.4"
+
+[dev-dependencies]
