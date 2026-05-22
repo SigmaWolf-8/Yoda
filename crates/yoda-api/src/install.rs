@@ -220,8 +220,15 @@ if ($LASTEXITCODE -ne 0 -or -not (& psql -U postgres -h localhost -d postgres -t
     & psql -U postgres -h localhost -d postgres -c "CREATE DATABASE $DbName OWNER $DbUser;" | Out-Null
 }}
 # Enable required extensions (must be done as superuser).
-& psql -U postgres -h localhost -d $DbName -c 'CREATE EXTENSION IF NOT EXISTS "uuid-ossp";' | Out-Null
-& psql -U postgres -h localhost -d $DbName -c 'CREATE EXTENSION IF NOT EXISTS "pgcrypto";'  | Out-Null
+# Use a temp file so PowerShell's native-arg parser can't strip the double quotes around "uuid-ossp".
+$extSql = Join-Path $env:TEMP 'yoda-extensions.sql'
+@'
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+'@ | Set-Content -Path $extSql -Encoding ASCII
+& psql -U postgres -h localhost -d $DbName -f $extSql
+if ($LASTEXITCODE -ne 0) {{ Write-Error 'Failed to create required Postgres extensions (uuid-ossp, pgcrypto).'; exit 1 }}
+Remove-Item $extSql -Force -ErrorAction SilentlyContinue
 
 # ── [6/8] Apply migrations ──────────────────────────────────────
 Write-Host '[6/8] Applying migrations ...' -ForegroundColor Green
