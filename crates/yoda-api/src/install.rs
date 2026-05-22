@@ -168,17 +168,21 @@ foreach ($cmd in 'rustc','cargo','node','npm','psql') {{
     if (-not (Test-Cmd $cmd)) {{ Write-Error "Required tool '$cmd' still missing after install."; exit 1 }}
 }}
 
-# ── [2/8] Wipe target if non-empty ──────────────────────────────
-if (Test-Path $InstallRoot) {{
-    $existing = Get-ChildItem -Force $InstallRoot -ErrorAction SilentlyContinue
-    if ($existing) {{
-        Write-Host "[2/8] Removing existing $InstallRoot ..." -ForegroundColor Green
-        Remove-Item -Recurse -Force $InstallRoot
-    }}
-}}
+# ── [2/8] Preserve build caches across re-installs ──────────────
+# We DO NOT wipe the whole tree — keeping target\ and frontend\node_modules\
+# turns a 15-min cold build into a ~1-2 min incremental rebuild.
+Write-Host '[2/8] Preserving build caches (target\, node_modules\) ...' -ForegroundColor Green
 New-Item -ItemType Directory -Force -Path $InstallRoot | Out-Null
+$KeepDirs = @('target', 'frontend\node_modules', 'frontend\.vite')
+# Remove everything except the keep-list, so source files refresh but caches stay.
+Get-ChildItem -Force $InstallRoot | ForEach-Object {{
+    $rel = $_.FullName.Substring($InstallRoot.Length).TrimStart('\')
+    $keep = $false
+    foreach ($k in $KeepDirs) {{ if ($rel -eq $k) {{ $keep = $true; break }} }}
+    if (-not $keep) {{ Remove-Item -Recurse -Force $_.FullName -ErrorAction SilentlyContinue }}
+}}
 
-# ── [3/8] Download + extract ────────────────────────────────────
+# ── [3/8] Download + extract (overlays source on top of preserved caches) ─
 Write-Host '[3/8] Downloading + extracting source...' -ForegroundColor Green
 Invoke-WebRequest -Uri $SourceUrl -OutFile $Tarball -UseBasicParsing
 tar -xzf $Tarball -C $InstallRoot
