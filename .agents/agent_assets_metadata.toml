@@ -102,3 +102,9 @@ id = "fGlyC_1yU-dBM5g2S5F6w"
 uri = "file://dist/array3-monitor-fix-bundle.zip"
 type = "unspecified"
 title = "Array3 Monitor Fix Bundle"
+
+[[outputs]]
+id = "-nPamaeTIKwPRuHI1W_y1"
+uri = "file://downloads/yoda-workspace-snapshot.tar.gz"
+type = "unspecified"
+title = "YODA workspace snapshot (front + back end source)"
