@@ -96,94 +96,162 @@ pub async fn windows_installer(Host(host): Host) -> Response {
 
 fn render_ps1(base_url: &str) -> String {
     format!(
-        r#"# YODA local installer (Windows PowerShell)
-# Installs the YODA workspace to C:\Capomastro\Yoda
+        r#"# YODA one-click local installer (Windows PowerShell)
+# Installs everything (Rust, Node, Postgres) via winget, builds, and starts.
 # Usage:
 #   irm {base}/api/install/install.ps1 | iex
-# or save and run:
-#   .\install-yoda.ps1
 
 $ErrorActionPreference = 'Stop'
 $InstallRoot = 'C:\Capomastro\Yoda'
 $SourceUrl   = '{base}/api/install/source.tar.gz'
 $Tarball     = Join-Path $env:TEMP 'yoda-workspace-snapshot.tar.gz'
+$PgPassword  = 'yoda'
+$DbUser      = 'yoda'
+$DbName      = 'yoda'
 
 Write-Host ''
-Write-Host '== YODA Local Installer ==' -ForegroundColor Cyan
+Write-Host '== YODA One-Click Installer ==' -ForegroundColor Cyan
 Write-Host "Target: $InstallRoot"
-Write-Host "Source: $SourceUrl"
 Write-Host ''
 
-# 1. Ensure target dir exists and is empty-ish
+# ── Self-elevate to admin (winget package installs require it) ──
+$me = [Security.Principal.WindowsPrincipal]::new([Security.Principal.WindowsIdentity]::GetCurrent())
+if (-not $me.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {{
+    Write-Host 'Re-launching as Administrator...' -ForegroundColor Yellow
+    $cmd = "irm $SourceUrl.Replace('source.tar.gz','install.ps1') | iex"
+    Start-Process powershell -Verb RunAs -ArgumentList '-NoExit','-Command',"irm {base}/api/install/install.ps1 | iex"
+    exit 0
+}}
+
+function Test-Cmd($name) {{ [bool](Get-Command $name -ErrorAction SilentlyContinue) }}
+
+# Reload PATH from registry so freshly-installed tools resolve in this session.
+function Refresh-Path {{
+    $machine = [Environment]::GetEnvironmentVariable('Path','Machine')
+    $user    = [Environment]::GetEnvironmentVariable('Path','User')
+    $env:Path = "$machine;$user"
+}}
+
+function Ensure-Winget {{
+    if (Test-Cmd winget) {{ return }}
+    Write-Error 'winget not found. Install "App Installer" from Microsoft Store, then re-run.'
+    exit 1
+}}
+
+function Winget-Install($id, $checkCmd) {{
+    if (Test-Cmd $checkCmd) {{ Write-Host "  $checkCmd already installed."; return }}
+    Write-Host "  Installing $id ..." -ForegroundColor Yellow
+    winget install --id $id --silent --accept-source-agreements --accept-package-agreements --disable-interactivity 2>&1 | Out-Null
+    Refresh-Path
+    if (-not (Test-Cmd $checkCmd)) {{
+        Write-Warning "  $id installed but $checkCmd still not on PATH — open a new shell and re-run."
+        exit 1
+    }}
+}}
+
+# ── [1/8] Prerequisites via winget ──────────────────────────────
+Write-Host '[1/8] Installing prerequisites (Rust, Node, Postgres) via winget...' -ForegroundColor Green
+Ensure-Winget
+Winget-Install 'Rustlang.Rustup'       'rustc'
+Winget-Install 'OpenJS.NodeJS.LTS'     'node'
+# Postgres silent install — sets the postgres-superuser password to $PgPassword
+if (-not (Test-Cmd psql)) {{
+    Write-Host '  Installing PostgreSQL.PostgreSQL.16 ...' -ForegroundColor Yellow
+    winget install --id PostgreSQL.PostgreSQL.16 --silent --accept-source-agreements --accept-package-agreements --disable-interactivity --override "--mode unattended --superpassword $PgPassword --servicename postgresql --serviceaccount postgres --servicepassword $PgPassword" 2>&1 | Out-Null
+    Refresh-Path
+    # Postgres binaries land in C:\Program Files\PostgreSQL\<v>\bin — add to PATH for this session
+    $pgBin = Get-ChildItem 'C:\Program Files\PostgreSQL' -ErrorAction SilentlyContinue |
+             Sort-Object Name -Descending | Select-Object -First 1
+    if ($pgBin) {{ $env:Path = "$($pgBin.FullName)\bin;$env:Path" }}
+}}
+foreach ($cmd in 'rustc','cargo','node','npm','psql') {{
+    if (-not (Test-Cmd $cmd)) {{ Write-Error "Required tool '$cmd' still missing after install."; exit 1 }}
+}}
+
+# ── [2/8] Wipe target if non-empty ──────────────────────────────
 if (Test-Path $InstallRoot) {{
     $existing = Get-ChildItem -Force $InstallRoot -ErrorAction SilentlyContinue
     if ($existing) {{
-        Write-Host "Directory $InstallRoot already exists and is not empty." -ForegroundColor Yellow
-        $resp = Read-Host 'Wipe and reinstall? (y/N)'
-        if ($resp -ne 'y' -and $resp -ne 'Y') {{
-            Write-Host 'Aborted.' -ForegroundColor Red
-            exit 1
-        }}
+        Write-Host "[2/8] Removing existing $InstallRoot ..." -ForegroundColor Green
         Remove-Item -Recurse -Force $InstallRoot
     }}
 }}
 New-Item -ItemType Directory -Force -Path $InstallRoot | Out-Null
 
-# 2. Download the tarball
-Write-Host '[1/4] Downloading source tarball...' -ForegroundColor Green
+# ── [3/8] Download + extract ────────────────────────────────────
+Write-Host '[3/8] Downloading + extracting source...' -ForegroundColor Green
 Invoke-WebRequest -Uri $SourceUrl -OutFile $Tarball -UseBasicParsing
-
-# 3. Extract — tar.exe ships with Windows 10 1803+
-Write-Host '[2/4] Extracting to' $InstallRoot '...' -ForegroundColor Green
-if (-not (Get-Command tar -ErrorAction SilentlyContinue)) {{
-    Write-Error 'tar.exe not found. Requires Windows 10 1803+ or install bsdtar.'
-    exit 1
-}}
 tar -xzf $Tarball -C $InstallRoot
-if ($LASTEXITCODE -ne 0) {{
-    Write-Error "tar extraction failed (exit $LASTEXITCODE)"
-    exit 1
-}}
+if ($LASTEXITCODE -ne 0) {{ Write-Error "tar extraction failed"; exit 1 }}
 Remove-Item $Tarball -Force -ErrorAction SilentlyContinue
 
-# 4. Prep .env
-Write-Host '[3/4] Preparing .env ...' -ForegroundColor Green
+# ── [4/8] Configure .env ────────────────────────────────────────
+Write-Host '[4/8] Writing .env ...' -ForegroundColor Green
+$envFile = Join-Path $InstallRoot '.env'
 $envExample = Join-Path $InstallRoot '.env.example'
-$envFile    = Join-Path $InstallRoot '.env'
-if ((Test-Path $envExample) -and -not (Test-Path $envFile)) {{
-    Copy-Item $envExample $envFile
-    Write-Host '  .env created from .env.example — edit DATABASE_URL before first run.'
+if (Test-Path $envExample) {{ Copy-Item $envExample $envFile -Force }} else {{ '' | Set-Content $envFile }}
+$bytes = New-Object byte[] 48
+[Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($bytes)
+$jwt = [Convert]::ToBase64String($bytes)
+$dbUrl = "postgres://${{DbUser}}:${{PgPassword}}@localhost:5432/${{DbName}}"
+# Replace existing keys or append.
+$content = Get-Content $envFile -Raw
+function Set-EnvLine($txt, $key, $val) {{
+    if ($txt -match "(?m)^$key=") {{ return ($txt -replace "(?m)^$key=.*", "$key=$val") }}
+    return ($txt + "`n$key=$val")
+}}
+$content = Set-EnvLine $content 'DATABASE_URL' $dbUrl
+$content = Set-EnvLine $content 'JWT_SECRET'   $jwt
+$content = Set-EnvLine $content 'BIND_PORT'    '3000'
+Set-Content -Path $envFile -Value $content -NoNewline
+
+# ── [5/8] Create db user + db ───────────────────────────────────
+Write-Host '[5/8] Creating Postgres user/db ...' -ForegroundColor Green
+$env:PGPASSWORD = $PgPassword
+$null = & psql -U postgres -h localhost -d postgres -tAc "SELECT 1 FROM pg_roles WHERE rolname='$DbUser'"
+if ($LASTEXITCODE -ne 0) {{ Write-Error 'Cannot connect to Postgres as superuser. Check service.'; exit 1 }}
+& psql -U postgres -h localhost -d postgres -c "DO `$`$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='$DbUser') THEN CREATE ROLE $DbUser LOGIN PASSWORD '$PgPassword'; END IF; END `$`$;" | Out-Null
+& psql -U postgres -h localhost -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname='$DbName'" | Out-Null
+if ($LASTEXITCODE -ne 0 -or -not (& psql -U postgres -h localhost -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname='$DbName'")) {{
+    & psql -U postgres -h localhost -d postgres -c "CREATE DATABASE $DbName OWNER $DbUser;" | Out-Null
 }}
 
-# 5. Prerequisite check (warn only)
-Write-Host '[4/4] Checking prerequisites...' -ForegroundColor Green
-function Test-Cmd($name) {{ [bool](Get-Command $name -ErrorAction SilentlyContinue) }}
-$missing = @()
-foreach ($cmd in 'cargo','rustc','node','npm','psql') {{
-    if (-not (Test-Cmd $cmd)) {{ $missing += $cmd }}
-}}
-if ($missing.Count -gt 0) {{
-    Write-Host ''
-    Write-Host 'Missing prerequisites:' -ForegroundColor Yellow
-    foreach ($m in $missing) {{ Write-Host "  - $m" }}
-    Write-Host 'Install:'
-    Write-Host '  Rust:     https://rustup.rs'
-    Write-Host '  Node.js:  https://nodejs.org  (LTS)'
-    Write-Host '  Postgres: https://www.postgresql.org/download/windows/'
+# ── [6/8] Apply migrations ──────────────────────────────────────
+Write-Host '[6/8] Applying migrations ...' -ForegroundColor Green
+$env:PGPASSWORD = $PgPassword
+Get-ChildItem (Join-Path $InstallRoot 'migrations\*.sql') | Sort-Object Name | ForEach-Object {{
+    Write-Host "    -> $($_.Name)"
+    & psql -U $DbUser -h localhost -d $DbName -f $_.FullName -v ON_ERROR_STOP=0 2>&1 | Out-Null
 }}
 
+# ── [7/8] Build backend + frontend ──────────────────────────────
+Push-Location $InstallRoot
+try {{
+    Write-Host '[7/8] Building backend (cargo build --release — 10-20 min first time) ...' -ForegroundColor Green
+    & cargo build --release --bin yoda-api
+    if ($LASTEXITCODE -ne 0) {{ Write-Error 'cargo build failed'; exit 1 }}
+    Write-Host '       Building frontend (npm install + build) ...' -ForegroundColor Green
+    Push-Location 'frontend'
+    & npm install --no-audit --no-fund
+    if ($LASTEXITCODE -ne 0) {{ Write-Error 'npm install failed'; exit 1 }}
+    & npm run build
+    if ($LASTEXITCODE -ne 0) {{ Write-Error 'npm run build failed'; exit 1 }}
+    Pop-Location
+}} finally {{ Pop-Location }}
+
+# ── [8/8] Start the server ──────────────────────────────────────
+Write-Host '[8/8] Starting YODA on http://localhost:3000 ...' -ForegroundColor Green
+$exe = Join-Path $InstallRoot 'target\release\yoda-api.exe'
+Start-Process -FilePath $exe -WorkingDirectory $InstallRoot
+Start-Sleep -Seconds 3
+Start-Process 'http://localhost:3000'
+
 Write-Host ''
-Write-Host '== Source installed. Manual build steps: ==' -ForegroundColor Cyan
-Write-Host "  cd $InstallRoot"
-Write-Host '  notepad .env             # set DATABASE_URL, JWT_SECRET'
-Write-Host '  cargo build --release    # backend (10-20 min first time)'
-Write-Host '  cd frontend; npm install; npm run build; cd ..'
-Write-Host '  # Apply migrations (requires running Postgres):'
-Write-Host '  Get-ChildItem migrations\*.sql | ForEach-Object {{ psql $env:DATABASE_URL -f $_.FullName }}'
-Write-Host '  # Start:'
-Write-Host '  .\target\release\yoda-api.exe'
+Write-Host '== Done. YODA is running at http://localhost:3000 ==' -ForegroundColor Cyan
+Write-Host "Source:   $InstallRoot"
+Write-Host "Env:      $envFile"
+Write-Host "Database: $dbUrl"
 Write-Host ''
-Write-Host 'Done.' -ForegroundColor Green
 "#,
         base = base_url
     )
