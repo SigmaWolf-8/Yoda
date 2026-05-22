@@ -1,0 +1,53 @@
+Windows PowerShell
+Copyright (C) Microsoft Corporation. All rights reserved.
+
+Install the latest PowerShell for new features and improvements! https://aka.ms/PSWindows
+
+PS C:\Users\Sigma> irm https://0b8189a6-fe12-47da-9ef6-8bfebaf376ec-00-pjc4vxuvmpgt.picard.replit.dev/api/install/install.ps1 | iex
+
+== YODA Local Installer ==
+Target: C:\Capomastro\Yoda
+Source: https://0b8189a6-fe12-47da-9ef6-8bfebaf376ec-00-pjc4vxuvmpgt.picard.replit.dev/api/install/source.tar.gz
+
+Directory C:\Capomastro\Yoda already exists and is not empty.
+Wipe and reinstall? (y/N): y
+Remove-Item : Cannot find path 'C:\Capomastro\Yoda' because it does not exist.
+At line:29 char:9
++         Remove-Item -Recurse -Force $InstallRoot
++         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ObjectNotFound: (C:\Capomastro\Yoda:String) [Remove-Item], ItemNotFoundException
+    + FullyQualifiedErrorId : PathNotFound,Microsoft.PowerShell.Commands.RemoveItemCommand
+
+PS C:\Users\Sigma> irm https://0b8189a6-fe12-47da-9ef6-8bfebaf376ec-00-pjc4vxuvmpgt.picard.replit.dev/api/install/install.ps1 | iex
+
+== YODA Local Installer ==
+Target: C:\Capomastro\Yoda
+Source: https://0b8189a6-fe12-47da-9ef6-8bfebaf376ec-00-pjc4vxuvmpgt.picard.replit.dev/api/install/source.tar.gz
+
+Directory C:\Capomastro\Yoda already exists and is not empty.
+Wipe and reinstall? (y/N): y
+[1/4] Downloading source tarball...
+[2/4] Extracting to C:\Capomastro\Yoda ...
+[3/4] Preparing .env ...
+  .env created from .env.example — edit DATABASE_URL before first run.
+[4/4] Checking prerequisites...
+
+Missing prerequisites:
+  - psql
+Install:
+  Rust:     https://rustup.rs
+  Node.js:  https://nodejs.org  (LTS)
+  Postgres: https://www.postgresql.org/download/windows/
+
+== Source installed. Manual build steps: ==
+  cd C:\Capomastro\Yoda
+  notepad .env             # set DATABASE_URL, JWT_SECRET
+  cargo build --release    # backend (10-20 min first time)
+  cd frontend; npm install; npm run build; cd ..
+  # Apply migrations (requires running Postgres):
+  Get-ChildItem migrations\*.sql | ForEach-Object { psql $env:DATABASE_URL -f $_.FullName }
+  # Start:
+  .\target\release\yoda-api.exe
+
+Done.
+PS C:\Users\Sigma>
