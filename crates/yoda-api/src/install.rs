@@ -215,6 +215,9 @@ if ($LASTEXITCODE -ne 0) {{ Write-Error 'Cannot connect to Postgres as superuser
 if ($LASTEXITCODE -ne 0 -or -not (& psql -U postgres -h localhost -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname='$DbName'")) {{
     & psql -U postgres -h localhost -d postgres -c "CREATE DATABASE $DbName OWNER $DbUser;" | Out-Null
 }}
+# Enable required extensions (must be done as superuser).
+& psql -U postgres -h localhost -d $DbName -c 'CREATE EXTENSION IF NOT EXISTS "uuid-ossp";' | Out-Null
+& psql -U postgres -h localhost -d $DbName -c 'CREATE EXTENSION IF NOT EXISTS "pgcrypto";'  | Out-Null
 
 # ── [6/8] Apply migrations ──────────────────────────────────────
 Write-Host '[6/8] Applying migrations ...' -ForegroundColor Green
