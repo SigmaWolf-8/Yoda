@@ -161,19 +161,16 @@
   </div>
   <div class="sec">
     <div class="stit">Daemon Config</div>
-    <div id="ports-display" style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#E4DFD5;margin-bottom:6px">Ports —</div>
+    <!-- Task #26: host + ports now live in Settings → Engines (server side,
+         via PUT /api/settings/engines body {daemons:{host,ports}}).  The
+         monitor only keeps the relay token here, persisted in localStorage
+         as `a3m.relayToken`. -->
+    <div id="diag-strip" style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#E4DFD5;margin-bottom:8px;padding:6px 8px;background:var(--bg-surface);border:1px solid var(--bg-border);border-radius:5px;line-height:1.5"><span style="color:var(--text-faint)">Settings — loading…</span></div>
     <input type="password" id="cfg-token" placeholder="Relay token (RELAY_API_TOKEN)" autocomplete="off" style="width:100%;padding:6px 10px;background:var(--bg-surface);border:1px solid var(--bg-border);border-radius:5px;color:var(--text-body);font-family:'JetBrains Mono',monospace;font-size:11px;outline:none;margin-bottom:6px">
-    <input type="text" id="cfg-host" placeholder="Daemon host (blank = this page's origin; e.g. 100.64.1.2 or https://tunnel.ngrok.io)" autocomplete="off" spellcheck="false" style="width:100%;padding:6px 10px;background:var(--bg-surface);border:1px solid var(--bg-border);border-radius:5px;color:var(--text-body);font-family:'JetBrains Mono',monospace;font-size:11px;outline:none;margin-bottom:6px">
-    <div style="display:flex;gap:4px;margin-bottom:6px">
-      <input type="number" id="cfg-p1" min="1" max="65535" placeholder="N1 port" style="width:33%;padding:6px 6px;background:var(--bg-surface);border:1px solid var(--bg-border);border-radius:5px;color:var(--text-body);font-family:'JetBrains Mono',monospace;font-size:11px;outline:none;text-align:center">
-      <input type="number" id="cfg-p2" min="1" max="65535" placeholder="N2 port" style="width:33%;padding:6px 6px;background:var(--bg-surface);border:1px solid var(--bg-border);border-radius:5px;color:var(--text-body);font-family:'JetBrains Mono',monospace;font-size:11px;outline:none;text-align:center">
-      <input type="number" id="cfg-p3" min="1" max="65535" placeholder="N3 port" style="width:33%;padding:6px 6px;background:var(--bg-surface);border:1px solid var(--bg-border);border-radius:5px;color:var(--text-body);font-family:'JetBrains Mono',monospace;font-size:11px;outline:none;text-align:center">
-    </div>
     <div style="display:flex;gap:4px">
-      <button id="cfg-save" style="flex:1;padding:6px;background:rgba(74,158,245,0.12);border:1px solid rgba(74,158,245,0.3);color:var(--accent-blue);border-radius:5px;cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:11px;transition:all 0.15s">Save &amp; Reconnect</button>
-      <button id="cfg-reset" title="Reset to defaults (21124/21151/21178)" style="padding:6px 10px;background:transparent;border:1px solid var(--bg-border);color:var(--text-label);border-radius:5px;cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:11px">Reset</button>
+      <button id="cfg-save" style="flex:1;padding:6px;background:rgba(74,158,245,0.12);border:1px solid rgba(74,158,245,0.3);color:var(--accent-blue);border-radius:5px;cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:11px;transition:all 0.15s">Save token &amp; Reconnect</button>
     </div>
-    <div id="cfg-status" style="font-size:10px;color:var(--text-faint);margin-top:6px;text-align:center;min-height:12px"></div>
+    <div id="cfg-status" style="font-size:10px;color:var(--text-faint);margin-top:6px;text-align:center;min-height:12px">Daemon host &amp; ports: edit in Settings → Engines.</div>
   </div>
   <div class="sec">
     <div class="stit">Connection (ops)</div>
@@ -581,27 +578,117 @@ const _isLocal=window.location.protocol==='file:'||!window.location.hostname||wi
 // or public DNS name) we use it verbatim. Otherwise we fall back to the
 // page's own origin (which only works when the browser is on the same
 // machine as the daemons, e.g. served from localhost).
+// [TASK-26] Daemon host + ports are no longer baked into this file.
+// They come from `GET /api/settings/engines` (authed; daemons:{host,ports}
+// block — extended in task #26).  Until that fetch lands we
+// have NO daemon coordinates — fetchAllNodes() will short-circuit and
+// the diag strip will surface the failure.
 function _parseHost(raw){
   if(!raw)return null;
   const s=String(raw).trim();if(!s)return null;
-  // Allow "1.2.3.4", "host.example.com", "https://host:8443", "http://host"
   if(/^https?:\/\//i.test(s)){
-    try{const u=new URL(s);return{proto:u.protocol,host:u.hostname,portOverride:u.port||null}}catch{return null}
+    try{const u=new URL(s);return{proto:u.protocol,host:u.hostname}}catch{return null}
   }
-  return{proto:_isLocal?'http:':window.location.protocol,host:s,portOverride:null};
+  return{proto:_isLocal?'http:':window.location.protocol,host:s};
 }
-let DAEMON_HOST_OVERRIDE=null;
-try{DAEMON_HOST_OVERRIDE=_parseHost(localStorage.getItem('a3m.daemonHost'))}catch{}
-let DAEMON_HOST=DAEMON_HOST_OVERRIDE?.host||(_isLocal?'127.0.0.1':window.location.hostname);
-let DAEMON_PROTO=DAEMON_HOST_OVERRIDE?.proto||(_isLocal?'http:':window.location.protocol);
-const NODE_PORTS_DEFAULT=[21124,21151,21178];
-let NODE_PORTS=(()=>{
-  try{const s=JSON.parse(localStorage.getItem('a3m.nodePorts')||'null');
-    if(Array.isArray(s)&&s.length===3&&s.every(n=>Number.isInteger(n)&&n>0&&n<65536))return s;
-  }catch{}
-  return NODE_PORTS_DEFAULT.slice();
-})();
+let DAEMON_HOST=null;     // populated by fetchDaemonSettings()
+let DAEMON_PROTO=null;    // populated by fetchDaemonSettings()
+let NODE_PORTS=[];        // populated by fetchDaemonSettings()
+let settingsLoaded=false;
+let settingsError=null;
 function nodeUrl(port,path){return `${DAEMON_PROTO}//${DAEMON_HOST}:${port}${path}`}
+
+// ─── Diagnostic strip (task #26) ──────────────────────────────────────
+// Spec:
+//  • On a healthy install, every row is green and the strip auto-hides
+//    after 3.5 s.
+//  • On a broken install it stays visible and names each failing check
+//    by label (Daemon <port> — <error type>).
+//  • If `/api/settings/engines` itself fails, the strip emits one row
+//    "Settings endpoint — FAIL — <error>" and stops.  No silent fallback
+//    to a baked-in port list.
+let daemonStatus={};      // {port -> {ok, label}}  populated by fetchAllNodes
+let diagHideTimer=null;
+function _esc(s){return String(s).replace(/[<>&]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]))}
+function _row(color,label,detail){
+  return '<div><span style="color:'+color+'">'+_esc(label)+'</span>'+
+    (detail?' <span style="color:var(--text-faint)">— '+_esc(detail)+'</span>':'')+'</div>';
+}
+function renderDiagStrip(){
+  const el=document.getElementById('diag-strip');
+  if(!el)return;
+  if(diagHideTimer){clearTimeout(diagHideTimer);diagHideTimer=null}
+  el.style.display='';
+
+  // Settings-endpoint failure short-circuits — show one row and stop.
+  if(settingsError){
+    el.innerHTML=_row('#E24B4A','Settings endpoint — FAIL',settingsError);
+    return;
+  }
+  if(!settingsLoaded){
+    el.innerHTML=_row('var(--text-faint)','Settings — loading…','');
+    return;
+  }
+
+  // Settings row + one row per daemon port.
+  const rows=[_row('#7FD2A1','Settings — OK','Host '+DAEMON_HOST+' · Ports '+NODE_PORTS.join(' · '))];
+  let allGreen=true;
+  NODE_PORTS.forEach(p=>{
+    const s=daemonStatus[p];
+    if(!s){
+      rows.push(_row('var(--text-faint)','Daemon '+p+' — pending',''));
+      allGreen=false;
+    }else if(s.ok){
+      rows.push(_row('#7FD2A1','Daemon '+p+' — OK',s.label||''));
+    }else{
+      rows.push(_row('#E24B4A','Daemon '+p+' — '+(s.label||'fail'),s.detail||''));
+      allGreen=false;
+    }
+  });
+  el.innerHTML=rows.join('');
+
+  // All green → auto-hide at 3.5 s.
+  if(allGreen&&NODE_PORTS.length>0){
+    diagHideTimer=setTimeout(()=>{
+      const el2=document.getElementById('diag-strip');
+      if(el2)el2.style.display='none';
+    },3500);
+  }
+}
+
+async function fetchDaemonSettings(){
+  // Source-of-truth lives in /api/settings/engines (extended in task #26
+  // to include a daemons:{host,ports} block).  Endpoint is authed; the
+  // monitor uses whichever YODA bearer the host page stashed in
+  // localStorage.  On any failure the diag strip short-circuits to
+  // "Settings endpoint — FAIL" — there is no baked-in port fallback.
+  const headers={};
+  try{const tok=localStorage.getItem('yoda_token');if(tok)headers['Authorization']='Bearer '+tok}catch{}
+  try{
+    const resp=await fetch('/api/settings/engines',{headers,cache:'no-store'});
+    if(!resp.ok)throw new Error('HTTP '+resp.status);
+    const body=await resp.json();
+    const d=body&&body.daemons;
+    if(!d||typeof d.host!=='string'||!Array.isArray(d.ports)||d.ports.length===0){
+      throw new Error('Malformed response — daemons block missing');
+    }
+    const parsed=_parseHost(d.host)||{proto:_isLocal?'http:':window.location.protocol,host:d.host};
+    DAEMON_HOST=parsed.host;
+    DAEMON_PROTO=parsed.proto;
+    NODE_PORTS=d.ports.slice();
+    daemonStatus={}; // reset per-port rows for the new port set
+    settingsLoaded=true;
+    settingsError=null;
+    return true;
+  }catch(e){
+    settingsLoaded=false;
+    settingsError=e.message||String(e);
+    console.warn('[monitor] /api/settings/engines fetch failed:',settingsError);
+    return false;
+  }finally{
+    renderDiagStrip();
+  }
+}
 
 let isLive=false,pollTimer=null;
 let relayUrl='https://plenumnet.replit.app',apiKey='';
@@ -707,7 +794,10 @@ function transformNode(nodeData,ni){
 // (*.picard.replit.dev, *.replit.dev, etc.) — the daemons are NOT reachable
 // at `window.location.hostname:11488`; that hostname is just the page's own
 // server. Default to relay routing in that case.
-let useRelay=!_isLocal && !DAEMON_HOST_OVERRIDE;
+// [TASK-26] Daemon host comes from settings now.  We default to relay
+// routing on remote origins; if the user has configured a non-loopback
+// host on the server side, we still prefer direct daemon probing.
+let useRelay=!_isLocal;
 let lastFetchDiagnostic=null;
 // [YODA-EMBED] When this HUD is embedded in a host that is NOT the relay
 // itself (e.g. served as /array3-monitor.html from the YODA app), always
@@ -780,10 +870,10 @@ function clearRelayError(){
 }
 
 function showSetupBanner(){
-  // Frozen centered modal removed. Instead: surface the message in the
-  // status line and auto-open the side panel so the user lands on the
-  // Daemon Config inputs (token + ports) and can fix things in place.
-  connStatus.textContent='\u{1F527} Setup required — open the \u2699 panel and set your token / ports';
+  // Surface the missing relay token in the status line and auto-open the
+  // side panel so the user can paste it in #cfg-token.  Daemon host & ports
+  // are NOT edited here — they live in Settings → Engines (task #26).
+  connStatus.textContent='\u{1F527} Setup required — open the \u2699 panel and paste your relay token';
   connStatus.style.color='#DD6B20';
   const panel=document.getElementById('panel');
   const toggle=document.getElementById('panel-toggle');
@@ -793,7 +883,7 @@ function showSetupBanner(){
   }
   const cfgStatus=document.getElementById('cfg-status');
   if(cfgStatus){
-    cfgStatus.textContent='Paste your relay token below, then Save & Reconnect.';
+    cfgStatus.textContent='Paste your relay token below, then Save & Reconnect. (Daemon host & ports: Settings → Engines.)';
     cfgStatus.style.color='#DD6B20';
   }
 }
@@ -939,6 +1029,27 @@ async function fetchAllNodes(){
       }
     }
     const upCount=results.filter(r=>r.alive).length;
+
+    // [task #26] Feed per-port results into the diag strip.  Each daemon
+    // gets its own row (OK / timeout / auth / unreachable / server-NNN),
+    // and the strip auto-hides at 3.5 s when every row is green.
+    if(NODE_PORTS.length>0){
+      const next={};
+      results.forEach((r,i)=>{
+        const port=r.port||NODE_PORTS[i];
+        if(!port)return;
+        if(r.alive){
+          const occ=r.slots?(r.slots.summary?.occupied||0):0;
+          next[port]={ok:true,label:occ+' svc'};
+        }else{
+          const et=r.errorType||'unreachable';
+          next[port]={ok:false,label:et,detail:r.error||''};
+        }
+      });
+      daemonStatus=next;
+      renderDiagStrip();
+    }
+
     // [HOST-FIX] Record diagnostic so the Daemon Config save handler can show
     // a precise failure reason instead of the generic "check token/ports".
     lastFetchDiagnostic={
@@ -1063,51 +1174,25 @@ connBtn.addEventListener('click',async()=>{
 });
 
 // ═══════════════════════════════════════════════════════
-// DAEMON CONFIG PANEL — token + ports, persisted to localStorage
+// [TASK-26] DAEMON CONFIG PANEL — token only.  Host + ports moved to
+// Settings → Engines (server-side, /api/settings/engines daemons block).
+// Reapplied task #16: relay token persists in localStorage `a3m.relayToken`.
 // ═══════════════════════════════════════════════════════
-function renderPortsDisplay(){
-  const d=document.getElementById('ports-display');
-  if(d)d.textContent='Ports '+NODE_PORTS.join(' · ');
-}
 function hydrateConfigInputs(){
   const t=document.getElementById('cfg-token');if(t)t.value=RELAY_AUTH_TOKEN||'';
-  const h=document.getElementById('cfg-host');
-  if(h)h.value=localStorage.getItem('a3m.daemonHost')||'';
-  const ids=['cfg-p1','cfg-p2','cfg-p3'];
-  ids.forEach((id,i)=>{const el=document.getElementById(id);if(el)el.value=NODE_PORTS[i]});
-  renderPortsDisplay();
 }
 async function applyConfigAndReconnect(){
   const cfgStatus=document.getElementById('cfg-status');
   const tokenEl=document.getElementById('cfg-token');
-  const ports=['cfg-p1','cfg-p2','cfg-p3'].map(id=>parseInt(document.getElementById(id).value,10));
-  if(ports.some(p=>!Number.isInteger(p)||p<1||p>65535)){
-    if(cfgStatus){cfgStatus.textContent='Invalid port — must be 1–65535';cfgStatus.style.color='#E24B4A'}
-    return;
-  }
   const newToken=(tokenEl?tokenEl.value:'').trim();
-  const hostEl=document.getElementById('cfg-host');
-  const newHostRaw=(hostEl?hostEl.value:'').trim();
-  const parsedHost=_parseHost(newHostRaw);
-  if(newHostRaw&&!parsedHost){
-    if(cfgStatus){cfgStatus.textContent='Invalid host — use IP, hostname, or http(s)://… URL';cfgStatus.style.color='#E24B4A'}
+  RELAY_AUTH_TOKEN=newToken;
+  try{localStorage.setItem('a3m.relayToken',newToken)}catch{}
+  // Re-pull host/ports in case Settings changed since last load
+  await fetchDaemonSettings();
+  if(!settingsLoaded){
+    if(cfgStatus){cfgStatus.textContent='Settings endpoint unavailable — see diag strip above.';cfgStatus.style.color='#E24B4A'}
     return;
   }
-  RELAY_AUTH_TOKEN=newToken;
-  NODE_PORTS=ports;
-  if(parsedHost){
-    DAEMON_HOST=parsedHost.host;DAEMON_PROTO=parsedHost.proto;
-  }else{
-    DAEMON_HOST=_isLocal?'127.0.0.1':window.location.hostname;
-    DAEMON_PROTO=_isLocal?'http:':window.location.protocol;
-  }
-  try{localStorage.setItem('a3m.relayToken',newToken)}catch{}
-  try{localStorage.setItem('a3m.nodePorts',JSON.stringify(ports))}catch{}
-  try{
-    if(newHostRaw)localStorage.setItem('a3m.daemonHost',newHostRaw);
-    else localStorage.removeItem('a3m.daemonHost');
-  }catch{}
-  renderPortsDisplay();
   // Remove any stale relay-error overlay from a previous bad config
   clearRelayError();
   if(cfgStatus){cfgStatus.textContent='Saved. Reconnecting…';cfgStatus.style.color=CSS.blueActive}
@@ -1144,18 +1229,15 @@ async function applyConfigAndReconnect(){
   }
 }
 document.getElementById('cfg-save')?.addEventListener('click',applyConfigAndReconnect);
-document.getElementById('cfg-reset')?.addEventListener('click',()=>{
-  document.getElementById('cfg-p1').value=NODE_PORTS_DEFAULT[0];
-  document.getElementById('cfg-p2').value=NODE_PORTS_DEFAULT[1];
-  document.getElementById('cfg-p3').value=NODE_PORTS_DEFAULT[2];
-  const cfgStatus=document.getElementById('cfg-status');
-  if(cfgStatus){cfgStatus.textContent='Defaults loaded — click Save & Reconnect to apply';cfgStatus.style.color=CSS.label}
-});
 hydrateConfigInputs();
 
-// [FIX-6] Auto-connect IIFE now also establishes WSS relay
+// [TASK-26] Auto-connect IIFE — fetch daemon settings FIRST so
+// fetchAllNodes() has host + ports to probe.  If settings fail, the
+// diag strip surfaces "Settings endpoint — FAIL" and we draw an empty
+// 3×3×3 placeholder with port 0 (so the user still sees the scene).
 (async()=>{
-  const ok=await fetchAllNodes();
+  await fetchDaemonSettings();
+  const ok=settingsLoaded&&await fetchAllNodes();
   if(ok){isLive=true;refreshScene();
     connectRelayWss();
     pollTimer=setInterval(async()=>{
@@ -1163,7 +1245,8 @@ hydrateConfigInputs();
       const f=await fetchAllNodes();if(f)refreshScene()
     },5000);
   }else{
-    NODE_PORTS.forEach((port,ni)=>{
+    const ports=NODE_PORTS.length?NODE_PORTS:[0,0,0];
+    ports.forEach((port,ni)=>{
       for(let x=1;x<=3;x++)for(let y=1;y<=3;y++)for(let z=1;z<=3;z++){
         allSlots.push({rc:[x,y,z],ni,nn:`Node ${ni+1}`,np:port,occ:false,svc:null,st:'available',statusLabel:'Unassigned',ld:0,pt:0,up:'—',la:0,td:0,hb:0});
       }

@@ -8,6 +8,17 @@ import type {
   ModelLineageMap,
 } from '../../types';
 
+// ── Task #26: Daemon host/ports (Array3 monitor source-of-truth) ──
+export interface DaemonsConfig {
+  host: string;
+  ports: number[];
+}
+
+interface EnginesSettingsResponse {
+  engines: EngineConfig[];
+  daemons: DaemonsConfig;
+}
+
 interface UseEngineConfigsOptions {
   refetchInterval?: number | false;
 }
@@ -16,10 +27,36 @@ export function useEngineConfigs(options: UseEngineConfigsOptions = {}) {
   return useQuery({
     queryKey: ['engines'],
     queryFn: async () => {
-      const res = await apiClient.get<{ engines: EngineConfig[] }>('/settings/engines');
+      const res = await apiClient.get<EnginesSettingsResponse>('/settings/engines');
       return res.data.engines;
     },
     refetchInterval: options.refetchInterval,
+  });
+}
+
+export function useDaemons() {
+  return useQuery({
+    queryKey: ['engines', 'daemons'],
+    queryFn: async () => {
+      const res = await apiClient.get<EnginesSettingsResponse>('/settings/engines');
+      return res.data.daemons;
+    },
+  });
+}
+
+export function useUpdateDaemons() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (payload: DaemonsConfig) => {
+      const res = await apiClient.put<{ daemons: DaemonsConfig }>('/settings/engines', {
+        daemons: payload,
+      });
+      return res.data.daemons;
+    },
+    onSuccess: () => {
+      // Same backing endpoint feeds both queries — invalidate both.
+      qc.invalidateQueries({ queryKey: ['engines'] });
+    },
   });
 }
 

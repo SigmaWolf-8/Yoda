@@ -99,8 +99,10 @@ pub fn build_router(state: AppState) -> Router {
         .route("/api/audit/{task_id}", get(audit::get_audit_log))
         .route("/api/audit/{task_id}/export/json", get(audit::export_audit_json))
 
-        // Engine configuration
+        // Engine configuration (GET returns engines + daemons block;
+        // PUT root accepts a partial body such as {daemons:{host,ports}})
         .route("/api/settings/engines", get(get_engines))
+        .route("/api/settings/engines", put(update_engines_settings))
         .route("/api/settings/engines/{slot}", put(update_engine))
         .route("/api/settings/engines/{slot}", delete(clear_engine))
         .route("/api/settings/engines/{slot}/probe", get(probe_engine))
@@ -716,6 +718,36 @@ fn default_yoda_prompt() -> String {
 }
 
 // ─── Engines ─────────────────────────────────────────────────────────
+//
+// `GET /api/settings/engines` returns both the per-slot engine configs
+// AND the singleton `daemons:{host,ports}` block (task #26) that tells
+// the Array3 monitor where to probe the three Kernel HTTP daemons.
+//
+// `PUT /api/settings/engines` accepts a partial body — currently only
+// `{daemons:{host,ports}}`.  Per-slot engine writes still go through
+// `PUT /api/settings/engines/{slot}`.
+
+/// Load the singleton daemon row, falling back to defaults when the
+/// table is empty (covers fresh databases pre-migration-#26).
+async fn load_daemons(db: &sqlx::PgPool) -> Result<(String, Vec<i32>), sqlx::Error> {
+    let row = sqlx::query_as::<_, (String, Vec<i32>)>(
+        "SELECT host, ports FROM daemon_config WHERE id = 1",
+    )
+    .fetch_optional(db)
+    .await?;
+    Ok(row.unwrap_or_else(|| ("127.0.0.1".to_string(), vec![11488, 11515, 11906])))
+}
+
+#[derive(Debug, Deserialize)]
+struct DaemonsPayload {
+    host: String,
+    ports: Vec<i32>,
+}
+
+#[derive(Debug, Deserialize)]
+struct UpdateEnginesSettingsRequest {
+    daemons: Option<DaemonsPayload>,
+}
 
 async fn get_engines(
     State(state): State<AppState>,
@@ -729,7 +761,60 @@ async fn get_engines(
         "model_name":mn,"model_family":mf,"family_override":fo,"health_status":hs,"avg_latency_ms":al,
         "cube_endpoint_url":ce,"is_disabled":dis
     })).collect();
-    Ok(Json(serde_json::json!({ "engines": engines })))
+
+    let (host, ports) = load_daemons(&state.db).await.map_err(AppError::Database)?;
+    Ok(Json(serde_json::json!({
+        "engines": engines,
+        "daemons": { "host": host, "ports": ports },
+    })))
+}
+
+/// PUT `/api/settings/engines` — currently accepts only the daemons block.
+/// Per-slot engine updates use `PUT /api/settings/engines/{slot}` instead.
+async fn update_engines_settings(
+    State(state): State<AppState>,
+    _user: axum::Extension<auth::AuthenticatedUser>,
+    Json(req): Json<UpdateEnginesSettingsRequest>,
+) -> Result<Json<serde_json::Value>, AppError> {
+    if let Some(d) = req.daemons {
+        let host = d.host.trim().to_string();
+        if host.is_empty() {
+            return Err(AppError::Validation("Daemon host must not be empty".into()));
+        }
+        if host.len() > 253 || host.chars().any(|c| c.is_whitespace()) {
+            return Err(AppError::Validation("Daemon host is not a valid hostname or IP".into()));
+        }
+        if d.ports.is_empty() {
+            return Err(AppError::Validation("At least one daemon port required".into()));
+        }
+        for &p in &d.ports {
+            if !(1..=65535).contains(&p) {
+                return Err(AppError::Validation(format!("Port {} out of range 1–65535", p)));
+            }
+        }
+        let mut seen = std::collections::HashSet::new();
+        for &p in &d.ports {
+            if !seen.insert(p) {
+                return Err(AppError::Validation(format!("Duplicate port: {}", p)));
+            }
+        }
+
+        sqlx::query(
+            "INSERT INTO daemon_config (id, host, ports, updated_at) \
+             VALUES (1, $1, $2, now()) \
+             ON CONFLICT (id) DO UPDATE SET host = $1, ports = $2, updated_at = now()",
+        )
+        .bind(&host)
+        .bind(&d.ports)
+        .execute(&state.db)
+        .await
+        .map_err(AppError::Database)?;
+    }
+
+    let (host, ports) = load_daemons(&state.db).await.map_err(AppError::Database)?;
+    Ok(Json(serde_json::json!({
+        "daemons": { "host": host, "ports": ports },
+    })))
 }
 
 #[derive(Debug, Deserialize)]

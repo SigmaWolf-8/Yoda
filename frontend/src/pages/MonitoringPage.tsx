@@ -1,6 +1,11 @@
+import { useState } from 'react';
+import { Settings as SettingsIcon, ChevronDown, ChevronUp } from 'lucide-react';
 import { HEADER_H } from '../components/layout/AppShell';
+import { DaemonsSettings } from '../components/settings/DaemonsSettings';
 
 export function MonitoringPage() {
+  const [showConfig, setShowConfig] = useState(false);
+
   return (
     <div
       style={{
@@ -13,7 +18,7 @@ export function MonitoringPage() {
     >
       <iframe
         src="/array3-monitor.html"
-        title="Array3 Monitor v9.4.6"
+        title="Array3 Monitor"
         style={{
           position: 'absolute',
           inset: 0,
@@ -24,6 +29,38 @@ export function MonitoringPage() {
           display: 'block',
         }}
       />
+
+      {/* Floating Daemon Settings panel — collapsed by default so the
+          monitor remains the focus.  Edits PUT /api/settings/engines
+          and take effect on the monitor's next reload. */}
+      <div
+        style={{
+          position: 'absolute',
+          top: 16,
+          right: 16,
+          width: showConfig ? 'min(420px, 92vw)' : 'auto',
+          maxHeight: `calc(100vh - ${HEADER_H + 32}px)`,
+          overflowY: 'auto',
+          zIndex: 50,
+        }}
+      >
+        <button
+          type="button"
+          onClick={() => setShowConfig((v) => !v)}
+          className="flex items-center gap-2 px-3 py-2 rounded-lg bg-[var(--color-surface-primary)]/90 backdrop-blur border border-[var(--color-border-default)] text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:border-[var(--color-border-strong)] transition-colors shadow-lg"
+          title="Configure Array3 daemon host & ports"
+        >
+          <SettingsIcon className="w-4 h-4" />
+          <span>Daemon settings</span>
+          {showConfig ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+        </button>
+
+        {showConfig && (
+          <div className="mt-2">
+            <DaemonsSettings />
+          </div>
+        )}
+      </div>
     </div>
   );
 }
