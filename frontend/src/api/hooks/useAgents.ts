@@ -121,6 +121,32 @@ export function useAgentSyncStatus() {
   });
 }
 
+export interface UploadAgentsResult {
+  success: boolean;
+  uploaded: { filename: string; saved_path: string; agent_id: string; division: string }[];
+  skipped: { filename: string; reason: string }[];
+  agents_compiled: number;
+  message: string;
+}
+
+export function useUploadAgents() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (files: File[]) => {
+      const form = new FormData();
+      for (const f of files) form.append('files', f, f.name);
+      const res = await apiClient.post<UploadAgentsResult>('/agents/upload', form, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      return res.data;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['agents'] });
+      qc.invalidateQueries({ queryKey: ['agentSyncStatus'] });
+    },
+  });
+}
+
 export function useImportAgents() {
   const qc = useQueryClient();
   return useMutation({

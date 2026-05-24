@@ -325,7 +325,7 @@ pub async fn submit_query(
         match decomposer::decompose_query(
             &state.http_client,
             &engine_config,
-            agent,
+            &agent,
             &req.text,
             project_id,
             mode,

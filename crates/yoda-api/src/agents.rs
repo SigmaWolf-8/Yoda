@@ -7,15 +7,39 @@
 //!   POST /api/agents/sync         — pull from upstream + recompile
 //!   POST /api/agents/review       — approve/reject new agents
 
-use axum::{extract::State, Json};
+use axum::{extract::{Multipart, State}, Json};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use crate::auth::AuthenticatedUser;
 use crate::error::AppError;
 use crate::state::AppState;
+
+/// Require the authenticated user to be an owner/admin of their current org.
+/// Roster-mutating endpoints (upload, sync, review) affect global agent state
+/// shared by all tenants, so they must not be open to ordinary members.
+async fn require_org_admin(
+    state: &AppState,
+    user: &AuthenticatedUser,
+) -> Result<(), AppError> {
+    let role: Option<String> = sqlx::query_scalar(
+        "SELECT role FROM org_members WHERE user_id = $1 AND org_id = $2",
+    )
+    .bind(user.user_id)
+    .bind(user.org_id)
+    .fetch_optional(&state.db)
+    .await
+    .map_err(|e| AppError::Internal(format!("role lookup failed: {}", e)))?;
+
+    match role.as_deref() {
+        Some("owner") | Some("admin") => Ok(()),
+        _ => Err(AppError::Forbidden(
+            "Only org owners/admins may modify the agent roster".into(),
+        )),
+    }
+}
 
 // ─── Agent Roster ────────────────────────────────────────────────────
 
@@ -54,7 +78,7 @@ pub async fn list_agents(
     let mut capomastro_count = 0;
 
     for agent_id in state.agents.list_ids() {
-        if let Some(config) = state.agents.get(agent_id) {
+        if let Some(config) = state.agents.get(&agent_id) {
             *by_division.entry(config.division.clone()).or_insert(0) += 1;
 
             if config.license == "MIT" {
@@ -217,8 +241,9 @@ pub struct SyncResponse {
 /// New agents appear in sync-status as pending until reviewed.
 pub async fn trigger_sync(
     State(state): State<AppState>,
-    _user: axum::Extension<AuthenticatedUser>,
+    axum::Extension(user): axum::Extension<AuthenticatedUser>,
 ) -> Result<Json<SyncResponse>, AppError> {
+    require_org_admin(&state, &user).await?;
     // Step 1: Git fetch upstream
     let fetch_result = Command::new("git")
         .args(["fetch", "upstream"])
@@ -318,6 +343,14 @@ pub async fn trigger_sync(
         .and_then(|n| n.parse::<usize>().ok())
         .unwrap_or(0);
 
+    // Refresh in-memory registry so freshly compiled agents are visible immediately.
+    state.agents.reload_from_disk().map_err(|e| {
+        AppError::Internal(format!(
+            "Agents compiled but in-memory registry reload failed: {}",
+            e
+        ))
+    })?;
+
     // Log the sync event
     crate::security::log_audit_event(
         &state.db,
@@ -377,9 +410,10 @@ pub struct ReviewResponse {
 /// .agent-skip file.
 pub async fn review_agents(
     State(state): State<AppState>,
-    _user: axum::Extension<AuthenticatedUser>,
+    axum::Extension(user): axum::Extension<AuthenticatedUser>,
     Json(req): Json<ReviewRequest>,
 ) -> Result<Json<ReviewResponse>, AppError> {
+    require_org_admin(&state, &user).await?;
     let skip_file = Path::new("agents/.agent-skip");
 
     // Load existing skip list
@@ -425,6 +459,13 @@ pub async fn review_agents(
         .map_err(|e| AppError::Internal(format!("Recompilation failed: {}", e)))?;
 
     let roster_size = if compile_result.status.success() {
+        // Refresh in-memory registry on successful compile.
+        state.agents.reload_from_disk().map_err(|e| {
+            AppError::Internal(format!(
+                "Agents compiled but in-memory registry reload failed: {}",
+                e
+            ))
+        })?;
         // Count compiled agents
         std::fs::read_dir("agents/compiled")
             .map(|dir| dir.filter(|e| e.as_ref().map_or(false, |e| {
@@ -447,6 +488,257 @@ pub async fn review_agents(
         skipped: req.skip,
         roster_size,
     }))
+}
+
+// ─── Drag-and-drop Upload ────────────────────────────────────────────
+
+#[derive(Debug, Serialize)]
+pub struct UploadedAgent {
+    pub filename: String,
+    pub saved_path: String,
+    pub agent_id: String,
+    pub division: String,
+}
+
+#[derive(Debug, Serialize)]
+pub struct UploadResponse {
+    pub success: bool,
+    pub uploaded: Vec<UploadedAgent>,
+    pub skipped: Vec<UploadSkip>,
+    pub agents_compiled: usize,
+    pub message: String,
+}
+
+#[derive(Debug, Serialize)]
+pub struct UploadSkip {
+    pub filename: String,
+    pub reason: String,
+}
+
+/// POST /api/agents/upload
+///
+/// Multipart upload: accepts one or more `.md` files with YAML frontmatter,
+/// derives division+slug from the body's `**YODA Role ID:** \`<div>/<slug>\``
+/// line (falling back to the filename), saves each file under
+/// `agents/capomastro/<division>/<slug>.md`, then recompiles the roster
+/// and reloads the in-memory registry.
+pub async fn upload_agents(
+    State(state): State<AppState>,
+    axum::Extension(user): axum::Extension<AuthenticatedUser>,
+    mut multipart: Multipart,
+) -> Result<Json<UploadResponse>, AppError> {
+    require_org_admin(&state, &user).await?;
+    let base_dir = Path::new("agents/capomastro");
+    std::fs::create_dir_all(base_dir)
+        .map_err(|e| AppError::Internal(format!("Cannot create {}: {}", base_dir.display(), e)))?;
+
+    let mut uploaded: Vec<UploadedAgent> = Vec::new();
+    let mut skipped: Vec<UploadSkip> = Vec::new();
+
+    while let Some(field) = multipart
+        .next_field()
+        .await
+        .map_err(|e| AppError::Validation(format!("Multipart read failed: {}", e)))?
+    {
+        let original = field
+            .file_name()
+            .map(|s| s.to_string())
+            .unwrap_or_else(|| "upload.md".to_string());
+
+        if !original.to_lowercase().ends_with(".md") {
+            skipped.push(UploadSkip {
+                filename: original,
+                reason: "Not a .md file".into(),
+            });
+            continue;
+        }
+
+        let bytes = field
+            .bytes()
+            .await
+            .map_err(|e| AppError::Validation(format!("Read body failed: {}", e)))?;
+
+        let content = match std::str::from_utf8(&bytes) {
+            Ok(s) => s.to_string(),
+            Err(_) => {
+                skipped.push(UploadSkip {
+                    filename: original,
+                    reason: "File is not valid UTF-8".into(),
+                });
+                continue;
+            }
+        };
+
+        if !content.trim_start().starts_with("---") {
+            skipped.push(UploadSkip {
+                filename: original,
+                reason: "Missing YAML frontmatter (file must start with `---`)".into(),
+            });
+            continue;
+        }
+
+        let (division, slug) = derive_division_slug(&content, &original);
+        let dest_dir = base_dir.join(&division);
+        std::fs::create_dir_all(&dest_dir)
+            .map_err(|e| AppError::Internal(format!("mkdir {}: {}", dest_dir.display(), e)))?;
+        let dest = dest_dir.join(format!("{}.md", slug));
+
+        if let Err(e) = std::fs::write(&dest, &content) {
+            skipped.push(UploadSkip {
+                filename: original,
+                reason: format!("Write failed: {}", e),
+            });
+            continue;
+        }
+
+        let agent_id = format!("{}-{}", division, slug);
+        uploaded.push(UploadedAgent {
+            filename: original,
+            saved_path: dest.to_string_lossy().to_string(),
+            agent_id,
+            division,
+        });
+    }
+
+    if uploaded.is_empty() {
+        return Ok(Json(UploadResponse {
+            success: false,
+            uploaded,
+            skipped,
+            agents_compiled: 0,
+            message: "No valid agent files uploaded.".into(),
+        }));
+    }
+
+    // Recompile so the new agents land in agents/compiled/ as JSON.
+    let compile = Command::new("bash")
+        .args(["scripts/compile-agents.sh"])
+        .output()
+        .map_err(|e| AppError::Internal(format!("compile-agents.sh failed: {}", e)))?;
+
+    if !compile.status.success() {
+        return Err(AppError::Internal(format!(
+            "Agent compilation failed: {}",
+            String::from_utf8_lossy(&compile.stderr)
+        )));
+    }
+
+    // Reload the in-memory registry so the new agents appear immediately.
+    state.agents.reload_from_disk().map_err(|e| {
+        AppError::Internal(format!(
+            "Agents compiled but in-memory registry reload failed: {}",
+            e
+        ))
+    })?;
+
+    let agents_compiled = std::fs::read_dir("agents/compiled")
+        .map(|dir| {
+            dir.filter(|e| {
+                e.as_ref()
+                    .map_or(false, |e| e.path().extension().map_or(false, |x| x == "json"))
+            })
+            .count()
+        })
+        .unwrap_or_else(|_| state.agents.count());
+
+    crate::security::log_audit_event(
+        &state.db,
+        None,
+        None,
+        "agents_uploaded",
+        &serde_json::json!({
+            "uploaded": uploaded.len(),
+            "skipped": skipped.len(),
+            "total_compiled": agents_compiled,
+        }),
+    )
+    .await
+    .ok();
+
+    let msg = format!(
+        "Uploaded {} agent{}, skipped {}, {} total in roster.",
+        uploaded.len(),
+        if uploaded.len() == 1 { "" } else { "s" },
+        skipped.len(),
+        agents_compiled
+    );
+
+    Ok(Json(UploadResponse {
+        success: true,
+        uploaded,
+        skipped,
+        agents_compiled,
+        message: msg,
+    }))
+}
+
+/// Derive `(division, slug)` from a markdown body and original filename.
+///
+/// Priority:
+///   1. `**YODA Role ID:** \`<division>/<slug>\`` line in the body.
+///   2. `round:` field in YAML frontmatter (e.g. `qc-r1`).
+///   3. Falls back to (`capomastro`, sanitized filename stem).
+fn derive_division_slug(content: &str, original_filename: &str) -> (String, String) {
+    // 1) **YODA Role ID:** `engineering/security-engineer`
+    for line in content.lines() {
+        let l = line.trim();
+        if let Some(rest) = l.strip_prefix("**YODA Role ID:**") {
+            let inner = rest.trim().trim_matches('`').trim();
+            if let Some((div, slug)) = inner.split_once('/') {
+                let div = sanitize_segment(div);
+                let slug = sanitize_segment(slug);
+                if !div.is_empty() && !slug.is_empty() {
+                    return (div, slug);
+                }
+            }
+        }
+    }
+
+    // 2) frontmatter `round: qc-r1` + frontmatter `name: security-engineer`
+    let mut round = String::new();
+    let mut name = String::new();
+    let trimmed = content.trim_start();
+    if trimmed.starts_with("---") {
+        let rest = &trimmed[3..];
+        if let Some(end) = rest.find("\n---") {
+            for line in rest[..end].lines() {
+                if let Some(v) = line.strip_prefix("round:") {
+                    round = sanitize_segment(v.trim().trim_matches('"'));
+                } else if let Some(v) = line.strip_prefix("name:") {
+                    name = sanitize_segment(v.trim().trim_matches('"'));
+                }
+            }
+        }
+    }
+
+    let slug_fallback = sanitize_segment(
+        PathBuf::from(original_filename)
+            .file_stem()
+            .map(|s| s.to_string_lossy().to_string())
+            .unwrap_or_else(|| "agent".into())
+            .as_str(),
+    );
+
+    let slug = if !name.is_empty() { name } else { slug_fallback };
+    let div = if !round.is_empty() { round } else { "capomastro".to_string() };
+    (div, slug)
+}
+
+/// Lowercase, dash-separated, filesystem-safe path segment.
+fn sanitize_segment(s: &str) -> String {
+    s.chars()
+        .map(|c| {
+            if c.is_ascii_alphanumeric() || c == '-' || c == '_' {
+                c.to_ascii_lowercase()
+            } else if c == ' ' || c == '.' || c == '/' {
+                '-'
+            } else {
+                '-'
+            }
+        })
+        .collect::<String>()
+        .trim_matches('-')
+        .to_string()
 }
 
 // ─── Git Helpers ─────────────────────────────────────────────────────

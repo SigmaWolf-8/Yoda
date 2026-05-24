@@ -1,10 +1,10 @@
-import { useState, useMemo } from 'react';
-import { Users, Plus, Loader2, ChevronDown } from 'lucide-react';
+import { useState, useMemo, useRef, useCallback, type DragEvent } from 'react';
+import { Users, Plus, Loader2, ChevronDown, Upload, CheckCircle2, AlertTriangle, X } from 'lucide-react';
 import { MetatronCubeRoster } from '../components/agents/MetatronCubeRoster';
 import { AgentDetailPanel } from '../components/agents/AgentDetailPanel';
 import { AgentSyncBanner } from '../components/agents/AgentSyncBanner';
 import { AgentEditor } from '../components/agents/AgentEditor';
-import { useAgents, useAgentSyncStatus, useImportAgents } from '../api/hooks/useAgents';
+import { useAgents, useAgentSyncStatus, useImportAgents, useUploadAgents, type UploadAgentsResult } from '../api/hooks/useAgents';
 import type { AgentDivision, AgentWithStats } from '../types';
 import { DIVISIONS } from '../types/agent';
 import { usePageHeader } from '../context/PageHeader';
@@ -113,10 +113,56 @@ export function AgentsPage() {
   const [selectedAgentIdx, setSelectedAgentIdx] = useState<number | null>(null);
   const [editorMode, setEditorMode]             = useState<EditorMode>(null);
   const [syncDismissed, setSyncDismissed]       = useState(false);
+  const [dragOver, setDragOver]                 = useState(false);
+  const [uploadResult, setUploadResult]         = useState<UploadAgentsResult | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const agentsQuery    = useAgents();
   const syncQuery      = useAgentSyncStatus();
   const importMutation = useImportAgents();
+  const uploadMutation = useUploadAgents();
+
+  const handleFiles = useCallback(
+    (fileList: FileList | File[] | null) => {
+      if (!fileList) return;
+      const files = Array.from(fileList).filter(f => f.name.toLowerCase().endsWith('.md'));
+      if (files.length === 0) {
+        setUploadResult({
+          success: false,
+          uploaded: [],
+          skipped: Array.from(fileList).map(f => ({ filename: f.name, reason: 'Not a .md file' })),
+          agents_compiled: 0,
+          message: 'No markdown files in selection.',
+        });
+        return;
+      }
+      uploadMutation.mutate(files, {
+        onSuccess: (data) => setUploadResult(data),
+        onError: (err: unknown) => setUploadResult({
+          success: false,
+          uploaded: [],
+          skipped: [],
+          agents_compiled: 0,
+          message: err instanceof Error ? err.message : 'Upload failed',
+        }),
+      });
+    },
+    [uploadMutation],
+  );
+
+  const onDrop = (e: DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setDragOver(false);
+    handleFiles(e.dataTransfer.files);
+  };
+  const onDragOver = (e: DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    if (!dragOver) setDragOver(true);
+  };
+  const onDragLeave = (e: DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    if (e.currentTarget === e.target) setDragOver(false);
+  };
 
   const agents = agentsQuery.data ?? [];
 
@@ -141,7 +187,13 @@ export function AgentsPage() {
   const contentH = `calc(100vh - ${HEADER_H}px)`;
 
   return (
-    <div className="flex flex-col overflow-hidden" style={{ height: contentH }}>
+    <div
+      className="flex flex-col overflow-hidden relative"
+      style={{ height: contentH }}
+      onDrop={onDrop}
+      onDragOver={onDragOver}
+      onDragLeave={onDragLeave}
+    >
       {/* Sync banner */}
       {showBanner && (
         <AgentSyncBanner
@@ -152,8 +204,60 @@ export function AgentsPage() {
         />
       )}
 
+      {/* Upload result banner */}
+      {uploadResult && (
+        <div
+          className={`flex items-start gap-3 px-5 py-3 border-b text-sm flex-shrink-0 ${
+            uploadResult.success
+              ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-200'
+              : 'border-amber-500/30 bg-amber-500/10 text-amber-200'
+          }`}
+        >
+          {uploadResult.success
+            ? <CheckCircle2 className="w-4 h-4 mt-0.5 flex-shrink-0" />
+            : <AlertTriangle className="w-4 h-4 mt-0.5 flex-shrink-0" />}
+          <div className="flex-1 min-w-0">
+            <p className="font-medium">{uploadResult.message}</p>
+            {uploadResult.uploaded.length > 0 && (
+              <p className="text-xs opacity-80 mt-1 font-mono">
+                Added: {uploadResult.uploaded.map(u => `${u.division}/${u.agent_id}`).join(', ')}
+              </p>
+            )}
+            {uploadResult.skipped.length > 0 && (
+              <ul className="text-xs opacity-80 mt-1 space-y-0.5">
+                {uploadResult.skipped.map((s, i) => (
+                  <li key={i} className="font-mono">• {s.filename} — {s.reason}</li>
+                ))}
+              </ul>
+            )}
+          </div>
+          <button onClick={() => setUploadResult(null)} className="opacity-70 hover:opacity-100 flex-shrink-0">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
       {/* Thin action strip — no title (title lives in the top bar now) */}
-      <div className="flex items-center justify-end px-5 py-3 border-b border-[var(--color-border-subtle)] bg-[var(--color-surface-secondary)]/30 flex-shrink-0">
+      <div className="flex items-center justify-end gap-2 px-5 py-3 border-b border-[var(--color-border-subtle)] bg-[var(--color-surface-secondary)]/30 flex-shrink-0">
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".md,text/markdown"
+          multiple
+          className="hidden"
+          onChange={(e) => { handleFiles(e.target.files); e.target.value = ''; }}
+        />
+        <button
+          onClick={() => fileInputRef.current?.click()}
+          disabled={uploadMutation.isPending}
+          className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/[0.04] text-[var(--color-text-primary)] text-sm font-semibold border border-[var(--color-border-subtle)] hover:bg-white/[0.07] transition-colors disabled:opacity-50"
+          title="Upload one or more .md agent files"
+        >
+          {uploadMutation.isPending
+            ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            : <Upload className="w-3.5 h-3.5" />}
+          {uploadMutation.isPending ? 'Uploading…' : 'Upload .md'}
+        </button>
         <button
           onClick={() => setEditorMode({ type: 'create' })}
           className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[hsl(210,80%,55%)]/10 text-[hsl(210,70%,65%)] text-sm font-semibold border border-[hsl(210,80%,55%)]/20 hover:bg-[hsl(210,80%,55%)]/18 transition-colors"
@@ -162,6 +266,17 @@ export function AgentsPage() {
           New agent
         </button>
       </div>
+
+      {/* Drag-over overlay */}
+      {dragOver && (
+        <div className="absolute inset-0 z-40 flex items-center justify-center bg-[hsl(210,80%,55%)]/10 border-2 border-dashed border-[hsl(210,70%,65%)] pointer-events-none">
+          <div className="text-center">
+            <Upload className="w-10 h-10 mx-auto text-[hsl(210,70%,65%)] mb-3" />
+            <p className="text-lg font-semibold text-[var(--color-text-primary)]">Drop .md agent files to add them to the roster</p>
+            <p className="text-sm text-[var(--color-text-muted)] mt-1 font-mono">YAML frontmatter required</p>
+          </div>
+        </div>
+      )}
 
       {/* Loading */}
       {agentsQuery.isLoading && (

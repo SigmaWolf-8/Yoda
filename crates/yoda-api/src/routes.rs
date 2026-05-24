@@ -144,6 +144,7 @@ pub fn build_router(state: AppState) -> Router {
         .route("/api/agents/sync-status", get(agents::sync_status))
         .route("/api/agents/sync", post(agents::trigger_sync))
         .route("/api/agents/review", post(agents::review_agents))
+        .route("/api/agents/upload", post(agents::upload_agents))
         .route("/api/agents/{id}", get(agents::get_agent))
 
         // Auth middleware on all protected routes
