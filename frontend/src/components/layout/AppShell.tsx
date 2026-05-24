@@ -37,9 +37,8 @@ const NAV_GROUPS: ReadonlyArray<{
   {
     label: 'Engines',
     items: [
-      { to: '/settings/engines', icon: Cpu, label: 'AI Engines' },
-      { to: '/kyokushin',        icon: Zap, label: 'Kyokushin'  },
-      { to: '/forge',            icon: Zap, label: 'Forge'      },
+      { to: '/kyokushin', icon: Zap, label: 'Kyokushin' },
+      { to: '/forge',     icon: Zap, label: 'Forge'     },
     ],
   },
   {
