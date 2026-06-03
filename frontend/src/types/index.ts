@@ -1,6 +1,7 @@
 export * from './auth';
 export * from './project';
 export * from './task';
+export * from './thread';
 export * from './task-result';
 export * from './task-review';
 export * from './task-bible';

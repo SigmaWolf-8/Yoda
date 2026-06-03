@@ -83,6 +83,10 @@ export const router = createBrowserRouter([
             element: <TaskTreePage />,
           },
           {
+            path: 'projects/:id/threads/:threadId/dag',
+            element: <TaskTreePage />,
+          },
+          {
             path: 'projects/:id/bible',
             element: <TaskBiblePage />,
           },

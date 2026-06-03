@@ -1,27 +1,74 @@
-import { useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useState, useMemo, useEffect } from 'react';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import { GitBranch, Loader2, ArrowLeft, PanelRightClose, PanelRightOpen } from 'lucide-react';
-import { useTasks, useTask, useProject, usePipelineStatus } from '../../api/hooks';
+import { useTasks, useTask, useProject, usePipelineStatus, useThreads } from '../../api/hooks';
 import { DAGCanvas } from '../../components/pipeline/DAGCanvas';
 import { PipelineStatusBar } from '../../components/pipeline/PipelineStatusBar';
 import { StepProgressIndicator } from '../../components/pipeline/StepProgressIndicator';
+import type { Task } from '../../types';
+
+/**
+ * Collect a thread's root task plus all of its descendants from the flat
+ * project-wide task list.
+ */
+function collectThreadTasks(rootId: string, all: Task[]): Task[] {
+  const byParent = new Map<string, Task[]>();
+  let root: Task | undefined;
+  for (const t of all) {
+    if (t.id === rootId) root = t;
+    const p = t.parent_task_id ?? '';
+    if (!p) continue;
+    if (!byParent.has(p)) byParent.set(p, []);
+    byParent.get(p)!.push(t);
+  }
+  if (!root) return [];
+  const out: Task[] = [root];
+  const queue: string[] = [rootId];
+  while (queue.length) {
+    const parent = queue.shift()!;
+    for (const child of byParent.get(parent) ?? []) {
+      out.push(child);
+      queue.push(child.id);
+    }
+  }
+  return out;
+}
 
 export function TaskTreePage() {
-  const { id } = useParams<{ id: string }>();
+  const { id, threadId: threadIdParam } = useParams<{ id: string; threadId?: string }>();
+  const navigate = useNavigate();
   const { data: project } = useProject(id);
-  const { data: tasks, isLoading } = useTasks(id);
+  const { data: allTasks, isLoading } = useTasks(id);
+  const { data: threads } = useThreads(id, { includeArchived: true });
   const [selectedId, setSelectedId] = useState<string | undefined>();
   const { data: taskDetail } = useTask(selectedId);
   const [detailOpen, setDetailOpen] = useState(true);
 
-  // WebSocket — live pipeline updates
+  // Effective thread: route param, or default to first thread.
+  const effectiveThreadId = useMemo(() => {
+    if (threadIdParam) return threadIdParam;
+    return threads?.[0]?.id;
+  }, [threadIdParam, threads]);
+
+  // If we landed on /tasks without a thread, redirect once threads load.
+  useEffect(() => {
+    if (!threadIdParam && id && effectiveThreadId) {
+      navigate(`/projects/${id}/threads/${effectiveThreadId}/dag`, { replace: true });
+    }
+  }, [threadIdParam, effectiveThreadId, id, navigate]);
+
+  const threadTasks = useMemo(() => {
+    if (!effectiveThreadId || !allTasks) return [];
+    return collectThreadTasks(effectiveThreadId, allTasks);
+  }, [effectiveThreadId, allTasks]);
+
   const { connected } = usePipelineStatus({
     projectId: id,
     enabled: !!id,
   });
 
-  const startedAt = tasks?.length
-    ? tasks.reduce((min, t) => (t.created_at < min ? t.created_at : min), tasks[0].created_at)
+  const startedAt = threadTasks.length
+    ? threadTasks.reduce((min, t) => (t.created_at < min ? t.created_at : min), threadTasks[0].created_at)
     : undefined;
 
   if (isLoading) {
@@ -31,6 +78,8 @@ export function TaskTreePage() {
       </div>
     );
   }
+
+  const hasNoThreads = !!threads && threads.length === 0;
 
   return (
     <div className="flex flex-col h-[calc(100vh-3.5rem)]">
@@ -50,6 +99,22 @@ export function TaskTreePage() {
           <span className="text-sm text-[var(--color-text-muted)]">— {project.name}</span>
         )}
 
+        {/* Thread picker */}
+        {threads && threads.length > 0 && (
+          <select
+            value={effectiveThreadId ?? ''}
+            onChange={(e) => navigate(`/projects/${id}/threads/${e.target.value}/dag`)}
+            className="ml-2 px-2 py-1 text-xs bg-[var(--color-surface-primary)] border border-[var(--color-border-subtle)] rounded text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-plex-400)]"
+            title="Switch thread"
+          >
+            {threads.map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.pinned ? '📌 ' : ''}{t.archived ? '🗄 ' : ''}{t.title}
+              </option>
+            ))}
+          </select>
+        )}
+
         <div className="flex-1" />
 
         <button
@@ -65,11 +130,17 @@ export function TaskTreePage() {
       <div className="flex flex-1 min-h-0">
         {/* DAG Canvas */}
         <div className="flex-1 min-w-0">
-          <DAGCanvas
-            tasks={tasks ?? []}
-            selectedId={selectedId}
-            onSelect={setSelectedId}
-          />
+          {hasNoThreads ? (
+            <div className="flex items-center justify-center h-full text-sm text-[var(--color-text-muted)]">
+              No threads in this project yet. Submit a query from the workspace to create one.
+            </div>
+          ) : (
+            <DAGCanvas
+              tasks={threadTasks}
+              selectedId={selectedId}
+              onSelect={setSelectedId}
+            />
+          )}
         </div>
 
         {/* Detail panel */}
@@ -158,7 +229,7 @@ export function TaskTreePage() {
                   </p>
                   <div className="space-y-0.5">
                     {taskDetail.task.dependencies.map((depId) => {
-                      const dep = tasks?.find((t) => t.id === depId);
+                      const dep = threadTasks.find((t) => t.id === depId);
                       return (
                         <button
                           key={depId}
@@ -179,7 +250,7 @@ export function TaskTreePage() {
 
       {/* Pipeline status bar */}
       <PipelineStatusBar
-        tasks={tasks ?? []}
+        tasks={threadTasks}
         connected={connected}
         intensity={project?.settings.review_intensity}
         startedAt={startedAt}

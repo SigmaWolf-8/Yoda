@@ -23,6 +23,7 @@ export {
   useCancelTask,
   useDeleteTask,
 } from './useTasks';
+export { useThreads, useUpdateThread, useDeleteThread } from './useThreads';
 export { useTaskBible, useTaskBibleEntry } from './useTaskBible';
 export { useKnowledgeBase, useUpdateKBEntry, useDeleteKBEntry } from './useKnowledgeBase';
 export {

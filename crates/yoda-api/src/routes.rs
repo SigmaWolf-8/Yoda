@@ -78,6 +78,11 @@ pub fn build_router(state: AppState) -> Router {
         .route("/api/projects/{id}/query", post(query::submit_query))
         .route("/api/projects/{id}/query/approve", post(query::approve_decomposition))
 
+        // Threads (Task #29) — root tasks treated as first-class objects
+        .route("/api/projects/{id}/threads", get(list_threads))
+        .route("/api/projects/{id}/threads/{thread_id}", axum::routing::patch(update_thread))
+        .route("/api/projects/{id}/threads/{thread_id}", delete(delete_thread))
+
         // Tasks (B5.2)
         .route("/api/tasks/recent", get(list_recent_tasks))
         .route("/api/projects/{id}/tasks", get(list_tasks))
@@ -315,20 +320,289 @@ async fn list_tasks(
     let _ = sqlx::query_scalar::<_,Uuid>("SELECT id FROM projects WHERE id=$1 AND org_id=$2")
         .bind(project_id).bind(user.org_id).fetch_optional(&state.db).await
         .map_err(AppError::Database)?.ok_or(AppError::NotFound("Project not found".into()))?;
-    let rows = sqlx::query_as::<_, (Uuid,Uuid,String,String,String,String,serde_json::Value,serde_json::Value,Option<i32>,Option<String>,Option<String>,chrono::DateTime<chrono::Utc>,chrono::DateTime<chrono::Utc>,Option<String>)>(
-        "SELECT id,project_id,task_number,title,status,mode,competencies,dependencies,workflow_position,primary_engine_slot,primary_agent_role,created_at,updated_at,error_message FROM tasks WHERE project_id=$1 ORDER BY workflow_position,task_number"
+    let rows = sqlx::query_as::<_, (Uuid,Uuid,String,String,String,String,serde_json::Value,serde_json::Value,Option<i32>,Option<String>,Option<String>,chrono::DateTime<chrono::Utc>,chrono::DateTime<chrono::Utc>,Option<String>,Option<Uuid>)>(
+        "SELECT id,project_id,task_number,title,status,mode,competencies,dependencies,workflow_position,primary_engine_slot,primary_agent_role,created_at,updated_at,error_message,parent_task_id FROM tasks WHERE project_id=$1 ORDER BY workflow_position,task_number"
     ).bind(project_id).fetch_all(&state.db).await.map_err(AppError::Database)?;
-    let tasks: Vec<serde_json::Value> = rows.into_iter().map(|(id,pid,tn,t,s,m,c,d,wp,pe,par,ca,ua,em)| {
+    let tasks: Vec<serde_json::Value> = rows.into_iter().map(|(id,pid,tn,t,s,m,c,d,wp,pe,par,ca,ua,em,parent)| {
         serde_json::json!({
             "id": id, "project_id": pid, "task_number": tn, "title": t,
             "status": s, "mode": m, "competencies": c, "dependencies": d,
             "workflow_position": wp, "primary_engine": pe, "primary_agent_role": par,
-            "parent_task_id": serde_json::Value::Null,
+            "parent_task_id": parent,
             "error_message": em,
             "created_at": ca, "updated_at": ua,
         })
     }).collect();
     Ok(Json(serde_json::json!({ "tasks": tasks })))
+}
+
+// ─── Threads (Task #29) ──────────────────────────────────────────────
+//
+// Threads are root tasks (parent_task_id IS NULL). Each thread carries
+// pinned/archived metadata and rolls up status from its descendants.
+
+#[derive(Debug, Deserialize)]
+struct ThreadListQuery {
+    #[serde(default, alias = "archived")]
+    include_archived: Option<bool>,
+    #[serde(default, alias = "q")]
+    search: Option<String>,
+}
+
+async fn list_threads(
+    State(state): State<AppState>,
+    user: axum::Extension<auth::AuthenticatedUser>,
+    Path(project_id): Path<Uuid>,
+    Query(params): Query<ThreadListQuery>,
+) -> Result<Json<serde_json::Value>, AppError> {
+    let _ = sqlx::query_scalar::<_, Uuid>("SELECT id FROM projects WHERE id=$1 AND org_id=$2")
+        .bind(project_id).bind(user.org_id).fetch_optional(&state.db).await
+        .map_err(AppError::Database)?.ok_or(AppError::NotFound("Project not found".into()))?;
+
+    let include_archived = params.include_archived.unwrap_or(false);
+    let search = params.search.unwrap_or_default();
+    let has_search = !search.trim().is_empty();
+    let search_pattern = format!("%{}%", search.trim().to_lowercase());
+
+    // Opportunistic cleanup: hard-delete any root thread (and descendants)
+    // whose deletion_scheduled_at has passed. Cheap thanks to partial index.
+    let expired: Vec<Uuid> = sqlx::query_scalar(
+        "SELECT id FROM tasks \
+          WHERE project_id = $1 AND parent_task_id IS NULL \
+            AND deletion_scheduled_at IS NOT NULL AND deletion_scheduled_at < NOW()"
+    )
+    .bind(project_id)
+    .fetch_all(&state.db)
+    .await
+    .unwrap_or_default();
+    for root_id in expired {
+        let _ = sqlx::query(
+            "WITH RECURSIVE descendants AS (\
+               SELECT id FROM tasks WHERE parent_task_id = $1 \
+               UNION ALL \
+               SELECT t.id FROM tasks t JOIN descendants d ON t.parent_task_id = d.id\
+             ) DELETE FROM tasks WHERE id IN (SELECT id FROM descendants)"
+        ).bind(root_id).execute(&state.db).await;
+        let _ = sqlx::query("DELETE FROM tasks WHERE id = $1")
+            .bind(root_id).execute(&state.db).await;
+    }
+
+    // Roll-up: walk descendants for each root and aggregate status + latest activity.
+    let rows = sqlx::query_as::<_, (
+        Uuid, String, String, String, chrono::DateTime<chrono::Utc>,
+        chrono::DateTime<chrono::Utc>, bool, bool, Option<chrono::DateTime<chrono::Utc>>,
+        Option<chrono::DateTime<chrono::Utc>>,
+        i64, i64, i64, i64, Option<chrono::DateTime<chrono::Utc>>,
+    )>(
+        "WITH RECURSIVE descendants AS (\
+           SELECT id AS root_id, id, status, updated_at FROM tasks \
+             WHERE project_id = $1 AND parent_task_id IS NULL \
+           UNION ALL \
+           SELECT d.root_id, t.id, t.status, t.updated_at \
+             FROM tasks t JOIN descendants d ON t.parent_task_id = d.id\
+         ), agg AS (\
+           SELECT root_id, \
+                  COUNT(*) FILTER (WHERE id <> root_id) AS subtask_count, \
+                  COUNT(*) FILTER (WHERE status = 'ESCALATED') AS escalated_count, \
+                  COUNT(*) FILTER (WHERE status IN ('FINAL','ESCALATED','CANCELLED')) AS terminal_count, \
+                  COUNT(*) AS total_count, \
+                  MAX(updated_at) AS latest_activity \
+             FROM descendants GROUP BY root_id\
+         ) \
+         SELECT t.id, t.task_number, t.title, t.status, t.created_at, t.updated_at, \
+                t.pinned, t.archived, t.archived_at, t.deletion_scheduled_at, \
+                COALESCE(agg.subtask_count, 0), \
+                COALESCE(agg.escalated_count, 0), \
+                COALESCE(agg.terminal_count, 0), \
+                COALESCE(agg.total_count, 1), \
+                agg.latest_activity \
+           FROM tasks t LEFT JOIN agg ON agg.root_id = t.id \
+          WHERE t.project_id = $1 AND t.parent_task_id IS NULL \
+            AND ($2 OR t.archived = FALSE) \
+            AND (NOT $3 OR LOWER(t.title) LIKE $4)"
+    )
+    .bind(project_id)
+    .bind(include_archived)
+    .bind(has_search)
+    .bind(&search_pattern)
+    .fetch_all(&state.db)
+    .await
+    .map_err(AppError::Database)?;
+
+    let mut threads: Vec<serde_json::Value> = rows.into_iter().map(
+        |(id, task_number, title, status, created_at, updated_at, pinned, archived, archived_at,
+          deletion_scheduled_at,
+          subtask_count, escalated_count, terminal_count, total_count, latest_activity)| {
+            let latest = latest_activity.unwrap_or(updated_at);
+            let rollup = if escalated_count > 0 {
+                "escalated"
+            } else if status == "FINAL" && terminal_count == total_count {
+                "final"
+            } else if status == "CANCELLED" && terminal_count == total_count {
+                "cancelled"
+            } else if terminal_count < total_count {
+                "in_progress"
+            } else {
+                "idle"
+            };
+            serde_json::json!({
+                "id": id,
+                "task_number": task_number,
+                "title": title,
+                "status": status,
+                "rollup_status": rollup,
+                "subtask_count": subtask_count,
+                "pinned": pinned,
+                "archived": archived,
+                "archived_at": archived_at,
+                "deletion_scheduled_at": deletion_scheduled_at,
+                "created_at": created_at,
+                "updated_at": updated_at,
+                "latest_activity": latest,
+            })
+        }
+    ).collect();
+
+    // Sort: pinned first (by latest_activity desc), then unpinned (by latest_activity desc).
+    threads.sort_by(|a, b| {
+        let ap = a.get("pinned").and_then(|v| v.as_bool()).unwrap_or(false);
+        let bp = b.get("pinned").and_then(|v| v.as_bool()).unwrap_or(false);
+        if ap != bp { return bp.cmp(&ap); }
+        let al = a.get("latest_activity").and_then(|v| v.as_str()).unwrap_or("");
+        let bl = b.get("latest_activity").and_then(|v| v.as_str()).unwrap_or("");
+        bl.cmp(al)
+    });
+
+    Ok(Json(serde_json::json!({ "threads": threads })))
+}
+
+#[derive(Debug, Deserialize)]
+struct UpdateThreadRequest {
+    title: Option<String>,
+    pinned: Option<bool>,
+    archived: Option<bool>,
+}
+
+async fn update_thread(
+    State(state): State<AppState>,
+    user: axum::Extension<auth::AuthenticatedUser>,
+    Path((project_id, thread_id)): Path<(Uuid, Uuid)>,
+    Json(req): Json<UpdateThreadRequest>,
+) -> Result<Json<serde_json::Value>, AppError> {
+    // Verify the thread belongs to this project & org and is a root task.
+    let owned = sqlx::query_scalar::<_, bool>(
+        "SELECT EXISTS(SELECT 1 FROM tasks t JOIN projects p ON p.id = t.project_id \
+          WHERE t.id = $1 AND t.project_id = $2 AND p.org_id = $3 AND t.parent_task_id IS NULL)"
+    )
+    .bind(thread_id).bind(project_id).bind(user.org_id)
+    .fetch_one(&state.db).await.map_err(AppError::Database)?;
+    if !owned {
+        return Err(AppError::NotFound("Thread not found".into()));
+    }
+
+    if let Some(ref t) = req.title {
+        if t.trim().is_empty() {
+            return Err(AppError::Validation("Thread title cannot be empty".into()));
+        }
+    }
+
+    let now = chrono::Utc::now();
+    let archived_at = req.archived.map(|a| if a { Some(now) } else { None });
+    // Restoring a thread (archived=false) clears any pending deletion timer.
+    let clear_deletion = matches!(req.archived, Some(false));
+
+    sqlx::query(
+        "UPDATE tasks SET \
+           title       = COALESCE($1, title), \
+           pinned      = COALESCE($2, pinned), \
+           archived    = COALESCE($3, archived), \
+           archived_at = CASE WHEN $4::bool THEN $5 ELSE archived_at END, \
+           deletion_scheduled_at = CASE WHEN $6::bool THEN NULL ELSE deletion_scheduled_at END, \
+           updated_at  = $7 \
+         WHERE id = $8"
+    )
+    .bind(req.title.as_ref().map(|s| s.trim().to_string()))
+    .bind(req.pinned)
+    .bind(req.archived)
+    .bind(req.archived.is_some())
+    .bind(archived_at.flatten())
+    .bind(clear_deletion)
+    .bind(now)
+    .bind(thread_id)
+    .execute(&state.db).await.map_err(AppError::Database)?;
+
+    Ok(Json(serde_json::json!({ "ok": true, "thread_id": thread_id })))
+}
+
+#[derive(Debug, Deserialize, Default)]
+struct DeleteThreadQuery {
+    #[serde(default)]
+    permanent: Option<bool>,
+}
+
+/// Soft-delete by default: archive the thread and schedule a hard-delete in 30 days.
+/// The thread remains recoverable from the archived list (PATCH archived=false)
+/// during that window. Pass `?permanent=true` to bypass the grace period and
+/// hard-delete the root + all descendants immediately.
+async fn delete_thread(
+    State(state): State<AppState>,
+    user: axum::Extension<auth::AuthenticatedUser>,
+    Path((project_id, thread_id)): Path<(Uuid, Uuid)>,
+    Query(params): Query<DeleteThreadQuery>,
+) -> Result<Json<serde_json::Value>, AppError> {
+    let owned = sqlx::query_scalar::<_, bool>(
+        "SELECT EXISTS(SELECT 1 FROM tasks t JOIN projects p ON p.id = t.project_id \
+          WHERE t.id = $1 AND t.project_id = $2 AND p.org_id = $3 AND t.parent_task_id IS NULL)"
+    )
+    .bind(thread_id).bind(project_id).bind(user.org_id)
+    .fetch_one(&state.db).await.map_err(AppError::Database)?;
+    if !owned {
+        return Err(AppError::NotFound("Thread not found".into()));
+    }
+
+    let permanent = params.permanent.unwrap_or(false);
+
+    if permanent {
+        // Two-step delete: descendants first (parent_task_id is ON DELETE SET NULL,
+        // not CASCADE), then the root. Use a recursive CTE to collect all descendants.
+        sqlx::query(
+            "WITH RECURSIVE descendants AS (\
+               SELECT id FROM tasks WHERE parent_task_id = $1 \
+               UNION ALL \
+               SELECT t.id FROM tasks t JOIN descendants d ON t.parent_task_id = d.id\
+             ) DELETE FROM tasks WHERE id IN (SELECT id FROM descendants)"
+        )
+        .bind(thread_id)
+        .execute(&state.db).await.map_err(AppError::Database)?;
+
+        sqlx::query("DELETE FROM tasks WHERE id = $1")
+            .bind(thread_id)
+            .execute(&state.db).await.map_err(AppError::Database)?;
+
+        return Ok(Json(serde_json::json!({
+            "ok": true, "thread_id": thread_id, "permanent": true
+        })));
+    }
+
+    // Soft delete: archive + schedule hard-delete in 30 days.
+    let now = chrono::Utc::now();
+    let scheduled = now + chrono::Duration::days(30);
+    sqlx::query(
+        "UPDATE tasks SET archived = TRUE, archived_at = $1, \
+            deletion_scheduled_at = $2, updated_at = $1 \
+          WHERE id = $3"
+    )
+    .bind(now)
+    .bind(scheduled)
+    .bind(thread_id)
+    .execute(&state.db).await.map_err(AppError::Database)?;
+
+    Ok(Json(serde_json::json!({
+        "ok": true,
+        "thread_id": thread_id,
+        "permanent": false,
+        "deletion_scheduled_at": scheduled,
+    })))
 }
 
 /// GET /api/tasks/recent — most recent tasks across all projects for this org.

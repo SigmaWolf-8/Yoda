@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { useParams, NavLink } from 'react-router-dom';
+import { useState, useMemo } from 'react';
+import { useParams, useNavigate, NavLink } from 'react-router-dom';
 import {
   Loader2,
   Settings,
@@ -9,25 +9,43 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
 } from 'lucide-react';
-import { useProject, useTasks, useTask, useUpdateProject, useDeleteTask } from '../../api/hooks';
+import {
+  useProject, useTasks, useTask, useUpdateProject, useDeleteTask,
+  useThreads, useUpdateThread, useDeleteThread,
+} from '../../api/hooks';
 import { ModeToggle } from '../../components/project/ModeToggle';
 import { QueryInput } from '../../components/project/QueryInput';
-import { TaskTree } from '../../components/project/TaskTree';
+import { ThreadList } from '../../components/project/ThreadList';
 import { TaskThread } from '../../components/project/TaskThread';
 import { DecompositionApproval } from '../../components/project/DecompositionApproval';
-import type { QueryResult, TaskTree as TaskTreeType, TaskMessage } from '../../types';
+import { ConfirmDialog } from '../../components/ConfirmDialog';
+import type { QueryResult, TaskTree as TaskTreeType, TaskMessage, Thread } from '../../types';
+
+type PendingConfirm =
+  | { kind: 'thread-soft'; thread: Thread }
+  | { kind: 'thread-permanent'; thread: Thread }
+  | { kind: 'subtask'; taskId: string; title: string };
 
 export function ProjectWorkspacePage() {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const { data: project, isLoading: projectLoading } = useProject(id);
   const { data: tasks } = useTasks(id);
   const updateProject = useUpdateProject(id ?? '');
 
   const [selectedTaskId, setSelectedTaskId] = useState<string | undefined>();
+  const [selectedThreadId, setSelectedThreadId] = useState<string | undefined>();
   const { data: taskDetail } = useTask(selectedTaskId);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [pendingTree, setPendingTree] = useState<TaskTreeType | null>(null);
+
+  const [search, setSearch] = useState('');
+  const [showArchived, setShowArchived] = useState(false);
+  const { data: threads } = useThreads(id, { includeArchived: showArchived, search });
+
   const deleteTask = useDeleteTask(id ?? '');
+  const updateThread = useUpdateThread(id ?? '');
+  const deleteThread = useDeleteThread(id ?? '');
 
   function handleModeChange(mode: 'yoda' | 'ronin') {
     if (!project) return;
@@ -38,12 +56,18 @@ export function ProjectWorkspacePage() {
     if (result.status === 'pending_approval' && result.task_tree) {
       setPendingTree(result.task_tree);
     }
-    if (result.task_id) {
-      setSelectedTaskId(result.task_id);
-    } else if (result.task_ids?.[0]) {
-      setSelectedTaskId(result.task_ids[0]);
+    const newId = result.task_id ?? result.task_ids?.[0];
+    if (newId) {
+      setSelectedTaskId(newId);
+      setSelectedThreadId(newId);
     }
   }
+
+  const dagLink = useMemo(() => {
+    if (!id) return '/';
+    const tid = selectedThreadId ?? threads?.[0]?.id;
+    return tid ? `/projects/${id}/threads/${tid}/dag` : `/projects/${id}/tasks`;
+  }, [id, selectedThreadId, threads]);
 
   if (projectLoading) {
     return (
@@ -64,14 +88,117 @@ export function ProjectWorkspacePage() {
   const task = taskDetail?.task;
   const messages: TaskMessage[] = taskDetail?.messages ?? [];
 
+  const [pendingConfirm, setPendingConfirm] = useState<PendingConfirm | null>(null);
+
+  function performConfirm() {
+    if (!pendingConfirm) return;
+    const c = pendingConfirm;
+    setPendingConfirm(null);
+    if (c.kind === 'thread-soft') {
+      deleteThread.mutate(
+        { threadId: c.thread.id, permanent: false },
+        {
+          onSuccess: () => {
+            if (selectedThreadId === c.thread.id) {
+              setSelectedThreadId(undefined);
+              setSelectedTaskId(undefined);
+            }
+          },
+        },
+      );
+    } else if (c.kind === 'thread-permanent') {
+      deleteThread.mutate(
+        { threadId: c.thread.id, permanent: true },
+        {
+          onSuccess: () => {
+            if (selectedThreadId === c.thread.id) {
+              setSelectedThreadId(undefined);
+              setSelectedTaskId(undefined);
+            }
+          },
+        },
+      );
+    } else if (c.kind === 'subtask') {
+      deleteTask.mutate(c.taskId);
+      if (selectedTaskId === c.taskId) setSelectedTaskId(undefined);
+    }
+  }
+
+  function handleThreadDelete(thread: Thread) {
+    // If already pending hard-delete (archived + scheduled), the menu offers
+    // "Delete permanently" instead — this path is always the soft, recoverable one.
+    setPendingConfirm({ kind: 'thread-soft', thread });
+  }
+
+  function handleThreadPurge(thread: Thread) {
+    setPendingConfirm({ kind: 'thread-permanent', thread });
+  }
+
+  function handleSubtaskDelete(taskId: string, title: string) {
+    setPendingConfirm({ kind: 'subtask', taskId, title });
+  }
+
+  const confirmTitle = pendingConfirm?.kind === 'thread-soft'
+    ? 'Move thread to trash?'
+    : pendingConfirm?.kind === 'thread-permanent'
+      ? 'Permanently delete thread?'
+      : 'Delete subtask?';
+
+  const confirmMessage = !pendingConfirm
+    ? null
+    : pendingConfirm.kind === 'thread-soft'
+      ? (
+          <>
+            <p className="mb-2">
+              <strong className="text-[var(--color-text-primary)]">"{pendingConfirm.thread.title}"</strong>
+              {pendingConfirm.thread.subtask_count > 0 && (
+                <> and its {pendingConfirm.thread.subtask_count} subtask
+                  {pendingConfirm.thread.subtask_count === 1 ? '' : 's'}</>
+              )}{' '}
+              will be moved to <em>Archived</em> and permanently deleted in 30 days.
+            </p>
+            <p className="text-xs text-[var(--color-text-muted)]">
+              You can restore it any time before then from the "Show archived" view.
+            </p>
+          </>
+        )
+      : pendingConfirm.kind === 'thread-permanent'
+        ? (
+            <>
+              <p className="mb-2">
+                <strong className="text-[var(--color-text-primary)]">"{pendingConfirm.thread.title}"</strong>
+                {pendingConfirm.thread.subtask_count > 0 && (
+                  <> and its {pendingConfirm.thread.subtask_count} subtask
+                    {pendingConfirm.thread.subtask_count === 1 ? '' : 's'}</>
+                )}{' '}
+                will be permanently deleted right now.
+              </p>
+              <p className="text-xs text-[var(--color-text-muted)]">
+                This cannot be undone.
+              </p>
+            </>
+          )
+        : (
+            <p>
+              Delete subtask{' '}
+              <strong className="text-[var(--color-text-primary)]">"{pendingConfirm.title}"</strong>?
+            </p>
+          );
+
+  const confirmLabel = pendingConfirm?.kind === 'thread-soft'
+    ? 'Move to trash'
+    : pendingConfirm?.kind === 'thread-permanent'
+      ? 'Delete permanently'
+      : 'Delete';
+
   return (
     <div className="flex h-[calc(100vh-3.5rem)] overflow-hidden">
-      {/* ── Left: Task Tree Sidebar ── */}
+      {/* ── Left: Threads Sidebar ── */}
       {sidebarOpen && (
-        <aside className="w-64 flex-shrink-0 border-r border-[var(--color-border-subtle)] bg-[var(--color-surface-secondary)] flex flex-col">
+        <aside className="w-72 flex-shrink-0 border-r border-[var(--color-border-subtle)] bg-[var(--color-surface-secondary)] flex flex-col">
           <div className="flex items-center justify-between px-3 py-3 border-b border-[var(--color-border-subtle)]">
             <span className="text-sm font-semibold text-[var(--color-text-muted)] uppercase tracking-wider">
-              Tasks
+              Threads
             </span>
             <button
               onClick={() => setSidebarOpen(false)}
@@ -80,15 +207,32 @@ export function ProjectWorkspacePage() {
               <PanelLeftClose className="w-3.5 h-3.5" />
             </button>
           </div>
-          <div className="flex-1 overflow-y-auto">
-            <TaskTree
+          <div className="flex-1 min-h-0">
+            <ThreadList
+              threads={threads ?? []}
               tasks={tasks ?? []}
               selectedId={selectedTaskId}
-              onSelect={setSelectedTaskId}
-              onDelete={(taskId) => {
-                deleteTask.mutate(taskId);
-                if (selectedTaskId === taskId) setSelectedTaskId(undefined);
+              selectedThreadId={selectedThreadId}
+              search={search}
+              onSearchChange={setSearch}
+              showArchived={showArchived}
+              onToggleArchived={() => setShowArchived(s => !s)}
+              onSelect={(taskId, threadId) => {
+                setSelectedTaskId(taskId);
+                setSelectedThreadId(threadId);
               }}
+              onRename={(threadId, title) =>
+                updateThread.mutate({ threadId, title })
+              }
+              onPin={(threadId, pinned) =>
+                updateThread.mutate({ threadId, pinned })
+              }
+              onArchive={(threadId, archived) =>
+                updateThread.mutate({ threadId, archived })
+              }
+              onDelete={handleThreadDelete}
+              onDeletePermanent={handleThreadPurge}
+              onDeleteSubtask={handleSubtaskDelete}
             />
           </div>
         </aside>
@@ -120,13 +264,13 @@ export function ProjectWorkspacePage() {
           <div className="flex-1" />
 
           {/* Quick-nav links */}
-          <NavLink
-            to={`/projects/${id}/tasks`}
+          <button
+            onClick={() => navigate(dagLink)}
             className="p-1.5 rounded-lg text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-tertiary)] transition-colors"
             title="DAG View"
           >
             <GitBranch className="w-4 h-4" />
-          </NavLink>
+          </button>
           <NavLink
             to={`/projects/${id}/bible`}
             className="p-1.5 rounded-lg text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-tertiary)] transition-colors"
@@ -156,19 +300,19 @@ export function ProjectWorkspacePage() {
             <div className="flex-1 overflow-hidden animate-fade-in">
               <TaskThread task={task} messages={messages} />
             </div>
-          ) : !selectedTaskId && tasks && tasks.length === 0 ? (
+          ) : !selectedTaskId && threads && threads.length === 0 && !search.trim() ? (
             <div className="flex flex-col items-center justify-center py-16 text-center flex-1">
               <div className="w-12 h-12 rounded-xl bg-[var(--color-gold-500)]/10 flex items-center justify-center mb-4">
                 <GitBranch className="w-6 h-6 text-[var(--color-gold-400)]" />
               </div>
               <h3 className="text-sm font-semibold text-[var(--color-text-primary)] mb-1">
-                No tasks yet
+                No threads yet
               </h3>
               <p className="text-sm text-[var(--color-text-muted)] max-w-xs">
-                Submit a query below to start a new conversation thread.
+                Submit a query below to start your first thread.
               </p>
             </div>
-          ) : !selectedTaskId && tasks && tasks.length > 0 ? (
+          ) : !selectedTaskId ? (
             <div className="flex flex-col items-center justify-center py-16 text-center flex-1">
               <p className="text-sm text-[var(--color-text-muted)]">Select a thread from the sidebar.</p>
             </div>
@@ -194,6 +338,19 @@ export function ProjectWorkspacePage() {
           onApproved={() => setPendingTree(null)}
         />
       )}
+
+      {/* ── Confirm dialog (replaces window.confirm, which is blocked
+              by the sandboxed Replit preview iframe) ── */}
+      <ConfirmDialog
+        open={!!pendingConfirm}
+        destructive
+        title={confirmTitle}
+        message={confirmMessage}
+        confirmLabel={confirmLabel}
+        cancelLabel="Cancel"
+        onConfirm={performConfirm}
+        onCancel={() => setPendingConfirm(null)}
+      />
     </div>
   );
 }
