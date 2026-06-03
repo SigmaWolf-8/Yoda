@@ -1,0 +1,26 @@
+{
+  "name": "workspace",
+  "version": "1.0.0",
+  "description": "**Capomastro Holdings Ltd. — Applied Physics Division**",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/SigmaWolf-8/Yoda.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/SigmaWolf-8/Yoda/issues"
+  },
+  "homepage": "https://github.com/SigmaWolf-8/Yoda#readme",
+  "dependencies": {
+    "@octokit/rest": "^21.1.1"
+  }
+}
