@@ -43,3 +43,6 @@ logs/
 # Temporary files
 tmp/
 temp/
+
+# Generated full-site deliverable archive (not source)
+/yoda-site-full.zip

@@ -108,3 +108,9 @@ id = "-nPamaeTIKwPRuHI1W_y1"
 uri = "file://downloads/yoda-workspace-snapshot.tar.gz"
 type = "unspecified"
 title = "YODA Workspace Snapshot (clean source, 24MB)"
+
+[[outputs]]
+id = "T8E32h5qW3lpxZobfBEoE"
+uri = "file://yoda-site-full.zip"
+type = "unspecified"
+title = "YODA Full Site (front + back end)"
