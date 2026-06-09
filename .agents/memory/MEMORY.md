@@ -1,1 +1,2 @@
 - [sqlx migration checksum drift](sqlx-migration-drift.md) — editing an already-applied migration aborts the WHOLE chain; re-baseline the stored checksum, don't ignore the "Continuing..." warning.
+- [Rust build starved by LSP cargo check](rust-build-lsp-contention.md) — incremental backend builds hang 30+ min; pkill cargo check or restart workflow to hot-start the rebuilt binary.

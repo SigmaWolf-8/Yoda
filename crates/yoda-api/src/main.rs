@@ -107,6 +107,17 @@ async fn main() -> anyhow::Result<()> {
 
     tracing::info!("Database connected");
 
+    // ── Run database migrations ──────────────────────────────────────
+    // Root-cause fix: previously migrations ran only as a shell deploy step,
+    // so a fresh DB started with no tables (the "AI agents offline / 0 agents"
+    // symptom). Embed the migration run at startup. Non-fatal by design — a
+    // checksum drift on an already-applied migration must not take the API
+    // down, so log and continue rather than aborting the process.
+    match sqlx::migrate!("../../migrations").run(&db).await {
+        Ok(_) => tracing::info!("Database migrations up to date"),
+        Err(e) => tracing::warn!(error = %e, "Database migration run failed — continuing"),
+    }
+
     // ── Load agent configs ───────────────────────────────────────────
     let agents_path = std::env::var("AGENTS_COMPILED_PATH")
         .unwrap_or_else(|_| "./agents/compiled".to_string());

@@ -38,6 +38,7 @@ export function ProjectWorkspacePage() {
   const { data: taskDetail } = useTask(selectedTaskId);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [pendingTree, setPendingTree] = useState<TaskTreeType | null>(null);
+  const [pendingConfirm, setPendingConfirm] = useState<PendingConfirm | null>(null);
 
   const [search, setSearch] = useState('');
   const [showArchived, setShowArchived] = useState(false);
@@ -87,8 +88,6 @@ export function ProjectWorkspacePage() {
 
   const task = taskDetail?.task;
   const messages: TaskMessage[] = taskDetail?.messages ?? [];
-
-  const [pendingConfirm, setPendingConfirm] = useState<PendingConfirm | null>(null);
 
   function performConfirm() {
     if (!pendingConfirm) return;
