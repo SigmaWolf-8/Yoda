@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
-import { Plus, X, Loader2 } from 'lucide-react';
+import { Plus, X, Loader2, Clipboard, Check, Download } from 'lucide-react';
 import { useCreateAgent, useUpdateAgent } from '../../api/hooks';
 import type { AgentConfig, AgentDivision, AgentUpsertPayload } from '../../types';
 import { DIVISIONS } from '../../types/agent';
 import { extractErrorMessage } from '../../types';
+import { buildAgentSkillMd, agentMdFilename, type AgentSkillMdInput } from './skillMd';
 
 interface Props {
   agent?: AgentConfig | null;
@@ -29,6 +30,7 @@ export function AgentEditor({ agent, templateFrom, onClose }: Props) {
   );
   const [compatReviewers, setCompatReviewers] = useState(source?.compatible_reviewers.join(', ') ?? '');
   const [role, setRole] = useState<'Producer' | 'Reviewer' | 'Both'>(source?.primary_role ?? 'Producer');
+  const [copied, setCopied] = useState(false);
 
   const createAgent = useCreateAgent();
   const updateAgent = useUpdateAgent(agent?.agent_id ?? '');
@@ -49,6 +51,53 @@ export function AgentEditor({ agent, templateFrom, onClose }: Props) {
   function parseList(s: string): string[] {
     return s.split(',').map(x => x.trim()).filter(Boolean);
   }
+
+  function currentSkillInput(): AgentSkillMdInput {
+    return {
+      displayName: displayName.trim(),
+      division,
+      primaryRole: role,
+      about,
+      keySkills: keySkills.split('\n').map(s => s.trim()).filter(Boolean),
+      competencies: parseList(competencies),
+      reviewCriteria: ['enhancement', ...parseList(reviewCriteria)],
+      compatibleReviewers: parseList(compatReviewers),
+      agentId: agent?.agent_id,
+    };
+  }
+
+  async function handleCopyMd() {
+    const md = buildAgentSkillMd(currentSkillInput());
+    try {
+      await navigator.clipboard.writeText(md);
+    } catch {
+      const ta = document.createElement('textarea');
+      ta.value = md;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      try { document.execCommand('copy'); } finally { document.body.removeChild(ta); }
+    }
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  }
+
+  function handleSaveMd() {
+    const input = currentSkillInput();
+    const md = buildAgentSkillMd(input);
+    const blob = new Blob([md], { type: 'text/markdown;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = agentMdFilename(input);
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  const exportDisabled = !displayName.trim() || !about.trim();
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -156,9 +205,20 @@ export function AgentEditor({ agent, templateFrom, onClose }: Props) {
         </form>
 
         {/* Footer */}
-        <div className="flex gap-3 px-6 py-4 border-t border-[var(--color-border-subtle)]">
+        <div className="flex flex-wrap items-center gap-3 px-6 py-4 border-t border-[var(--color-border-subtle)]">
+          <button type="button" onClick={handleCopyMd} disabled={exportDisabled} title="Copy this agent as a SKILL.md to the clipboard"
+            className="flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-lg text-sm font-medium text-[var(--color-text-secondary)] bg-[var(--color-surface-tertiary)] border border-[var(--color-border-default)] hover:bg-[var(--color-surface-hover)] disabled:opacity-50 transition-colors">
+            {copied ? <Check className="w-4 h-4" /> : <Clipboard className="w-4 h-4" />}
+            {copied ? 'Copied!' : 'Copy Agent'}
+          </button>
+          <button type="button" onClick={handleSaveMd} disabled={exportDisabled} title="Download this agent as a SKILL.md file"
+            className="flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-lg text-sm font-medium text-[var(--color-text-secondary)] bg-[var(--color-surface-tertiary)] border border-[var(--color-border-default)] hover:bg-[var(--color-surface-hover)] disabled:opacity-50 transition-colors">
+            <Download className="w-4 h-4" />
+            Save Agent MD
+          </button>
+          <div className="flex-1" />
           <button type="button" onClick={onClose}
-            className="flex-1 py-2.5 rounded-lg text-sm font-medium text-[var(--color-text-tertiary)] bg-[var(--color-surface-tertiary)] border border-[var(--color-border-default)] hover:bg-[var(--color-surface-hover)]">
+            className="flex-1 min-w-[120px] py-2.5 rounded-lg text-sm font-medium text-[var(--color-text-tertiary)] bg-[var(--color-surface-tertiary)] border border-[var(--color-border-default)] hover:bg-[var(--color-surface-hover)]">
             Cancel
           </button>
           <button onClick={handleSubmit as any} disabled={isPending || !displayName.trim() || !about.trim()}
