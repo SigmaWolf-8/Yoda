@@ -1,0 +1,1 @@
+- [sqlx migration checksum drift](sqlx-migration-drift.md) — editing an already-applied migration aborts the WHOLE chain; re-baseline the stored checksum, don't ignore the "Continuing..." warning.
