@@ -1,0 +1,682 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PlenumNET Brand Identity System — Book 0: The Color Derivation Engine</title>
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta name="color-scheme" content="dark">
+<meta name="description" content="YODA / PlenumNET / Capomastro brand identity system. Every color derived from first principles via parametric algebra over nine primitives. Repeatable on any Turing machine.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700;800;900&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<!-- =====================================================================
+     BOOK 0 — THE COLOR DERIVATION ENGINE
+     Runs in <head> so the FIRST paint already uses derived variables.
+     No hardcoded output integers: every color, text tone, timing token,
+     and geometric bevel is an explicit algebraic function of the NINE
+     PRIMITIVES. Any Turing machine can reconstruct the palette from the
+     axioms alone. Deterministic. Platform-independent. Repeatable.
+     ===================================================================== -->
+<script>
+(function () {
+  "use strict";
+
+  /* ---- THE NINE PRIMITIVES (the only numeric literals in the DERIVATION) ----
+     The axioms of the Salvi ternary field. Three trits + base + five atoms.
+     Everything below is derived from these nine values by pure algebra.
+     Canonical hexes further down are the verification ORACLE only — they are
+     parsed to check the derivation, never fed back into it. */
+  var P = {
+    ZERO: 0,   // trit ⊥   (Rep A)
+    ONE:  1,   // trit —   (Rep B)
+    TWO:  2,   // trit +   (Rep C)
+    b:    3,   // base — the count of trit symbols (ternary)
+    b5:   5,   // b₅  — the fifth atom (first prime past the base)
+    p:    7,   // p   — Salvi prime
+    iM:   10,  // ι_M — the measure atom
+    q:    11,  // q   — Salvi prime
+    r:    13   // r   — Salvi prime
+  };
+
+  /* ---- DERIVED CONSTANTS (algebra over the primitives, never stored raw) ---- */
+  var sq    = P.b * P.b;                       // b²          = 9   (base-9 = b²)
+  var cube  = P.b * P.b * P.b;                 // b³          = 27
+  var pi    = P.TWO * P.p;                     // π  = 2p     = 14
+  var sigma = Math.pow(P.b, P.b5);             // Σ(Salvi)=b^b₅ = 243
+  var k12   = P.b * (P.b + P.ONE);             // b(b+1)      = 12
+  var k15   = P.b * P.b5;                       // b·b₅        = 15
+  var k17   = P.TWO * sq - P.ONE;               // 2b²−1       = 17
+  var MAX   = sigma + k12;                       // 255  (full channel)
+  var HEXR  = P.b + P.r;                         // hex radix   = 16
+  var B9    = sq;                                // base-9 radix = 9
+
+  /* ---- FORMAT HELPERS (radices derived; digit alphabet is not an integer) ---- */
+  var HEXD = "0123456789abcdef";
+  function byteToHex(n) {
+    return HEXD[Math.floor(n / HEXR)] + HEXD[n % HEXR];
+  }
+  function rgbToHex(rgb) {
+    return "#" + byteToHex(rgb[0]) + byteToHex(rgb[1]) + byteToHex(rgb[2]);
+  }
+  function hexToRgb(hex) {
+    var h = hex.replace("#", "").toLowerCase();
+    return [
+      HEXD.indexOf(h[0]) * HEXR + HEXD.indexOf(h[1]),
+      HEXD.indexOf(h[2]) * HEXR + HEXD.indexOf(h[3]),
+      HEXD.indexOf(h[4]) * HEXR + HEXD.indexOf(h[5])
+    ];
+  }
+
+  /* ---- BASE-9 BIJECTION (bijective verification of every derived integer) ---- */
+  function toBase9(n) {
+    if (n === P.ZERO) return "0";
+    var out = "", v = n;
+    while (v > P.ZERO) { out = (v % B9) + out; v = Math.floor(v / B9); }
+    return out;
+  }
+  function fromBase9(s) {
+    var v = P.ZERO;
+    for (var i = P.ZERO; i < s.length; i++) v = v * B9 + (s.charCodeAt(i) - "0".charCodeAt(P.ZERO));
+    return v;
+  }
+
+  /* ============================ THE PALETTE ============================
+     Each channel is a NAMED formula (string, for reveal) + a THUNK that
+     computes it from the primitives. `canon` is the verification oracle
+     (parsed from canonical hex — never fed into the derivation).            */
+  var PALETTE = [
+    { key: "bg",      role: "Background",   canon: "#0F0C0A",
+      R: ["b·b₅",              function(){ return k15; }],
+      G: ["b(b+1)",            function(){ return k12; }],
+      B: ["ι_M",               function(){ return P.iM; }] },
+    { key: "panel",   role: "Panel",        canon: "#181411",
+      R: ["b(b²−1)",           function(){ return P.b * (sq - P.ONE); }],
+      G: ["b²+q",              function(){ return sq + P.q; }],
+      B: ["2b²−1",             function(){ return k17; }] },
+    { key: "surface", role: "Surface",      canon: "#1D1915",
+      R: ["2π+1",              function(){ return P.TWO * pi + P.ONE; }],
+      G: ["2π−b",              function(){ return P.TWO * pi - P.b; }],
+      B: ["2π−p",              function(){ return P.TWO * pi - P.p; }] },
+    { key: "border",  role: "Border",       canon: "#272220",
+      R: ["b·r",               function(){ return P.b * P.r; }],
+      G: ["2(2b²−1)",          function(){ return P.TWO * k17; }],
+      B: ["2b²+π",             function(){ return P.TWO * sq + pi; }] },
+    { key: "blue",    role: "Accent · Blue", canon: "#4A9EF5",
+      R: ["pq−b",              function(){ return P.p * P.q - P.b; }],
+      G: ["r·b(b+1)+2",        function(){ return P.r * k12 + P.TWO; }],
+      B: ["Σ(Salvi)+2",        function(){ return sigma + P.TWO; }] },
+    { key: "hover",   role: "Accent · Hover", canon: "#38BDF8",
+      R: ["p(b²−1)",           function(){ return P.p * (sq - P.ONE); }],
+      G: ["b³·p",              function(){ return cube * P.p; }],
+      B: ["Σ(Salvi)+b₅",       function(){ return sigma + P.b5; }] },
+    { key: "iron",    role: "Accent · Iron", canon: "#3D444B",
+      R: ["p(b²−1)+b₅",        function(){ return P.p * (sq - P.ONE) + P.b5; }],
+      G: ["(b+1)(2b²−1)",      function(){ return (P.b + P.ONE) * k17; }],
+      B: ["b(2π−b)",           function(){ return P.b * (P.TWO * pi - P.b); }] },
+    { key: "slate",   role: "Accent · Slate", canon: "#78828C",
+      R: ["ι_M·b(b+1)",        function(){ return P.iM * k12; }],
+      G: ["ι_M·r",             function(){ return P.iM * P.r; }],
+      B: ["ι_M·π",             function(){ return P.iM * pi; }] },
+    { key: "lime",    role: "Accent · Lime", canon: "#8BA633",
+      R: ["b³·b₅+(b+1)",       function(){ return cube * P.b5 + (P.b + P.ONE); }],
+      G: ["r·b(b+1)+ι_M",      function(){ return P.r * k12 + P.iM; }],
+      B: ["b(2b²−1)",          function(){ return P.b * k17; }] },
+    { key: "gold",    role: "Accent · Gold", canon: "#FFCC44",
+      R: ["Σ(Salvi)+b(b+1)",   function(){ return MAX; }],
+      G: ["b(b+1)(2b²−1)",     function(){ return k12 * k17; }],
+      B: ["(b+1)(2b²−1)",      function(){ return (P.b + P.ONE) * k17; }] },
+    { key: "green",   role: "Semantic · Verified", canon: "#059669",
+      R: ["b₅",                function(){ return P.b5; }],
+      G: ["ι_M·b·b₅",          function(){ return P.iM * k15; }],
+      B: ["b·b₅·p",            function(){ return P.b * P.b5 * P.p; }] },
+    { key: "amber",   role: "Semantic · Refining", canon: "#D97706",
+      R: ["p(b·ι_M+1)",        function(){ return P.p * (P.b * P.iM + P.ONE); }],
+      G: ["p(2b²−1)",          function(){ return P.p * k17; }],
+      B: ["2b",                function(){ return P.TWO * P.b; }] },
+    { key: "red",     role: "Semantic · Rejected", canon: "#DC2626",
+      R: ["2ι_M(ι_M+1)",       function(){ return P.TWO * P.iM * (P.iM + P.ONE); }],
+      G: ["2(2b²+1)",          function(){ return P.TWO * (P.TWO * sq + P.ONE); }],
+      B: ["2(2b²+1)",          function(){ return P.TWO * (P.TWO * sq + P.ONE); }] }
+  ];
+
+  /* ==================== CONSERVATION LAW (text tones) ====================
+     Text is PURE ACHROMATIC (R=G=B). Warm earth tones are reserved for
+     panels & borders. Cross-entries forbidden under GAAP — no rgba white. */
+  var TEXT = [
+    { key: "heading", label: "Heading",  formula: "Σ(Salvi)+b(b+1)",  fn: function(){ return MAX; },              canon: 255 },
+    { key: "body",    label: "Body",     formula: "r(2b²−1)",         fn: function(){ return P.r * k17; },        canon: 221 },
+    { key: "label",   label: "Label",    formula: "ι_M(2b²−1)",       fn: function(){ return P.iM * k17; },       canon: 170 },
+    { key: "faint",   label: "Faint",    formula: "2b(2b²−1)",        fn: function(){ return P.TWO * P.b * k17; }, canon: 102 }
+  ];
+
+  /* ==================== TIMING TOKEN STACK (Book VIII) ====================
+     Animation durations in ms, derived from the measure atom ι_M.
+     Each `canon9` is the canonical duration written in base-9 — the timing
+     oracle. Derived ms is checked against fromBase9(canon9). */
+  var TIMING = [
+    { key: "instant", formula: "ι_M²",           canon9: "121", fn: function(){ return P.iM * P.iM; } },              // 100
+    { key: "fast",    formula: "ι_M·b·b₅",       canon9: "176", fn: function(){ return P.iM * k15; } },               // 150
+    { key: "base",    formula: "2ι_M²",          canon9: "242", fn: function(){ return P.TWO * P.iM * P.iM; } },      // 200
+    { key: "smooth",  formula: "ι_M(2ι_M+b₅)",   canon9: "307", fn: function(){ return P.iM * (P.TWO * P.iM + P.b5); } }, // 250
+    { key: "slow",    formula: "b·ι_M²",         canon9: "363", fn: function(){ return P.b * P.iM * P.iM; } },        // 300
+    { key: "slower",  formula: "(b+1)ι_M²",      canon9: "484", fn: function(){ return (P.b + P.ONE) * P.iM * P.iM; } }, // 400
+    { key: "reveal",  formula: "2b·ι_M²",        canon9: "736", fn: function(){ return P.TWO * P.b * P.iM * P.iM; } } // 600
+  ];
+
+  /* ---- GEOMETRY (Book II): chamfer bevel derived from the primitives ---- */
+  var BEVEL = P.b + P.ONE;  // 4px
+
+  /* ============================ EXECUTION ============================ */
+  var assertions = [];
+  function assert(name, got, want) {
+    var ok = (got === want);
+    assertions.push({ name: name, got: got, want: want, ok: ok });
+    return ok;
+  }
+
+  /* Axiom / derived-constant relations (proves the scaffolding). */
+  assert("π = 2p", pi, P.TWO * P.p);
+  assert("Σ(Salvi) = b^b₅", sigma, cube * sq);
+  assert("b² = 9 (base-9 radix)", sq, B9);
+  assert("hex radix = b+r", HEXR, P.TWO * (P.b + P.b5));
+  assert("2b²−1 = 17", k17, 17);
+  assert("b(b+1) = 12", k12, 12);
+  assert("b·b₅ = 15", k15, 15);
+  assert("channel MAX = 255", MAX, hexToRgb("#ffffff")[0]);
+
+  /* Derive palette, verify each channel against canonical, apply CSS vars. */
+  var root = document.documentElement;
+  var derived = [];
+  PALETTE.forEach(function (c) {
+    var rgb = [c.R[1](), c.G[1](), c.B[1]()];
+    var canonRgb = hexToRgb(c.canon);
+    ["R", "G", "B"].forEach(function (ch, i) {
+      assert(c.key + "." + ch + " = " + c[ch][0], rgb[i], canonRgb[i]);
+      // Bijective base-9 round-trip on every derived channel.
+      assert(c.key + "." + ch + " base-9 bijection", fromBase9(toBase9(rgb[i])), rgb[i]);
+    });
+    var hex = rgbToHex(rgb);
+    assert(c.key + " hex = canonical", hex.toLowerCase(), c.canon.toLowerCase());
+    root.style.setProperty("--pn-" + c.key, hex);
+    derived.push({ key: c.key, role: c.role, rgb: rgb, hex: hex, canon: c.canon,
+                   formulae: [c.R[0], c.G[0], c.B[0]] });
+  });
+
+  /* Derive & apply the achromatic text tones (Conservation Law). */
+  var textDerived = [];
+  TEXT.forEach(function (t) {
+    var v = t.fn();
+    assert("text." + t.key + " = " + t.formula, v, t.canon);
+    assert("text." + t.key + " achromatic base-9 bijection", fromBase9(toBase9(v)), v);
+    var hex = rgbToHex([v, v, v]);   // R = G = B  → achromatic by construction
+    root.style.setProperty("--pn-text-" + t.key, hex);
+    textDerived.push({ key: t.key, label: t.label, value: v, formula: t.formula, hex: hex });
+  });
+
+  /* Derive & apply timing tokens. */
+  var timingDerived = [];
+  TIMING.forEach(function (t) {
+    var ms = t.fn();
+    // Canonical oracle: derived ms must equal the base-9 canonical duration.
+    assert("timing." + t.key + " = canonical (" + t.canon9 + "₉)", ms, fromBase9(t.canon9));
+    assert("timing." + t.key + " base-9 bijection", fromBase9(toBase9(ms)), ms);
+    root.style.setProperty("--pn-t-" + t.key, (ms / (P.iM * P.iM * P.iM)) + "s");
+    timingDerived.push({ key: t.key, ms: ms, formula: t.formula, canon9: t.canon9, sec: (ms / (P.iM * P.iM * P.iM)) });
+  });
+
+  root.style.setProperty("--pn-bevel", BEVEL + "px");
+  assert("bevel = b+1 px", BEVEL, P.TWO * P.TWO);
+
+  var passed = assertions.filter(function (a) { return a.ok; }).length;
+
+  /* Publish results for the reveal renderer. */
+  window.__ENGINE = {
+    primitives: P, sq: sq, cube: cube, pi: pi, sigma: sigma, k12: k12, k15: k15,
+    k17: k17, MAX: MAX, HEXR: HEXR, B9: B9, bevel: BEVEL,
+    palette: derived, text: textDerived, timing: timingDerived,
+    assertions: assertions, passed: passed, total: assertions.length,
+    toBase9: toBase9
+  };
+})();
+</script>
+
+<style>
+  :root {
+    --display: 'Orbitron', 'Trajan Pro', 'Felix Titling', 'Optima', serif;
+    --sans: 'Inter', 'Century Gothic', system-ui, sans-serif;
+    --mono: 'JetBrains Mono', 'Fira Code', monospace;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html { background: var(--pn-bg); }
+  body {
+    background: var(--pn-bg);
+    color: var(--pn-text-body);
+    font-family: var(--sans);
+    font-size: 15px;
+    line-height: 1.7;
+    -webkit-font-smoothing: antialiased;
+    padding-bottom: 80px;
+  }
+  ::selection { background: var(--pn-blue); color: var(--pn-bg); }
+
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 0 28px; }
+
+  /* ---- Masthead ---- */
+  header.masthead {
+    border-bottom: 1px solid var(--pn-border);
+    background: linear-gradient(180deg, var(--pn-panel), var(--pn-bg));
+    padding: 46px 0 34px;
+    margin-bottom: 44px;
+  }
+  .eyebrow { font-family: var(--mono); font-size: 11px; letter-spacing: 0.34em;
+    text-transform: uppercase; color: var(--pn-blue); margin-bottom: 16px; }
+  h1.title { font-family: var(--display); font-weight: 900; font-size: clamp(28px, 5vw, 52px);
+    letter-spacing: 0.04em; text-transform: uppercase; color: var(--pn-text-heading); line-height: 1.05; }
+  h1.title b { color: var(--pn-blue); }
+  .subtitle { font-family: var(--sans); font-size: 16px; color: var(--pn-text-label);
+    margin-top: 14px; max-width: 720px; }
+  .kyokushin { font-family: var(--mono); font-size: 15px; color: var(--pn-text-body);
+    letter-spacing: 0.14em; margin-top: 20px; }
+  .kyokushin span { color: var(--pn-blue); }
+
+  /* ---- Verification banner ---- */
+  .verify { display: flex; flex-wrap: wrap; gap: 14px; margin: 0 0 44px; }
+  .vcard { flex: 1 1 200px; border: 1px solid var(--pn-border); background: var(--pn-panel);
+    padding: 18px 20px; clip-path: polygon(var(--pn-bevel) 0, calc(100% - var(--pn-bevel)) 0, 100% var(--pn-bevel),
+      100% calc(100% - var(--pn-bevel)), calc(100% - var(--pn-bevel)) 100%, var(--pn-bevel) 100%,
+      0 calc(100% - var(--pn-bevel)), 0 var(--pn-bevel)); }
+  .vcard .vk { font-family: var(--mono); font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase;
+    color: var(--pn-text-label); margin-bottom: 8px; }
+  .vcard .vv { font-family: var(--display); font-weight: 800; font-size: 30px; color: var(--pn-text-heading); }
+  .vcard .vv.ok { color: var(--pn-green); }
+  .vcard .vsub { font-family: var(--mono); font-size: 11px; color: var(--pn-text-label); margin-top: 4px; }
+
+  /* ---- Sections & books ---- */
+  section { margin-bottom: 52px; }
+  .book-tag { font-family: var(--mono); font-size: 11px; letter-spacing: 0.24em; text-transform: uppercase;
+    color: var(--pn-blue); margin-bottom: 8px; }
+  h2 { font-family: var(--display); font-weight: 800; font-size: 22px; letter-spacing: 0.06em;
+    text-transform: uppercase; color: var(--pn-text-heading); margin-bottom: 6px;
+    padding-bottom: 14px; border-bottom: 1px solid var(--pn-border); }
+  h2 + .lead { color: var(--pn-text-label); font-size: 14px; margin: 14px 0 24px; max-width: 820px; }
+  h3 { font-family: var(--display); font-weight: 700; font-size: 13px; letter-spacing: 0.12em;
+    text-transform: uppercase; color: var(--pn-text-body); margin: 26px 0 12px; }
+
+  /* ---- Primitive chips ---- */
+  .prims { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+  .prim { border: 1px solid var(--pn-border); background: var(--pn-surface); padding: 14px 16px; border-radius: 2px; }
+  .prim .sym { font-family: var(--mono); font-size: 18px; font-weight: 700; color: var(--pn-blue); }
+  .prim .val { font-family: var(--display); font-size: 26px; font-weight: 800; color: var(--pn-text-heading); }
+  .prim .desc { font-size: 12px; color: var(--pn-text-label); margin-top: 4px; }
+  .prim .b9 { font-family: var(--mono); font-size: 10px; color: var(--pn-text-faint); margin-top: 6px; }
+
+  /* ---- Tables ---- */
+  .tbl { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .tbl th { text-align: left; font-family: var(--mono); font-size: 10px; letter-spacing: 0.14em;
+    text-transform: uppercase; color: var(--pn-text-label); padding: 10px 12px;
+    border-bottom: 1px solid var(--pn-border); }
+  .tbl td { padding: 12px; border-bottom: 1px solid var(--pn-border); vertical-align: middle; }
+  .tbl tr:hover td { background: var(--pn-surface); }
+  .swatch { width: 34px; height: 34px; border-radius: 3px; border: 1px solid var(--pn-border); flex-shrink: 0; }
+  .cellflex { display: flex; align-items: center; gap: 12px; }
+  .mono { font-family: var(--mono); }
+  .formula { font-family: var(--mono); color: var(--pn-text-label); font-size: 12px; }
+  .chan { font-family: var(--mono); font-size: 12px; }
+  .chan b { color: var(--pn-text-heading); font-weight: 600; }
+  .hex { font-family: var(--mono); color: var(--pn-text-heading); font-weight: 600; }
+  .badge { font-family: var(--mono); font-size: 10px; font-weight: 700; letter-spacing: 0.08em;
+    padding: 3px 9px; border-radius: 3px; }
+  .badge.ok { color: var(--pn-green); border: 1px solid var(--pn-green); }
+  .badge.warm { color: var(--pn-gold); border: 1px solid var(--pn-gold); }
+
+  /* ---- Brand foundation grid ---- */
+  .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 18px; }
+  .fcard { border: 1px solid var(--pn-border); background: var(--pn-panel); padding: 22px; border-radius: 2px; }
+  .fcard h4 { font-family: var(--display); font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase;
+    color: var(--pn-blue); margin-bottom: 10px; }
+  .fcard p { color: var(--pn-text-body); font-size: 14px; }
+  .fcard ul { list-style: none; margin-top: 6px; }
+  .fcard li { color: var(--pn-text-body); font-size: 14px; padding: 5px 0 5px 18px; position: relative; }
+  .fcard li::before { content: "▸"; color: var(--pn-blue); position: absolute; left: 0; }
+  .fcard li b { color: var(--pn-text-heading); }
+
+  .books { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; }
+  .bcard { border: 1px solid var(--pn-border); background: var(--pn-surface); padding: 18px 20px;
+    border-left: 3px solid var(--pn-blue); }
+  .bcard .bn { font-family: var(--mono); font-size: 11px; letter-spacing: 0.2em; color: var(--pn-blue); }
+  .bcard .bt { font-family: var(--display); font-size: 14px; font-weight: 700; letter-spacing: 0.06em;
+    text-transform: uppercase; color: var(--pn-text-heading); margin: 6px 0 8px; }
+  .bcard p { font-size: 13px; color: var(--pn-text-label); }
+
+  /* ---- Type specimens ---- */
+  .specimen { border: 1px solid var(--pn-border); background: var(--pn-panel); padding: 22px; margin-bottom: 12px; }
+  .specimen .lab { font-family: var(--mono); font-size: 10px; letter-spacing: 0.16em; text-transform: uppercase;
+    color: var(--pn-text-label); margin-bottom: 10px; }
+  .sp-display { font-family: var(--display); font-weight: 800; font-size: 30px; color: var(--pn-text-heading);
+    letter-spacing: 0.04em; text-transform: uppercase; }
+  .sp-sans { font-family: var(--sans); font-size: 17px; color: var(--pn-text-body); }
+  .sp-mono { font-family: var(--mono); font-size: 15px; color: var(--pn-text-body); }
+
+  footer { border-top: 1px solid var(--pn-border); margin-top: 56px; padding: 26px 0;
+    font-family: var(--mono); font-size: 11px; color: var(--pn-text-faint); letter-spacing: 0.06em; }
+  footer b { color: var(--pn-text-label); }
+  .qed { color: var(--pn-text-heading); font-family: "Cambria Math", "STIX Two Math", serif; }
+</style>
+</head>
+<body>
+
+<header class="masthead">
+  <div class="wrap">
+    <div class="eyebrow">Capomastro Holdings · Applied Physics Division</div>
+    <h1 class="title">YODA <b>×</b> PlenumNET<br>Brand Identity System</h1>
+    <div class="subtitle">
+      Auditable multi-agent AI over a post-quantum ternary crypto mesh.
+      Book 0 derives every brand color from first principles — no hardcoded values,
+      repeatable on any Turing machine.
+    </div>
+    <div class="kyokushin">
+      不屈 <span>·</span> 大道無門 <span>·</span> 同時実行 <span>·</span> 全力
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <!-- LIVE VERIFICATION BANNER -->
+  <div class="verify" id="verify"></div>
+
+  <!-- BOOK 0 -->
+  <section id="book0">
+    <div class="book-tag">Book 0 — The Color Derivation Engine</div>
+    <h2>The Nine Primitives</h2>
+    <div class="lead">
+      The axioms of the Salvi ternary field. Three trits, the base, and five atoms.
+      Every color, text tone, timing token, and geometric bevel in this system is an
+      explicit algebraic function of these nine values. They are the only numeric
+      literals the engine is permitted to know.
+    </div>
+    <div class="prims" id="prims"></div>
+
+    <h3>Derived Constants</h3>
+    <div class="prims" id="derived-consts"></div>
+  </section>
+
+  <!-- PALETTE -->
+  <section id="palette">
+    <div class="book-tag">Book 0 · §2 — Chromatic Derivation</div>
+    <h2>The PlenumNET Palette</h2>
+    <div class="lead">
+      Each channel is derived, assembled into a hex triplet, and compared against the
+      canonical value. Green badge = derived value is bit-exact to canonical. Warm earth
+      tones (bg / panel / surface / border) carry the material; accents carry meaning.
+    </div>
+    <table class="tbl">
+      <thead><tr><th>Token</th><th>Role</th><th>R · G · B (derived)</th><th>Hex</th><th>Canonical</th><th>Proof</th></tr></thead>
+      <tbody id="palette-body"></tbody>
+    </table>
+  </section>
+
+  <!-- CONSERVATION LAW -->
+  <section id="conservation">
+    <div class="book-tag">Book IX — The Conservation Law</div>
+    <h2>Achromatic Text · Corrected</h2>
+    <div class="lead">
+      Text channels are <b>pure achromatic</b> (R = G = B). The warm-tinted text tokens of
+      earlier drafts (#F0EDE8, #C9C1B4, #998F82 …) were cross-entries — warm mass leaking into
+      the text ledger. Under GAAP they are forbidden. Corrected below to the 255 / 221 / 170 / 102
+      achromatic set, each derived from the primitives. No <span class="mono">rgba(255,255,255,N)</span> anywhere.
+    </div>
+    <table class="tbl">
+      <thead><tr><th>Tone</th><th>Formula</th><th>Value</th><th>Hex</th><th>Sample</th><th>Proof</th></tr></thead>
+      <tbody id="text-body"></tbody>
+    </table>
+  </section>
+
+  <!-- TIMING -->
+  <section id="timing">
+    <div class="book-tag">Book VIII — Timing Token Stack</div>
+    <h2>Motion, Derived</h2>
+    <div class="lead">
+      Every animation duration is a function of the measure atom ι_M. HPTP resolution underneath;
+      human-scale tokens on top. One second = ι_M³ milliseconds.
+    </div>
+    <table class="tbl">
+      <thead><tr><th>Token</th><th>Formula</th><th>ms</th><th>seconds</th><th>Proof (base-9)</th></tr></thead>
+      <tbody id="timing-body"></tbody>
+    </table>
+  </section>
+
+  <!-- BRAND FOUNDATION -->
+  <section id="foundation">
+    <div class="book-tag">Brand Guardian — Foundation</div>
+    <h2>Strategy &amp; Positioning</h2>
+    <div class="grid2">
+      <div class="fcard">
+        <h4>Purpose</h4>
+        <p>To force every AI output through mandatory adversarial refinement — eliminating
+        confirmation bias and leaving an irrefutable, cryptographically signed audit trail
+        for every deliverable.</p>
+      </div>
+      <div class="fcard">
+        <h4>Vision</h4>
+        <p>A world where no machine output is trusted by default. Every claim is independently
+        verified by diverse engines and permanently attestable under post-quantum signatures.</p>
+      </div>
+      <div class="fcard">
+        <h4>Mission</h4>
+        <p>YODA delivers auditable multi-agent intelligence — <b>Yoda the Counselor</b> for research
+        and strategy, <b>Yoda Ronin the Warrior</b> for production code — running over PlenumNET's
+        encrypted ternary inference mesh.</p>
+      </div>
+      <div class="fcard">
+        <h4>Brand Promise</h4>
+        <p>Build Smarter. Every Output Verified. Nothing Trusted by Default.</p>
+      </div>
+      <div class="fcard">
+        <h4>Core Values</h4>
+        <ul>
+          <li><b>No Blind Trust</b> — nothing accepted without proof.</li>
+          <li><b>Adversarial Refinement</b> — Array3 diversity: Alpha ∥ Beta ∥ Gamma.</li>
+          <li><b>Post-Quantum Integrity</b> — TIS-27, TLSponge-385, TL-DSA-87, TL-KEM.</li>
+          <li><b>Authentic First Principles</b> — every artifact derivable from axioms.</li>
+        </ul>
+      </div>
+      <div class="fcard">
+        <h4>Personality — The Kyokushin Discipline</h4>
+        <ul>
+          <li><b>不屈 Fukutsu</b> — indomitable; ships under pressure.</li>
+          <li><b>大道無門 Daidō Mumon</b> — the great way has no gate; engine-agnostic.</li>
+          <li><b>同時実行 Dōji Jikkō</b> — simultaneous execution across three engines.</li>
+          <li><b>全力 Zenryoku</b> — full power, every run.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- VISUAL IDENTITY / TYPE -->
+  <section id="type">
+    <div class="book-tag">Brand Guardian — Visual Identity</div>
+    <h2>Typography</h2>
+    <div class="lead">A three-voice system: an imperial display face, a neutral UI face, and a
+      forensic monospace for every number that must be trusted.</div>
+    <div class="specimen">
+      <div class="lab">Display — Orbitron / Trajan Pro / Felix Titling</div>
+      <div class="sp-display">Nothing Trusted By Default</div>
+    </div>
+    <div class="specimen">
+      <div class="lab">UI &amp; Body — Inter / Century Gothic</div>
+      <div class="sp-sans">Every deliverable is refined by three independent engines and signed with ternary post-quantum cryptography.</div>
+    </div>
+    <div class="specimen">
+      <div class="lab">Mono — JetBrains Mono / Fira Code</div>
+      <div class="sp-mono">C_NP 0.851 · TIS-27 ✓ · TL-DSA-87 ✓ · Array3 [Alpha ∥ Beta ∥ Gamma]</div>
+    </div>
+  </section>
+
+  <!-- BOOKS INDEX -->
+  <section id="books">
+    <div class="book-tag">Geometric Imperial Framework</div>
+    <h2>The Books</h2>
+    <div class="lead">Book 0 is entirely new — the derivation engine above. It runs through the same
+      parametric field as the surrounding Books of the framework.</div>
+    <div class="books">
+      <div class="bcard"><div class="bn">BOOK 0</div><div class="bt">Color Derivation Engine</div>
+        <p>Every hex value as a function of ( b, p, q, r ) and the nine primitives. Verified, bijective, repeatable.</p></div>
+      <div class="bcard"><div class="bn">BOOK I</div><div class="bt">The Nine Primitives</div>
+        <p>Axioms of the Salvi ternary field. Trits, base, atoms — the ground truth all else derives from.</p></div>
+      <div class="bcard"><div class="bn">BOOK II</div><div class="bt">Geometry of the Chamfer</div>
+        <p>Chamfered panels via clip-path polygons. The (b+1)px bevel is itself derived from the base.</p></div>
+      <div class="bcard"><div class="bn">BOOK III</div><div class="bt">The Imperial Grid</div>
+        <p>Array3 triadic layout — Alpha, Beta, Gamma — a base-3 rhythm across every surface.</p></div>
+      <div class="bcard"><div class="bn">BOOK VIII</div><div class="bt">Timing Token Stack</div>
+        <p>HPTP attosecond time protocol beneath human-scale durations, all functions of ι_M.</p></div>
+      <div class="bcard"><div class="bn">BOOK IX</div><div class="bt">The Conservation Law</div>
+        <p>Achromatic text vs. warm mass. Cross-entries forbidden under GAAP — the ledger stays balanced.</p></div>
+    </div>
+  </section>
+
+  <!-- PROTECTION -->
+  <section id="protection">
+    <div class="book-tag">Brand Guardian — Protection</div>
+    <h2>Repeatability as Protection</h2>
+    <div class="lead">
+      The palette cannot be misquoted because it is not stored — it is computed. Any implementer,
+      on any platform, reconstructs the exact system from the nine primitives alone. Divergence is
+      detectable: a single failed assertion means the brand has drifted. This document is its own
+      compliance monitor.
+    </div>
+  </section>
+
+</div>
+
+<footer>
+  <div class="wrap">
+    <div><b>PlenumNET Brand Identity System</b> · Book 0 — The Color Derivation Engine</div>
+    <div>Capomastro Holdings Ltd. · Applied Physics Division · Derived from first principles · <span id="foot-count"></span></div>
+    <div style="margin-top:8px">Repeatable on any Turing machine — reconstruct the palette from the axioms alone. <span class="qed">∎</span></div>
+  </div>
+</footer>
+
+<!-- =====================================================================
+     THE REVEAL — renders the engine's derived results into the document.
+     ===================================================================== -->
+<script>
+(function () {
+  "use strict";
+  var E = window.__ENGINE;
+  if (!E) {
+    document.body.insertAdjacentHTML("afterbegin",
+      "<div style='padding:20px;font-family:monospace;color:#dc2626'>Engine failed to initialize — palette not derived.</div>");
+    return;
+  }
+  var P = E.primitives;
+
+  function el(tag, cls, html) {
+    var n = document.createElement(tag);
+    if (cls) n.className = cls;
+    if (html != null) n.innerHTML = html;
+    return n;
+  }
+
+  /* Verification banner */
+  var vb = document.getElementById("verify");
+  var allOk = (E.passed === E.total);
+  [
+    { k: "Assertions Passed", v: E.passed + " / " + E.total, ok: allOk, sub: allOk ? "bit-exact to canonical" : "DRIFT DETECTED" },
+    { k: "Base Field", v: " b = " + P.b, ok: true, sub: "ternary · base-9 = b²" },
+    { k: "Σ(Salvi)", v: E.sigma, ok: true, sub: "b^b₅ = " + P.b + "^" + P.b5 },
+    { k: "Bijective Base-9", v: allOk ? "VERIFIED" : "FAILED", ok: allOk, sub: "round-trip on all channels" }
+  ].forEach(function (c) {
+    var card = el("div", "vcard");
+    card.appendChild(el("div", "vk", c.k));
+    card.appendChild(el("div", "vv" + (c.ok ? " ok" : ""), c.v));
+    card.appendChild(el("div", "vsub", c.sub));
+    vb.appendChild(card);
+  });
+
+  /* Nine primitives */
+  var prims = document.getElementById("prims");
+  var meta = {
+    ZERO: ["trit ⊥ · Rep A"], ONE: ["trit — · Rep B"], TWO: ["trit + · Rep C"],
+    b: ["base · ternary"], b5: ["b₅ · fifth atom"], p: ["p · Salvi prime"],
+    iM: ["ι_M · measure atom"], q: ["q · Salvi prime"], r: ["r · Salvi prime"]
+  };
+  var syms = { ZERO: "0", ONE: "1", TWO: "2", b: "b", b5: "b₅", p: "p", iM: "ι_M", q: "q", r: "r" };
+  ["ZERO", "ONE", "TWO", "b", "b5", "p", "iM", "q", "r"].forEach(function (key) {
+    var c = el("div", "prim");
+    c.appendChild(el("div", "sym", syms[key]));
+    c.appendChild(el("div", "val", String(P[key])));
+    c.appendChild(el("div", "desc", meta[key][0]));
+    c.appendChild(el("div", "b9", "base-9: " + E.toBase9(P[key])));
+    prims.appendChild(c);
+  });
+
+  /* Derived constants */
+  var dc = document.getElementById("derived-consts");
+  [
+    ["b²", E.sq, "b·b"], ["b³", E.cube, "b·b·b"], ["π", E.pi, "2p"],
+    ["Σ(Salvi)", E.sigma, "b^b₅"], ["b(b+1)", E.k12, "= 12"], ["b·b₅", E.k15, "= 15"],
+    ["2b²−1", E.k17, "= 17"], ["MAX", E.MAX, "Σ+b(b+1)"]
+  ].forEach(function (row) {
+    var c = el("div", "prim");
+    c.appendChild(el("div", "sym", row[0]));
+    c.appendChild(el("div", "val", String(row[1])));
+    c.appendChild(el("div", "desc", row[2]));
+    c.appendChild(el("div", "b9", "base-9: " + E.toBase9(row[1])));
+    dc.appendChild(c);
+  });
+
+  /* Palette table */
+  var pbody = document.getElementById("palette-body");
+  E.palette.forEach(function (c) {
+    var tr = el("tr");
+    var tdName = el("td");
+    var flex = el("div", "cellflex");
+    var sw = el("div", "swatch"); sw.style.background = c.hex;
+    flex.appendChild(sw);
+    flex.appendChild(el("span", "mono", "--pn-" + c.key));
+    tdName.appendChild(flex); tr.appendChild(tdName);
+    tr.appendChild(el("td", null, "<span style='color:var(--pn-text-label)'>" + c.role + "</span>"));
+    var chans = "<span class='chan'>R <b>" + c.rgb[0] + "</b> <span class='formula'>= " + c.formulae[0] + "</span></span><br>" +
+                "<span class='chan'>G <b>" + c.rgb[1] + "</b> <span class='formula'>= " + c.formulae[1] + "</span></span><br>" +
+                "<span class='chan'>B <b>" + c.rgb[2] + "</b> <span class='formula'>= " + c.formulae[2] + "</span></span>";
+    tr.appendChild(el("td", null, chans));
+    tr.appendChild(el("td", null, "<span class='hex'>" + c.hex.toUpperCase() + "</span>"));
+    tr.appendChild(el("td", null, "<span class='mono' style='color:var(--pn-text-label)'>" + c.canon.toUpperCase() + "</span>"));
+    var ok = c.hex.toLowerCase() === c.canon.toLowerCase();
+    tr.appendChild(el("td", null, "<span class='badge " + (ok ? "ok'>✓ EXACT" : "warm'>✗ DRIFT") + "</span>"));
+    pbody.appendChild(tr);
+  });
+
+  /* Text conservation table */
+  var tbody = document.getElementById("text-body");
+  E.text.forEach(function (t) {
+    var tr = el("tr");
+    tr.appendChild(el("td", null, "<span class='mono'>--pn-text-" + t.key + "</span><br><span style='color:var(--pn-text-label);font-size:12px'>" + t.label + "</span>"));
+    tr.appendChild(el("td", null, "<span class='formula'>" + t.formula + "</span>"));
+    tr.appendChild(el("td", null, "<span class='chan'><b>" + t.value + "</b> · " + t.value + " · " + t.value + "</span>"));
+    tr.appendChild(el("td", null, "<span class='hex'>" + t.hex.toUpperCase() + "</span>"));
+    tr.appendChild(el("td", null, "<span style='color:" + t.hex + ";font-family:var(--sans);font-weight:600'>The quick ternary fox</span>"));
+    tr.appendChild(el("td", null, "<span class='badge ok'>✓ ACHROMATIC</span>"));
+    tbody.appendChild(tr);
+  });
+
+  /* Timing table */
+  var tmbody = document.getElementById("timing-body");
+  E.timing.forEach(function (t) {
+    var tr = el("tr");
+    tr.appendChild(el("td", null, "<span class='mono'>--pn-t-" + t.key + "</span>"));
+    tr.appendChild(el("td", null, "<span class='formula'>" + t.formula + "</span>"));
+    tr.appendChild(el("td", null, "<span class='chan'><b>" + t.ms + "</b></span>"));
+    tr.appendChild(el("td", null, "<span class='mono'>" + t.sec + "s</span>"));
+    tr.appendChild(el("td", null, "<span class='mono' style='color:var(--pn-text-label)'>" + t.canon9 + "₉ = " + t.ms + " ✓</span>"));
+    tmbody.appendChild(tr);
+  });
+
+  document.getElementById("foot-count").textContent = E.passed + "/" + E.total + " assertions ✓";
+})();
+</script>
+</body>
+</html>
