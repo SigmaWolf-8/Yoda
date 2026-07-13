@@ -15,7 +15,7 @@
      BOOK 0 — THE COLOR DERIVATION ENGINE
      Runs in <head> so the FIRST paint already uses derived variables.
      No hardcoded output integers: every color, text tone, timing token,
-     and geometric bevel is an explicit algebraic function of the NINE
+     chamfer, and recessed-shadow depth is an explicit algebraic function of the NINE
      PRIMITIVES. Any Turing machine can reconstruct the palette from the
      axioms alone. Deterministic. Platform-independent. Repeatable.
      ===================================================================== -->
@@ -165,8 +165,31 @@
     { key: "reveal",  formula: "2b·ι_M²",        canon9: "736", fn: function(){ return P.TWO * P.b * P.iM * P.iM; } } // 600
   ];
 
-  /* ---- GEOMETRY (Book II): chamfer bevel derived from the primitives ---- */
-  var BEVEL = P.b + P.ONE;  // 4px
+  /* ==================== GEOMETRY & DEPTH (Book II) ====================
+     The brand's physical language: an 8px 45° chamfer, and a RECESSED
+     "sunken well" header rendered as a four-sided inset shadow — the same
+     depth signature used on the Array-3 monitor panels. Every length, blur
+     radius, and shadow opacity is derived from the primitives; opacities are
+     integer percentages over the denominator ι_M² = 100.                    */
+  var CHAMFER = P.b + P.b5;        // 8px — the 45° corner cut (matches BevelBox)
+  var BORDER  = P.TWO;             // 2px — perimeter border / inset content margin
+  var PCT     = P.iM * P.iM;       // 100 — opacity denominator (ι_M²)
+
+  /* Recessed (sunken) inset-shadow stack — top/bottom heavy, sides lighter. */
+  var R_OFF_V  = P.b + P.b5;       //  8  top & bottom shadow offset
+  var R_BLUR_V = P.TWO * sq;       // 18  top & bottom blur radius (2b²)
+  var R_A_V    = P.b5 * P.p + P.b; // 38  top & bottom opacity %  (b₅·p + b)
+  var R_OFF_H  = P.TWO * P.b;      //  6  left & right shadow offset (2b)
+  var R_BLUR_L = P.TWO * P.p;      // 14  left blur radius (2p = π)
+  var R_A_L    = P.TWO * P.q;      // 22  left opacity %  (2q)
+  var R_BLUR_R = P.iM;             // 10  right blur radius (ι_M)
+  var R_A_R    = P.TWO * sq;       // 18  right opacity %  (2b²)
+  function alpha(pct) { return pct / PCT; }   // integer % → 0..1 (pure black)
+  var RECESS =
+    "inset 0 "   + R_OFF_V + "px " + R_BLUR_V + "px rgba(0,0,0," + alpha(R_A_V) + "), " +
+    "inset 0 -"  + R_OFF_V + "px " + R_BLUR_V + "px rgba(0,0,0," + alpha(R_A_V) + "), " +
+    "inset -"    + R_OFF_H + "px 0 " + R_BLUR_L + "px rgba(0,0,0," + alpha(R_A_L) + "), " +
+    "inset "     + R_OFF_H + "px 0 " + R_BLUR_R + "px rgba(0,0,0," + alpha(R_A_R) + ")";
 
   /* ============================ EXECUTION ============================ */
   var assertions = [];
@@ -226,16 +249,44 @@
     timingDerived.push({ key: t.key, ms: ms, formula: t.formula, canon9: t.canon9, sec: (ms / (P.iM * P.iM * P.iM)) });
   });
 
-  root.style.setProperty("--pn-bevel", BEVEL + "px");
-  assert("bevel = b+1 px", BEVEL, P.TWO * P.TWO);
+  /* Geometry & depth: derive, verify each vs canonical, apply as CSS vars. */
+  root.style.setProperty("--pn-bevel",    CHAMFER + "px");
+  root.style.setProperty("--pn-chamfer",  CHAMFER + "px");
+  root.style.setProperty("--pn-border-w", BORDER + "px");
+  root.style.setProperty("--pn-recess",   RECESS);
+  assert("chamfer = b+b₅ (8px)",          CHAMFER,  P.TWO * (P.b + P.ONE));
+  assert("border = 2px",                  BORDER,   P.b - P.ONE);
+  assert("recess.offset-v = canonical 8", R_OFF_V,  P.TWO * (P.b + P.ONE));
+  assert("recess.blur-v = canonical 18",  R_BLUR_V, P.b5 + P.r);
+  assert("recess.opacity-v = canonical 38",R_A_V,   P.r * P.b - P.ONE);
+  assert("recess.offset-h = canonical 6", R_OFF_H,  P.p - P.ONE);
+  assert("recess.blur-l = canonical 14",  R_BLUR_L, P.r + P.ONE);
+  assert("recess.opacity-l = canonical 22",R_A_L,   k12 + P.iM);
+  assert("recess.blur-r = canonical 10",  R_BLUR_R, P.b + P.p);
+  assert("recess.opacity-r = canonical 18",R_A_R,   P.b5 + P.r);
 
   var passed = assertions.filter(function (a) { return a.ok; }).length;
 
   /* Publish results for the reveal renderer. */
   window.__ENGINE = {
     primitives: P, sq: sq, cube: cube, pi: pi, sigma: sigma, k12: k12, k15: k15,
-    k17: k17, MAX: MAX, HEXR: HEXR, B9: B9, bevel: BEVEL,
+    k17: k17, MAX: MAX, HEXR: HEXR, B9: B9, bevel: CHAMFER, chamfer: CHAMFER,
     palette: derived, text: textDerived, timing: timingDerived,
+    geom: {
+      chamfer: CHAMFER, border: BORDER, recess: RECESS,
+      params: [
+        { k: "chamfer",   label: "45° corner cut",     formula: "b + b₅",      val: CHAMFER,  unit: "px" },
+        { k: "border",    label: "perimeter / inset",  formula: "TWO",         val: BORDER,   unit: "px" },
+        { k: "offset-v",  label: "top / bottom offset", formula: "b + b₅",     val: R_OFF_V,  unit: "px" },
+        { k: "blur-v",    label: "top / bottom blur",  formula: "2b²",         val: R_BLUR_V, unit: "px" },
+        { k: "opacity-v", label: "top / bottom alpha", formula: "(b₅p + b)/ι_M²", val: R_A_V, unit: "%" },
+        { k: "offset-h",  label: "left / right offset", formula: "2b",         val: R_OFF_H,  unit: "px" },
+        { k: "blur-l",    label: "left blur (= π)",    formula: "2p",          val: R_BLUR_L, unit: "px" },
+        { k: "opacity-l", label: "left alpha",         formula: "2q / ι_M²",   val: R_A_L,    unit: "%" },
+        { k: "blur-r",    label: "right blur (= ι_M)", formula: "ι_M",         val: R_BLUR_R, unit: "px" },
+        { k: "opacity-r", label: "right alpha",        formula: "2b² / ι_M²",  val: R_A_R,    unit: "%" }
+      ]
+    },
     assertions: assertions, passed: passed, total: assertions.length,
     toBase9: toBase9
   };
@@ -263,13 +314,41 @@
 
   .wrap { max-width: 1180px; margin: 0 auto; padding: 0 28px; }
 
-  /* ---- Masthead ---- */
+  /* ---- Masthead — RECESSED sunken 3-D well (depth from --pn-recess) ---- */
   header.masthead {
-    border-bottom: 1px solid var(--pn-border);
-    background: linear-gradient(180deg, var(--pn-panel), var(--pn-bg));
-    padding: 46px 0 34px;
+    background: var(--pn-surface);
+    box-shadow: var(--pn-recess);
+    padding: 54px 0 42px;
     margin-bottom: 44px;
+    position: relative;
   }
+
+  /* ---- Chamfer utility (derived --pn-chamfer, matches BevelBox 8px cut) ---- */
+  .chamfered {
+    clip-path: polygon(var(--pn-chamfer) 0, calc(100% - var(--pn-chamfer)) 0,
+      100% var(--pn-chamfer), 100% calc(100% - var(--pn-chamfer)),
+      calc(100% - var(--pn-chamfer)) 100%, var(--pn-chamfer) 100%,
+      0 calc(100% - var(--pn-chamfer)), 0 var(--pn-chamfer));
+  }
+
+  /* ---- Depth specimens: recessed well vs. raised panel ---- */
+  .depth { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 18px; margin: 6px 0 26px; }
+  .well {
+    background: var(--pn-surface);
+    box-shadow: var(--pn-recess);
+    padding: 34px 30px;
+  }
+  .raised {
+    background: var(--pn-panel);
+    border: var(--pn-border-w) solid var(--pn-border);
+    padding: 34px 30px;
+  }
+  .depth .dl { font-family: var(--mono); font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase;
+    color: var(--pn-text-label); margin-bottom: 12px; }
+  .depth .dt { font-family: var(--display); font-weight: 800; font-size: clamp(20px, 3vw, 28px);
+    letter-spacing: 0.05em; text-transform: uppercase; color: var(--pn-text-heading); line-height: 1.1; }
+  .depth .dt b { color: var(--pn-blue); }
+  .depth .dd { font-family: var(--mono); font-size: 11px; color: var(--pn-text-faint); margin-top: 12px; }
   .eyebrow { font-family: var(--mono); font-size: 11px; letter-spacing: 0.34em;
     text-transform: uppercase; color: var(--pn-blue); margin-bottom: 16px; }
   h1.title { font-family: var(--display); font-weight: 900; font-size: clamp(28px, 5vw, 52px);
@@ -393,7 +472,7 @@
     <h2>The Nine Primitives</h2>
     <div class="lead">
       The axioms of the Salvi ternary field. Three trits, the base, and five atoms.
-      Every color, text tone, timing token, and geometric bevel in this system is an
+      Every color, text tone, timing token, chamfer, and recessed-shadow depth in this system is an
       explicit algebraic function of these nine values. They are the only numeric
       literals the engine is permitted to know.
     </div>
@@ -445,6 +524,38 @@
     <table class="tbl">
       <thead><tr><th>Token</th><th>Formula</th><th>ms</th><th>seconds</th><th>Proof (base-9)</th></tr></thead>
       <tbody id="timing-body"></tbody>
+    </table>
+  </section>
+
+  <!-- BOOK II — RECESSED GEOMETRY -->
+  <section id="geometry">
+    <div class="book-tag">Book II — Recessed Geometry</div>
+    <h2>Depth, Derived</h2>
+    <div class="lead">
+      The panel is not flat. Its physical signature is an 8px 45° chamfer and a
+      <b>recessed, sunken-3-D header</b> — a four-sided inset shadow that reads as a
+      well carved into the surface, identical to the Array-3 monitor panels. Every
+      offset, blur radius, and shadow opacity below is derived from the primitives;
+      opacities are integer percentages over ι_M² = 100. The masthead at the top of
+      this page is rendered by the very tokens proven here.
+    </div>
+
+    <div class="depth">
+      <div class="well chamfered">
+        <div class="dl">Recessed · box-shadow: var(--pn-recess)</div>
+        <div class="dt">Sunken <b>3-D</b> Header</div>
+        <div class="dd" id="recess-css"></div>
+      </div>
+      <div class="raised chamfered">
+        <div class="dl">Raised · border + 8px chamfer</div>
+        <div class="dt">Chamfered <b>Panel</b></div>
+        <div class="dd">clip-path octagon · b + b₅ = 8px cut · 2px perimeter</div>
+      </div>
+    </div>
+
+    <table class="tbl">
+      <thead><tr><th>Token</th><th>Role</th><th>Formula</th><th>Value</th><th>Proof</th></tr></thead>
+      <tbody id="geom-body"></tbody>
     </table>
   </section>
 
@@ -526,8 +637,8 @@
         <p>Every hex value as a function of ( b, p, q, r ) and the nine primitives. Verified, bijective, repeatable.</p></div>
       <div class="bcard"><div class="bn">BOOK I</div><div class="bt">The Nine Primitives</div>
         <p>Axioms of the Salvi ternary field. Trits, base, atoms — the ground truth all else derives from.</p></div>
-      <div class="bcard"><div class="bn">BOOK II</div><div class="bt">Geometry of the Chamfer</div>
-        <p>Chamfered panels via clip-path polygons. The (b+1)px bevel is itself derived from the base.</p></div>
+      <div class="bcard"><div class="bn">BOOK II</div><div class="bt">Recessed Geometry</div>
+        <p>The 8px chamfer (b+b₅) and the recessed sunken-3-D header — a four-sided inset shadow — are derived from the primitives.</p></div>
       <div class="bcard"><div class="bn">BOOK III</div><div class="bt">The Imperial Grid</div>
         <p>Array3 triadic layout — Alpha, Beta, Gamma — a base-3 rhythm across every surface.</p></div>
       <div class="bcard"><div class="bn">BOOK VIII</div><div class="bt">Timing Token Stack</div>
@@ -674,6 +785,20 @@
     tr.appendChild(el("td", null, "<span class='mono' style='color:var(--pn-text-label)'>" + t.canon9 + "₉ = " + t.ms + " ✓</span>"));
     tmbody.appendChild(tr);
   });
+
+  /* Geometry & depth table */
+  var gbody = document.getElementById("geom-body");
+  E.geom.params.forEach(function (g) {
+    var tr = el("tr");
+    tr.appendChild(el("td", null, "<span class='mono'>" + g.k + "</span>"));
+    tr.appendChild(el("td", null, "<span style='color:var(--pn-text-body)'>" + g.label + "</span>"));
+    tr.appendChild(el("td", null, "<span class='formula'>" + g.formula + "</span>"));
+    tr.appendChild(el("td", null, "<span class='chan'><b>" + g.val + g.unit + "</b></span>"));
+    tr.appendChild(el("td", null, "<span class='badge ok'>derived ✓</span>"));
+    gbody.appendChild(tr);
+  });
+  var rc = document.getElementById("recess-css");
+  if (rc) rc.textContent = E.geom.recess;
 
   document.getElementById("foot-count").textContent = E.passed + "/" + E.total + " assertions ✓";
 })();
