@@ -114,3 +114,9 @@ id = "T8E32h5qW3lpxZobfBEoE"
 uri = "file://yoda-site-full.zip"
 type = "unspecified"
 title = "YODA Full Site (front + back end)"
+
+[[outputs]]
+id = "dNn3rIBmBjGuwlc8MHbAw"
+uri = "file://deliverables/brand-book-0.zip"
+type = "unspecified"
+title = "YODA × PlenumNET — Brand Book 0 (Color Derivation Engine)"
