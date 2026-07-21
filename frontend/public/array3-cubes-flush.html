@@ -1025,14 +1025,26 @@ function transformNode(nodeData,ni){
 // daemon via canonical-port discovery (autoDiscoverPorts); relay-mode is the
 // fallback and now targets the re-homed coordinator. Override with
 // ?relay=http://host:port or the Relay URL field.
+// [SERVED-MODE 2026-07] When this page is served to a REMOTE browser (Replit
+// preview or a published domain) the browser CANNOT reach container-internal
+// daemon ports (127.0.0.1:11111, canonical 111xx) — only the same-origin
+// gateway (yoda-api on port 3000) is reachable through the proxy. Detect that
+// case and route ALL monitor + 3FA traffic same-origin; yoda-api proxies to the
+// local CRS/daemons server-side. _isLocal (file://, localhost, 127.0.0.1) is
+// defined above, so file:// and localhost operators are unaffected.
+const _isServed=(location.protocol==='http:'||location.protocol==='https:')&&!_isLocal;
 const CRS_RELAY_BASE=(()=>{
   try{const q=new URLSearchParams(location.search).get('relay');if(q)return q.replace(/\/$/,'');}catch{}
+  // Served remotely → the same-origin gateway. Ignore any stale localStorage
+  // base (old 127.0.0.1 values would re-break the remote path).
+  if(_isServed)return window.location.origin;
   try{const s=localStorage.getItem('a3m.relayBase');if(s)return s.replace(/\/$/,'');}catch{}
   return 'http://127.0.0.1:11111';
 })();
 // Direct mode by default — the page is served alongside the daemons. Relay
 // mode only engages on the zero-alive-nodes fallback (with a token configured).
-let useRelay=false;
+// Served remotely, start in relay/gateway mode (direct daemon ports are dead).
+let useRelay=_isServed;
 let lastFetchDiagnostic=null;
 const _isOnRelayOrigin=window.location.origin===CRS_RELAY_BASE;
 const RELAY_URL=CRS_RELAY_BASE;
@@ -1041,11 +1053,13 @@ const RELAY_URL=CRS_RELAY_BASE;
 // relay itself (cookie/origin auth available). When the YODA app serves the
 // file, we are cross-origin to the relay and must use bearer-token auth — the
 // token is injected server-side into RELAY_AUTH_TOKEN below.
-const _isServerHosted=_isOnRelayOrigin&&(
+// Served remotely we ARE same-origin with the gateway → treat as server-hosted
+// (origin auth, no token, /monitor/* slot path).
+const _isServerHosted=_isServed||(_isOnRelayOrigin&&(
   window.location.pathname.startsWith('/api/salvi/inter-cube/monitor')||
   window.location.pathname==='/'||
   window.location.pathname.startsWith('/monitoring')
-);
+));
 
 // [FIX-2] Token only used in file:// mode. Server-hosted mode skips token entirely —
 // the relay authenticates by origin. Never embed secrets in client-served HTML.
@@ -1241,6 +1255,14 @@ async function fetchAllNodes(){
       triedRelay=true;
       const relayData=await fetchFromRelay();
       if(relayData&&relayData.length>0){results=relayData}
+      else if(_isServed){
+        // [SERVED-MODE] Remote/proxied browser: container-internal daemon ports
+        // are unreachable, so NEVER fall back to direct NODE_PORTS probing. An
+        // empty relay response means the gateway is healthy with 0 daemons
+        // connected — render that state instead of faking "N:unreachable".
+        relayReturnedEmpty=true;
+        results=[];
+      }
       else{
         if(relayData&&relayData.length===0)relayReturnedEmpty=true;
         triedLocal=true;
@@ -1316,8 +1338,18 @@ async function fetchAllNodes(){
       const occ=r.slots?r.slots.summary?.occupied||0:0;
       return `N${i+1}:${occ}svc`;
     });
-    connStatus.textContent=`Live · ${upCount}/3 nodes · ${summaries.join(' · ')}`;
-    connStatus.style.color=upCount===3?CSS.lime:upCount>0?CSS.blueActive:CSS.slate;
+    if(_isServed&&results.length===0){
+      // [SERVED-MODE] Healthy remote state: gateway reachable, 0 daemons. Keep
+      // any real relay error status/overlay set by fetchFromRelay; otherwise
+      // show the clean message instead of a misleading "0/3 nodes unreachable".
+      if(!relayErrorState){
+        connStatus.textContent='\u{1F50C} Relay active — 0 daemons connected';
+        connStatus.style.color=CSS.slate;
+      }
+    }else{
+      connStatus.textContent=`Live · ${upCount}/3 nodes · ${summaries.join(' · ')}`;
+      connStatus.style.color=upCount===3?CSS.lime:upCount>0?CSS.blueActive:CSS.slate;
+    }
 
     // Capture per-node state for the Daemon Manager (restart/stop UI + live reconnect display)
     window._nodeStates=results.map((r,i)=>{
@@ -1463,9 +1495,14 @@ hydrateConfigInputs();
 
 // [FIX-6] Auto-connect IIFE now also establishes WSS relay
 (async()=>{
-  // Discover the live instance's ports first (Gateway-anchored canonical scan)
-  await autoDiscoverPorts();
+  // Discover the live instance's ports first (Gateway-anchored canonical scan).
+  // Skipped when served remotely: probing <remote-domain>:111xx is dead weight
+  // and blocked as mixed content under https — we go straight to the gateway.
+  if(!_isServed)await autoDiscoverPorts();
   hydrateConfigInputs();
+  // [SERVED-MODE] Reflect the actual same-origin gateway in the config field so
+  // the UI no longer shows the unreachable 127.0.0.1:11111 default.
+  if(_isServed){const _u=document.getElementById('inp-url');if(_u)_u.value=window.location.origin;}
   const ok=await fetchAllNodes();
   if(ok){isLive=true;refreshScene();
     // Fit the camera to the full instance tower once it's built.

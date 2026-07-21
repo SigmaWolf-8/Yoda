@@ -53,6 +53,12 @@ pub fn build_router(state: AppState) -> Router {
         .route("/api/salvi/inter-cube/topology", get(crs_topology))
         .route("/api/salvi/inter-cube/fts/status", get(crs_fts_status))
         .route("/api/salvi/inter-cube/node/info", get(node_info))
+        // Same-origin gateway views for the Array3 monitor + 3FA widget. A remote
+        // browser (Replit preview or published domain) can only reach port 3000,
+        // so it fetches these instead of the unreachable daemon ports directly.
+        .route("/api/salvi/inter-cube/relay/status", get(inter_cube_relay_status))
+        .route("/api/salvi/inter-cube/slots", get(inter_cube_slots))
+        .route("/api/salvi/inter-cube/monitor/slots", get(inter_cube_slots))
         .route("/api/monitoring/registered-nodes", get(monitoring_registered_nodes))
         .route("/api/yoda/crs/session/{token}", get(crs_session))
         .route("/api/relay/status", get(relay_status))
@@ -1956,9 +1962,16 @@ async fn get_local_crs_base(db: &sqlx::PgPool) -> Result<String, AppError> {
     .await
     .map_err(AppError::Database)?;
 
-    url.ok_or_else(|| AppError::Validation(
-        "Slot A cube endpoint not configured — set it on the AI Engines page".into()
-    ))
+    if let Some(u) = url.filter(|s| !s.trim().is_empty()) {
+        return Ok(u);
+    }
+    // Fallback to the co-located yoda-crs daemon so first-run installs (before
+    // slot A is configured) still resolve instead of hard-erroring. Override
+    // with CRS_LOCAL_URL, or CUBE_API_PORT for just the port.
+    Ok(std::env::var("CRS_LOCAL_URL").unwrap_or_else(|_| {
+        let port = std::env::var("CUBE_API_PORT").unwrap_or_else(|_| "8081".to_string());
+        format!("http://127.0.0.1:{port}")
+    }))
 }
 
 /// Helper: build a one-shot reqwest client (no connection pooling needed).
@@ -2304,6 +2317,162 @@ async fn monitoring_registered_nodes(
         .collect();
 
     Ok(Json(serde_json::json!({ "nodes": nodes })))
+}
+
+/// Normalize a registered daemon endpoint (a bare "host:port" socket addr, or a
+/// full URL) into an http(s) base URL with no trailing slash.
+fn normalize_daemon_base(ep: &str) -> String {
+    let ep = ep.trim().trim_end_matches('/');
+    if ep.starts_with("http://") || ep.starts_with("https://") {
+        ep.to_string()
+    } else {
+        format!("http://{ep}")
+    }
+}
+
+/// SSRF guard for the same-origin slots fan-out. The daemon `endpoint` rows are
+/// written by the (pre-existing) unauthenticated CRS heartbeat handlers, so an
+/// attacker could register an arbitrary URL and have this server fetch it. The
+/// legitimate cube daemons live on loopback or the trusted private LAN, so those
+/// must stay allowed; we reject only clearly-illegitimate targets that are never
+/// valid daemons but are the classic SSRF exfiltration prize — link-local /
+/// cloud-metadata ranges (169.254.0.0/16, IPv6 fe80::/10) and the unspecified
+/// address — plus any non-http(s) scheme.
+fn is_allowed_daemon_host(base: &str) -> bool {
+    let after_scheme = match base.split_once("://") {
+        Some((scheme, rest)) if scheme == "http" || scheme == "https" => rest,
+        _ => return false,
+    };
+    // Strip any path/query/fragment, then the port. Handle bracketed IPv6.
+    let authority = after_scheme.split(['/', '?', '#']).next().unwrap_or("");
+    let host = if let Some(rest) = authority.strip_prefix('[') {
+        rest.split(']').next().unwrap_or("")
+    } else {
+        authority
+            .rsplit_once(':')
+            .map(|(h, _)| h)
+            .unwrap_or(authority)
+    };
+    if host.is_empty() {
+        return false;
+    }
+    match host.parse::<std::net::IpAddr>() {
+        // Block link-local (incl. 169.254.169.254 metadata) and unspecified.
+        Ok(std::net::IpAddr::V4(ip)) => !(ip.is_link_local() || ip.is_unspecified()),
+        // Block IPv6 link-local (fe80::/10) and unspecified.
+        Ok(std::net::IpAddr::V6(ip)) => {
+            !((ip.segments()[0] & 0xffc0) == 0xfe80 || ip.is_unspecified())
+        }
+        // Non-IP hostname (e.g. a LAN daemon name) — allow.
+        Err(_) => true,
+    }
+}
+
+/// GET /api/salvi/inter-cube/relay/status
+/// Same-origin gateway view of the relay for the Array3 monitor. Reports the
+/// cube daemons that heartbeated in the last 5 minutes so a remote browser —
+/// which cannot reach the daemons directly — sees the true coordinator state
+/// ("N daemons connected") instead of a "relay unreachable" error.
+async fn inter_cube_relay_status(
+    State(state): State<AppState>,
+) -> Result<Json<serde_json::Value>, AppError> {
+    let rows = sqlx::query_as::<_, (String, String)>(
+        "SELECT address_str, endpoint FROM crs_registrations \
+         WHERE last_heartbeat > NOW() - INTERVAL '5 minutes' \
+         ORDER BY last_heartbeat DESC LIMIT 20",
+    )
+    .fetch_all(&state.db)
+    .await
+    .map_err(AppError::Database)?;
+
+    let nodes: Vec<serde_json::Value> = rows
+        .iter()
+        .map(|(addr, ep)| {
+            serde_json::json!({
+                "address": addr,
+                "endpoint": ep,
+                "connected": true,
+            })
+        })
+        .collect();
+
+    Ok(Json(serde_json::json!({
+        "connectedNodes": nodes.len(),
+        "nodes": nodes,
+    })))
+}
+
+/// GET /api/salvi/inter-cube/slots  (alias: /api/salvi/inter-cube/monitor/slots)
+/// Same-origin gateway that fans out to each live cube daemon server-side and
+/// returns the aggregated cluster the Array3 monitor renders. With no daemons
+/// registered it returns an empty cluster — the honest "0 daemons connected"
+/// state — which clears the monitor's error overlay instead of showing
+/// "relay unreachable".
+async fn inter_cube_slots(
+    State(state): State<AppState>,
+) -> Result<Json<serde_json::Value>, AppError> {
+    let rows = sqlx::query_as::<_, (String, String)>(
+        "SELECT address_str, endpoint FROM crs_registrations \
+         WHERE last_heartbeat > NOW() - INTERVAL '5 minutes' \
+         ORDER BY last_heartbeat DESC LIMIT 20",
+    )
+    .fetch_all(&state.db)
+    .await
+    .map_err(AppError::Database)?;
+
+    let total = rows.len();
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(3))
+        .build()
+        .map_err(|e| AppError::Internal(format!("slots client: {e}")))?;
+
+    // Fan out concurrently; each daemon serves its own slot inventory.
+    let futs = rows.into_iter().enumerate().map(|(i, (addr, ep))| {
+        let client = client.clone();
+        async move {
+            let base = normalize_daemon_base(&ep);
+            if !is_allowed_daemon_host(&base) {
+                return (
+                    false,
+                    serde_json::json!({ "status": "blocked", "address": addr }),
+                );
+            }
+            let url = format!("{base}/api/salvi/inter-cube/slots");
+            match client.get(&url).send().await {
+                Ok(resp) if resp.status().is_success() => {
+                    match resp.json::<serde_json::Value>().await {
+                        Ok(mut v) => {
+                            if let Some(obj) = v.as_object_mut() {
+                                obj.entry("node_id_num").or_insert(serde_json::json!(i + 1));
+                                obj.entry("address").or_insert(serde_json::json!(addr));
+                            }
+                            (true, v)
+                        }
+                        Err(_) => (
+                            false,
+                            serde_json::json!({ "status": "timeout", "address": addr }),
+                        ),
+                    }
+                }
+                _ => (
+                    false,
+                    serde_json::json!({ "status": "timeout", "address": addr }),
+                ),
+            }
+        }
+    });
+
+    let results = futures_util::future::join_all(futs).await;
+    let responding = results.iter().filter(|(ok, _)| *ok).count();
+    let nodes: Vec<serde_json::Value> = results.into_iter().map(|(_, v)| v).collect();
+
+    Ok(Json(serde_json::json!({
+        "cluster": {
+            "total_nodes": total,
+            "responding_nodes": responding,
+            "nodes": nodes,
+        }
+    })))
 }
 
 /// GET /api/yoda/crs/session/{token} → CRS session poll
