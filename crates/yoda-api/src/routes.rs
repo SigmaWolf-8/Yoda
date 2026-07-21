@@ -285,7 +285,10 @@ async fn three_factor_possession_request(
     if !session.knowledge_ok {
         return Err(AppError::Forbidden("Complete the Knowledge factor first".into()));
     }
-    let auth = ThreeFactorAuthenticator::new(ConsoleSmsSender);
+    // Select the delivery mechanism for the environment: Twilio in production
+    // (missing credentials are a hard error), dev/console sender otherwise.
+    let sender = tfa::select_sms_sender(is_production()).map_err(AppError::Internal)?;
+    let auth = ThreeFactorAuthenticator::new(sender);
     // Anchor the OTP to the CURRENT moving factor so the code is genuinely
     // time-windowed (valid only within the drift window of now), not for the
     // whole session lifetime.

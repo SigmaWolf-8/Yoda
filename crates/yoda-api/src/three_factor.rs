@@ -165,6 +165,118 @@ impl SmsSender for ConsoleSmsSender {
     }
 }
 
+/// Production SMS sender backed by the Twilio REST API.
+///
+/// Configured entirely from the environment so no carrier credentials live in
+/// the binary:
+///   * `TWILIO_ACCOUNT_SID`  — the account SID (`AC…`).
+///   * `TWILIO_AUTH_TOKEN`   — the account auth token.
+///   * `TWILIO_FROM_NUMBER`  — the verified sender number (E.164, e.g. `+1…`).
+///
+/// `send_code` never echoes the OTP back (`Ok(None)` on success) so the code is
+/// delivered strictly out of band. It performs a blocking HTTP POST on a
+/// dedicated thread so it is safe to invoke from within a Tokio handler.
+pub struct TwilioSmsSender {
+    account_sid: String,
+    auth_token: String,
+    from_number: String,
+}
+
+impl TwilioSmsSender {
+    /// Build a sender from the Twilio environment variables. Returns `Err` with
+    /// a description of the first missing/empty variable so production
+    /// deployments fail loudly rather than silently dropping codes.
+    pub fn from_env() -> Result<Self, String> {
+        fn required(key: &str) -> Result<String, String> {
+            match std::env::var(key) {
+                Ok(v) if !v.trim().is_empty() => Ok(v),
+                _ => Err(format!("missing or empty environment variable {key}")),
+            }
+        }
+        Ok(TwilioSmsSender {
+            account_sid: required("TWILIO_ACCOUNT_SID")?,
+            auth_token: required("TWILIO_AUTH_TOKEN")?,
+            from_number: required("TWILIO_FROM_NUMBER")?,
+        })
+    }
+}
+
+impl SmsSender for TwilioSmsSender {
+    fn send_code(&self, phone: &str, code: u32) -> Result<Option<u32>, String> {
+        let url = format!(
+            "https://api.twilio.com/2010-04-01/Accounts/{}/Messages.json",
+            self.account_sid
+        );
+        let body = format!("Your PlenumNET verification code is {code:06}");
+        let account_sid = self.account_sid.clone();
+        let auth_token = self.auth_token.clone();
+        let from = self.from_number.clone();
+        let to = phone.to_string();
+
+        // reqwest here is async and this trait method is sync, so run the request
+        // on a dedicated thread with its own current-thread runtime. This is safe
+        // even when called from within an existing Tokio runtime.
+        let handle = std::thread::spawn(move || -> Result<(), String> {
+            let rt = tokio::runtime::Builder::new_current_thread()
+                .enable_all()
+                .build()
+                .map_err(|e| format!("failed to build SMS runtime: {e}"))?;
+            rt.block_on(async move {
+                let client = reqwest::Client::new();
+                let resp = client
+                    .post(&url)
+                    .basic_auth(&account_sid, Some(&auth_token))
+                    .form(&[("To", to.as_str()), ("From", from.as_str()), ("Body", body.as_str())])
+                    .send()
+                    .await
+                    .map_err(|e| format!("Twilio request failed: {e}"))?;
+                let status = resp.status();
+                if status.is_success() {
+                    Ok(())
+                } else {
+                    let detail = resp.text().await.unwrap_or_default();
+                    Err(format!("Twilio returned {status}: {detail}"))
+                }
+            })
+        });
+
+        handle
+            .join()
+            .map_err(|_| "SMS delivery thread panicked".to_string())??;
+        tracing::info!(phone = %phone, "3FA possession code delivered via Twilio");
+        // Never echo the code in production — delivery is strictly out of band.
+        Ok(None)
+    }
+}
+
+/// Delivery mechanism selected at runtime. Dispatches to the console sender in
+/// dev and the Twilio sender in production, keeping the possession flow generic
+/// over a single concrete type.
+pub enum RuntimeSmsSender {
+    Console(ConsoleSmsSender),
+    Twilio(TwilioSmsSender),
+}
+
+impl SmsSender for RuntimeSmsSender {
+    fn send_code(&self, phone: &str, code: u32) -> Result<Option<u32>, String> {
+        match self {
+            RuntimeSmsSender::Console(s) => s.send_code(phone, code),
+            RuntimeSmsSender::Twilio(s) => s.send_code(phone, code),
+        }
+    }
+}
+
+/// Pick the delivery mechanism for the current environment. In production the
+/// Twilio sender is required (any missing credential is a hard error); otherwise
+/// the dev/console sender is used.
+pub fn select_sms_sender(production: bool) -> Result<RuntimeSmsSender, String> {
+    if production {
+        Ok(RuntimeSmsSender::Twilio(TwilioSmsSender::from_env()?))
+    } else {
+        Ok(RuntimeSmsSender::Console(ConsoleSmsSender))
+    }
+}
+
 // ─── ThreeFactorAuthenticator ─────────────────────────────────────────────
 
 /// The authenticator. Generic over the delivery mechanism so a real gateway
