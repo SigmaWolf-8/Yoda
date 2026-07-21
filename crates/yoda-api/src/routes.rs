@@ -159,13 +159,252 @@ pub fn build_router(state: AppState) -> Router {
     let ws_routes = Router::new()
         .route("/ws/pipeline/{project_id}", get(websocket::ws_pipeline_handler));
 
+    // ── 3-Factor Auth (Task #39) ─────────────────────────────────────
+    // Unauthenticated by design — this flow IS a login path (reachable from
+    // the Crystal / Array3 Cubes page). Registered after `let protected` so it
+    // is not counted by the public-route security test, which splits on that
+    // marker. Each step is gated on the previous factor completing.
+    let three_factor = Router::new()
+        .route("/api/3fa/start", post(three_factor_start))
+        .route("/api/3fa/knowledge", post(three_factor_knowledge))
+        .route("/api/3fa/possession/request", post(three_factor_possession_request))
+        .route("/api/3fa/possession/verify", post(three_factor_possession_verify))
+        .route("/api/3fa/codepoint", post(three_factor_codepoint));
+
     // B5.9: Rate limiting — tower::RateLimitLayer removed (not Clone-compatible
     // with axum 0.8 Router::layer). Add per-route limits via middleware::from_fn.
     Router::new()
         .merge(public)
         .merge(protected)
+        .merge(three_factor)
         .merge(ws_routes)
         .with_state(state)
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// 3-Factor Auth handlers (Task #39)
+// ═══════════════════════════════════════════════════════════════════════
+
+use crate::three_factor::{
+    self as tfa, ConsoleSmsSender, ThreeFactorAuthenticator,
+};
+
+/// Non-production only: the dev/console possession sender echoes the OTP.
+/// In production, wire a real SmsSender and never return the code.
+fn is_production() -> bool {
+    std::env::var("APP_ENV")
+        .map(|v| v.eq_ignore_ascii_case("production") || v.eq_ignore_ascii_case("prod"))
+        .unwrap_or(false)
+}
+
+async fn three_factor_start(
+    State(state): State<AppState>,
+) -> Result<Json<serde_json::Value>, AppError> {
+    let session = tfa::new_demo_session();
+    let session_id = Uuid::new_v4();
+    let (cx, cy, cz) = tfa::DEMO_CODEPOINT;
+    let dev = !is_production();
+    {
+        let mut sessions = state.three_factor_sessions.write().await;
+        // Evict abandoned/expired sessions so the map never grows unbounded.
+        tfa::prune_expired(&mut sessions);
+        // Hard cap on concurrent sessions — bounds memory even under a flood of
+        // unauthenticated /start calls.
+        if sessions.len() >= tfa::MAX_ACTIVE_SESSIONS {
+            return Err(AppError::Validation(
+                "Too many active 3FA sessions — try again shortly".into(),
+            ));
+        }
+        sessions.insert(session_id, session);
+    }
+    Ok(Json(serde_json::json!({
+        "session_id": session_id,
+        "moving_factor": tfa::current_moving_factor(),
+        // Dev-only hints so the demo credential is exercisable without an
+        // enrollment UI (out of scope). Suppressed entirely in production.
+        "dev_hints": if dev {
+            serde_json::json!({
+                "pin": tfa::DEMO_PIN,
+                "phone": tfa::DEMO_PHONE,
+                "codepoint": { "x": cx, "y": cy, "z": cz },
+            })
+        } else { serde_json::Value::Null },
+    })))
+}
+
+#[derive(Debug, Deserialize)]
+struct KnowledgeRequest {
+    session_id: Uuid,
+    pin: String,
+}
+
+async fn three_factor_knowledge(
+    State(state): State<AppState>,
+    Json(req): Json<KnowledgeRequest>,
+) -> Result<Json<serde_json::Value>, AppError> {
+    let mut sessions = state.three_factor_sessions.write().await;
+    let session = sessions
+        .get_mut(&req.session_id)
+        .filter(|s| !s.is_expired())
+        .ok_or(AppError::NotFound("3FA session not found or expired".into()))?;
+    if session.knowledge_attempts >= tfa::MAX_FACTOR_ATTEMPTS {
+        sessions.remove(&req.session_id);
+        return Err(AppError::Unauthorized(
+            "Too many failed PIN attempts — session burned, please restart".into(),
+        ));
+    }
+    let auth = ThreeFactorAuthenticator::new(ConsoleSmsSender);
+    if !auth.verify_knowledge(session.knowledge_hash, &req.pin) {
+        session.knowledge_attempts += 1;
+        return Err(AppError::Unauthorized("Knowledge factor failed: incorrect PIN".into()));
+    }
+    session.knowledge_ok = true;
+    Ok(Json(serde_json::json!({ "ok": true, "factor": "knowledge" })))
+}
+
+#[derive(Debug, Deserialize)]
+struct PossessionRequestReq {
+    session_id: Uuid,
+}
+
+async fn three_factor_possession_request(
+    State(state): State<AppState>,
+    Json(req): Json<PossessionRequestReq>,
+) -> Result<Json<serde_json::Value>, AppError> {
+    let mut sessions = state.three_factor_sessions.write().await;
+    let session = sessions
+        .get_mut(&req.session_id)
+        .filter(|s| !s.is_expired())
+        .ok_or(AppError::NotFound("3FA session not found or expired".into()))?;
+    if !session.knowledge_ok {
+        return Err(AppError::Forbidden("Complete the Knowledge factor first".into()));
+    }
+    let auth = ThreeFactorAuthenticator::new(ConsoleSmsSender);
+    // Anchor the OTP to the CURRENT moving factor so the code is genuinely
+    // time-windowed (valid only within the drift window of now), not for the
+    // whole session lifetime.
+    let echoed = auth
+        .request_possession_code(
+            &session.phone,
+            session.possession_secret,
+            tfa::current_moving_factor(),
+        )
+        .map_err(AppError::Internal)?;
+    session.code_requested = true;
+    let phone = session.phone.clone();
+    // Only echo the code in non-production (dev/console sender).
+    let dev_code = if is_production() { None } else { echoed };
+    Ok(Json(serde_json::json!({
+        "ok": true,
+        "sent_to": phone,
+        "dev_code": dev_code,
+    })))
+}
+
+#[derive(Debug, Deserialize)]
+struct PossessionVerifyReq {
+    session_id: Uuid,
+    code: u32,
+}
+
+async fn three_factor_possession_verify(
+    State(state): State<AppState>,
+    Json(req): Json<PossessionVerifyReq>,
+) -> Result<Json<serde_json::Value>, AppError> {
+    let mut sessions = state.three_factor_sessions.write().await;
+    let session = sessions
+        .get_mut(&req.session_id)
+        .filter(|s| !s.is_expired())
+        .ok_or(AppError::NotFound("3FA session not found or expired".into()))?;
+    if !session.knowledge_ok {
+        return Err(AppError::Forbidden("Complete the Knowledge factor first".into()));
+    }
+    if !session.code_requested {
+        return Err(AppError::Forbidden("Request a possession code first".into()));
+    }
+    if session.possession_attempts >= tfa::MAX_FACTOR_ATTEMPTS {
+        sessions.remove(&req.session_id);
+        return Err(AppError::Unauthorized(
+            "Too many failed code attempts — session burned, please restart".into(),
+        ));
+    }
+    let auth = ThreeFactorAuthenticator::new(ConsoleSmsSender);
+    // Verify against the CURRENT moving factor (± drift), matching the
+    // time-windowed code issued at request time.
+    if !auth.verify_possession_code(
+        session.possession_secret,
+        tfa::current_moving_factor(),
+        req.code,
+    ) {
+        session.possession_attempts += 1;
+        return Err(AppError::Unauthorized("Possession factor failed: incorrect code".into()));
+    }
+    session.possession_ok = true;
+    Ok(Json(serde_json::json!({ "ok": true, "factor": "possession" })))
+}
+
+#[derive(Debug, Deserialize)]
+struct CodepointReq {
+    session_id: Uuid,
+    x: i64,
+    y: i64,
+    z: i64,
+}
+
+async fn three_factor_codepoint(
+    State(state): State<AppState>,
+    Json(req): Json<CodepointReq>,
+) -> Result<Json<serde_json::Value>, AppError> {
+    let mut sessions = state.three_factor_sessions.write().await;
+    let session = sessions
+        .get_mut(&req.session_id)
+        .filter(|s| !s.is_expired())
+        .ok_or(AppError::NotFound("3FA session not found or expired".into()))?;
+    if !session.knowledge_ok || !session.possession_ok {
+        return Err(AppError::Forbidden(
+            "Complete the Knowledge and Possession factors first".into(),
+        ));
+    }
+    let auth = ThreeFactorAuthenticator::new(ConsoleSmsSender);
+    let point = tfa::Codepoint::new(req.x, req.y, req.z);
+    let expected = ThreeFactorAuthenticator::<ConsoleSmsSender>::expected_codepoint_scalar(
+        &session.expected_codepoint,
+        session.moving_factor,
+    );
+    if !auth.verify_codepoint_factor(&point, expected, session.moving_factor) {
+        return Err(AppError::Unauthorized(
+            "Codepoint factor failed: selected cube does not match".into(),
+        ));
+    }
+
+    // All three factors satisfied — derive the presence scalar and mint a
+    // short-lived presence/capability token via the existing JWT plumbing.
+    let presence = auth.derive_presence_scalar(
+        session.knowledge_hash,
+        session.possession_secret,
+        &point,
+        session.moving_factor,
+    );
+    let presence_id = Uuid::new_v4();
+    let token = auth::create_access_token(
+        presence_id,
+        "friendly-approved@plenumnet",
+        presence_id,
+        &state.jwt_secret,
+        10,
+    )?;
+
+    // Consume the session (single-use).
+    sessions.remove(&req.session_id);
+
+    Ok(Json(serde_json::json!({
+        "ok": true,
+        "factor": "codepoint",
+        "status": "Friendly Approved Member connected",
+        "presence_scalar": presence.to_string(),
+        "token": token,
+        "expires_in_minutes": 10,
+    })))
 }
 
 // ═══════════════════════════════════════════════════════════════════════

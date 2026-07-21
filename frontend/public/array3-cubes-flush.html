@@ -286,6 +286,7 @@
     <div class="pill on">N1</div><div class="pill on">N2</div><div class="pill on">N3</div>
     <span id="top-prot" class="prot-badge nominal" style="margin-left:8px;">NOMINAL</span>
     <span id="top-clock" style="font-family:var(--mono);font-size:14px;font-weight:600;color:var(--text-heading);margin-left:12px;letter-spacing:0.04em;">--:--:--</span>
+    <button id="tfa-open" title="Three-Factor Auth · Knowledge → Possession → Codepoint" style="margin-left:12px;font-family:var(--mono);font-size:11px;font-weight:700;letter-spacing:0.04em;padding:5px 12px;border-radius:8px;background:rgba(139,166,51,0.12);color:var(--accent-lime);border:1px solid rgba(139,166,51,0.4);cursor:pointer;transition:all 0.15s;">🔐 3-Factor Auth</button>
   </div>
 </div>
 <div class="tabbar">
@@ -3692,8 +3693,148 @@ if (cohCurrentPanel === 'coherence') buildCoherencePanel();
   </div>
 </div>
 
+<!-- ═══ 3-FACTOR AUTH MODAL (Task #39) ═══ -->
+<div class="help-overlay" id="tfa-overlay" onclick="tfaClose()">
+  <div class="help-dialog" onclick="event.stopPropagation()" style="position:relative;max-width:440px;">
+    <button class="help-close" onclick="tfaClose()">&times;</button>
+    <h2 style="display:flex;align-items:center;gap:8px;">🔐 3-Factor Auth</h2>
+    <div style="font-size:12px;color:var(--body);margin-bottom:14px;line-height:1.6;">
+      Knowledge (PIN) → Possession (SMS code) → Codepoint (a cube on the Crystal).
+      On success you become a <b style="color:var(--accent-lime)">Friendly Approved Network Member</b>.
+    </div>
+    <!-- Stepper -->
+    <div id="tfa-steps" style="display:flex;gap:6px;margin-bottom:16px;">
+      <div class="tfa-step" data-step="1" style="flex:1;text-align:center;font-family:var(--mono);font-size:10px;padding:6px 4px;border-radius:6px;border:1px solid var(--border);color:var(--label);">1 · Knowledge</div>
+      <div class="tfa-step" data-step="2" style="flex:1;text-align:center;font-family:var(--mono);font-size:10px;padding:6px 4px;border-radius:6px;border:1px solid var(--border);color:var(--label);">2 · Possession</div>
+      <div class="tfa-step" data-step="3" style="flex:1;text-align:center;font-family:var(--mono);font-size:10px;padding:6px 4px;border-radius:6px;border:1px solid var(--border);color:var(--label);">3 · Codepoint</div>
+    </div>
+
+    <!-- Step 1: Knowledge -->
+    <div class="tfa-panel" id="tfa-p1">
+      <div class="tfa-label">Enter your PIN</div>
+      <input type="password" id="tfa-pin" placeholder="PIN" autocomplete="off" class="tfa-input">
+      <button id="tfa-pin-btn" class="tfa-btn">Verify Knowledge</button>
+    </div>
+
+    <!-- Step 2: Possession -->
+    <div class="tfa-panel" id="tfa-p2" style="display:none;">
+      <div class="tfa-label">A numeric code will be sent to your phone</div>
+      <button id="tfa-send-btn" class="tfa-btn" style="margin-bottom:8px;">Send Code</button>
+      <input type="text" id="tfa-code" placeholder="6-digit code" inputmode="numeric" autocomplete="off" class="tfa-input">
+      <button id="tfa-code-btn" class="tfa-btn">Verify Possession</button>
+    </div>
+
+    <!-- Step 3: Codepoint -->
+    <div class="tfa-panel" id="tfa-p3" style="display:none;">
+      <div class="tfa-label">Codepoint — the selected cube's coordinates</div>
+      <div style="display:flex;gap:6px;margin-bottom:8px;">
+        <input type="number" id="tfa-cx" placeholder="x" class="tfa-input" style="text-align:center;margin:0;">
+        <input type="number" id="tfa-cy" placeholder="y" class="tfa-input" style="text-align:center;margin:0;">
+        <input type="number" id="tfa-cz" placeholder="z" class="tfa-input" style="text-align:center;margin:0;">
+      </div>
+      <div id="tfa-cp-hint" style="font-size:10px;color:var(--faint);margin-bottom:8px;"></div>
+      <button id="tfa-cp-btn" class="tfa-btn">Verify Codepoint &amp; Connect</button>
+    </div>
+
+    <!-- Success -->
+    <div class="tfa-panel" id="tfa-success" style="display:none;text-align:center;">
+      <div style="font-size:40px;margin:8px 0;">✅</div>
+      <div style="font-family:var(--display);font-size:14px;color:var(--accent-lime);margin-bottom:8px;">Friendly Approved Member connected</div>
+      <div style="font-size:11px;color:var(--label);">Presence scalar</div>
+      <div id="tfa-presence" style="font-family:var(--mono);font-size:12px;color:var(--body);word-break:break-all;margin-bottom:12px;"></div>
+      <button class="tfa-btn" onclick="tfaClose()">Done</button>
+    </div>
+
+    <div id="tfa-status" style="min-height:16px;font-size:11px;margin-top:12px;text-align:center;"></div>
+    <div id="tfa-devhint" style="min-height:14px;font-size:10px;margin-top:6px;text-align:center;color:var(--faint);"></div>
+  </div>
+</div>
+
 <div id="qed-mark">&#8718;</div>
 <div id="corner-cap">CAPOMASTRO</div>
+
+<style>
+  #tfa-overlay .tfa-input{width:100%;padding:8px 10px;background:var(--bg-surface);border:1px solid var(--bg-border);border-radius:6px;color:var(--text-body);font-family:var(--mono);font-size:13px;outline:none;margin-bottom:8px;}
+  #tfa-overlay .tfa-btn{width:100%;padding:8px;background:rgba(139,166,51,0.14);border:1px solid rgba(139,166,51,0.4);color:var(--accent-lime);border-radius:6px;cursor:pointer;font-family:var(--mono);font-size:12px;font-weight:700;transition:all 0.15s;}
+  #tfa-overlay .tfa-btn:hover{background:rgba(139,166,51,0.24);}
+  #tfa-overlay .tfa-btn:disabled{opacity:0.4;cursor:not-allowed;}
+  #tfa-overlay .tfa-label{font-family:var(--display);font-size:9px;text-transform:uppercase;letter-spacing:2px;color:var(--label);margin-bottom:8px;}
+  #tfa-steps .tfa-step.active{border-color:var(--accent-lime);color:var(--accent-lime);background:rgba(139,166,51,0.08);}
+  #tfa-steps .tfa-step.done{border-color:var(--accent-blue);color:var(--accent-blue);}
+</style>
+
+<script>
+(function(){
+  const TFA_BASE=(typeof RELAY_URL!=='undefined'&&window.location.origin!==RELAY_URL)?RELAY_URL:'';
+  let tfaSession=null;
+  const $=id=>document.getElementById(id);
+  function status(msg,ok){const el=$('tfa-status');if(!el)return;el.textContent=msg||'';el.style.color=ok===true?'var(--accent-lime)':ok===false?'var(--red)':'var(--label)';}
+  function showStep(n){
+    ['tfa-p1','tfa-p2','tfa-p3','tfa-success'].forEach(id=>{const e=$(id);if(e)e.style.display='none';});
+    document.querySelectorAll('#tfa-steps .tfa-step').forEach(s=>{
+      const step=+s.dataset.step;s.classList.remove('active','done');
+      if(step<n)s.classList.add('done');else if(step===n)s.classList.add('active');
+    });
+    if(n===1)$('tfa-p1').style.display='';
+    else if(n===2)$('tfa-p2').style.display='';
+    else if(n===3){$('tfa-p3').style.display='';prefillCodepoint();}
+    else if(n===4)$('tfa-success').style.display='';
+  }
+  function prefillCodepoint(){
+    // Pre-fill from the currently selected cube's Rep C coordinates.
+    let rc=null;
+    try{ if(typeof selected!=='undefined'&&selected>=0&&typeof allSlots!=='undefined'&&allSlots[selected])rc=allSlots[selected].rc; }catch(e){}
+    if(rc&&rc.length===3){$('tfa-cx').value=rc[0];$('tfa-cy').value=rc[1];$('tfa-cz').value=rc[2];$('tfa-cp-hint').textContent='Pre-filled from selected cube ('+rc.join(', ')+'). Confirm or adjust.';}
+    else{$('tfa-cp-hint').textContent='No cube selected — click a cube on the Crystal, or enter coordinates manually.';}
+  }
+  async function api(path,body){
+    const r=await fetch(TFA_BASE+path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body||{})});
+    let data={};try{data=await r.json();}catch(e){}
+    if(!r.ok)throw new Error(data.error||('HTTP '+r.status));
+    return data;
+  }
+  window.tfaClose=function(){const o=$('tfa-overlay');if(o)o.classList.remove('open');};
+  async function tfaOpen(){
+    $('tfa-overlay').classList.add('open');
+    $('tfa-pin').value='';$('tfa-code').value='';status('Starting session…');
+    $('tfa-devhint').textContent='';
+    showStep(1);
+    try{
+      const d=await api('/api/3fa/start');
+      tfaSession=d.session_id;status('');
+      if(d.dev_hints){$('tfa-devhint').textContent='DEV demo — PIN '+d.dev_hints.pin+' · codepoint ('+d.dev_hints.codepoint.x+', '+d.dev_hints.codepoint.y+', '+d.dev_hints.codepoint.z+')';}
+    }catch(e){status('Could not start: '+e.message,false);}
+  }
+  document.addEventListener('DOMContentLoaded',()=>{
+    const ob=$('tfa-open');if(ob)ob.addEventListener('click',tfaOpen);
+    $('tfa-pin-btn').addEventListener('click',async()=>{
+      status('Verifying PIN…');
+      try{await api('/api/3fa/knowledge',{session_id:tfaSession,pin:$('tfa-pin').value});status('Knowledge verified',true);showStep(2);}
+      catch(e){status(e.message,false);}
+    });
+    $('tfa-send-btn').addEventListener('click',async()=>{
+      status('Sending code…');
+      try{const d=await api('/api/3fa/possession/request',{session_id:tfaSession});
+        status('Code sent to '+d.sent_to,true);
+        if(d.dev_code!=null&&d.dev_code!==undefined)$('tfa-devhint').textContent='DEV code: '+String(d.dev_code).padStart(6,'0');}
+      catch(e){status(e.message,false);}
+    });
+    $('tfa-code-btn').addEventListener('click',async()=>{
+      status('Verifying code…');
+      try{await api('/api/3fa/possession/verify',{session_id:tfaSession,code:parseInt($('tfa-code').value,10)});status('Possession verified',true);showStep(3);}
+      catch(e){status(e.message,false);}
+    });
+    $('tfa-cp-btn').addEventListener('click',async()=>{
+      status('Verifying codepoint…');
+      try{const d=await api('/api/3fa/codepoint',{session_id:tfaSession,x:parseInt($('tfa-cx').value,10),y:parseInt($('tfa-cy').value,10),z:parseInt($('tfa-cz').value,10)});
+        $('tfa-presence').textContent=d.presence_scalar;
+        try{localStorage.setItem('a3m.presenceToken',d.token);}catch(e){}
+        status('');showStep(4);}
+      catch(e){status(e.message,false);}
+    });
+  });
+})();
+</script>
 
 </body>
 </html>

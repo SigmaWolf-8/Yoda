@@ -45,6 +45,7 @@ pub mod routes;
 pub mod security;
 pub mod settings;
 pub mod state;
+pub mod three_factor;
 pub mod websocket;
 
 #[cfg(test)]

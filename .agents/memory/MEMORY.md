@@ -1,3 +1,4 @@
 - [sqlx migration checksum drift](sqlx-migration-drift.md) — editing an already-applied migration aborts the WHOLE chain; re-baseline the stored checksum, don't ignore the "Continuing..." warning.
 - [Rust build starved by LSP cargo check](rust-build-lsp-contention.md) — incremental backend builds hang 30+ min; pkill cargo check or restart workflow to hot-start the rebuilt binary.
 - [Repo serving & git push](repo-serving-and-git-push.md) — static pages go in frontend/public (rebuild → dist, port 3000); NOT the pnpm artifact scaffold; bash git push is blocked, push via code_execution GitHub token (parity validation enforces it).
+- [cargo builds killed in-tool](cargo-build-intool-sigterm.md) — foreground/detached cargo build|test via bash tool get SIGTERM'd (143); build & hot-swap via workflow restart, verify logic with live curl instead.

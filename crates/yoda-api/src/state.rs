@@ -53,6 +53,8 @@ pub struct AppState {
     /// Initialised at startup when ANTHROPIC_API_KEY / OPENAI_API_KEY / TOGETHER_API_KEY
     /// are present. None when no cloud keys are configured.
     pub llm_gateway: Option<Arc<LlmAgentGateway>>,
+    /// In-flight 3-Factor Auth sessions (Task #39), keyed by session id.
+    pub three_factor_sessions: crate::three_factor::ThreeFactorSessions,
 }
 
 impl AppState {
@@ -117,6 +119,7 @@ impl AppState {
             live_cube_peer: crate::cube_relay::new_live_cube_peer(),
             task_cancel_tokens: Arc::new(RwLock::new(HashMap::new())),
             llm_gateway,
+            three_factor_sessions: crate::three_factor::new_sessions(),
         }
     }
 }
