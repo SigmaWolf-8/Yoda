@@ -1706,9 +1706,16 @@ async fn probe_engine_inner(
         }
 
         // Non-local self-hosted (e.g. a VM with a public IP).
+        // Probe unauthenticated, lightweight endpoints. Handle both llama.cpp
+        // (/health) and OpenAI-compatible runtimes like Ollama, whose base URL
+        // ends in /v1 and which expose GET /v1/models and (at the origin)
+        // /api/tags. No API key is sent — "none" auth is valid for local engines.
+        let origin = extract_origin(base);
         let candidates = [
             format!("{base}/health"),
-            format!("{base}/api/tags"),
+            format!("{base}/models"),
+            format!("{origin}/v1/models"),
+            format!("{origin}/api/tags"),
         ];
 
         let start = std::time::Instant::now();

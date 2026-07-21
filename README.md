@@ -63,6 +63,13 @@ cargo run --bin yoda-api
 cd frontend && npm run dev
 ```
 
+## Running with a local LLM (Windows)
+
+Want a $0, fully-local engine? Install the **Ollama** runtime, pull a model, and
+point a YODA engine slot at it with the one-click **Local Ollama** preset on the
+**Settings → AI Engines** page. Full PowerShell walkthrough (install, verify,
+troubleshoot) is in [`docs/local-llm-windows.md`](docs/local-llm-windows.md).
+
 ## Licenses
 
 - `agents/upstream/` — MIT License (see LICENSE-MIT)

@@ -675,6 +675,20 @@ export function EngineSlotCard({
     onModelChange(m);
   }
 
+  /** One-click "Local Ollama" preset: OpenAI-compatible local endpoint, no auth.
+   *  Fills the fields but does not save — the user can still edit before saving. */
+  function applyOllamaPreset() {
+    changeMode('self_hosted');
+    changeModel('llama3.2');
+    setEndpoint('http://localhost:11434/v1');
+    lastAutoFill.current = 'http://localhost:11434/v1';
+    setCubeEndpoint('');
+    setAuthType('none');
+    setCredentials('');
+    setFamilyOverride('llama');
+    setProbeState(null);
+  }
+
   useEffect(() => {
     if (mode === 'self_hosted') {
       setAuthType('none');
@@ -1082,6 +1096,27 @@ export function EngineSlotCard({
         {/* ── Self-Hosted fields ────────────────────────────────────────── */}
         {mode === 'self_hosted' && (
           <>
+            {/* Quick presets */}
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wide">Quick preset</span>
+              <Tooltip wide content={
+                <div className="space-y-1.5">
+                  <p className="font-semibold text-[var(--color-navy-100)]">Local Ollama</p>
+                  <p>Fills this slot for an <strong>Ollama</strong> runtime on your machine: model <code>llama3.2</code>, endpoint <code>http://localhost:11434/v1</code>, no API key. Edit any field, then Save.</p>
+                  <p className="text-[var(--color-gold-400)]">See docs/local-llm-windows.md for the PowerShell setup.</p>
+                </div>
+              }>
+                <button
+                  type="button"
+                  onClick={applyOllamaPreset}
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium border border-[var(--color-plex-500)]/40 bg-[var(--color-plex-500)]/8 text-[var(--color-plex-400)] hover:bg-[var(--color-plex-500)]/15 hover:border-[var(--color-plex-500)]/70 transition-colors"
+                >
+                  <Server className="w-3 h-3" />
+                  Local Ollama
+                </button>
+              </Tooltip>
+            </div>
+
             {/* RAM context banner — shows available RAM accounting for other slots */}
             <div className="flex items-start gap-2 px-2.5 py-1.5 rounded-lg bg-[var(--color-surface-secondary)] border border-[var(--color-border-subtle)] text-xs text-[var(--color-text-muted)] leading-relaxed">
               <span className="mt-0.5 flex-shrink-0">💡</span>
