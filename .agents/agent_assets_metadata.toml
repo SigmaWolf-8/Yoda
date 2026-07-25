@@ -120,3 +120,9 @@ id = "dNn3rIBmBjGuwlc8MHbAw"
 uri = "file://deliverables/brand-book-0.zip"
 type = "unspecified"
 title = "YODA × PlenumNET — Brand Book 0 (Color Derivation Engine)"
+
+[[outputs]]
+id = "aVAG5H37p9k8d5v7zAJ8I"
+uri = "file://exports/LIIBRELIBRAII_CANON.txt"
+type = "text"
+title = "Liibrelibraii Canon (clean plaintext, English primary, Latin headings)"

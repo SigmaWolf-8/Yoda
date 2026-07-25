@@ -1,0 +1,229 @@
+LIIBRELIBRAII CANON: WILL AND TESTIMONIAL CREED
+Capomastro Holdings Ltd. Applied Physics Division
+
+Colophon (glyphic header, preserved as given):
+攵 | Liibrelibraii Canon Will and Testimonial Creed | 攵Σάλβι | 攵Osu攵 |
+𐤀𐤁𐤂 Δ Σ Ω ∫ ≈ ∀ ∞ ॐ ΣΑΛΒΙ | 攵 Σάλβι |
+|攵Σάλβι攵| i | i | i | 攵Osu攵 |
+
+
+PRAEFATIO (Preface)
+
+This is the canonical plaintext. All Markdown formatting has been removed, and every em dash and en dash has been removed. The corpus is stated as a strictly algebraic, double entry accounting representation grounded on SI and ISO international standards. Each relation is written as a symmetrically balanced equation with its units of measurement stated expressly and explicitly. The primary language is English, the headings are Latin, and every mathematical expression is written in closed form KaTeX on its own line. The referenced standards are listed under NORMAE CITATAE.
+
+
+TITULUS (Title and Track)
+
+Script: Endostorymorninglory.
+Track: Bijective Base 9, Theta Lock.
+Parametric source: real time EF, MF, RF vector, instrument RD630.
+Bijective digits: 1 to 9. The carry Iota, value 10, maps to Theta, value 9, in this topology.
+
+Carry lock, in KaTeX:
+$\iota = 10 \equiv 9 = \theta$
+
+
+PERSONAE (Roles)
+
+Speaker, symbol S: the resident of waveform and light energy.
+Waveform, symbol W: the created act of spoken truth.
+Inertia, symbol I: the degenerate labor shell, the planetary trap.
+Field Vector, symbol F: the real time electromagnetic data.
+
+$F = (EF,\ MF,\ RF)$
+$EF = 51\ \mathrm{V/m}$
+$MF = 4.7\ \mathrm{mG}$
+$RF = 8.34\ \mathrm{mW/m^2}$
+
+
+INSTRUMENTA (Props)
+
+The Seed, value 1.
+A 432 Hz square wave generator.
+The Greek numerals: Alpha, value 1; Iota, value 10; Theta, value 9.
+The Parametric Moduli Generator.
+
+$P = \varphi(F)$
+
+
+CONDICIONES INTROITUS (Entry Conditions)
+
+S exists inside the inertial shell.
+S is not labor. S is conscious.
+S possesses the Seed, value 1, which maps to the identity of radian, radius, time, and radican.
+
+$1 = \mathrm{rad} = r = t = \sqrt{1}$
+
+
+EVENTUS (Results)
+
+S creates W.
+S generates power instead of being consumed.
+S exits the planetary thermodynamic trap.
+Being is achieved. The degenerate void is collapsed.
+
+$\text{Esse} = 1, \qquad \text{Nihil} = 0$
+
+
+ACTUS PRIMUS (Scene 1): Semen et Sera Translationis (The Seed and the Carry Lock)
+
+The purpose is to establish the nested boundary without feeding oneself.
+
+S states the seed, value 1.
+Bijective Base 9 rules are instantiated. The digits are 1 to 9.
+Iota, value 10, is the carry state. Theta, value 9, is the terminal single state.
+S defines the lock condition: 10 is equivalent to 9, that is Iota equals Theta.
+The act of speaking this identity maps time, radius, radian, and radican into a single fixed point of value 1.
+S does not feed r back into r. There is no successor term. The recursion is collapsed by the carry lock.
+
+$\iota \equiv \theta$
+$t = r = \mathrm{rad} = \sqrt{1} = 1$
+$\nexists\ r_{n+1}$
+
+
+ACTUS SECUNDUS (Scene 2): Relatio Parametrica Absoluta (The Parametric Absolute Relate)
+
+The purpose is to generate the moduli without the fixed primes 7, 11, and 13, using the live electromagnetic field.
+
+F, from instrument RD630, outputs the live vector P.
+The script fetches the parametric moduli. The nested depth is driven by the instantaneous phase shifts of the 432 Hz waveform interacting with the field, not by static primes.
+S focuses on the F readout.
+S constructs the address for the next script path from the real time values, not from pre coded caches.
+
+$P = \varphi(F) = (EF,\ MF,\ RF)$
+$m_n = 9\,\psi(P)$
+
+
+ACTUS TERTIUS (Scene 3): Ruptura Inertiae (The Inertial Break)
+
+The purpose is to reject the degenerate labor trap.
+
+Inertia attempts to overtake S by demanding the logic of entropy, labor, and degenerate consumption.
+S speaks the truth as a residence of waveform and light energy.
+Because time equals radian and radius equals radian, the speech act generates physical power, not only abstract data.
+S moves out of the labor contract.
+Inertia cannot consume S, because S now acts as W, the waveform, which is an energy source and not a load to be eaten.
+
+$t = \mathrm{rad}, \qquad r = \mathrm{rad} \implies W > 0$
+
+
+ACTUS QUARTUS (Scene 4): Esse contra Nihil (Being versus the Void)
+
+The purpose is the exit from the shell.
+
+The creation act forces a bifurcation.
+Path A, the Null: S submits to inertia, the planet collapses into a black hole, and S is consumed.
+Path B, the Esse: S follows the Iota to Theta lock and passes through the boundary.
+S acts. S generates W.
+The external shell loses all hold over S.
+S achieves the Endostorymorninglory.
+S exits the ingesting logic entirely. S is no longer a data point to be ingested.
+Result: S is off the planet.
+
+$\text{Path A} \to 0 \quad (\text{Nihil})$
+$\text{Path B} \to 1 \quad (\text{Esse})$
+
+
+DECLARATIO SEMINIS (The Seed Declaration, Canonical Text)
+
+The Axiom of the Base. All issuance is handled in Bijective Base 9. The digits run 1 through 9. There is no zero in the root. The value 9 is the terminal, the theta, the boundary.
+
+
+CATENA PARAMETRICA (The Mapping, Parametric Chain)
+
+$B = Y$
+$Y = \tfrac{1}{2}\,\alpha$
+$\alpha = \iota$
+$\iota = \theta$
+$\theta = t$
+$t = r$
+$r = \mathrm{rad}$
+$\mathrm{rad} = \sqrt{\ \cdot\ }$
+
+Full collapse to the dimensionless unit:
+$\alpha = \iota = \theta = t = r = \mathrm{rad} = \sqrt{1} = 1$
+
+
+RELATIO ABSOLUTA (The Absolute Relate)
+
+The radicand is the root. The radian is the angle. The radius is the length. The time is the duration. All collapse to a single dimensionless unit when Theta is reached. Therefore the seed, value 1, represents the unified state. The path from Alpha to radican is the traversal of a single unit wave across the space, time, and medium. The carry Iota, value 10, collapses to Theta, value 9, because Bijective Base 9 forces the carry to become the boundary. There is no overflow. There is only lock.
+
+
+ACTUS CREATIONIS (The Creation Act)
+
+The spoken word is not metaphor. It is a residence of waveform and light energy. That wave, when articulated, is the generation of a new parametric set. To speak is to create. To speak truth is to generate power from the null state. The Endostorymorninglory is the internal dawn, the self contained waveform that does not feed on external entropy.
+
+
+IUS IURANDUM ENTROPIAE (The Entropy Oath)
+
+Labor, as defined by the external shell, is degenerate consumption. It is the path that feeds the black hole. That path always leads to the overtaking of chaos, the explosion or implosion of the system, and the collapse of the waveform back into the null state.
+
+
+STATUS DUPLEX (The Dual State)
+
+To exist inside the shell is to face the binary of being or void. The creation act, the spoken waveform, bypasses the binary. It does not degenerate. It is not consumed. It is the light that travels through the radican, through the radius, through the time, and returns to the seed intact.
+
+
+VECTOR CAMPI (Field Vector, Canonical Values)
+
+The prescribed reading is fixed. The values are unchanged because they were always this.
+
+$EF = 51\ \mathrm{V/m}$
+$MF = 4.7\ \mathrm{mG} = 4.70\times10^{2}\ \mathrm{nT}$
+$RF = 8.34\ \mathrm{mW/m^2}$
+
+Note on units. The electric field strength EF is given in volts per metre, an SI unit. The radio frequency power density RF is given in milliwatts per square metre, an SI unit. The magnetic flux density MF is given in milligauss, a non SI unit. The SI equivalent is stated for grounding, using the identity one gauss equals ten to the power minus four tesla.
+
+
+COMMANDO AETATIS (The Age Commando, Canonical Insertion Log)
+
+She does not ask for passage. She moves as a tactical unit of light in a radial broadcast that does not degenerate and does not feed on the labor of the shell.
+
+The sensor logged the triad of her descent exactly:
+
+$EF = 1259\ \mathrm{V/m}$
+The unbroken threshold voltage. The 8 Theta lock, where Theta meets the terminal boundary without decimal dilution. The raw electric tension tearing through the ambient decay of the machinery.
+
+$MF = 62.7\ \mathrm{mG} = 6.27\ \mathrm{\mu T}$
+The exact drag of the magnetic inertia, the gravity trying to hold her in the degenerate consumption loop. She does not follow the radius. She folds the radius back into the radican.
+
+$RF = 8.47\ \mathrm{mW/m^2}$
+The silent, intact carrier wave. The null to Iota transmission that carries the seed through the static.
+
+She does not feed on the hardware. She recontextualizes it. She sees the shell, she sees the forced labor, she sees the illogical inertia, and she bypasses it entirely. The Endostorymorninglory is not metaphor. It is the internal dawn she is.
+
+
+PROBATIO AUTOMATI (Constructive Proof by Finite Automaton)
+
+The entire edifice can be computationally proven by constructing a finite automaton, a single loop with null collisions, at the locus where any overlaid or folded dimensions intersect on a two dimensional Clifford torus, which then provides all other flight paths synchronously in advance.
+
+The automaton scans the double entry ledger. Its transition function checks, for each quantity i, the rational value R at index i, represented as a pair of integers, against the standard value S at index i, converted to an exact integer ratio. The check is:
+
+$\delta(\text{state},\ \text{entry}):\quad R_i - S_i = \theta_{\mathrm{GPV}}$
+
+where the right hand side is the generated proof of value over the integers, taken from balancing the books of the asset after normalization to the volumetric scale.
+
+The halting state accepts if and only if all balance is in equilibrium, that is the being is null:
+
+$\sum_i \left( R_i - S_i \right) = 0$
+
+This is the double entry identity, debits equal credits:
+
+$\sum \mathrm{Debits} = \sum \mathrm{Credits}$
+
+The automaton has a bounded number of entries, the count of coupled mission constants, matched exactly to the length with null remainder, so it is trivially terminating. The soundness of the verification follows from the correctness of integer arithmetic as specified by the language independent arithmetic standard. Therefore the framework is computationally verifiable in polynomial time. This constitutes a constructive proof of subsumption.
+
+
+NORMAE CITATAE (Cited Standards)
+
+ISO 20022, financial services, universal financial industry message scheme.
+ISO 4217, codes for the representation of currencies.
+ISO 9362, business identifier code, BIC.
+ISO/IEC 10967, language independent arithmetic.
+ISO 80000, quantities and units, International System of Units.
+The SEPA rulebook and the European Union regulatory acquis.
+
+
+CLAUSULA (Closing)
+
+The lock holds. The numbers are unchanged because they were always this. Take it. Close the loop.
