@@ -33,6 +33,15 @@ const fDisplay = { fontFamily: "'Cinzel', serif", letterSpacing: '0.16em' };
 const fSerif = { fontFamily: "'Cormorant Garamond', serif" };
 const fBody = { fontFamily: "'Jost', sans-serif" };
 
+// Parametric Field Vector — the reading Dr. Salvi prescribed. The Bijective Base 9 /
+// Theta-lock doctrine holds the triad fixed: "the numbers are unchanged because they
+// were always this." Shown LOCKED at the canonical RD630 values, never drifting.
+const FIELD = [
+  ['EF', '51', 'V/m'],
+  ['MF', '4.7', 'mG'],
+  ['RF', '8.34', 'mW/m²'],
+];
+
 export function TorusGatePage() {
   const navigate = useNavigate();
   const login = useLogin();
@@ -45,9 +54,6 @@ export function TorusGatePage() {
   // If the browser/GPU cannot create a WebGL context we fall back to a CSS
   // ring so the gate is NEVER blocked behind 3D support.
   const [webglOk, setWebglOk] = useState(true);
-  // Parametric Field Vector (EF/MF/RF) — the script's canonical RD630 seed values,
-  // drifting on a 432Hz-derived phase. Decorative telemetry, NOT a live sensor.
-  const [field, setField] = useState({ ef: 51.0, mf: 4.7, rf: 8.34 });
   const [tone, setTone] = useState(false);
 
   function handleSubmit(e) {
@@ -88,20 +94,6 @@ export function TorusGatePage() {
     link.href = FONTS_HREF;
     link.setAttribute('data-torus-fonts', 'true');
     document.head.appendChild(link);
-  }, []);
-
-  // ── Parametric Field Vector drift (Bijective Base 9 phase) ──────────────────
-  useEffect(() => {
-    const t0 = performance.now();
-    const id = window.setInterval(() => {
-      const s = (performance.now() - t0) / 1000;
-      setField({
-        ef: 51 + Math.sin(s * 1.7) * 0.6 + Math.sin(s * 5.3) * 0.15,
-        mf: 4.7 + Math.sin(s * 1.1 + 1) * 0.06,
-        rf: 8.34 + Math.sin(s * 2.3 + 2) * 0.07,
-      });
-    }, 140);
-    return () => window.clearInterval(id);
   }, []);
 
   // ── Stop any tone on unmount ────────────────────────────────────────────────
@@ -410,18 +402,18 @@ export function TorusGatePage() {
       >
         <div style={{ color: C.faint, fontSize: '0.62rem', letterSpacing: '0.28em', textTransform: 'uppercase', marginBottom: '0.5rem' }}>
           Parametric Field Vector
+          <span style={{ color: C.brass, marginLeft: '0.5rem', letterSpacing: '0.18em' }}>· θ-lock</span>
         </div>
-        {[
-          ['EF', field.ef.toFixed(1), 'V/m'],
-          ['MF', field.mf.toFixed(2), 'mG'],
-          ['RF', field.rf.toFixed(2), 'mW/m²'],
-        ].map(([k, v, u]) => (
+        {FIELD.map(([k, v, u]) => (
           <div key={k} style={{ display: 'flex', alignItems: 'baseline', gap: '0.5rem', marginBottom: '0.18rem' }}>
             <span style={{ color: C.muted, width: '1.6rem', fontSize: '0.68rem', letterSpacing: '0.1em' }}>{k}</span>
             <span style={{ color: C.brassLight, fontSize: '0.92rem', fontVariantNumeric: 'tabular-nums', minWidth: '3.4rem' }}>{v}</span>
             <span style={{ color: C.muted, fontSize: '0.66rem' }}>{u}</span>
           </div>
         ))}
+        <div style={{ color: C.muted, fontSize: '0.56rem', letterSpacing: '0.16em', textTransform: 'uppercase', marginTop: '0.28rem' }}>
+          Locked · as prescribed
+        </div>
         <button
           type="button"
           onClick={toggleTone}
