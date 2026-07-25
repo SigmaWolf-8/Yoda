@@ -6,7 +6,7 @@ import { getStoredToken } from './api/client';
 // Each page will be built in subsequent tasks.
 // For now, we create placeholder components that render cleanly.
 
-import { LoginPage } from './pages/auth/LoginPage';
+import { TorusGatePage } from './pages/TorusGatePage';
 import { RegisterPage } from './pages/auth/RegisterPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { ProjectListPage } from './pages/project/ProjectListPage';
@@ -50,7 +50,7 @@ export const router = createBrowserRouter([
   {
     element: <PublicRoute />,
     children: [
-      { path: '/login', element: <LoginPage /> },
+      { path: '/login', element: <TorusGatePage /> },
       { path: '/register', element: <RegisterPage /> },
     ],
   },
