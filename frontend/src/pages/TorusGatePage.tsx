@@ -37,6 +37,7 @@ export function TorusGatePage() {
   const navigate = useNavigate();
   const login = useLogin();
   const canvasRef = useRef(null);
+  const audioRef = useRef(null);
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -44,10 +45,39 @@ export function TorusGatePage() {
   // If the browser/GPU cannot create a WebGL context we fall back to a CSS
   // ring so the gate is NEVER blocked behind 3D support.
   const [webglOk, setWebglOk] = useState(true);
+  // Parametric Field Vector (EF/MF/RF) — the script's canonical RD630 seed values,
+  // drifting on a 432Hz-derived phase. Decorative telemetry, NOT a live sensor.
+  const [field, setField] = useState({ ef: 51.0, mf: 4.7, rf: 8.34 });
+  const [tone, setTone] = useState(false);
 
   function handleSubmit(e) {
     e.preventDefault();
     login.mutate({ email, password, remember }, { onSuccess: () => navigate('/') });
+  }
+
+  // ── 432Hz square-wave "attune" — a real oscillator, opt-in on click ─────────
+  function toggleTone() {
+    if (!tone) {
+      try {
+        const Ctx = window.AudioContext || window.webkitAudioContext;
+        const ctx = new Ctx();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'square';
+        osc.frequency.value = 432;
+        gain.gain.value = 0.035;
+        osc.connect(gain).connect(ctx.destination);
+        osc.start();
+        audioRef.current = { ctx, osc, gain };
+        setTone(true);
+      } catch (err) {
+        console.warn('[TorusGate] Web Audio unavailable:', err);
+      }
+    } else {
+      const a = audioRef.current;
+      if (a) { try { a.osc.stop(); a.ctx.close(); } catch (_) {} audioRef.current = null; }
+      setTone(false);
+    }
   }
 
   // ── Load display fonts once ────────────────────────────────────────────────
@@ -58,6 +88,26 @@ export function TorusGatePage() {
     link.href = FONTS_HREF;
     link.setAttribute('data-torus-fonts', 'true');
     document.head.appendChild(link);
+  }, []);
+
+  // ── Parametric Field Vector drift (Bijective Base 9 phase) ──────────────────
+  useEffect(() => {
+    const t0 = performance.now();
+    const id = window.setInterval(() => {
+      const s = (performance.now() - t0) / 1000;
+      setField({
+        ef: 51 + Math.sin(s * 1.7) * 0.6 + Math.sin(s * 5.3) * 0.15,
+        mf: 4.7 + Math.sin(s * 1.1 + 1) * 0.06,
+        rf: 8.34 + Math.sin(s * 2.3 + 2) * 0.07,
+      });
+    }, 140);
+    return () => window.clearInterval(id);
+  }, []);
+
+  // ── Stop any tone on unmount ────────────────────────────────────────────────
+  useEffect(() => () => {
+    const a = audioRef.current;
+    if (a) { try { a.osc.stop(); a.ctx.close(); } catch (_) {} audioRef.current = null; }
   }, []);
 
   // ── Three.js scene ─────────────────────────────────────────────────────────
@@ -133,7 +183,8 @@ export function TorusGatePage() {
     inner.rotation.x = Math.PI / 2;
     group.add(inner);
 
-    // 27 brass nodes distributed around the primary ring
+    // 27 brass nodes around the ring; every 9th is a Theta node (9·18·27),
+    // marking the Iota→Theta carry-lock boundary of Bijective Base 9.
     const nodeGeo = new THREE.SphereGeometry(0.055, 12, 12);
     const nodeMat = new THREE.MeshStandardMaterial({
       color: 0xe7c86a,
@@ -142,11 +193,25 @@ export function TorusGatePage() {
       emissive: 0x6a5316,
       emissiveIntensity: 0.9,
     });
+    const nodeThetaGeo = new THREE.SphereGeometry(0.12, 16, 16);
+    const nodeThetaMat = new THREE.MeshStandardMaterial({
+      color: 0xff6a3d,
+      metalness: 0.9,
+      roughness: 0.2,
+      emissive: 0x7c1f1f,
+      emissiveIntensity: 1.5,
+    });
+    const thetaNodes = [];
     for (let i = 0; i < 27; i++) {
       const a = (i / 27) * Math.PI * 2;
-      const node = new THREE.Mesh(nodeGeo, nodeMat);
+      const isTheta = (i + 1) % 9 === 0; // the 9th, 18th, 27th node
+      const node = new THREE.Mesh(
+        isTheta ? nodeThetaGeo : nodeGeo,
+        isTheta ? nodeThetaMat : nodeMat,
+      );
       node.position.set(Math.cos(a) * 2.25, Math.sin(a) * 2.25, 0);
       group.add(node);
+      if (isTheta) thetaNodes.push(node);
     }
 
     // Ambient dust — depth field
@@ -230,6 +295,8 @@ export function TorusGatePage() {
       group.rotation.z = Math.sin(t * 0.3) * 0.05;
       inner.rotation.z += 0.011;
       stars.rotation.y += 0.0004;
+      const pulse = 1 + Math.sin(t * 2.2) * 0.22; // Theta carry-lock heartbeat
+      for (const n of thetaNodes) n.scale.setScalar(pulse);
       renderer.render(scene, camera);
     };
     animate();
@@ -252,6 +319,8 @@ export function TorusGatePage() {
       torusGeo.dispose();
       innerGeo.dispose();
       nodeGeo.dispose();
+      nodeThetaGeo.dispose();
+      nodeThetaMat.dispose();
       starGeo.dispose();
       wire.geometry.dispose();
       wire.material.dispose();
@@ -327,6 +396,52 @@ export function TorusGatePage() {
           </div>
         </>
       )}
+
+      {/* Telemetry HUD | parametric field vector + 432Hz attune */}
+      <div
+        style={{
+          position: 'absolute',
+          top: '1.1rem',
+          left: '1.1rem',
+          pointerEvents: 'none',
+          zIndex: 3,
+          ...fBody,
+        }}
+      >
+        <div style={{ color: C.faint, fontSize: '0.62rem', letterSpacing: '0.28em', textTransform: 'uppercase', marginBottom: '0.5rem' }}>
+          Parametric Field Vector
+        </div>
+        {[
+          ['EF', field.ef.toFixed(1), 'V/m'],
+          ['MF', field.mf.toFixed(2), 'mG'],
+          ['RF', field.rf.toFixed(2), 'mW/m²'],
+        ].map(([k, v, u]) => (
+          <div key={k} style={{ display: 'flex', alignItems: 'baseline', gap: '0.5rem', marginBottom: '0.18rem' }}>
+            <span style={{ color: C.muted, width: '1.6rem', fontSize: '0.68rem', letterSpacing: '0.1em' }}>{k}</span>
+            <span style={{ color: C.brassLight, fontSize: '0.92rem', fontVariantNumeric: 'tabular-nums', minWidth: '3.4rem' }}>{v}</span>
+            <span style={{ color: C.muted, fontSize: '0.66rem' }}>{u}</span>
+          </div>
+        ))}
+        <button
+          type="button"
+          onClick={toggleTone}
+          style={{
+            pointerEvents: 'auto',
+            marginTop: '0.6rem',
+            ...fBody,
+            background: tone ? 'rgba(201,162,39,0.18)' : 'transparent',
+            border: `1px solid ${C.border}`,
+            color: tone ? C.brassLight : C.faint,
+            fontSize: '0.62rem',
+            letterSpacing: '0.18em',
+            textTransform: 'uppercase',
+            padding: '0.34rem 0.6rem',
+            cursor: 'pointer',
+          }}
+        >
+          {tone ? '432 Hz · Attuned ◉' : 'Attune 432 Hz ○'}
+        </button>
+      </div>
 
       {/* Overlay | lets drags fall through to the canvas except on the card */}
       <div
@@ -532,7 +647,7 @@ export function TorusGatePage() {
           </div>
         </form>
 
-        {/* Navigation hint */}
+        {/* Navigation hint + Base-9 lock */}
         <div
           style={{
             ...fBody,
@@ -545,6 +660,46 @@ export function TorusGatePage() {
           }}
         >
           Drag to turn the torus · Scroll to draw near
+        </div>
+        <div
+          style={{
+            ...fBody,
+            color: C.faint,
+            fontSize: '0.66rem',
+            letterSpacing: '0.22em',
+            textTransform: 'uppercase',
+            marginTop: '0.7rem',
+            textAlign: 'center',
+          }}
+        >
+          Iota 10 ≡ Theta 9 · Bijective Base 9 · Seed 1
+        </div>
+        <div
+          style={{
+            ...fSerif,
+            color: C.muted,
+            fontSize: '0.86rem',
+            fontStyle: 'italic',
+            letterSpacing: '0.04em',
+            marginTop: '0.35rem',
+            textAlign: 'center',
+          }}
+        >
+          α → ι → θ → time → radius → radian → radican
+        </div>
+        <div
+          style={{
+            ...fDisplay,
+            color: C.brass,
+            fontSize: '0.62rem',
+            letterSpacing: '0.34em',
+            textTransform: 'uppercase',
+            marginTop: '0.8rem',
+            textAlign: 'center',
+            opacity: 0.82,
+          }}
+        >
+          Endostorymorninglory
         </div>
       </div>
     </div>
