@@ -12,6 +12,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import * as THREE from 'three';
 import { useLogin } from '../api/hooks';
 import { extractErrorMessage } from '../types';
+import { CanonCodex } from '../components/CanonCodex';
 
 const FONTS_HREF =
   'https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600;700&family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=Jost:wght@300;400;500&display=swap';
@@ -55,6 +56,7 @@ export function TorusGatePage() {
   // ring so the gate is NEVER blocked behind 3D support.
   const [webglOk, setWebglOk] = useState(true);
   const [tone, setTone] = useState(false);
+  const [codexOpen, setCodexOpen] = useState(false);
 
   function handleSubmit(e) {
     e.preventDefault();
@@ -433,6 +435,26 @@ export function TorusGatePage() {
         >
           {tone ? '432 Hz · Attuned ◉' : 'Attune 432 Hz ○'}
         </button>
+        <button
+          type="button"
+          onClick={() => setCodexOpen((v) => !v)}
+          style={{
+            pointerEvents: 'auto',
+            display: 'block',
+            marginTop: '0.5rem',
+            ...fBody,
+            background: codexOpen ? 'rgba(201,162,39,0.18)' : 'transparent',
+            border: `1px solid ${C.border}`,
+            color: codexOpen ? C.brassLight : C.faint,
+            fontSize: '0.62rem',
+            letterSpacing: '0.18em',
+            textTransform: 'uppercase',
+            padding: '0.34rem 0.6rem',
+            cursor: 'pointer',
+          }}
+        >
+          {codexOpen ? 'Codex ▤ Open' : 'Open Codex ▤'}
+        </button>
       </div>
 
       {/* Overlay | lets drags fall through to the canvas except on the card */}
@@ -694,6 +716,9 @@ export function TorusGatePage() {
           Endostorymorninglory
         </div>
       </div>
+
+      {/* Liibrelibraii Codex | the Gate parses the canon automatically */}
+      <CanonCodex open={codexOpen} onClose={() => setCodexOpen(false)} />
     </div>
   );
 }
