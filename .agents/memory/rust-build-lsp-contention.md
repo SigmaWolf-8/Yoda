@@ -24,3 +24,11 @@ makes the LSP win repeatedly.
   at once), so the new binary serves regardless of any further background build contention.
 - The workflow keeps serving the cached binary the whole time, so user-facing frontend (dist/) changes are
   never blocked by a slow backend rebuild.
+
+**When "free the lock + restart" keeps failing (most reliable recovery):** build into a SEPARATE target dir so
+you never contend for the shared lock at all: `CARGO_TARGET_DIR=/tmp/yoda-build cargo build --bin yoda-api`.
+This also finishes fast enough to catch real compile errors in-tool (the default-dir build starves before it
+even reaches your crate). Then seed the default target so the workflow's build is a near no-op and hot-starts
+the fresh code: `cp -au /tmp/yoda-build/debug/. target/debug/` (note: `rsync` is NOT installed here), then
+`restart_workflow`. Verify with live curl. Broad `pkill -f rust-analyzer` can kill the tool's own shell
+(exit -1); if you must kill the lock holder, target the specific cargo/rustc PID and never match `bash`.

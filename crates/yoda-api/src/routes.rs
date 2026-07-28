@@ -15,6 +15,7 @@ use axum::{
     extract::{Path, Query, State},
     http::StatusCode,
     middleware,
+    response::{IntoResponse, Response},
     routing::{delete, get, post, put},
     Json, Router,
 };
@@ -175,7 +176,14 @@ pub fn build_router(state: AppState) -> Router {
         .route("/api/3fa/knowledge", post(three_factor_knowledge))
         .route("/api/3fa/possession/request", post(three_factor_possession_request))
         .route("/api/3fa/possession/verify", post(three_factor_possession_verify))
-        .route("/api/3fa/codepoint", post(three_factor_codepoint));
+        .route("/api/3fa/codepoint", post(three_factor_codepoint))
+        // ── Torus Gate: real 3-factor login bound to accounts (Task #49) ──
+        // JSON-free, framework-native line protocol. Enrollment + staged login.
+        .route("/api/gate/enroll", post(gate_enroll))
+        .route("/api/gate/begin", post(gate_begin))
+        .route("/api/gate/possession/request", post(gate_possession_request))
+        .route("/api/gate/possession/verify", post(gate_possession_verify))
+        .route("/api/gate/codepoint", post(gate_codepoint));
 
     // B5.9: Rate limiting — tower::RateLimitLayer removed (not Clone-compatible
     // with axum 0.8 Router::layer). Add per-route limits via middleware::from_fn.
@@ -414,6 +422,409 @@ async fn three_factor_codepoint(
         "token": token,
         "expires_in_minutes": 10,
     })))
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// Torus Gate — real 3-factor login bound to accounts (Task #49)
+//
+// JSON-free: every request/response uses the framework-native line wire
+// (`tfa::wire`). Stages: enroll → begin (Knowledge=password) → possession
+// (SMS) → codepoint (Crystal cube) → real account tokens minted.
+// ═══════════════════════════════════════════════════════════════════════
+
+/// Text response with the native line wire content type.
+fn wire_ok(pairs: &[(&str, String)]) -> Response {
+    (
+        [(axum::http::header::CONTENT_TYPE, "text/plain; charset=utf-8")],
+        tfa::wire::emit(pairs),
+    )
+        .into_response()
+}
+
+/// Mask a phone so only the last two digits show: `+1555*****67`.
+fn mask_phone(phone: &str) -> String {
+    let n = phone.len();
+    if n <= 4 {
+        return "*".repeat(n);
+    }
+    let keep_front = 2.min(n);
+    let keep_back = 2;
+    let front = &phone[..keep_front];
+    let back = &phone[n - keep_back..];
+    format!("{front}{}{back}", "*".repeat(n - keep_front - keep_back))
+}
+
+/// Derive a per-user possession seed (TOTP-style). Deterministic given the
+/// inputs; unique per user because the user id is unique.
+fn derive_possession_seed(user_id: Uuid, now_nanos: u64) -> u64 {
+    tfa::combine(tfa::hash_bytes(user_id.as_bytes()), now_nanos)
+}
+
+/// POST /api/gate/enroll — enroll a phone + Crystal cube for an account.
+/// Fields: `email` `password` `phone` `cube` (dotted trits, e.g. `1.3.2`),
+/// plus `name` when creating a brand-new account. Verifies the password for
+/// existing accounts (first-login enrollment); creates the account otherwise.
+async fn gate_enroll(
+    State(state): State<AppState>,
+    body: String,
+) -> Result<Response, AppError> {
+    let f = tfa::wire::parse(&body);
+    let email = f.get("email").cloned().unwrap_or_default();
+    let password = f.get("password").cloned().unwrap_or_default();
+    let phone = f.get("phone").cloned().unwrap_or_default();
+    let cube = f.get("cube").cloned().unwrap_or_default();
+
+    if email.is_empty() || !email.contains('@') {
+        return Err(AppError::Validation("Invalid email".into()));
+    }
+    if password.len() < 8 {
+        return Err(AppError::Validation(
+            "Password must be at least 8 characters".into(),
+        ));
+    }
+    if phone.trim().is_empty() || !phone.starts_with('+') {
+        return Err(AppError::Validation(
+            "Phone must be E.164 (start with +)".into(),
+        ));
+    }
+    let (cx, cy, cz) = tfa::wire::parse_cube(&cube).ok_or_else(|| {
+        AppError::Validation("Cube must be three trits 1..3, e.g. 1.3.2".into())
+    })?;
+
+    let existing = sqlx::query_as::<_, (Uuid, String, bool)>(
+        "SELECT id, password_hash, COALESCE(gate_enrolled, FALSE) FROM users WHERE email = $1",
+    )
+    .bind(&email)
+    .fetch_optional(&state.db)
+    .await
+    .map_err(AppError::Database)?;
+
+    let now_nanos = chrono::Utc::now().timestamp_nanos_opt().unwrap_or(0) as u64;
+
+    let user_id = match existing {
+        Some((id, hash, enrolled)) => {
+            // First-login enrollment for a pre-existing account: prove the password.
+            if !auth::verify_password(&password, &hash)? {
+                return Err(AppError::Unauthorized("Invalid credentials".into()));
+            }
+            if enrolled {
+                return Err(AppError::Conflict(
+                    "This account is already enrolled at the Gate".into(),
+                ));
+            }
+            id
+        }
+        None => {
+            // Brand-new account — needs a name and full account scaffolding.
+            let name = f.get("name").cloned().unwrap_or_default();
+            if name.trim().is_empty() {
+                return Err(AppError::Validation("Name required for a new account".into()));
+            }
+            let password_hash = auth::hash_password(&password)?;
+            let id = Uuid::new_v4();
+            sqlx::query(
+                "INSERT INTO users (id, email, password_hash, name) VALUES ($1, $2, $3, $4)",
+            )
+            .bind(id)
+            .bind(&email)
+            .bind(&password_hash)
+            .bind(&name)
+            .execute(&state.db)
+            .await
+            .map_err(AppError::Database)?;
+
+            let org_id = Uuid::new_v4();
+            sqlx::query("INSERT INTO organizations (id, name) VALUES ($1, $2)")
+                .bind(org_id)
+                .bind(format!("{name}'s Organization"))
+                .execute(&state.db)
+                .await
+                .map_err(AppError::Database)?;
+            sqlx::query(
+                "INSERT INTO org_members (user_id, org_id, role) VALUES ($1, $2, 'owner')",
+            )
+            .bind(id)
+            .bind(org_id)
+            .execute(&state.db)
+            .await
+            .map_err(AppError::Database)?;
+            id
+        }
+    };
+
+    let seed = derive_possession_seed(user_id, now_nanos);
+    sqlx::query(
+        "UPDATE users SET gate_phone = $1, gate_possession_seed = $2, \
+         gate_cp_x = $3, gate_cp_y = $4, gate_cp_z = $5, gate_enrolled = TRUE WHERE id = $6",
+    )
+    .bind(&phone)
+    .bind(seed.to_string())
+    .bind(cx as i16)
+    .bind(cy as i16)
+    .bind(cz as i16)
+    .bind(user_id)
+    .execute(&state.db)
+    .await
+    .map_err(AppError::Database)?;
+
+    Ok(wire_ok(&[("ok", "1".into()), ("enrolled", "1".into())]))
+}
+
+/// POST /api/gate/begin — Factor 1 (Knowledge = account password).
+/// Fields: `email` `password`. On success opens a gate session and returns
+/// `session <id>` `moving_factor <n>` `phone_hint <masked>`. If the account
+/// exists but is not enrolled, returns `status enroll_required` so the canvas
+/// routes the operator through one-time enrollment instead of locking them out.
+async fn gate_begin(
+    State(state): State<AppState>,
+    body: String,
+) -> Result<Response, AppError> {
+    let f = tfa::wire::parse(&body);
+    let email = f.get("email").cloned().unwrap_or_default();
+    let password = f.get("password").cloned().unwrap_or_default();
+    if email.is_empty() || password.is_empty() {
+        return Err(AppError::Validation("email and password required".into()));
+    }
+
+    let row = sqlx::query_as::<
+        _,
+        (Uuid, String, bool, Option<String>, Option<String>, Option<i16>, Option<i16>, Option<i16>),
+    >(
+        "SELECT id, password_hash, COALESCE(gate_enrolled, FALSE), gate_phone, \
+         gate_possession_seed, gate_cp_x, gate_cp_y, gate_cp_z FROM users WHERE email = $1",
+    )
+    .bind(&email)
+    .fetch_optional(&state.db)
+    .await
+    .map_err(AppError::Database)?
+    .ok_or(AppError::Unauthorized("Invalid credentials".into()))?;
+
+    let (user_id, password_hash, enrolled, phone, seed, cx, cy, cz) = row;
+
+    if !auth::verify_password(&password, &password_hash)? {
+        return Err(AppError::Unauthorized("Invalid credentials".into()));
+    }
+
+    if !enrolled {
+        // Password is right, but no possession/codepoint on file yet.
+        return Ok(wire_ok(&[("status", "enroll_required".into())]));
+    }
+
+    let phone = phone.ok_or_else(|| AppError::Internal("enrolled user missing phone".into()))?;
+    let seed: u64 = seed
+        .and_then(|s| s.parse().ok())
+        .ok_or_else(|| AppError::Internal("enrolled user missing possession seed".into()))?;
+    let (cx, cy, cz) = match (cx, cy, cz) {
+        (Some(x), Some(y), Some(z)) => (x as i64, y as i64, z as i64),
+        _ => return Err(AppError::Internal("enrolled user missing codepoint".into())),
+    };
+
+    let org_id = sqlx::query_scalar::<_, Uuid>(
+        "SELECT org_id FROM org_members WHERE user_id = $1 ORDER BY created_at LIMIT 1",
+    )
+    .bind(user_id)
+    .fetch_one(&state.db)
+    .await
+    .map_err(AppError::Database)?;
+
+    let session = tfa::new_user_session(
+        user_id,
+        email,
+        org_id,
+        phone.clone(),
+        seed,
+        tfa::Codepoint::new(cx, cy, cz),
+    );
+    let session_id = Uuid::new_v4();
+    {
+        let mut sessions = state.three_factor_sessions.write().await;
+        tfa::prune_expired(&mut sessions);
+        if sessions.len() >= tfa::MAX_ACTIVE_SESSIONS {
+            return Err(AppError::Validation(
+                "Too many active gate sessions — try again shortly".into(),
+            ));
+        }
+        sessions.insert(session_id, session);
+    }
+
+    Ok(wire_ok(&[
+        ("session", session_id.to_string()),
+        ("moving_factor", tfa::current_moving_factor().to_string()),
+        ("phone_hint", mask_phone(&phone)),
+    ]))
+}
+
+/// POST /api/gate/possession/request — Factor 2 (send SMS one-time code).
+/// Fields: `session`. Returns `ok 1` `sent_to <masked>` and, in dev only,
+/// `code <n>` from the console sender so the flow is testable without a carrier.
+async fn gate_possession_request(
+    State(state): State<AppState>,
+    body: String,
+) -> Result<Response, AppError> {
+    let f = tfa::wire::parse(&body);
+    let session_id: Uuid = f
+        .get("session")
+        .and_then(|s| s.parse().ok())
+        .ok_or_else(|| AppError::Validation("valid session required".into()))?;
+
+    let (phone, secret) = {
+        let mut sessions = state.three_factor_sessions.write().await;
+        let session = sessions
+            .get_mut(&session_id)
+            .filter(|s| !s.is_expired() && s.user_id.is_some())
+            .ok_or(AppError::NotFound("Gate session not found or expired".into()))?;
+        if !session.knowledge_ok {
+            return Err(AppError::Forbidden("Complete the credentials first".into()));
+        }
+        session.code_requested = true;
+        (session.phone.clone(), session.possession_secret)
+    };
+
+    let sender = tfa::select_sms_sender(is_production()).map_err(AppError::Internal)?;
+    let auth = ThreeFactorAuthenticator::new(sender);
+    let echoed = auth
+        .request_possession_code(&phone, secret, tfa::current_moving_factor())
+        .map_err(AppError::Internal)?;
+
+    let mut pairs = vec![("ok", "1".to_string()), ("sent_to", mask_phone(&phone))];
+    if !is_production() {
+        if let Some(code) = echoed {
+            pairs.push(("code", format!("{code:06}")));
+        }
+    }
+    Ok(wire_ok(&pairs))
+}
+
+/// POST /api/gate/possession/verify — Factor 2 check.
+/// Fields: `session` `code`. Returns `ok 1`.
+async fn gate_possession_verify(
+    State(state): State<AppState>,
+    body: String,
+) -> Result<Response, AppError> {
+    let f = tfa::wire::parse(&body);
+    let session_id: Uuid = f
+        .get("session")
+        .and_then(|s| s.parse().ok())
+        .ok_or_else(|| AppError::Validation("valid session required".into()))?;
+    let code: u32 = f
+        .get("code")
+        .and_then(|s| s.trim().parse().ok())
+        .ok_or_else(|| AppError::Validation("numeric code required".into()))?;
+
+    let mut sessions = state.three_factor_sessions.write().await;
+    let session = sessions
+        .get_mut(&session_id)
+        .filter(|s| !s.is_expired() && s.user_id.is_some())
+        .ok_or(AppError::NotFound("Gate session not found or expired".into()))?;
+    if !session.code_requested {
+        return Err(AppError::Forbidden("Request a code first".into()));
+    }
+    if session.possession_attempts >= tfa::MAX_FACTOR_ATTEMPTS {
+        sessions.remove(&session_id);
+        return Err(AppError::Unauthorized(
+            "Too many failed code attempts — session burned, please restart".into(),
+        ));
+    }
+    let auth = ThreeFactorAuthenticator::new(ConsoleSmsSender);
+    if !auth.verify_possession_code(session.possession_secret, tfa::current_moving_factor(), code) {
+        session.possession_attempts += 1;
+        return Err(AppError::Unauthorized("Incorrect code".into()));
+    }
+    session.possession_ok = true;
+    Ok(wire_ok(&[("ok", "1".into())]))
+}
+
+/// POST /api/gate/codepoint — Factor 3 (Crystal cube) → mint account tokens.
+/// Fields: `session` `cube` (dotted trits). On success returns
+/// `token <jwt>` `refresh <token>` `expires_in_minutes <n>` for the real user.
+async fn gate_codepoint(
+    State(state): State<AppState>,
+    body: String,
+) -> Result<Response, AppError> {
+    let f = tfa::wire::parse(&body);
+    let session_id: Uuid = f
+        .get("session")
+        .and_then(|s| s.parse().ok())
+        .ok_or_else(|| AppError::Validation("valid session required".into()))?;
+    let cube = f.get("cube").cloned().unwrap_or_default();
+    let (x, y, z) = tfa::wire::parse_cube(&cube)
+        .ok_or_else(|| AppError::Validation("cube must be three trits 1..3".into()))?;
+
+    // Verify the codepoint and pull the account identity out of the session.
+    let (user_id, email, org_id) = {
+        let mut sessions = state.three_factor_sessions.write().await;
+        let session = sessions
+            .get_mut(&session_id)
+            .filter(|s| !s.is_expired() && s.user_id.is_some())
+            .ok_or(AppError::NotFound("Gate session not found or expired".into()))?;
+        if !session.knowledge_ok || !session.possession_ok {
+            return Err(AppError::Forbidden(
+                "Complete the credentials and SMS code first".into(),
+            ));
+        }
+        // Cap brute force on the codepoint — only 27 cubes exist, so an
+        // uncapped session would let an attacker who already holds factors 1+2
+        // enumerate the third. Burn the session once the cap is hit.
+        if session.codepoint_attempts >= tfa::MAX_FACTOR_ATTEMPTS {
+            sessions.remove(&session_id);
+            return Err(AppError::Unauthorized(
+                "Too many failed cube attempts — session burned, please restart".into(),
+            ));
+        }
+        let auth = ThreeFactorAuthenticator::new(ConsoleSmsSender);
+        let point = tfa::Codepoint::new(x, y, z);
+        let expected = ThreeFactorAuthenticator::<ConsoleSmsSender>::expected_codepoint_scalar(
+            &session.expected_codepoint,
+            session.moving_factor,
+        );
+        if !auth.verify_codepoint_factor(&point, expected, session.moving_factor) {
+            session.codepoint_attempts += 1;
+            // Burn immediately if this failure exhausts the budget.
+            if session.codepoint_attempts >= tfa::MAX_FACTOR_ATTEMPTS {
+                sessions.remove(&session_id);
+                return Err(AppError::Unauthorized(
+                    "Too many failed cube attempts — session burned, please restart".into(),
+                ));
+            }
+            return Err(AppError::Unauthorized(
+                "Selected cube does not match your enrolled codepoint".into(),
+            ));
+        }
+        let uid = session.user_id.expect("filtered on is_some");
+        let email = session.email.clone().unwrap_or_default();
+        let org_id = session.org_id.expect("user session carries org");
+        // Single-use — consume the session now that all factors passed.
+        sessions.remove(&session_id);
+        (uid, email, org_id)
+    };
+
+    // All three factors satisfied — mint real account tokens (same plumbing
+    // the classic login used), so the operator is signed in as themselves.
+    let token = auth::create_access_token(
+        user_id,
+        &email,
+        org_id,
+        &state.jwt_secret,
+        state.jwt_access_expiry_minutes,
+    )?;
+    let refresh = auth::create_refresh_token();
+    let refresh_hash = auth::hash_password(&refresh)?;
+    let expires_at = chrono::Utc::now() + chrono::Duration::days(state.jwt_refresh_expiry_days);
+    sqlx::query(
+        "INSERT INTO refresh_tokens (user_id, token_hash, expires_at) VALUES ($1, $2, $3)",
+    )
+    .bind(user_id)
+    .bind(&refresh_hash)
+    .bind(expires_at)
+    .execute(&state.db)
+    .await
+    .map_err(AppError::Database)?;
+
+    Ok(wire_ok(&[
+        ("token", token),
+        ("refresh", refresh),
+        ("expires_in_minutes", state.jwt_access_expiry_minutes.to_string()),
+    ]))
 }
 
 // ═══════════════════════════════════════════════════════════════════════

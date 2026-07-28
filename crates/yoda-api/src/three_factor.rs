@@ -354,6 +354,11 @@ impl<S: SmsSender> ThreeFactorAuthenticator<S> {
 /// per-factor progress. Never leaks secrets to the client.
 #[derive(Debug, Clone)]
 pub struct ThreeFactorSession {
+    /// The real account this gate session authenticates. `None` for the
+    /// standalone demo session (which mints only a throwaway presence token).
+    pub user_id: Option<Uuid>,
+    pub email: Option<String>,
+    pub org_id: Option<Uuid>,
     pub phone: String,
     pub knowledge_hash: u64,
     pub possession_secret: u64,
@@ -371,6 +376,7 @@ pub struct ThreeFactorSession {
     /// Failed-attempt counters — cap brute force on each factor.
     pub knowledge_attempts: u32,
     pub possession_attempts: u32,
+    pub codepoint_attempts: u32,
 }
 
 impl ThreeFactorSession {
@@ -427,6 +433,9 @@ pub fn new_demo_session() -> ThreeFactorSession {
     let moving_factor = current_moving_factor();
     let (cx, cy, cz) = DEMO_CODEPOINT;
     ThreeFactorSession {
+        user_id: None,
+        email: None,
+        org_id: None,
         phone: DEMO_PHONE.to_string(),
         knowledge_hash: hash_knowledge(DEMO_PIN),
         possession_secret: DEMO_POSSESSION_SECRET,
@@ -434,10 +443,108 @@ pub fn new_demo_session() -> ThreeFactorSession {
         moving_factor,
         knowledge_ok: false,
         possession_ok: false,
+        codepoint_attempts: 0,
         code_requested: false,
         created_at: chrono::Utc::now(),
         knowledge_attempts: 0,
         possession_attempts: 0,
+    }
+}
+
+/// Build a gate session bound to a real, already-password-verified account.
+///
+/// The Knowledge factor (the account password) is verified by the caller at
+/// `/begin`, so `knowledge_ok` starts `true` here — the remaining gates are
+/// Possession (SMS) and Codepoint (Crystal cube). Tokens minted at the final
+/// step are issued for this exact `(user_id, email, org_id)`.
+#[allow(clippy::too_many_arguments)]
+pub fn new_user_session(
+    user_id: Uuid,
+    email: String,
+    org_id: Uuid,
+    phone: String,
+    possession_secret: u64,
+    codepoint: Codepoint,
+) -> ThreeFactorSession {
+    let moving_factor = current_moving_factor();
+    ThreeFactorSession {
+        // Knowledge hash binds the account identity into the presence scalar.
+        knowledge_hash: hash_bytes(user_id.as_bytes()),
+        user_id: Some(user_id),
+        email: Some(email),
+        org_id: Some(org_id),
+        phone,
+        possession_secret,
+        expected_codepoint: codepoint,
+        moving_factor,
+        knowledge_ok: true,
+        possession_ok: false,
+        codepoint_attempts: 0,
+        code_requested: false,
+        created_at: chrono::Utc::now(),
+        knowledge_attempts: 0,
+        possession_attempts: 0,
+    }
+}
+
+// ─── Framework-native line wire (NO JSON) ─────────────────────────────────
+//
+// The Gate speaks a plain-text, integer-friendly line protocol instead of
+// JSON. One field per line: `key<SP>value` (value is the remainder of the
+// line, trimmed). Responses use the same shape, first line `ok 1` or an HTTP
+// error status carrying `err <message>`. Deterministic, allocation-light, and
+// trivially parseable on the painted canvas — no serde_json anywhere on this
+// path.
+pub mod wire {
+    use std::collections::HashMap;
+
+    /// Parse a line body into a field map. Later duplicate keys win.
+    pub fn parse(body: &str) -> HashMap<String, String> {
+        let mut map = HashMap::new();
+        for line in body.lines() {
+            let line = line.trim();
+            if line.is_empty() {
+                continue;
+            }
+            let (k, v) = match line.split_once(char::is_whitespace) {
+                Some((k, v)) => (k.trim(), v.trim()),
+                None => (line, ""),
+            };
+            if !k.is_empty() {
+                map.insert(k.to_ascii_lowercase(), v.to_string());
+            }
+        }
+        map
+    }
+
+    /// A dotted ternary cube coordinate, e.g. `1.3.2`, into `(x, y, z)`.
+    /// Each trit must be in `1..=3` (Rep C). Returns `None` on any deviation.
+    pub fn parse_cube(v: &str) -> Option<(i64, i64, i64)> {
+        let parts: Vec<&str> = v.split('.').collect();
+        if parts.len() != 3 {
+            return None;
+        }
+        let mut out = [0i64; 3];
+        for (i, p) in parts.iter().enumerate() {
+            let n: i64 = p.trim().parse().ok()?;
+            if !(1..=3).contains(&n) {
+                return None;
+            }
+            out[i] = n;
+        }
+        Some((out[0], out[1], out[2]))
+    }
+
+    /// Serialize response fields to the line wire in a stable order.
+    pub fn emit(pairs: &[(&str, String)]) -> String {
+        let mut s = String::new();
+        for (k, v) in pairs {
+            s.push_str(k);
+            s.push(' ');
+            s.push_str(v);
+            s.push('\n');
+        }
+        s
     }
 }
 

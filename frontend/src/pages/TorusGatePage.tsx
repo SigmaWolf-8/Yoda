@@ -10,8 +10,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import * as THREE from 'three';
-import { useLogin } from '../api/hooks';
-import { extractErrorMessage } from '../types';
+import { storeTokens } from '../api/client';
+import { gatePost, cubeToWire } from '../api/gate';
 import { CanonCodex } from '../components/CanonCodex';
 
 const FONTS_HREF =
@@ -34,6 +34,89 @@ const fDisplay = { fontFamily: "'Cinzel', serif", letterSpacing: '0.16em' };
 const fSerif = { fontFamily: "'Cormorant Garamond', serif" };
 const fBody = { fontFamily: "'Jost', sans-serif" };
 
+// Shared gate field styling.
+const labelStyle = {
+  ...fBody,
+  display: 'block',
+  color: C.faint,
+  fontSize: '0.72rem',
+  letterSpacing: '0.18em',
+  textTransform: 'uppercase',
+  marginBottom: '0.4rem',
+};
+const inputStyle = {
+  ...fBody,
+  width: '100%',
+  padding: '0.6rem 0.7rem',
+  marginBottom: '1rem',
+  background: 'rgba(0,0,0,0.35)',
+  border: `1px solid ${C.border}`,
+  color: C.parchment,
+  fontSize: '0.9rem',
+  outline: 'none',
+};
+function primaryBtn(pending) {
+  return {
+    ...fDisplay,
+    width: '100%',
+    padding: '0.75rem',
+    border: `1px solid ${C.brass}`,
+    background: pending ? 'rgba(201,162,39,0.25)' : 'linear-gradient(180deg, #E7C86A 0%, #C9A227 100%)',
+    color: pending ? C.brassLight : '#1a1206',
+    fontSize: '0.82rem',
+    fontWeight: 600,
+    letterSpacing: '0.2em',
+    textTransform: 'uppercase',
+    cursor: pending ? 'default' : 'pointer',
+  };
+}
+
+// The Crystal codepoint picker — three trit axes (X·Y·Z), each 1..3 (Rep C).
+// This IS the third factor, rendered on the canvas as three rows of cubes.
+function CrystalPicker({ value, onChange, C, fBody, fDisplay }) {
+  const axes = ['X', 'Y', 'Z'];
+  return (
+    <div style={{ marginBottom: '0.4rem' }}>
+      {axes.map((axis, ai) => (
+        <div key={axis} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.55rem' }}>
+          <span style={{ ...fDisplay, width: '1.4rem', color: C.faint, fontSize: '0.8rem' }}>{axis}</span>
+          <div style={{ display: 'flex', gap: '0.4rem', flex: 1 }}>
+            {[1, 2, 3].map((t) => {
+              const sel = value[ai] === t;
+              return (
+                <button
+                  key={t}
+                  type="button"
+                  onClick={() => {
+                    const next = [...value];
+                    next[ai] = t;
+                    onChange(next);
+                  }}
+                  style={{
+                    ...fDisplay,
+                    flex: 1,
+                    padding: '0.5rem 0',
+                    fontSize: '0.9rem',
+                    border: `1px solid ${sel ? C.brass : C.border}`,
+                    background: sel ? 'linear-gradient(180deg, #E7C86A 0%, #C9A227 100%)' : 'rgba(0,0,0,0.35)',
+                    color: sel ? '#1a1206' : C.parchment,
+                    cursor: 'pointer',
+                  }}
+                >
+                  {t}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      ))}
+      <div style={{ ...fBody, textAlign: 'center', fontSize: '0.74rem', color: C.muted, marginTop: '0.5rem' }}>
+        Codepoint · {value[0]}.{value[1]}.{value[2]}
+      </div>
+    </div>
+  );
+}
+
 // Parametric Field Vector — the reading Dr. Salvi prescribed. The Bijective Base 9 /
 // Theta-lock doctrine holds the triad fixed: "the numbers are unchanged because they
 // were always this." Shown LOCKED at the canonical RD630 values, never drifting.
@@ -45,22 +128,139 @@ const FIELD = [
 
 export function TorusGatePage() {
   const navigate = useNavigate();
-  const login = useLogin();
   const canvasRef = useRef(null);
   const audioRef = useRef(null);
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [remember, setRemember] = useState(true);
+
+  // ── Staged 3-factor gate (Task #49): credentials → SMS code → Crystal cube ──
+  // 'creds' | 'possession' | 'codepoint' | 'enroll'
+  const [stage, setStage] = useState('creds');
+  const [session, setSession] = useState('');
+  const [phoneHint, setPhoneHint] = useState('');
+  const [smsCode, setSmsCode] = useState('');
+  const [devCode, setDevCode] = useState('');
+  const [cube, setCube] = useState([1, 1, 1]); // Crystal codepoint trits 1..3
+  const [gateError, setGateError] = useState(null);
+  const [pending, setPending] = useState(false);
+  // First-login enrollment (existing accounts with no phone/cube on file yet).
+  const [enrollPhone, setEnrollPhone] = useState('');
+  const [enrollCube, setEnrollCube] = useState([1, 1, 1]);
   // If the browser/GPU cannot create a WebGL context we fall back to a CSS
   // ring so the gate is NEVER blocked behind 3D support.
   const [webglOk, setWebglOk] = useState(true);
   const [tone, setTone] = useState(false);
   const [codexOpen, setCodexOpen] = useState(false);
 
-  function handleSubmit(e) {
+  // Factor 1 — Knowledge (account password). Opens a gate session, or routes
+  // an un-enrolled account through one-time enrollment instead of locking out.
+  async function submitCreds(e) {
     e.preventDefault();
-    login.mutate({ email, password, remember }, { onSuccess: () => navigate('/') });
+    setGateError(null);
+    setPending(true);
+    try {
+      const r = await gatePost('/gate/begin', { email, password });
+      if (r.status === 'enroll_required') {
+        setStage('enroll');
+        return;
+      }
+      setSession(r.session);
+      setPhoneHint(r.phone_hint || '');
+      // Immediately request the possession code so the SMS is on its way.
+      const p = await gatePost('/gate/possession/request', { session: r.session });
+      setDevCode(p.code || '');
+      setStage('possession');
+    } catch (err) {
+      setGateError(err?.message || 'The gate refused these keys');
+    } finally {
+      setPending(false);
+    }
+  }
+
+  async function resendCode() {
+    setGateError(null);
+    setPending(true);
+    try {
+      const p = await gatePost('/gate/possession/request', { session });
+      setDevCode(p.code || '');
+    } catch (err) {
+      setGateError(err?.message || 'Could not resend the code');
+    } finally {
+      setPending(false);
+    }
+  }
+
+  // Factor 2 — Possession (SMS one-time code).
+  async function submitCode(e) {
+    e.preventDefault();
+    setGateError(null);
+    setPending(true);
+    try {
+      await gatePost('/gate/possession/verify', { session, code: smsCode });
+      setStage('codepoint');
+    } catch (err) {
+      setGateError(err?.message || 'Incorrect code');
+    } finally {
+      setPending(false);
+    }
+  }
+
+  // Factor 3 — Codepoint (Crystal cube) → mint real account tokens.
+  async function submitCube(e) {
+    e.preventDefault();
+    setGateError(null);
+    setPending(true);
+    try {
+      const r = await gatePost('/gate/codepoint', {
+        session,
+        cube: cubeToWire(cube[0], cube[1], cube[2]),
+      });
+      storeTokens(r.token, r.refresh, remember);
+      navigate('/');
+    } catch (err) {
+      setGateError(err?.message || 'The Crystal rejected that cube');
+    } finally {
+      setPending(false);
+    }
+  }
+
+  // One-time enrollment for a pre-existing account (phone + Crystal cube).
+  async function submitEnroll(e) {
+    e.preventDefault();
+    setGateError(null);
+    setPending(true);
+    try {
+      await gatePost('/gate/enroll', {
+        email,
+        password,
+        phone: enrollPhone,
+        cube: cubeToWire(enrollCube[0], enrollCube[1], enrollCube[2]),
+      });
+      // Enrolled — restart the login flow, now with all three factors on file.
+      setStage('creds');
+      setGateError(null);
+      // Kick straight back into begin so the operator flows through in one go.
+      const r = await gatePost('/gate/begin', { email, password });
+      setSession(r.session);
+      setPhoneHint(r.phone_hint || '');
+      const p = await gatePost('/gate/possession/request', { session: r.session });
+      setDevCode(p.code || '');
+      setStage('possession');
+    } catch (err) {
+      setGateError(err?.message || 'Enrollment failed');
+    } finally {
+      setPending(false);
+    }
+  }
+
+  function restartGate() {
+    setStage('creds');
+    setSession('');
+    setSmsCode('');
+    setDevCode('');
+    setGateError(null);
   }
 
   // ── 432Hz square-wave "attune" — a real oscillator, opt-in on click ─────────
@@ -529,9 +729,17 @@ export function TorusGatePage() {
           Functional Lawful Access Gate — present your keys to pass
         </div>
 
-        {/* Access card | the only interactive surface */}
+        {/* Access card | the only interactive surface. Staged 3-factor flow. */}
         <form
-          onSubmit={handleSubmit}
+          onSubmit={
+            stage === 'creds'
+              ? submitCreds
+              : stage === 'possession'
+                ? submitCode
+                : stage === 'codepoint'
+                  ? submitCube
+                  : submitEnroll
+          }
           style={{
             pointerEvents: 'auto',
             width: '100%',
@@ -561,7 +769,36 @@ export function TorusGatePage() {
             return <span key={k} style={s} />;
           })}
 
-          {login.error && (
+          {/* Factor progress rail */}
+          <div style={{ ...fBody, display: 'flex', gap: '0.4rem', justifyContent: 'center', marginBottom: '1.1rem' }}>
+            {[
+              { key: 'creds', n: 'I' },
+              { key: 'possession', n: 'II' },
+              { key: 'codepoint', n: 'III' },
+            ].map((f, i) => {
+              const order = { creds: 0, enroll: 0, possession: 1, codepoint: 2 };
+              const active = order[stage] === i;
+              const done = order[stage] > i;
+              return (
+                <span
+                  key={f.key}
+                  style={{
+                    ...fDisplay,
+                    fontSize: '0.62rem',
+                    letterSpacing: '0.14em',
+                    padding: '0.22rem 0.5rem',
+                    border: `1px solid ${active || done ? C.brass : C.border}`,
+                    color: active ? '#1a1206' : done ? C.brassLight : C.muted,
+                    background: active ? 'linear-gradient(180deg, #E7C86A 0%, #C9A227 100%)' : 'transparent',
+                  }}
+                >
+                  {f.n}
+                </span>
+              );
+            })}
+          </div>
+
+          {gateError && (
             <div
               style={{
                 ...fBody,
@@ -573,92 +810,105 @@ export function TorusGatePage() {
                 fontSize: '0.85rem',
               }}
             >
-              {extractErrorMessage(login.error, 'The gate refused these keys')}
+              {gateError}
             </div>
           )}
 
-          <label style={{ ...fBody, display: 'block', color: C.faint, fontSize: '0.72rem', letterSpacing: '0.18em', textTransform: 'uppercase', marginBottom: '0.4rem' }}>
-            Operator Mark (Email)
-          </label>
-          <input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-            placeholder="operator@capomastro.holdings"
-            style={{
-              ...fBody,
-              width: '100%',
-              padding: '0.6rem 0.7rem',
-              marginBottom: '1rem',
-              background: 'rgba(0,0,0,0.35)',
-              border: `1px solid ${C.border}`,
-              color: C.parchment,
-              fontSize: '0.9rem',
-              outline: 'none',
-            }}
-          />
+          {/* ── Stage I — Knowledge: email + passphrase ── */}
+          {stage === 'creds' && (
+            <>
+              <label style={labelStyle}>Operator Mark (Email)</label>
+              <input
+                type="email" value={email} onChange={(e) => setEmail(e.target.value)} required
+                placeholder="operator@capomastro.holdings" style={inputStyle}
+              />
+              <label style={labelStyle}>Passphrase</label>
+              <input
+                type="password" value={password} onChange={(e) => setPassword(e.target.value)} required
+                placeholder="••••••••" style={inputStyle}
+              />
+              <label style={{ ...fBody, display: 'flex', alignItems: 'center', gap: '0.5rem', color: C.faint, fontSize: '0.82rem', marginBottom: '1.3rem', cursor: 'pointer' }}>
+                <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} style={{ accentColor: C.brass, width: '15px', height: '15px' }} />
+                Hold this seal on this device
+              </label>
+              <button type="submit" disabled={pending} style={primaryBtn(pending)}>
+                {pending ? 'Opening the Gate…' : 'Engage the Gate'}
+              </button>
+              <div style={{ ...fBody, textAlign: 'center', marginTop: '1.1rem', fontSize: '0.82rem', color: C.muted }}>
+                No mark yet?{' '}
+                <Link to="/register" style={{ color: C.brassLight, textDecoration: 'none' }}>
+                  Petition for one
+                </Link>
+              </div>
+            </>
+          )}
 
-          <label style={{ ...fBody, display: 'block', color: C.faint, fontSize: '0.72rem', letterSpacing: '0.18em', textTransform: 'uppercase', marginBottom: '0.4rem' }}>
-            Passphrase
-          </label>
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            placeholder="••••••••"
-            style={{
-              ...fBody,
-              width: '100%',
-              padding: '0.6rem 0.7rem',
-              marginBottom: '1rem',
-              background: 'rgba(0,0,0,0.35)',
-              border: `1px solid ${C.border}`,
-              color: C.parchment,
-              fontSize: '0.9rem',
-              outline: 'none',
-            }}
-          />
+          {/* ── Stage II — Possession: SMS one-time code ── */}
+          {stage === 'possession' && (
+            <>
+              <div style={{ ...fSerif, color: C.brassLight, fontSize: '1rem', fontStyle: 'italic', textAlign: 'center', marginBottom: '1rem' }}>
+                A one-time code was sent to {phoneHint || 'your enrolled phone'}.
+              </div>
+              <label style={labelStyle}>Possession Code (SMS)</label>
+              <input
+                type="text" inputMode="numeric" pattern="[0-9]*" value={smsCode}
+                onChange={(e) => setSmsCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                required placeholder="000000"
+                style={{ ...inputStyle, letterSpacing: '0.4em', textAlign: 'center', fontSize: '1.15rem' }}
+              />
+              {devCode && (
+                <div style={{ ...fBody, marginTop: '-0.4rem', marginBottom: '1rem', fontSize: '0.72rem', color: C.muted, textAlign: 'center' }}>
+                  dev sender · code {devCode}
+                </div>
+              )}
+              <button type="submit" disabled={pending} style={primaryBtn(pending)}>
+                {pending ? 'Verifying…' : 'Confirm Possession'}
+              </button>
+              <div style={{ ...fBody, textAlign: 'center', marginTop: '1.1rem', fontSize: '0.8rem', color: C.muted }}>
+                <span onClick={pending ? undefined : resendCode} style={{ color: C.brassLight, cursor: pending ? 'default' : 'pointer' }}>Resend code</span>
+                {'  ·  '}
+                <span onClick={restartGate} style={{ color: C.faint, cursor: 'pointer' }}>Start over</span>
+              </div>
+            </>
+          )}
 
-          <label style={{ ...fBody, display: 'flex', alignItems: 'center', gap: '0.5rem', color: C.faint, fontSize: '0.82rem', marginBottom: '1.3rem', cursor: 'pointer' }}>
-            <input
-              type="checkbox"
-              checked={remember}
-              onChange={(e) => setRemember(e.target.checked)}
-              style={{ accentColor: C.brass, width: '15px', height: '15px' }}
-            />
-            Hold this seal on this device
-          </label>
+          {/* ── Stage III — Codepoint: the Crystal cube ── */}
+          {stage === 'codepoint' && (
+            <>
+              <div style={{ ...fSerif, color: C.brassLight, fontSize: '1rem', fontStyle: 'italic', textAlign: 'center', marginBottom: '0.9rem' }}>
+                Select your cube on the Crystal.
+              </div>
+              <CrystalPicker value={cube} onChange={setCube} C={C} fBody={fBody} fDisplay={fDisplay} />
+              <button type="submit" disabled={pending} style={{ ...primaryBtn(pending), marginTop: '1.1rem' }}>
+                {pending ? 'Opening the Gate…' : 'Open the Gate'}
+              </button>
+              <div style={{ ...fBody, textAlign: 'center', marginTop: '1rem', fontSize: '0.8rem', color: C.muted }}>
+                <span onClick={restartGate} style={{ color: C.faint, cursor: 'pointer' }}>Start over</span>
+              </div>
+            </>
+          )}
 
-          <button
-            type="submit"
-            disabled={login.isPending}
-            style={{
-              ...fDisplay,
-              width: '100%',
-              padding: '0.75rem',
-              border: `1px solid ${C.brass}`,
-              background: login.isPending
-                ? 'rgba(201,162,39,0.25)'
-                : 'linear-gradient(180deg, #E7C86A 0%, #C9A227 100%)',
-              color: login.isPending ? C.brassLight : '#1a1206',
-              fontSize: '0.82rem',
-              fontWeight: 600,
-              letterSpacing: '0.2em',
-              textTransform: 'uppercase',
-              cursor: login.isPending ? 'default' : 'pointer',
-            }}
-          >
-            {login.isPending ? 'Opening the Gate…' : 'Engage the Gate'}
-          </button>
-
-          <div style={{ ...fBody, textAlign: 'center', marginTop: '1.1rem', fontSize: '0.82rem', color: C.muted }}>
-            No mark yet?{' '}
-            <Link to="/register" style={{ color: C.brassLight, textDecoration: 'none' }}>
-              Petition for one
-            </Link>
-          </div>
+          {/* ── First-login enrollment for pre-existing accounts ── */}
+          {stage === 'enroll' && (
+            <>
+              <div style={{ ...fSerif, color: C.brassLight, fontSize: '1rem', fontStyle: 'italic', textAlign: 'center', marginBottom: '1rem' }}>
+                One-time enrollment: add your phone and choose your Crystal cube.
+              </div>
+              <label style={labelStyle}>Phone (E.164)</label>
+              <input
+                type="tel" value={enrollPhone} onChange={(e) => setEnrollPhone(e.target.value)} required
+                placeholder="+15551234567" style={inputStyle}
+              />
+              <label style={labelStyle}>Your Crystal Cube</label>
+              <CrystalPicker value={enrollCube} onChange={setEnrollCube} C={C} fBody={fBody} fDisplay={fDisplay} />
+              <button type="submit" disabled={pending} style={{ ...primaryBtn(pending), marginTop: '1.1rem' }}>
+                {pending ? 'Enrolling…' : 'Enroll & Enter'}
+              </button>
+              <div style={{ ...fBody, textAlign: 'center', marginTop: '1rem', fontSize: '0.8rem', color: C.muted }}>
+                <span onClick={restartGate} style={{ color: C.faint, cursor: 'pointer' }}>Start over</span>
+              </div>
+            </>
+          )}
         </form>
 
         {/* Navigation hint + Base-9 lock */}
