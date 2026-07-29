@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Eye, EyeOff, Zap } from 'lucide-react';
+import { Eye, EyeOff, Zap, Boxes } from 'lucide-react';
 import { useLogin } from '../../api/hooks';
 import { extractErrorMessage } from '../../types';
 import { BevelBox } from '../../components/ui/BevelBox';
@@ -120,6 +120,16 @@ export function LoginPage() {
               Create one
             </Link>
           </p>
+
+          <div className="mt-6 pt-6 border-t border-[var(--color-border-default)]">
+            <Link
+              to="/crystal"
+              className="flex items-center justify-center gap-2 text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-gold-400)] transition-colors"
+            >
+              <Boxes className="w-4 h-4" />
+              Friendly Approved Member? Enter via the Crystal
+            </Link>
+          </div>
         </BevelBox>
 
         <p className="mt-8 text-center text-sm text-[var(--color-text-muted)]">

@@ -19,3 +19,12 @@ served in dev.
 **How to apply:** after editing a `frontend/public/` static file, also `cp` it to
 `frontend/dist/`. `dist/` is gitignored, so the tracked source of truth stays
 `public/`.
+
+# React source edits need a Vite rebuild — there is NO dev server / HMR
+The Rust backend serves the prebuilt SPA from `frontend/dist/` via `ServeDir`; no
+`vite dev` process runs. So editing `frontend/src/**` changes nothing served until
+you run `cd frontend && npm run build` to regenerate `dist/`.
+**Why:** `ServeDir` reads `dist/` from disk per-request, so a fresh build is picked
+up immediately — you do NOT need `restart_workflow` for frontend-only changes
+(that's only for the Rust binary). `npm run build` runs `tsc -b` first, so it also
+doubles as the frontend type-check.

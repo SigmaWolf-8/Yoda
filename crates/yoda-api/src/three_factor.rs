@@ -9,7 +9,7 @@
 //!     moving factor via an exact `lossless_mix` / `combine` mixer.
 //!   * `Rational` (i64 num/den), `Codepoint { x, y, z }` with `to_scalar()`.
 //!   * A `SmsSender` trait so the possession factor can be delivered by any
-//!     gateway (Twilio, AWS SNS, PlenumLAN relay). A dev/console sender ships
+//!     gateway (the PlenumNET relay in production). A dev/console sender ships
 //!     here so the flow is testable end-to-end without a carrier.
 //!
 //! CRYPTO SWAP-POINT: `lossless_mix` is the single place to drop in the real
@@ -165,27 +165,52 @@ impl SmsSender for ConsoleSmsSender {
     }
 }
 
-/// Production SMS sender backed by the Twilio REST API.
+/// Production possession-code sender backed by the PlenumNET relay.
 ///
-/// Configured entirely from the environment so no carrier credentials live in
-/// the binary:
-///   * `TWILIO_ACCOUNT_SID`  — the account SID (`AC…`).
-///   * `TWILIO_AUTH_TOKEN`   — the account auth token.
-///   * `TWILIO_FROM_NUMBER`  — the verified sender number (E.164, e.g. `+1…`).
+/// Marshals the possession code into an ISO 20022 `pain.001` credit-transfer
+/// message (the code is carried in the structured remittance field
+/// `RmtInf/Ustrd` as `CODE=…;FREQ=…;OMEGA=…`) and POSTs it to the relay
+/// endpoint. The relay authenticates the message with the
+/// `X-Capomastro-Signature` header and answers with a `pacs.002` status; a
+/// `TxSts` of `ACCP` confirms the relay accepted the message for delivery.
 ///
-/// `send_code` never echoes the OTP back (`Ok(None)` on success) so the code is
+/// Configured from the environment so no relay credential lives in the binary:
+///   * `PLENUMNET_RELAY_ENDPOINT`  — the relay URL (e.g. `https://plenumnet.capomastro.io/relay/send`).
+///   * `PLENUMNET_RELAY_SIGNATURE` — the `X-Capomastro-Signature` credential.
+///
+/// `send_code` never echoes the code back (`Ok(None)` on success) so it is
 /// delivered strictly out of band. It performs a blocking HTTP POST on a
 /// dedicated thread so it is safe to invoke from within a Tokio handler.
-pub struct TwilioSmsSender {
-    account_sid: String,
-    auth_token: String,
-    from_number: String,
+pub struct PlenumNetRelaySender {
+    /// Full relay URL. Injectable so tests can point at a mock HTTP endpoint;
+    /// production reads it from `PLENUMNET_RELAY_ENDPOINT`.
+    endpoint: String,
+    /// `X-Capomastro-Signature` header value authenticating the message.
+    signature: String,
+    /// Debtor party carried in the `pain.001` header.
+    debtor_name: String,
+    debtor_iban: String,
+    debtor_bic: String,
+    /// Creditor agent BIC (the relay).
+    creditor_bic: String,
+    /// Carried in `RmtInf/Ustrd` alongside the code.
+    frequency_hz: u32,
+    omega: u64,
 }
 
-impl TwilioSmsSender {
-    /// Build a sender from the Twilio environment variables. Returns `Err` with
-    /// a description of the first missing/empty variable so production
-    /// deployments fail loudly rather than silently dropping codes.
+/// Default relay endpoint used when constructing via defaults.
+const PLENUMNET_RELAY_ENDPOINT: &str = "https://plenumnet.capomastro.io/relay/send";
+const PLENUMNET_DEBTOR_NAME: &str = "Capomastro Holdings Ltd. Applied Physics Division";
+const PLENUMNET_DEBTOR_IBAN: &str = "XX00CAPO000000037269";
+const PLENUMNET_DEBTOR_BIC: &str = "CAPOMASTRO33";
+const PLENUMNET_CREDITOR_BIC: &str = "PLENUMNET01";
+const PLENUMNET_FREQ_HZ: u32 = 432;
+const PLENUMNET_OMEGA: u64 = 2_391_319_625;
+
+impl PlenumNetRelaySender {
+    /// Build a sender from the relay environment variables. Returns `Err` with a
+    /// description of the first missing/empty variable so production deployments
+    /// fail loudly rather than silently dropping codes.
     pub fn from_env() -> Result<Self, String> {
         fn required(key: &str) -> Result<String, String> {
             match std::env::var(key) {
@@ -193,25 +218,83 @@ impl TwilioSmsSender {
                 _ => Err(format!("missing or empty environment variable {key}")),
             }
         }
-        Ok(TwilioSmsSender {
-            account_sid: required("TWILIO_ACCOUNT_SID")?,
-            auth_token: required("TWILIO_AUTH_TOKEN")?,
-            from_number: required("TWILIO_FROM_NUMBER")?,
+        Ok(PlenumNetRelaySender {
+            endpoint: required("PLENUMNET_RELAY_ENDPOINT")?,
+            signature: required("PLENUMNET_RELAY_SIGNATURE")?,
+            debtor_name: PLENUMNET_DEBTOR_NAME.to_string(),
+            debtor_iban: PLENUMNET_DEBTOR_IBAN.to_string(),
+            debtor_bic: PLENUMNET_DEBTOR_BIC.to_string(),
+            creditor_bic: PLENUMNET_CREDITOR_BIC.to_string(),
+            frequency_hz: PLENUMNET_FREQ_HZ,
+            omega: PLENUMNET_OMEGA,
         })
+    }
+
+    /// Construct a sender with an explicit endpoint and signature (other fields
+    /// default to the documented Capomastro constants). Used by tests to target
+    /// a mock endpoint; production goes through `from_env`.
+    pub fn with_config(endpoint: impl Into<String>, signature: impl Into<String>) -> Self {
+        PlenumNetRelaySender {
+            endpoint: endpoint.into(),
+            signature: signature.into(),
+            debtor_name: PLENUMNET_DEBTOR_NAME.to_string(),
+            debtor_iban: PLENUMNET_DEBTOR_IBAN.to_string(),
+            debtor_bic: PLENUMNET_DEBTOR_BIC.to_string(),
+            creditor_bic: PLENUMNET_CREDITOR_BIC.to_string(),
+            frequency_hz: PLENUMNET_FREQ_HZ,
+            omega: PLENUMNET_OMEGA,
+        }
+    }
+
+    /// Render the ISO 20022 `pain.001` credit-transfer message carrying `code`.
+    fn build_pain001(&self, code: u32) -> String {
+        let now = chrono::Utc::now();
+        let ts = now.format("%Y-%m-%dT%H:%M:%SZ");
+        let date = now.format("%Y-%m-%d");
+        format!(
+            "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n\
+<Document xmlns=\"urn:iso:std:iso:20022:tech:xsd:pain.001.001.09\">\n\
+  <CstmrCdtTrfInitn>\n\
+    <GrpHdr>\n\
+      <MsgId>VERIFY-{ts}</MsgId>\n\
+      <CreDtTm>{ts}</CreDtTm>\n\
+      <NbOfTxs>1</NbOfTxs>\n\
+    </GrpHdr>\n\
+    <PmtInf>\n\
+      <PmtInfId>VERIFY-PMT-001</PmtInfId>\n\
+      <PmtMtd>TRF</PmtMtd>\n\
+      <ReqdExctnDt>{date}</ReqdExctnDt>\n\
+      <Dbtr><Nm>{debtor_name}</Nm></Dbtr>\n\
+      <DbtrAcct><Id><IBAN>{debtor_iban}</IBAN></Id></DbtrAcct>\n\
+      <DbtrAgt><FinInstnId><BIC>{debtor_bic}</BIC></FinInstnId></DbtrAgt>\n\
+      <CdtTrfTxInf>\n\
+        <PmtId><EndToEndId>VERIFY-{omega}</EndToEndId></PmtId>\n\
+        <Amt><InstdAmt Ccy=\"EUR\">0.00</InstdAmt></Amt>\n\
+        <CdtrAgt><FinInstnId><BIC>{creditor_bic}</BIC></FinInstnId></CdtrAgt>\n\
+        <Cdtr><Nm>Subscriber Handset E.164</Nm></Cdtr>\n\
+        <RmtInf><Ustrd>CODE={code:06};FREQ={freq};OMEGA={omega}</Ustrd></RmtInf>\n\
+      </CdtTrfTxInf>\n\
+    </PmtInf>\n\
+  </CstmrCdtTrfInitn>\n\
+</Document>",
+            ts = ts,
+            date = date,
+            debtor_name = self.debtor_name,
+            debtor_iban = self.debtor_iban,
+            debtor_bic = self.debtor_bic,
+            creditor_bic = self.creditor_bic,
+            code = code,
+            freq = self.frequency_hz,
+            omega = self.omega,
+        )
     }
 }
 
-impl SmsSender for TwilioSmsSender {
+impl SmsSender for PlenumNetRelaySender {
     fn send_code(&self, phone: &str, code: u32) -> Result<Option<u32>, String> {
-        let url = format!(
-            "https://api.twilio.com/2010-04-01/Accounts/{}/Messages.json",
-            self.account_sid
-        );
-        let body = format!("Your PlenumNET verification code is {code:06}");
-        let account_sid = self.account_sid.clone();
-        let auth_token = self.auth_token.clone();
-        let from = self.from_number.clone();
-        let to = phone.to_string();
+        let url = self.endpoint.clone();
+        let signature = self.signature.clone();
+        let payload = self.build_pain001(code);
 
         // reqwest here is async and this trait method is sync, so run the request
         // on a dedicated thread with its own current-thread runtime. This is safe
@@ -225,17 +308,23 @@ impl SmsSender for TwilioSmsSender {
                 let client = reqwest::Client::new();
                 let resp = client
                     .post(&url)
-                    .basic_auth(&account_sid, Some(&auth_token))
-                    .form(&[("To", to.as_str()), ("From", from.as_str()), ("Body", body.as_str())])
+                    .header("Content-Type", "application/xml; charset=utf-8")
+                    .header("X-Capomastro-Signature", &signature)
+                    .body(payload)
                     .send()
                     .await
-                    .map_err(|e| format!("Twilio request failed: {e}"))?;
+                    .map_err(|e| format!("PlenumNET relay request failed: {e}"))?;
                 let status = resp.status();
-                if status.is_success() {
+                let detail = resp.text().await.unwrap_or_default();
+                // The relay answers with a pacs.002; TxSts=ACCP confirms
+                // acceptance. Anything else (non-2xx, or a 2xx that is not ACCP,
+                // e.g. RJCT) is a delivery failure.
+                if status.is_success() && detail.contains("ACCP") {
                     Ok(())
+                } else if status.is_success() {
+                    Err(format!("PlenumNET relay rejected message: {detail}"))
                 } else {
-                    let detail = resp.text().await.unwrap_or_default();
-                    Err(format!("Twilio returned {status}: {detail}"))
+                    Err(format!("PlenumNET relay returned {status}: {detail}"))
                 }
             })
         });
@@ -243,35 +332,35 @@ impl SmsSender for TwilioSmsSender {
         handle
             .join()
             .map_err(|_| "SMS delivery thread panicked".to_string())??;
-        tracing::info!(phone = %phone, "3FA possession code delivered via Twilio");
+        tracing::info!(phone = %phone, "3FA possession code delivered via PlenumNET relay");
         // Never echo the code in production — delivery is strictly out of band.
         Ok(None)
     }
 }
 
 /// Delivery mechanism selected at runtime. Dispatches to the console sender in
-/// dev and the Twilio sender in production, keeping the possession flow generic
-/// over a single concrete type.
+/// dev and the PlenumNET relay sender in production, keeping the possession flow
+/// generic over a single concrete type.
 pub enum RuntimeSmsSender {
     Console(ConsoleSmsSender),
-    Twilio(TwilioSmsSender),
+    PlenumNet(PlenumNetRelaySender),
 }
 
 impl SmsSender for RuntimeSmsSender {
     fn send_code(&self, phone: &str, code: u32) -> Result<Option<u32>, String> {
         match self {
             RuntimeSmsSender::Console(s) => s.send_code(phone, code),
-            RuntimeSmsSender::Twilio(s) => s.send_code(phone, code),
+            RuntimeSmsSender::PlenumNet(s) => s.send_code(phone, code),
         }
     }
 }
 
 /// Pick the delivery mechanism for the current environment. In production the
-/// Twilio sender is required (any missing credential is a hard error); otherwise
-/// the dev/console sender is used.
+/// PlenumNET relay sender is required (any missing credential is a hard error);
+/// otherwise the dev/console sender is used.
 pub fn select_sms_sender(production: bool) -> Result<RuntimeSmsSender, String> {
     if production {
-        Ok(RuntimeSmsSender::Twilio(TwilioSmsSender::from_env()?))
+        Ok(RuntimeSmsSender::PlenumNet(PlenumNetRelaySender::from_env()?))
     } else {
         Ok(RuntimeSmsSender::Console(ConsoleSmsSender))
     }
@@ -610,6 +699,156 @@ mod tests {
         assert!(!auth.verify_codepoint_factor(&wrong, expected, mf));
         // Right point, wrong moving factor rejected (replay protection).
         assert!(!auth.verify_codepoint_factor(&point, expected, mf + 1));
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn plenumnet_relay_builds_correct_request_and_hides_code() {
+        use wiremock::matchers::{body_string_contains, header, method, path};
+        use wiremock::{Mock, MockServer, ResponseTemplate};
+
+        let server = MockServer::start().await;
+        let signature = "37269-8991-28035-243";
+
+        // The relay acknowledges with a pacs.002 whose TxSts is ACCP.
+        let pacs002 = "<?xml version=\"1.0\"?><Document xmlns=\"urn:iso:std:iso:20022:tech:xsd:pacs.002.001.10\">\
+<FIToFIPmtStsRpt><TxInfAndSts><TxSts>ACCP</TxSts></TxInfAndSts></FIToFIPmtStsRpt></Document>";
+
+        Mock::given(method("POST"))
+            .and(path("/relay/send"))
+            .and(header("X-Capomastro-Signature", signature))
+            .and(header("Content-Type", "application/xml; charset=utf-8"))
+            // pain.001 credit-transfer carrying the code out of band.
+            .and(body_string_contains(
+                "urn:iso:std:iso:20022:tech:xsd:pain.001.001.09",
+            ))
+            .and(body_string_contains(
+                "CODE=000042;FREQ=432;OMEGA=2391319625",
+            ))
+            .respond_with(ResponseTemplate::new(200).set_body_string(pacs002))
+            .expect(1)
+            .mount(&server)
+            .await;
+
+        let sender =
+            PlenumNetRelaySender::with_config(format!("{}/relay/send", server.uri()), signature);
+        // send_code is blocking; run it off the async worker.
+        let result =
+            tokio::task::spawn_blocking(move || sender.send_code("+15551234567", 42))
+                .await
+                .expect("blocking task joined");
+
+        // Success delivers out of band: the code is never echoed back.
+        assert_eq!(result, Ok(None));
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn plenumnet_relay_non_2xx_is_error_and_never_returns_code() {
+        use wiremock::matchers::{method, path};
+        use wiremock::{Mock, MockServer, ResponseTemplate};
+
+        let server = MockServer::start().await;
+        Mock::given(method("POST"))
+            .and(path("/relay/send"))
+            .respond_with(
+                ResponseTemplate::new(502).set_body_string("relay upstream unavailable"),
+            )
+            .mount(&server)
+            .await;
+
+        let sender =
+            PlenumNetRelaySender::with_config(format!("{}/relay/send", server.uri()), "sig");
+        let result =
+            tokio::task::spawn_blocking(move || sender.send_code("+15551234567", 42))
+                .await
+                .expect("blocking task joined");
+
+        match result {
+            Ok(_) => panic!("non-2xx relay response must be an error"),
+            Err(msg) => {
+                // The error surfaces the status but never the code.
+                assert!(msg.contains("502"), "error should mention status: {msg}");
+                assert!(!msg.contains("42"), "code must never appear in error: {msg}");
+                assert!(
+                    !msg.contains("000042"),
+                    "code must never appear in error: {msg}"
+                );
+            }
+        }
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn plenumnet_relay_rejected_status_is_error_and_never_returns_code() {
+        use wiremock::matchers::{method, path};
+        use wiremock::{Mock, MockServer, ResponseTemplate};
+
+        // A 2xx that is NOT an ACCP acknowledgement (e.g. RJCT) is a delivery
+        // failure, not a success — otherwise a rejected code would look queued.
+        let server = MockServer::start().await;
+        let pacs002_rjct = "<?xml version=\"1.0\"?><Document xmlns=\"urn:iso:std:iso:20022:tech:xsd:pacs.002.001.10\">\
+<FIToFIPmtStsRpt><TxInfAndSts><TxSts>RJCT</TxSts></TxInfAndSts></FIToFIPmtStsRpt></Document>";
+        Mock::given(method("POST"))
+            .and(path("/relay/send"))
+            .respond_with(ResponseTemplate::new(200).set_body_string(pacs002_rjct))
+            .mount(&server)
+            .await;
+
+        let sender =
+            PlenumNetRelaySender::with_config(format!("{}/relay/send", server.uri()), "sig");
+        let result =
+            tokio::task::spawn_blocking(move || sender.send_code("+15551234567", 42))
+                .await
+                .expect("blocking task joined");
+
+        match result {
+            Ok(_) => panic!("a non-ACCP relay status must be an error"),
+            Err(msg) => {
+                assert!(msg.contains("rejected"), "error should note rejection: {msg}");
+                assert!(!msg.contains("000042"), "code must never appear: {msg}");
+            }
+        }
+    }
+
+    #[test]
+    fn plenumnet_from_env_reports_missing_credentials() {
+        // NOTE: `PlenumNetRelaySender` deliberately does not derive `Debug` (it
+        // holds the relay signature credential), so assert on the Ok/Err
+        // variants directly rather than via `expect`/`unwrap`.
+        for k in ["PLENUMNET_RELAY_ENDPOINT", "PLENUMNET_RELAY_SIGNATURE"] {
+            std::env::remove_var(k);
+        }
+
+        match PlenumNetRelaySender::from_env() {
+            Ok(_) => panic!("missing creds must be an error"),
+            Err(err) => assert!(
+                err.contains("PLENUMNET_RELAY_ENDPOINT"),
+                "first missing var reported: {err}"
+            ),
+        }
+
+        // An empty (whitespace-only) value is treated as missing, not present.
+        std::env::set_var("PLENUMNET_RELAY_ENDPOINT", "https://plenumnet.capomastro.io/relay/send");
+        std::env::set_var("PLENUMNET_RELAY_SIGNATURE", "   ");
+        match PlenumNetRelaySender::from_env() {
+            Ok(_) => panic!("empty signature must be an error"),
+            Err(err) => assert!(
+                err.contains("PLENUMNET_RELAY_SIGNATURE"),
+                "empty var reported as missing: {err}"
+            ),
+        }
+
+        // All present -> Ok, and the endpoint is wired through from the env.
+        std::env::set_var("PLENUMNET_RELAY_SIGNATURE", "37269-8991-28035-243");
+        match PlenumNetRelaySender::from_env() {
+            Ok(sender) => assert_eq!(
+                sender.endpoint.as_str(),
+                "https://plenumnet.capomastro.io/relay/send"
+            ),
+            Err(err) => panic!("all creds present should build: {err}"),
+        }
+
+        for k in ["PLENUMNET_RELAY_ENDPOINT", "PLENUMNET_RELAY_SIGNATURE"] {
+            std::env::remove_var(k);
+        }
     }
 
     #[test]

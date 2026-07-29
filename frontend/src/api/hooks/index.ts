@@ -1,5 +1,12 @@
 export { useRegister, useLogin, useLogout } from './useAuth';
 export {
+  useThreeFactorStart,
+  useThreeFactorKnowledge,
+  useThreeFactorPossessionRequest,
+  useThreeFactorPossessionVerify,
+  useThreeFactorCodepoint,
+} from './useThreeFactor';
+export {
   useOrganizations,
   useCreateOrg,
   useInviteMember,

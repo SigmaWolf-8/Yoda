@@ -8,6 +8,7 @@ import { getStoredToken } from './api/client';
 
 import { TorusGatePage } from './pages/TorusGatePage';
 import { RegisterPage } from './pages/auth/RegisterPage';
+import { CrystalAuthPage } from './pages/auth/CrystalAuthPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { ProjectListPage } from './pages/project/ProjectListPage';
 import { ProjectWorkspacePage } from './pages/project/ProjectWorkspacePage';
@@ -52,6 +53,7 @@ export const router = createBrowserRouter([
     children: [
       { path: '/login', element: <TorusGatePage /> },
       { path: '/register', element: <RegisterPage /> },
+      { path: '/crystal', element: <CrystalAuthPage /> },
     ],
   },
 
