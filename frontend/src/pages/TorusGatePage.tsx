@@ -12,6 +12,16 @@ import { Link, useNavigate } from 'react-router-dom';
 import * as THREE from 'three';
 import { storeTokens } from '../api/client';
 import { gatePost, cubeToWire } from '../api/gate';
+import {
+  thetaNow,
+  currentReading,
+  formatReading,
+  getThetaSeed,
+  storeThetaSeed,
+  RADIAN_DEG,
+  CYCLIC_ORDER,
+  FULL_CIRCLE_DEG,
+} from '../api/theta';
 import { CanonCodex } from '../components/CanonCodex';
 
 const FONTS_HREF =
@@ -135,19 +145,23 @@ export function TorusGatePage() {
   const [password, setPassword] = useState('');
   const [remember, setRemember] = useState(true);
 
-  // ── Staged 3-factor gate (Task #49): credentials → SMS code → Crystal cube ──
+  // ── Staged 3-factor gate: credentials → Θ-lock → Crystal cube ──
   // 'creds' | 'possession' | 'codepoint' | 'enroll'
   const [stage, setStage] = useState('creds');
   const [session, setSession] = useState('');
-  const [phoneHint, setPhoneHint] = useState('');
-  const [smsCode, setSmsCode] = useState('');
-  const [devCode, setDevCode] = useState('');
   const [cube, setCube] = useState([1, 1, 1]); // Crystal codepoint trits 1..3
   const [gateError, setGateError] = useState(null);
   const [pending, setPending] = useState(false);
-  // First-login enrollment (existing accounts with no phone/cube on file yet).
+  // Θ-lock: the angle of the unified epoch and the reading this Crystal
+  // derives from its enrolled seed. Nothing here arrives from the network.
+  const [angle, setAngle] = useState(thetaNow());
+  const [reading, setReading] = useState('');
+  const [seedEntry, setSeedEntry] = useState('');
+  const [needSeed, setNeedSeed] = useState(false);
+  // First-login enrollment (existing accounts with no cube on file yet).
   const [enrollPhone, setEnrollPhone] = useState('');
   const [enrollCube, setEnrollCube] = useState([1, 1, 1]);
+  const [issuedSeed, setIssuedSeed] = useState('');
   // If the browser/GPU cannot create a WebGL context we fall back to a CSS
   // ring so the gate is NEVER blocked behind 3D support.
   const [webglOk, setWebglOk] = useState(true);
@@ -167,11 +181,7 @@ export function TorusGatePage() {
         return;
       }
       setSession(r.session);
-      setPhoneHint(r.phone_hint || '');
-      // Immediately request the possession code so the SMS is on its way.
-      const p = await gatePost('/gate/possession/request', { session: r.session });
-      setDevCode(p.code || '');
-      setStage('possession');
+      await enterThetaStage();
     } catch (err) {
       setGateError(err?.message || 'The gate refused these keys');
     } finally {
@@ -179,29 +189,61 @@ export function TorusGatePage() {
     }
   }
 
-  async function resendCode() {
-    setGateError(null);
-    setPending(true);
-    try {
-      const p = await gatePost('/gate/possession/request', { session });
-      setDevCode(p.code || '');
-    } catch (err) {
-      setGateError(err?.message || 'Could not resend the code');
-    } finally {
-      setPending(false);
+  // Move to Factor 2 and derive this Crystal's reading. No round-trip: the
+  // angle comes from this device's clock, the seed never left this device.
+  async function enterThetaStage() {
+    const seed = getThetaSeed();
+    setStage('possession');
+    if (!seed) {
+      setNeedSeed(true);
+      setReading('');
+      return;
     }
+    setNeedSeed(false);
+    await refreshReading(seed);
   }
 
-  // Factor 2 — Possession (SMS one-time code).
-  async function submitCode(e) {
+  async function refreshReading(seed) {
+    const t = thetaNow();
+    setAngle(t);
+    setReading(formatReading(await currentReading(seed)));
+  }
+
+  // Accept a seed typed in by an operator arriving on a new device, and make
+  // this Crystal a possession factor from here on.
+  async function adoptSeed(e) {
+    e.preventDefault();
+    const seed = seedEntry.trim().toLowerCase();
+    if (!/^[0-9a-f]{64}$/.test(seed)) {
+      setGateError('A Crystal seed is 64 hexadecimal characters');
+      return;
+    }
+    setGateError(null);
+    storeThetaSeed(seed, remember);
+    setSeedEntry('');
+    setNeedSeed(false);
+    await refreshReading(seed);
+  }
+
+  // Factor 2 — Possession (Θ-lock reading).
+  async function submitReading(e) {
     e.preventDefault();
     setGateError(null);
     setPending(true);
     try {
-      await gatePost('/gate/possession/verify', { session, code: smsCode });
+      const seed = getThetaSeed();
+      if (!seed) {
+        setNeedSeed(true);
+        throw new Error('This Crystal holds no seed');
+      }
+      // Derive at the moment of sending — the angle may have advanced while
+      // the operator was looking at it.
+      const now = formatReading(await currentReading(seed));
+      setReading(now);
+      await gatePost('/gate/theta', { session, reading: now });
       setStage('codepoint');
     } catch (err) {
-      setGateError(err?.message || 'Incorrect code');
+      setGateError(err?.message || 'The circle rejected that reading');
     } finally {
       setPending(false);
     }
@@ -235,22 +277,22 @@ export function TorusGatePage() {
     setGateError(null);
     setPending(true);
     try {
-      await gatePost('/gate/enroll', {
+      const en = await gatePost('/gate/enroll', {
         email,
         password,
         phone: enrollPhone,
         cube: cubeToWire(enrollCube[0], enrollCube[1], enrollCube[2]),
       });
-      // Enrolled — restart the login flow, now with all three factors on file.
-      setStage('creds');
+      // The seed is issued exactly once. Hold it — it is what makes this
+      // device the possession factor from here on.
+      if (!en.seed) throw new Error('The gate issued no Crystal seed');
+      storeThetaSeed(en.seed, remember);
+      setIssuedSeed(en.seed);
       setGateError(null);
-      // Kick straight back into begin so the operator flows through in one go.
+      // Straight back into begin so the operator flows through in one go.
       const r = await gatePost('/gate/begin', { email, password });
       setSession(r.session);
-      setPhoneHint(r.phone_hint || '');
-      const p = await gatePost('/gate/possession/request', { session: r.session });
-      setDevCode(p.code || '');
-      setStage('possession');
+      await enterThetaStage();
     } catch (err) {
       setGateError(err?.message || 'Enrollment failed');
     } finally {
@@ -261,10 +303,22 @@ export function TorusGatePage() {
   function restartGate() {
     setStage('creds');
     setSession('');
-    setSmsCode('');
-    setDevCode('');
+    setReading('');
+    setNeedSeed(false);
     setGateError(null);
   }
+
+  // While the operator is at Factor 2, keep the angle and the reading live —
+  // the circle advances every 169 seconds whether they are looking or not.
+  useEffect(() => {
+    if (stage !== 'possession' || needSeed) return;
+    const seed = getThetaSeed();
+    if (!seed) return;
+    const tick = setInterval(() => {
+      refreshReading(seed).catch(() => {});
+    }, 1000);
+    return () => clearInterval(tick);
+  }, [stage, needSeed]);
 
   // ── 432Hz square-wave "attune" — a real oscillator, opt-in on click ─────────
   function toggleTone() {
@@ -738,7 +792,7 @@ export function TorusGatePage() {
             stage === 'creds'
               ? submitCreds
               : stage === 'possession'
-                ? submitCode
+                ? (needSeed ? adoptSeed : submitReading)
                 : stage === 'codepoint'
                   ? submitCube
                   : submitEnroll
@@ -846,30 +900,79 @@ export function TorusGatePage() {
             </>
           )}
 
-          {/* ── Stage II — Possession: SMS one-time code ── */}
-          {stage === 'possession' && (
+          {/* ── Stage II — Possession: Θ-lock on the unified epoch ── */}
+          {stage === 'possession' && !needSeed && (
             <>
               <div style={{ ...fSerif, color: C.brassLight, fontSize: '1rem', fontStyle: 'italic', textAlign: 'center', marginBottom: '1rem' }}>
-                A one-time code was sent to {phoneHint || 'your enrolled phone'}.
+                The circle stands at θ&nbsp;{angle.degrees}°. Your Crystal reads:
               </div>
-              <label style={labelStyle}>Possession Code (SMS)</label>
-              <input
-                type="text" inputMode="numeric" pattern="[0-9]*" value={smsCode}
-                onChange={(e) => setSmsCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                required placeholder="000000"
-                style={{ ...inputStyle, letterSpacing: '0.4em', textAlign: 'center', fontSize: '1.15rem' }}
-              />
-              {devCode && (
-                <div style={{ ...fBody, marginTop: '-0.4rem', marginBottom: '1rem', fontSize: '0.72rem', color: C.muted, textAlign: 'center' }}>
-                  dev sender · code {devCode}
+
+              {/* The reading is derived here, from the seed this device holds.
+                  Nothing was sent to produce it and nothing was waited for. */}
+              <div
+                style={{
+                  ...fDisplay,
+                  textAlign: 'center',
+                  fontSize: '2rem',
+                  letterSpacing: '0.38em',
+                  color: C.brass,
+                  padding: '0.7rem 0 0.5rem',
+                  textIndent: '0.38em',
+                  borderTop: `1px solid ${C.border}`,
+                  borderBottom: `1px solid ${C.border}`,
+                }}
+              >
+                {reading || '······'}
+              </div>
+
+              {/* Where the angle is, and how long it holds. */}
+              <div style={{ ...fBody, textAlign: 'center', margin: '0.7rem 0 1.2rem', fontSize: '0.74rem', color: C.muted, letterSpacing: '0.08em' }}>
+                STATION {angle.station} / {CYCLIC_ORDER} · {angle.degrees}° OF {FULL_CIRCLE_DEG}° ·{' '}
+                {angle.station}×{RADIAN_DEG}°
+                <div style={{ marginTop: '0.3rem', color: C.faint }}>
+                  HOLDS {angle.holdsFor}s · REVOLUTION {angle.revolution}
                 </div>
-              )}
-              <button type="submit" disabled={pending} style={primaryBtn(pending)}>
-                {pending ? 'Verifying…' : 'Confirm Possession'}
+                {/* Dwell bar — the station draining toward the next radian. */}
+                <div style={{ height: '2px', background: C.border, marginTop: '0.55rem' }}>
+                  <div
+                    style={{
+                      height: '2px',
+                      width: `${(angle.holdsFor / 169) * 100}%`,
+                      background: C.brass,
+                      transition: 'width 1s linear',
+                    }}
+                  />
+                </div>
+              </div>
+
+              <button type="submit" disabled={pending || !reading} style={primaryBtn(pending || !reading)}>
+                {pending ? 'Reading the circle…' : 'Pass the Θ-lock'}
               </button>
               <div style={{ ...fBody, textAlign: 'center', marginTop: '1.1rem', fontSize: '0.8rem', color: C.muted }}>
-                <span onClick={pending ? undefined : resendCode} style={{ color: C.brassLight, cursor: pending ? 'default' : 'pointer' }}>Resend code</span>
+                <span onClick={() => setNeedSeed(true)} style={{ color: C.brassLight, cursor: 'pointer' }}>Use another seed</span>
                 {'  ·  '}
+                <span onClick={restartGate} style={{ color: C.faint, cursor: 'pointer' }}>Start over</span>
+              </div>
+            </>
+          )}
+
+          {/* ── Stage II, unseeded Crystal — an operator on a new device ── */}
+          {stage === 'possession' && needSeed && (
+            <>
+              <div style={{ ...fSerif, color: C.brassLight, fontSize: '1rem', fontStyle: 'italic', textAlign: 'center', marginBottom: '1rem' }}>
+                This Crystal holds no seed. Present the one issued at your enrollment.
+              </div>
+              <label style={labelStyle}>Crystal Seed (64 hex)</label>
+              <input
+                type="password" value={seedEntry} autoComplete="off" spellCheck={false}
+                onChange={(e) => setSeedEntry(e.target.value.trim())}
+                required placeholder="hexadecimal seed"
+                style={{ ...inputStyle, letterSpacing: '0.08em', fontSize: '0.85rem' }}
+              />
+              <button type="submit" disabled={pending} style={primaryBtn(pending)}>
+                Seat the Seed
+              </button>
+              <div style={{ ...fBody, textAlign: 'center', marginTop: '1.1rem', fontSize: '0.8rem', color: C.muted }}>
                 <span onClick={restartGate} style={{ color: C.faint, cursor: 'pointer' }}>Start over</span>
               </div>
             </>
@@ -895,12 +998,13 @@ export function TorusGatePage() {
           {stage === 'enroll' && (
             <>
               <div style={{ ...fSerif, color: C.brassLight, fontSize: '1rem', fontStyle: 'italic', textAlign: 'center', marginBottom: '1rem' }}>
-                One-time enrollment: add your phone and choose your Crystal cube.
+                One-time enrollment: choose your Crystal cube. The Gate will
+                seat a Θ-lock seed on this device.
               </div>
-              <label style={labelStyle}>Phone (E.164)</label>
+              <label style={labelStyle}>Phone — contact only, not a key</label>
               <input
-                type="tel" value={enrollPhone} onChange={(e) => setEnrollPhone(e.target.value)} required
-                placeholder="+15551234567" style={inputStyle}
+                type="tel" value={enrollPhone} onChange={(e) => setEnrollPhone(e.target.value)}
+                placeholder="optional · +15551234567" style={inputStyle}
               />
               <label style={labelStyle}>Your Crystal Cube</label>
               <CrystalPicker value={enrollCube} onChange={setEnrollCube} C={C} fBody={fBody} fDisplay={fDisplay} />

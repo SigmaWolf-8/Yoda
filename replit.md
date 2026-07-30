@@ -32,7 +32,8 @@ The backend is a Rust workspace at the repo root with seven crates:
 
 **Key backend patterns:**
 - `sqlx` with compile-time checked queries against PostgreSQL
-- JWT-based authentication with access + refresh tokens
+- Two credential forms: the Torus Gate issues opaque server-side session handles (no JWT, no JSON — see `crates/yoda-api/src/gate_handle.rs`); the legacy `/api/auth/login` still issues JWT access + refresh tokens. The auth middleware accepts both.
+- Torus Gate 3-factor login: passphrase → Θ-lock reading (derived from the unified epoch's theta angle, `crates/yoda-api/src/theta.rs` — no SMS, no carrier) → Crystal codepoint cube. The gate speaks a JSON-free line protocol.
 - WebSocket endpoint at `/ws/pipeline/{project_id}` for real-time task progress events
 - PlenumNET bridge functions currently stubbed with `todo!()` — implementation pending
 - External `ternary-math` crate sourced from `https://github.com/SigmaWolf-8/Ternary` via Cargo git dependency

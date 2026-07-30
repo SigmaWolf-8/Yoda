@@ -36,6 +36,7 @@ use crate::modes;
 use crate::query;
 use crate::settings;
 use crate::state::AppState;
+use crate::theta;
 use crate::websocket;
 
 /// Build the complete API router with all routes.
@@ -182,8 +183,7 @@ pub fn build_router(state: AppState) -> Router {
         // JSON-free, framework-native line protocol. Enrollment + staged login.
         .route("/api/gate/enroll", post(gate_enroll))
         .route("/api/gate/begin", post(gate_begin))
-        .route("/api/gate/possession/request", post(gate_possession_request))
-        .route("/api/gate/possession/verify", post(gate_possession_verify))
+        .route("/api/gate/theta", post(gate_theta))
         .route("/api/gate/codepoint", post(gate_codepoint));
 
     // B5.9: Rate limiting — tower::RateLimitLayer removed (not Clone-compatible
@@ -443,17 +443,6 @@ fn wire_ok(pairs: &[(&str, String)]) -> Response {
 }
 
 /// Mask a phone so only the last two digits show: `+1555*****67`.
-fn mask_phone(phone: &str) -> String {
-    let n = phone.len();
-    if n <= 4 {
-        return "*".repeat(n);
-    }
-    let keep_front = 2.min(n);
-    let keep_back = 2;
-    let front = &phone[..keep_front];
-    let back = &phone[n - keep_back..];
-    format!("{front}{}{back}", "*".repeat(n - keep_front - keep_back))
-}
 
 /// Derive a per-user possession seed (TOTP-style). Deterministic given the
 /// inputs; unique per user because the user id is unique.
@@ -483,9 +472,12 @@ async fn gate_enroll(
             "Password must be at least 8 characters".into(),
         ));
     }
-    if phone.trim().is_empty() || !phone.starts_with('+') {
+    // Phone is contact information, not a factor. The Gate does not send SMS,
+    // so an operator without a reachable number is not locked out. If one is
+    // given it still has to be well-formed.
+    if !phone.trim().is_empty() && !phone.starts_with('+') {
         return Err(AppError::Validation(
-            "Phone must be E.164 (start with +)".into(),
+            "If you give a phone it must be E.164 (start with +)".into(),
         ));
     }
     let (cx, cy, cz) = tfa::wire::parse_cube(&cube).ok_or_else(|| {
@@ -553,13 +545,23 @@ async fn gate_enroll(
         }
     };
 
-    let seed = derive_possession_seed(user_id, now_nanos);
+    // The Θ-lock seed. Issued once, here, and never sent again: from now on
+    // both the Crystal and the Gate derive the same reading from it and the
+    // theta angle, so no secret crosses the wire at login.
+    let theta_seed = GateHandle::generate();
+    let theta_hex_bytes = theta_seed.to_hex();
+    let theta_hex = core::str::from_utf8(&theta_hex_bytes)
+        .expect("hex is ASCII")
+        .to_string();
+
+    let legacy_seed = derive_possession_seed(user_id, now_nanos);
     sqlx::query(
-        "UPDATE users SET gate_phone = $1, gate_possession_seed = $2, \
-         gate_cp_x = $3, gate_cp_y = $4, gate_cp_z = $5, gate_enrolled = TRUE WHERE id = $6",
+        "UPDATE users SET gate_phone = $1, gate_possession_seed = $2, gate_theta_seed = $3, \
+         gate_cp_x = $4, gate_cp_y = $5, gate_cp_z = $6, gate_enrolled = TRUE WHERE id = $7",
     )
     .bind(&phone)
-    .bind(seed.to_string())
+    .bind(legacy_seed.to_string())
+    .bind(&theta_hex)
     .bind(cx as i16)
     .bind(cy as i16)
     .bind(cz as i16)
@@ -568,7 +570,15 @@ async fn gate_enroll(
     .await
     .map_err(AppError::Database)?;
 
-    Ok(wire_ok(&[("ok", "1".into()), ("enrolled", "1".into())]))
+    let now = chrono::Utc::now().timestamp();
+    let t = theta::theta_at(now);
+    Ok(wire_ok(&[
+        ("ok", "1".into()),
+        ("enrolled", "1".into()),
+        ("seed", theta_hex),
+        ("theta_deg", t.degrees.to_string()),
+        ("theta_station", t.station.to_string()),
+    ]))
 }
 
 /// POST /api/gate/begin — Factor 1 (Knowledge = account password).
@@ -611,7 +621,9 @@ async fn gate_begin(
         return Ok(wire_ok(&[("status", "enroll_required".into())]));
     }
 
-    let phone = phone.ok_or_else(|| AppError::Internal("enrolled user missing phone".into()))?;
+    // Phone is no longer a factor, so its absence must not bar an enrolled
+    // operator from the Gate.
+    let phone = phone.unwrap_or_default();
     let seed: u64 = seed
         .and_then(|s| s.parse().ok())
         .ok_or_else(|| AppError::Internal("enrolled user missing possession seed".into()))?;
@@ -648,57 +660,30 @@ async fn gate_begin(
         sessions.insert(session_id, session);
     }
 
+    // Hand back where the circle stands. The operator's Crystal needs the
+    // angle to derive its reading; nothing here is secret, and nothing here
+    // is trusted when it comes back — the Gate reads its own clock.
+    let now = chrono::Utc::now().timestamp();
+    let t = theta::theta_at(now);
     Ok(wire_ok(&[
         ("session", session_id.to_string()),
-        ("moving_factor", tfa::current_moving_factor().to_string()),
-        ("phone_hint", mask_phone(&phone)),
+        ("theta_deg", t.degrees.to_string()),
+        ("theta_station", t.station.to_string()),
+        ("theta_revolution", t.revolution.to_string()),
+        ("station_holds", theta::secs_to_next_station(now).to_string()),
     ]))
 }
 
-/// POST /api/gate/possession/request — Factor 2 (send SMS one-time code).
-/// Fields: `session`. Returns `ok 1` `sent_to <masked>` and, in dev only,
-/// `code <n>` from the console sender so the flow is testable without a carrier.
-async fn gate_possession_request(
-    State(state): State<AppState>,
-    body: String,
-) -> Result<Response, AppError> {
-    let f = tfa::wire::parse(&body);
-    let session_id: Uuid = f
-        .get("session")
-        .and_then(|s| s.parse().ok())
-        .ok_or_else(|| AppError::Validation("valid session required".into()))?;
-
-    let (phone, secret) = {
-        let mut sessions = state.three_factor_sessions.write().await;
-        let session = sessions
-            .get_mut(&session_id)
-            .filter(|s| !s.is_expired() && s.user_id.is_some())
-            .ok_or(AppError::NotFound("Gate session not found or expired".into()))?;
-        if !session.knowledge_ok {
-            return Err(AppError::Forbidden("Complete the credentials first".into()));
-        }
-        session.code_requested = true;
-        (session.phone.clone(), session.possession_secret)
-    };
-
-    let sender = tfa::select_sms_sender(is_production()).map_err(AppError::Internal)?;
-    let auth = ThreeFactorAuthenticator::new(sender);
-    let echoed = auth
-        .request_possession_code(&phone, secret, tfa::current_moving_factor())
-        .map_err(AppError::Internal)?;
-
-    let mut pairs = vec![("ok", "1".to_string()), ("sent_to", mask_phone(&phone))];
-    if !is_production() {
-        if let Some(code) = echoed {
-            pairs.push(("code", format!("{code:06}")));
-        }
-    }
-    Ok(wire_ok(&pairs))
-}
-
-/// POST /api/gate/possession/verify — Factor 2 check.
-/// Fields: `session` `code`. Returns `ok 1`.
-async fn gate_possession_verify(
+/// POST /api/gate/theta — Factor 2 (Θ-lock).
+///
+/// Fields: `session` `reading`. Returns `ok 1`.
+///
+/// There is no request step and no message to wait for. The Crystal derives
+/// the reading from its enrolled seed and the angle of the unified epoch; the
+/// Gate derives the same value from its own clock and compares. Nothing is
+/// sent, so there is nothing to intercept, and no carrier sits in the trust
+/// path.
+async fn gate_theta(
     State(state): State<AppState>,
     body: String,
 ) -> Result<Response, AppError> {
@@ -708,28 +693,90 @@ async fn gate_possession_verify(
         .and_then(|s| s.parse().ok())
         .ok_or_else(|| AppError::Validation("valid session required".into()))?;
     let code: u32 = f
-        .get("code")
+        .get("reading")
         .and_then(|s| s.trim().parse().ok())
-        .ok_or_else(|| AppError::Validation("numeric code required".into()))?;
+        .ok_or_else(|| AppError::Validation("numeric theta reading required".into()))?;
+
+    // Establish who is knocking and that Factor 1 is behind them, then drop
+    // the lock — the seed lookup is a database round-trip and must not be held
+    // across every other gate session.
+    let user_id = {
+        let mut sessions = state.three_factor_sessions.write().await;
+        let session = sessions
+            .get_mut(&session_id)
+            .filter(|s| !s.is_expired() && s.user_id.is_some())
+            .ok_or(AppError::NotFound("Gate session not found or expired".into()))?;
+        if !session.knowledge_ok {
+            return Err(AppError::Forbidden("Complete the credentials first".into()));
+        }
+        if session.possession_attempts >= tfa::MAX_FACTOR_ATTEMPTS {
+            sessions.remove(&session_id);
+            return Err(AppError::Unauthorized(
+                "Too many failed readings — session burned, please restart".into(),
+            ));
+        }
+        session.user_id.expect("filtered on is_some")
+    };
+
+    let seed_hex = sqlx::query_scalar::<_, Option<String>>(
+        "SELECT gate_theta_seed FROM users WHERE id = $1",
+    )
+    .bind(user_id)
+    .fetch_one(&state.db)
+    .await
+    .map_err(AppError::Database)?
+    .ok_or_else(|| {
+        AppError::Forbidden("This account has no Θ-lock seed — re-enroll at the Gate".into())
+    })?;
+
+    // Which station the reading belongs to — needed to spend it.
+    let matched = theta::verify_reading_station(
+        seed_hex.as_bytes(),
+        code,
+        chrono::Utc::now().timestamp(),
+    );
+
+    // Single-use. The reading is honoured at its own station and one of grace,
+    // so without a ledger the same six digits would pass twice inside that
+    // window — including from a freshly opened session. Spend the station
+    // atomically: the UPDATE only matches if this account has not already used
+    // this station or a later one, so two requests racing with the same
+    // reading cannot both win.
+    let verified = match matched {
+        None => false,
+        Some(station) => {
+            let spent = sqlx::query(
+                "UPDATE users SET gate_theta_last_station = $1 \
+                 WHERE id = $2 \
+                   AND (gate_theta_last_station IS NULL OR gate_theta_last_station < $1)",
+            )
+            .bind(station)
+            .bind(user_id)
+            .execute(&state.db)
+            .await
+            .map_err(AppError::Database)?;
+            spent.rows_affected() == 1
+        }
+    };
 
     let mut sessions = state.three_factor_sessions.write().await;
     let session = sessions
         .get_mut(&session_id)
-        .filter(|s| !s.is_expired() && s.user_id.is_some())
+        .filter(|s| !s.is_expired())
         .ok_or(AppError::NotFound("Gate session not found or expired".into()))?;
-    if !session.code_requested {
-        return Err(AppError::Forbidden("Request a code first".into()));
-    }
-    if session.possession_attempts >= tfa::MAX_FACTOR_ATTEMPTS {
-        sessions.remove(&session_id);
-        return Err(AppError::Unauthorized(
-            "Too many failed code attempts — session burned, please restart".into(),
-        ));
-    }
-    let auth = ThreeFactorAuthenticator::new(ConsoleSmsSender);
-    if !auth.verify_possession_code(session.possession_secret, tfa::current_moving_factor(), code) {
+    if !verified {
         session.possession_attempts += 1;
-        return Err(AppError::Unauthorized("Incorrect code".into()));
+        // Burn immediately if that failure exhausted the budget, so the
+        // attempt cap cannot be walked past by racing requests.
+        if session.possession_attempts >= tfa::MAX_FACTOR_ATTEMPTS {
+            sessions.remove(&session_id);
+            return Err(AppError::Unauthorized(
+                "Too many failed readings — session burned, please restart".into(),
+            ));
+        }
+        return Err(AppError::Unauthorized(
+            "That reading does not match this station of the circle".into(),
+        ));
     }
     session.possession_ok = true;
     Ok(wire_ok(&[("ok", "1".into())]))
@@ -768,7 +815,7 @@ async fn gate_codepoint(
             .ok_or(AppError::NotFound("Gate session not found or expired".into()))?;
         if !session.knowledge_ok || !session.possession_ok {
             return Err(AppError::Forbidden(
-                "Complete the credentials and SMS code first".into(),
+                "Complete the credentials and the Θ-lock first".into(),
             ));
         }
         // Cap brute force on the codepoint — only 27 cubes exist, so an

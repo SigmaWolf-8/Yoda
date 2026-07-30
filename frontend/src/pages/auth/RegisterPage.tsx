@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Zap } from 'lucide-react';
 import { gatePost, cubeToWire } from '../../api/gate';
+import { storeThetaSeed } from '../../api/theta';
 import { BevelBox } from '../../components/ui/BevelBox';
 
 export function RegisterPage() {
@@ -14,6 +15,9 @@ export function RegisterPage() {
   const [cube, setCube] = useState<number[]>([1, 1, 1]);
   const [localError, setLocalError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  // Shown once, after enrollment: the Θ-lock seed. It is already seated on
+  // this device — this is the operator's only chance to copy it elsewhere.
+  const [issuedSeed, setIssuedSeed] = useState<string | null>(null);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -27,24 +31,29 @@ export function RegisterPage() {
       setLocalError('Password must be at least 8 characters');
       return;
     }
-    if (!phone.startsWith('+')) {
-      setLocalError('Phone must be in E.164 form (start with +, e.g. +15551234567)');
+    // Phone is contact information, not a factor — the Gate sends no SMS.
+    if (phone.trim() && !phone.startsWith('+')) {
+      setLocalError('If you give a phone it must be E.164 (start with +, e.g. +15551234567)');
       return;
     }
 
     setSubmitting(true);
     try {
-      // Native wire enrollment — creates the account AND registers the phone +
-      // Crystal cube factors in one pass. No tokens issued here; the operator
+      // Native wire enrollment — creates the account AND registers the Θ-lock
+      // seed + Crystal cube in one pass. No tokens issued here; the operator
       // then passes the 3-factor gate to sign in.
-      await gatePost('/gate/enroll', {
+      const r = await gatePost('/gate/enroll', {
         name,
         email,
         password,
         phone,
         cube: cubeToWire(cube[0], cube[1], cube[2]),
       });
-      navigate('/login');
+      // The seed is issued exactly once. Seat it on this device — it is what
+      // makes this Crystal the possession factor.
+      if (!r.seed) throw new Error('The gate issued no Crystal seed');
+      storeThetaSeed(r.seed);
+      setIssuedSeed(r.seed);
     } catch (err) {
       setLocalError(err instanceof Error ? err.message : 'Registration failed');
     } finally {
@@ -85,6 +94,31 @@ export function RegisterPage() {
             </div>
           )}
 
+          {issuedSeed ? (
+            <div className="space-y-5">
+              <div>
+                <h2 className="font-display text-xl text-[var(--color-text-primary)] mb-1.5">
+                  Your Crystal seed
+                </h2>
+                <p className="text-sm text-[var(--color-text-tertiary)]">
+                  Seated on this device. It never leaves it — the Gate only ever
+                  sees six digits derived from it and the angle of the hour.
+                  Copy it somewhere safe: it is shown once, and you will need it
+                  to pass the Gate from any other device.
+                </p>
+              </div>
+              <div className="p-3.5 rounded-lg bg-[var(--color-surface-tertiary)] border border-[var(--color-gold-500)]/30 font-mono text-xs break-all text-[var(--color-gold-500)] select-all">
+                {issuedSeed}
+              </div>
+              <button
+                type="button"
+                onClick={() => navigate('/login')}
+                className="w-full py-2.5 rounded-lg bg-[var(--color-gold-500)] text-[var(--color-navy-950)] font-medium hover:opacity-90 transition-opacity"
+              >
+                I have kept it — go to the Gate
+              </button>
+            </div>
+          ) : (
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>
               <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1.5">Name</label>
@@ -112,8 +146,8 @@ export function RegisterPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1.5">Phone (SMS possession factor)</label>
-              <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} required className={inputCls} placeholder="+15551234567" />
+              <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1.5">Phone — contact only, not a key</label>
+              <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} className={inputCls} placeholder="Optional · +15551234567" />
               <p className="mt-1 text-xs text-[var(--color-text-muted)]">One-time codes are sent here at every sign-in.</p>
             </div>
 
@@ -162,6 +196,7 @@ export function RegisterPage() {
               {submitting ? 'Enrolling…' : 'Enroll account'}
             </button>
           </form>
+          )}
 
           <p className="mt-6 text-center text-sm text-[var(--color-text-tertiary)]">
             Already have an account?{' '}
