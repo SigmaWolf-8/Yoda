@@ -27,6 +27,7 @@ use sqlx::PgPool;
 use uuid::Uuid;
 
 use crate::error::AppError;
+use crate::gate_handle::GateHandle;
 use crate::state::AppState;
 
 // ─── JWT Claims ──────────────────────────────────────────────────────
@@ -380,10 +381,53 @@ pub async fn refresh_token(
 }
 
 /// POST /api/auth/logout
-pub async fn logout() -> StatusCode {
-    // Client-side: discard tokens. Server-side: tokens expire naturally.
-    // For immediate revocation, the client sends the refresh token to revoke.
+///
+/// A JWT cannot be un-issued, so for those the client simply discards it. A
+/// Torus Gate handle is server-side state, so logging out actually kills it.
+pub async fn logout(State(state): State<AppState>, headers: http::HeaderMap) -> StatusCode {
+    if let Some(token) = headers
+        .get(http::header::AUTHORIZATION)
+        .and_then(|v| v.to_str().ok())
+        .and_then(|v| v.strip_prefix("Bearer "))
+    {
+        if let Some(handle) = GateHandle::parse_hex(token) {
+            let _ = sqlx::query("UPDATE gate_sessions SET revoked = TRUE WHERE token_digest = $1")
+                .bind(handle.digest().to_vec())
+                .execute(&state.db)
+                .await;
+        }
+    }
     StatusCode::NO_CONTENT
+}
+
+/// Look up an opaque gate handle and rebuild the caller's identity from the
+/// database. Expired or revoked rows resolve to nothing.
+///
+/// Note the shape of this: the credential is used only as a lookup key. No
+/// field of the request influences who the caller turns out to be.
+async fn resolve_gate_handle(db: &PgPool, token: &str) -> Result<AuthenticatedUser, AppError> {
+    let handle = GateHandle::parse_hex(token)
+        .ok_or_else(|| AppError::Unauthorized("Invalid session handle".into()))?;
+
+    let row: Option<(Uuid, Uuid, String)> = sqlx::query_as(
+        "SELECT g.user_id, g.org_id, u.email \
+         FROM gate_sessions g \
+         JOIN users u ON u.id = g.user_id \
+         WHERE g.token_digest = $1 AND g.revoked = FALSE AND g.expires_at > NOW()",
+    )
+    .bind(handle.digest().to_vec())
+    .fetch_optional(db)
+    .await
+    .map_err(AppError::Database)?;
+
+    let (user_id, org_id, email) =
+        row.ok_or_else(|| AppError::Unauthorized("Session expired or revoked".into()))?;
+
+    Ok(AuthenticatedUser {
+        user_id,
+        email,
+        org_id,
+    })
 }
 
 // ─── JWT Auth Middleware (B-AUTH.4) ───────────────────────────────────
@@ -404,6 +448,16 @@ pub async fn auth_middleware(
             .map_err(|_| AppError::Unauthorized("Invalid auth header".into()))?;
 
         if let Some(token) = auth_str.strip_prefix("Bearer ") {
+            // Torus Gate handles are opaque — 64 hex characters and nothing
+            // else. A JWT always carries `.` separators, so the two forms can
+            // never collide. Resolve the handle server-side; there is nothing
+            // in it to decode.
+            if GateHandle::looks_like(token) {
+                let user = resolve_gate_handle(&state.db, token).await?;
+                request.extensions_mut().insert(user);
+                return Ok(next.run(request).await);
+            }
+
             let claims = validate_access_token(token, &state.jwt_secret)?;
             request.extensions_mut().insert(AuthenticatedUser {
                 user_id: claims.sub,

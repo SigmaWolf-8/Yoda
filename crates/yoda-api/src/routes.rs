@@ -29,6 +29,7 @@ use crate::bible;
 use crate::capability;
 use crate::cube_relay::{RelayInferRequest, slot_to_cube_address};
 use crate::error::AppError;
+use crate::gate_handle::GateHandle;
 use crate::install;
 use crate::kb;
 use crate::modes;
@@ -734,9 +735,17 @@ async fn gate_possession_verify(
     Ok(wire_ok(&[("ok", "1".into())]))
 }
 
-/// POST /api/gate/codepoint — Factor 3 (Crystal cube) → mint account tokens.
+/// How long an opaque gate handle stays valid before the operator must pass
+/// all three factors again. There is no refresh token: a handle is cheap to
+/// re-mint and, unlike a JWT, can be revoked the instant it is not wanted.
+const GATE_SESSION_HOURS: i64 = 12;
+
+/// POST /api/gate/codepoint — Factor 3 (Crystal cube) → open the session.
 /// Fields: `session` `cube` (dotted trits). On success returns
-/// `token <jwt>` `refresh <token>` `expires_in_minutes <n>` for the real user.
+/// `handle <64 hex>` `expires <unix seconds>`.
+///
+/// No JWT is issued. The handle is 32 opaque bytes; every claim about the
+/// operator is read back out of `gate_sessions` server-side.
 async fn gate_codepoint(
     State(state): State<AppState>,
     body: String,
@@ -751,7 +760,7 @@ async fn gate_codepoint(
         .ok_or_else(|| AppError::Validation("cube must be three trits 1..3".into()))?;
 
     // Verify the codepoint and pull the account identity out of the session.
-    let (user_id, email, org_id) = {
+    let (user_id, org_id) = {
         let mut sessions = state.three_factor_sessions.write().await;
         let session = sessions
             .get_mut(&session_id)
@@ -791,39 +800,38 @@ async fn gate_codepoint(
             ));
         }
         let uid = session.user_id.expect("filtered on is_some");
-        let email = session.email.clone().unwrap_or_default();
         let org_id = session.org_id.expect("user session carries org");
         // Single-use — consume the session now that all factors passed.
         sessions.remove(&session_id);
-        (uid, email, org_id)
+        (uid, org_id)
     };
 
-    // All three factors satisfied — mint real account tokens (same plumbing
-    // the classic login used), so the operator is signed in as themselves.
-    let token = auth::create_access_token(
-        user_id,
-        &email,
-        org_id,
-        &state.jwt_secret,
-        state.jwt_access_expiry_minutes,
-    )?;
-    let refresh = auth::create_refresh_token();
-    let refresh_hash = auth::hash_password(&refresh)?;
-    let expires_at = chrono::Utc::now() + chrono::Duration::days(state.jwt_refresh_expiry_days);
+    // All three factors satisfied — open a session. The operator receives an
+    // opaque handle, not a token that describes them: nothing about their
+    // identity travels back to the client or is trusted from it afterwards.
+    let handle = GateHandle::generate();
+    let expires_at = chrono::Utc::now() + chrono::Duration::hours(GATE_SESSION_HOURS);
     sqlx::query(
-        "INSERT INTO refresh_tokens (user_id, token_hash, expires_at) VALUES ($1, $2, $3)",
+        "INSERT INTO gate_sessions (token_digest, user_id, org_id, expires_at) \
+         VALUES ($1, $2, $3, $4)",
     )
+    .bind(handle.digest().to_vec())
     .bind(user_id)
-    .bind(&refresh_hash)
+    .bind(org_id)
     .bind(expires_at)
     .execute(&state.db)
     .await
     .map_err(AppError::Database)?;
 
+    // Hex bytes → wire. This is the only point the handle becomes text.
+    let hex = handle.to_hex();
+    let handle_wire = core::str::from_utf8(&hex)
+        .expect("hex is ASCII")
+        .to_string();
+
     Ok(wire_ok(&[
-        ("token", token),
-        ("refresh", refresh),
-        ("expires_in_minutes", state.jwt_access_expiry_minutes.to_string()),
+        ("handle", handle_wire),
+        ("expires", expires_at.timestamp().to_string()),
     ]))
 }
 

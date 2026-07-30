@@ -207,7 +207,9 @@ export function TorusGatePage() {
     }
   }
 
-  // Factor 3 — Codepoint (Crystal cube) → mint real account tokens.
+  // Factor 3 — Codepoint (Crystal cube) → open the session.
+  // The gate returns an opaque handle, not a token that describes the
+  // operator. There is no refresh token by design.
   async function submitCube(e) {
     e.preventDefault();
     setGateError(null);
@@ -217,7 +219,8 @@ export function TorusGatePage() {
         session,
         cube: cubeToWire(cube[0], cube[1], cube[2]),
       });
-      storeTokens(r.token, r.refresh, remember);
+      if (!r.handle) throw new Error('The gate returned no session handle');
+      storeTokens(r.handle, null, remember);
       navigate('/');
     } catch (err) {
       setGateError(err?.message || 'The Crystal rejected that cube');
@@ -820,12 +823,12 @@ export function TorusGatePage() {
               <label style={labelStyle}>Operator Mark (Email)</label>
               <input
                 type="email" value={email} onChange={(e) => setEmail(e.target.value)} required
-                placeholder="operator@capomastro.holdings" style={inputStyle}
+                autoComplete="username" placeholder="operator@capomastro.holdings" style={inputStyle}
               />
               <label style={labelStyle}>Passphrase</label>
               <input
                 type="password" value={password} onChange={(e) => setPassword(e.target.value)} required
-                placeholder="••••••••" style={inputStyle}
+                autoComplete="current-password" placeholder="••••••••" style={inputStyle}
               />
               <label style={{ ...fBody, display: 'flex', alignItems: 'center', gap: '0.5rem', color: C.faint, fontSize: '0.82rem', marginBottom: '1.3rem', cursor: 'pointer' }}>
                 <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} style={{ accentColor: C.brass, width: '15px', height: '15px' }} />

@@ -34,6 +34,7 @@ pub mod bible;
 pub mod capability;
 pub mod cube_relay;
 pub mod error;
+pub mod gate_handle;
 pub mod kb;
 pub mod kyokushin_brothers;
 pub mod forge_routes;

@@ -24,14 +24,27 @@ export function getStoredRefreshToken(): string | null {
   return localStorage.getItem(REFRESH_KEY) ?? sessionStorage.getItem(REFRESH_KEY);
 }
 
+/**
+ * Store the bearer credential. The classic login supplies a JWT plus a refresh
+ * token; the Torus Gate supplies an opaque handle and no refresh token at all
+ * (there is nothing to refresh — a handle is server-side state that is either
+ * live or revoked). Omit `refreshToken` in that case.
+ */
 export function storeTokens(
   token: string,
-  refreshToken: string,
+  refreshToken?: string | null,
   persist: boolean = true
 ) {
   const storage = persist ? localStorage : sessionStorage;
   storage.setItem(TOKEN_KEY, token);
-  storage.setItem(REFRESH_KEY, refreshToken);
+  if (refreshToken) {
+    storage.setItem(REFRESH_KEY, refreshToken);
+  } else {
+    // A stale refresh token from a previous JWT session must not survive
+    // alongside a gate handle, or the 401 path would try to revive it.
+    localStorage.removeItem(REFRESH_KEY);
+    sessionStorage.removeItem(REFRESH_KEY);
+  }
 }
 
 export function clearTokens() {
@@ -99,14 +112,21 @@ apiClient.interceptors.response.use(
       }
 
       originalRequest._retry = true;
-      isRefreshing = true;
 
+      // Torus Gate sessions are opaque handles with no refresh token — when
+      // one expires or is revoked there is nothing to renew, so bail straight
+      // to the gate. This is checked BEFORE claiming the refresh lock: taking
+      // `isRefreshing` here and returning early would strand every queued
+      // request until a full page load.
       const refreshToken = getStoredRefreshToken();
       if (!refreshToken) {
+        processQueue(error, null);
         clearTokens();
         window.location.href = '/login';
         return Promise.reject(error);
       }
+
+      isRefreshing = true;
 
       try {
         const { data } = await axios.post(`${API_BASE_URL}/auth/refresh`, {
