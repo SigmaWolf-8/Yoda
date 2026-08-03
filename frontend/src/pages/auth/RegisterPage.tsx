@@ -148,7 +148,10 @@ export function RegisterPage() {
             <div>
               <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1.5">Phone — contact only, not a key</label>
               <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} className={inputCls} placeholder="Optional · +15551234567" />
-              <p className="mt-1 text-xs text-[var(--color-text-muted)]">One-time codes are sent here at every sign-in.</p>
+              <p className="mt-1 text-xs text-[var(--color-text-muted)]">
+                For reaching you only. The Gate sends no codes — your second
+                factor is derived on your own device.
+              </p>
             </div>
 
             <div>
