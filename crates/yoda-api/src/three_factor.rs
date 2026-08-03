@@ -355,14 +355,65 @@ impl SmsSender for RuntimeSmsSender {
     }
 }
 
-/// Pick the delivery mechanism for the current environment. In production the
-/// PlenumNET relay sender is required (any missing credential is a hard error);
-/// otherwise the dev/console sender is used.
-pub fn select_sms_sender(production: bool) -> Result<RuntimeSmsSender, String> {
-    if production {
-        Ok(RuntimeSmsSender::PlenumNet(PlenumNetRelaySender::from_env()?))
-    } else {
+/// Is this process allowed to use the echoing console sender?
+///
+/// Fail-closed by design. The console sender writes the one-time code to the
+/// log and hands it back to the client, so the question is not "does this look
+/// like production" — a typo'd or absent `APP_ENV` must never be the reason a
+/// live code leaks. The console sender is therefore permitted only when the
+/// environment is *positively* identified as non-production:
+///
+///   * `REPLIT_DEPLOYMENT` unset — a published deployment always sets it, so
+///     its presence settles the question on its own; and
+///   * an explicit development marker: `APP_ENV`/`NODE_ENV` naming a
+///     development, test, staging-free local mode, or the Replit workspace
+///     domain (`REPLIT_DEV_DOMAIN`) being present.
+///
+/// Anything else — including a bare server with no variables set at all — is
+/// treated as production.
+pub fn console_sender_permitted() -> bool {
+    if std::env::var("REPLIT_DEPLOYMENT").is_ok() {
+        return false;
+    }
+    // An explicit production marker overrides every dev signal.
+    for key in ["APP_ENV", "NODE_ENV"] {
+        if let Ok(v) = std::env::var(key) {
+            let v = v.trim().to_ascii_lowercase();
+            if v.starts_with("prod") {
+                return false;
+            }
+        }
+    }
+    let explicit_dev = ["APP_ENV", "NODE_ENV"].iter().any(|key| {
+        std::env::var(key)
+            .map(|v| {
+                let v = v.trim().to_ascii_lowercase();
+                v.starts_with("dev") || v == "test" || v == "local"
+            })
+            .unwrap_or(false)
+    });
+    explicit_dev || std::env::var("REPLIT_DEV_DOMAIN").is_ok()
+}
+
+/// Pick the delivery mechanism for this process.
+///
+/// The relay sender is the default and the only one used anywhere that is not
+/// provably a development environment; a missing relay credential there is a
+/// hard error so the failure lands at boot rather than at someone's login.
+pub fn select_sms_sender() -> Result<RuntimeSmsSender, String> {
+    if console_sender_permitted() {
         Ok(RuntimeSmsSender::Console(ConsoleSmsSender))
+    } else {
+        Ok(RuntimeSmsSender::PlenumNet(PlenumNetRelaySender::from_env()?))
+    }
+}
+
+impl RuntimeSmsSender {
+    /// True for the dev/console sender, which echoes the code back. Used as a
+    /// second, independent guard at the response boundary so an echo can never
+    /// reach a client from a sender that should not have been selected.
+    pub fn echoes_code(&self) -> bool {
+        matches!(self, RuntimeSmsSender::Console(_))
     }
 }
 
@@ -466,6 +517,26 @@ pub struct ThreeFactorSession {
     pub knowledge_attempts: u32,
     pub possession_attempts: u32,
     pub codepoint_attempts: u32,
+
+    // ── SMS confirmation (delivered factor, distinct from the Θ-lock) ──
+    //
+    // The Θ-lock proves the operator holds the enrolled seed; it is derived on
+    // both sides and never travels. The SMS code is the opposite: it is issued
+    // here, sent out of band to the enrolled handset, and travels back. Keeping
+    // both means an attacker needs the seed AND the handset.
+    //
+    // The code itself is never stored — only its hash — so a memory dump of the
+    // session map does not hand over live codes.
+    /// Hash of the outstanding SMS code, `None` until one is requested.
+    pub sms_code_hash: Option<u64>,
+    /// When the outstanding code was issued (drives its short expiry).
+    pub sms_issued_at: Option<chrono::DateTime<chrono::Utc>>,
+    /// How many codes this session has asked the carrier to deliver.
+    pub sms_sends: u32,
+    /// Failed SMS entries — capped like every other factor.
+    pub sms_attempts: u32,
+    /// True once the delivered code has been matched.
+    pub sms_ok: bool,
 }
 
 impl ThreeFactorSession {
@@ -482,6 +553,12 @@ pub const SESSION_TTL_SECS: i64 = 300;
 pub const MAX_ACTIVE_SESSIONS: usize = 1000;
 /// Max failed attempts per factor before the session is burned.
 pub const MAX_FACTOR_ATTEMPTS: u32 = 5;
+/// How long a delivered SMS code stays valid. Short on purpose: the code
+/// travels over a carrier network, so its useful life is minimised.
+pub const SMS_CODE_TTL_SECS: i64 = 120;
+/// Max codes a single gate session may ask the carrier to deliver. Bounds both
+/// spend and the use of the Gate as an SMS-flood amplifier.
+pub const MAX_SMS_SENDS: u32 = 3;
 
 /// Remove all expired sessions from the map. Called opportunistically on
 /// `/start` so stale/abandoned sessions never accumulate unboundedly.
@@ -537,6 +614,11 @@ pub fn new_demo_session() -> ThreeFactorSession {
         created_at: chrono::Utc::now(),
         knowledge_attempts: 0,
         possession_attempts: 0,
+        sms_code_hash: None,
+        sms_issued_at: None,
+        sms_sends: 0,
+        sms_attempts: 0,
+        sms_ok: false,
     }
 }
 
@@ -573,6 +655,11 @@ pub fn new_user_session(
         created_at: chrono::Utc::now(),
         knowledge_attempts: 0,
         possession_attempts: 0,
+        sms_code_hash: None,
+        sms_issued_at: None,
+        sms_sends: 0,
+        sms_attempts: 0,
+        sms_ok: false,
     }
 }
 

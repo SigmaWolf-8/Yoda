@@ -31,9 +31,17 @@ export function RegisterPage() {
       setLocalError('Password must be at least 8 characters');
       return;
     }
-    // Phone is contact information, not a factor — the Gate sends no SMS.
-    if (phone.trim() && !phone.startsWith('+')) {
-      setLocalError('If you give a phone it must be E.164 (start with +, e.g. +15551234567)');
+    // A phone is optional, and the server does the real normalizing. Mirror
+    // only its outer bounds here so the common typo is caught without a
+    // round-trip — anything subtler is the server's answer to give, and a
+    // check that disagreed with it would be worse than no check at all.
+    const phoneDigits = phone.replace(/\D/g, '');
+    if (phone.trim() && phoneDigits.length < 10) {
+      setLocalError('That number looks too short — include the area code, like 780 555 1234.');
+      return;
+    }
+    if (phoneDigits.length > 15) {
+      setLocalError('That number is longer than any phone number in use.');
       return;
     }
 
@@ -84,7 +92,7 @@ export function RegisterPage() {
             </div>
             <h1 className="font-display text-3xl text-[var(--color-text-primary)]">YODA</h1>
           </div>
-          <p className="text-sm text-[var(--color-text-tertiary)]">Enroll your account &amp; three factors</p>
+          <p className="text-sm text-[var(--color-text-tertiary)]">Create your account and set up how you'll sign in</p>
         </div>
 
         <BevelBox className="bg-[var(--color-surface-secondary)] p-8">
@@ -98,13 +106,13 @@ export function RegisterPage() {
             <div className="space-y-5">
               <div>
                 <h2 className="font-display text-xl text-[var(--color-text-primary)] mb-1.5">
-                  Your Crystal seed
+                  Save this secret key
                 </h2>
                 <p className="text-sm text-[var(--color-text-tertiary)]">
-                  Seated on this device. It never leaves it — the Gate only ever
-                  sees six digits derived from it and the angle of the hour.
-                  Copy it somewhere safe: it is shown once, and you will need it
-                  to pass the Gate from any other device.
+                  It's now stored on this device, and it stays here — signing in
+                  from this machine won't ask you for it. But you are shown it
+                  only once, and you'll need it to sign in from any other
+                  computer. Copy it somewhere safe now.
                 </p>
               </div>
               <div className="p-3.5 rounded-lg bg-[var(--color-surface-tertiary)] border border-[var(--color-gold-500)]/30 font-mono text-xs break-all text-[var(--color-gold-500)] select-all">
@@ -146,20 +154,24 @@ export function RegisterPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1.5">Phone — contact only, not a key</label>
-              <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} className={inputCls} placeholder="Optional · +15551234567" />
+              <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1.5">Mobile number <span className="text-[var(--color-text-muted)] font-normal">— optional</span></label>
+              <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} className={inputCls} placeholder="780 555 1234" />
               <p className="mt-1 text-xs text-[var(--color-text-muted)]">
-                For reaching you only. The Gate sends no codes — your second
-                factor is derived on your own device.
+                Add it and we'll text you a 6-digit code every time you sign in.
+                Leave it blank and we won't.
               </p>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1.5">Your Crystal cube (codepoint factor)</label>
+              <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1.5">Pick three numbers</label>
+              <p className="mb-2.5 text-xs text-[var(--color-text-muted)]">
+                One from each row — like a 3-digit PIN you choose yourself.
+                You'll pick these same three every time you sign in.
+              </p>
               <div className="space-y-2">
-                {['X', 'Y', 'Z'].map((axis, ai) => (
+                {['1st', '2nd', '3rd'].map((axis, ai) => (
                   <div key={axis} className="flex items-center gap-2">
-                    <span className="w-5 text-sm text-[var(--color-text-tertiary)]">{axis}</span>
+                    <span className="w-7 text-xs text-[var(--color-text-tertiary)]">{axis}</span>
                     <div className="flex gap-2 flex-1">
                       {[1, 2, 3].map((t) => {
                         const sel = cube[ai] === t;
@@ -187,7 +199,7 @@ export function RegisterPage() {
                 ))}
               </div>
               <p className="mt-1 text-xs text-[var(--color-text-muted)]">
-                Codepoint · {cube[0]}.{cube[1]}.{cube[2]} — remember this; you select it to pass the gate.
+                Your three numbers · {cube[0]} · {cube[1]} · {cube[2]} — remember them; you pick them again every time you sign in.
               </p>
             </div>
 

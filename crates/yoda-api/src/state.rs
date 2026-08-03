@@ -55,6 +55,14 @@ pub struct AppState {
     pub llm_gateway: Option<Arc<LlmAgentGateway>>,
     /// In-flight 3-Factor Auth sessions (Task #39), keyed by session id.
     pub three_factor_sessions: crate::three_factor::ThreeFactorSessions,
+    /// Delivery channel for the Gate's SMS confirmation factor.
+    ///
+    /// `Some` when a sender could be built for this environment: the PlenumNET
+    /// relay when its credentials are present, otherwise the console sender
+    /// outside production. `None` only when production is missing its relay
+    /// credentials — in that case the Gate refuses to promise a text it cannot
+    /// send rather than silently dropping codes.
+    pub sms_sender: Option<Arc<crate::three_factor::RuntimeSmsSender>>,
 }
 
 impl AppState {
@@ -100,6 +108,35 @@ impl AppState {
             }
         };
 
+        // ── SMS delivery for the Gate's confirmation factor ─────────────
+        // The relay is the default everywhere; a missing credential is loud
+        // here, at boot, instead of surfacing as an undeliverable code at
+        // someone's login. The echoing console sender is used only where the
+        // environment is positively identified as development — see
+        // `console_sender_permitted`, which fails closed.
+        let sms_sender = match crate::three_factor::select_sms_sender() {
+            Ok(s) => {
+                if crate::three_factor::RuntimeSmsSender::echoes_code(&s) {
+                    tracing::warn!(
+                        "Gate SMS factor armed with the CONSOLE sender — codes are \
+                         written to the log and echoed to the client. Development only."
+                    );
+                } else {
+                    tracing::info!("Gate SMS factor armed — PlenumNET relay sender");
+                }
+                Some(Arc::new(s))
+            }
+            Err(e) => {
+                tracing::error!(
+                    error = %e,
+                    "Gate SMS factor DISARMED — relay credentials missing. Accounts \
+                     with an enrolled handset cannot pass the SMS confirmation until \
+                     PLENUMNET_RELAY_ENDPOINT and PLENUMNET_RELAY_SIGNATURE are set."
+                );
+                None
+            }
+        };
+
         Self {
             db,
             jwt_secret,
@@ -120,6 +157,7 @@ impl AppState {
             task_cancel_tokens: Arc::new(RwLock::new(HashMap::new())),
             llm_gateway,
             three_factor_sessions: crate::three_factor::new_sessions(),
+            sms_sender,
         }
     }
 }

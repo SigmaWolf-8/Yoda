@@ -184,6 +184,8 @@ pub fn build_router(state: AppState) -> Router {
         .route("/api/gate/enroll", post(gate_enroll))
         .route("/api/gate/begin", post(gate_begin))
         .route("/api/gate/theta", post(gate_theta))
+        .route("/api/gate/sms", post(gate_sms))
+        .route("/api/gate/sms/verify", post(gate_sms_verify))
         .route("/api/gate/codepoint", post(gate_codepoint));
 
     // B5.9: Rate limiting — tower::RateLimitLayer removed (not Clone-compatible
@@ -294,9 +296,11 @@ async fn three_factor_possession_request(
     if !session.knowledge_ok {
         return Err(AppError::Forbidden("Complete the Knowledge factor first".into()));
     }
-    // Select the delivery mechanism for the environment: the PlenumNET relay in
-    // production (missing credentials are a hard error), dev/console sender otherwise.
-    let sender = tfa::select_sms_sender(is_production()).map_err(AppError::Internal)?;
+    // Select the delivery mechanism. The relay is the default everywhere; the
+    // echoing console sender is only reachable where the environment is
+    // positively identified as development (fail-closed).
+    let sender = tfa::select_sms_sender().map_err(AppError::Internal)?;
+    let echoing_sender = sender.echoes_code();
     let auth = ThreeFactorAuthenticator::new(sender);
     // Anchor the OTP to the CURRENT moving factor so the code is genuinely
     // time-windowed (valid only within the drift window of now), not for the
@@ -310,8 +314,8 @@ async fn three_factor_possession_request(
         .map_err(AppError::Internal)?;
     session.code_requested = true;
     let phone = session.phone.clone();
-    // Only echo the code in non-production (dev/console sender).
-    let dev_code = if is_production() { None } else { echoed };
+    // Only the console sender echoes, and only where it is permitted at all.
+    let dev_code = if echoing_sender { echoed } else { None };
     Ok(Json(serde_json::json!({
         "ok": true,
         "sent_to": phone,
@@ -442,7 +446,88 @@ fn wire_ok(pairs: &[(&str, String)]) -> Response {
         .into_response()
 }
 
-/// Mask a phone so only the last two digits show: `+1555*****67`.
+/// Mask a phone so only the country prefix and last two digits survive:
+/// `+1*******67`. Enough for an operator to recognise their own handset,
+/// useless to anyone enumerating accounts.
+fn mask_phone(phone: &str) -> String {
+    let digits: Vec<char> = phone.chars().collect();
+    if digits.len() < 4 {
+        return "*".repeat(digits.len());
+    }
+    let head = if phone.starts_with('+') { 2 } else { 1 };
+    let tail = 2;
+    let hidden = digits.len().saturating_sub(head + tail);
+    let mut out: String = digits[..head].iter().collect();
+    out.push_str(&"*".repeat(hidden));
+    out.extend(&digits[digits.len() - tail..]);
+    out
+}
+
+/// Turn whatever an operator typed into a number the carrier will accept.
+///
+/// People write phone numbers the way they say them — `780 555 1234`,
+/// `(780) 555-1234`, `780.555.1234`. Refusing those and demanding E.164 puts
+/// the burden of a wire format on the person least equipped to care about it,
+/// at the one screen where being stuck means no account. So: keep the digits,
+/// infer the country code when it is unambiguous, and only give up when there
+/// is genuinely no number there.
+///
+/// Returns the normalized `+…` form, or `Err` with a plain-language reason.
+fn normalize_phone(raw: &str) -> Result<String, String> {
+    let raw = raw.trim();
+    let had_plus = raw.starts_with('+');
+    let mut digits: String = raw.chars().filter(|c| c.is_ascii_digit()).collect();
+
+    if digits.is_empty() {
+        return Err("That doesn't look like a phone number.".into());
+    }
+
+    // `00` is how much of the world writes `+`. Without this, `0044 20 …`
+    // would be handed to the carrier as `+0044…`, which is not a number.
+    if !had_plus && digits.starts_with("00") {
+        digits = digits[2..].to_string();
+    }
+
+    if digits.len() < 10 {
+        return Err(
+            "That number looks too short — include the area code, like 780 555 1234.".into(),
+        );
+    }
+    if digits.len() > 15 {
+        return Err("That number is longer than any phone number in use.".into());
+    }
+
+    // A bare 10-digit number has no country code on it, so one has to be
+    // assumed. This product is North American, and NANP area codes never begin
+    // with 0 or 1 — if it does begin with one of those, the assumption is
+    // unsafe and we ask rather than guess wrong and text a stranger.
+    let e164 = if !had_plus && digits.len() == 10 {
+        match digits.as_bytes()[0] {
+            b'2'..=b'9' => format!("+1{digits}"),
+            _ => {
+                return Err(
+                    "Add the country code to that number, starting with + — like +44 for the UK."
+                        .into(),
+                )
+            }
+        }
+    } else {
+        format!("+{digits}")
+    };
+
+    // E.164: a leading '+', a country code that cannot start with 0, and no
+    // more than 15 digits in total.
+    if e164.as_bytes()[1] == b'0' {
+        return Err(
+            "That number's country code doesn't look right — write it as +44…, +1…, and so on."
+                .into(),
+        );
+    }
+    if e164.len() > 16 {
+        return Err("That number is longer than any phone number in use.".into());
+    }
+    Ok(e164)
+}
 
 /// Derive a per-user possession seed (TOTP-style). Deterministic given the
 /// inputs; unique per user because the user id is unique.
@@ -472,14 +557,13 @@ async fn gate_enroll(
             "Password must be at least 8 characters".into(),
         ));
     }
-    // Phone is contact information, not a factor. The Gate does not send SMS,
-    // so an operator without a reachable number is not locked out. If one is
-    // given it still has to be well-formed.
-    if !phone.trim().is_empty() && !phone.starts_with('+') {
-        return Err(AppError::Validation(
-            "If you give a phone it must be E.164 (start with +)".into(),
-        ));
-    }
+    // A handset is optional — an operator without one is never locked out. If
+    // one is given, take it however it was typed and normalize it here.
+    let phone = if phone.trim().is_empty() {
+        String::new()
+    } else {
+        normalize_phone(&phone).map_err(AppError::Validation)?
+    };
     let (cx, cy, cz) = tfa::wire::parse_cube(&cube).ok_or_else(|| {
         AppError::Validation("Cube must be three trits 1..3, e.g. 1.3.2".into())
     })?;
@@ -665,12 +749,24 @@ async fn gate_begin(
     // is trusted when it comes back — the Gate reads its own clock.
     let now = chrono::Utc::now().timestamp();
     let t = theta::theta_at(now);
+    // Whether a text is coming after the Θ-lock, and to which handset. The hint
+    // is masked; the number itself never leaves the server.
+    let sms_required = !phone.trim().is_empty();
     Ok(wire_ok(&[
         ("session", session_id.to_string()),
         ("theta_deg", t.degrees.to_string()),
         ("theta_station", t.station.to_string()),
         ("theta_revolution", t.revolution.to_string()),
         ("station_holds", theta::secs_to_next_station(now).to_string()),
+        ("sms_required", if sms_required { "1" } else { "0" }.into()),
+        (
+            "phone_hint",
+            if sms_required {
+                mask_phone(&phone)
+            } else {
+                String::new()
+            },
+        ),
     ]))
 }
 
@@ -782,6 +878,172 @@ async fn gate_theta(
     Ok(wire_ok(&[("ok", "1".into())]))
 }
 
+/// POST /api/gate/sms — issue and deliver the SMS confirmation code.
+///
+/// Fields: `session`. Returns `sent 1` `phone_hint <masked>` `expires <secs>`,
+/// plus `dev_code <n>` when a console sender is in use outside production.
+///
+/// This factor is deliberately the opposite of the Θ-lock. The Θ-lock is
+/// derived on both sides and never travels; the SMS code is minted here and
+/// travels out of band to the enrolled handset. Requiring both means holding
+/// the Crystal seed is not enough — the handset has to be in hand as well.
+///
+/// Only reachable once Factor 1 and the Θ-lock are behind the session, so an
+/// unauthenticated caller cannot use the Gate to send texts to a number they
+/// do not control.
+async fn gate_sms(
+    State(state): State<AppState>,
+    body: String,
+) -> Result<Response, AppError> {
+    let f = tfa::wire::parse(&body);
+    let session_id: Uuid = f
+        .get("session")
+        .and_then(|s| s.parse().ok())
+        .ok_or_else(|| AppError::Validation("valid session required".into()))?;
+
+    // Mint the code and record it before handing it to the carrier, so a
+    // sender that succeeds slowly can never race ahead of the session state.
+    let (phone, code) = {
+        let mut sessions = state.three_factor_sessions.write().await;
+        let session = sessions
+            .get_mut(&session_id)
+            .filter(|s| !s.is_expired())
+            .ok_or(AppError::NotFound("Gate session not found or expired".into()))?;
+        if !session.knowledge_ok {
+            return Err(AppError::Forbidden("Complete the credentials first".into()));
+        }
+        if !session.possession_ok {
+            return Err(AppError::Forbidden("Complete the step before this one first".into()));
+        }
+        if session.phone.trim().is_empty() {
+            return Err(AppError::Forbidden(
+                "This account has no handset enrolled — nothing to text".into(),
+            ));
+        }
+        if session.sms_sends >= tfa::MAX_SMS_SENDS {
+            return Err(AppError::Validation(
+                "Too many texts requested for this session — restart the Gate".into(),
+            ));
+        }
+        let code: u32 = rand::Rng::gen_range(&mut rand::thread_rng(), 0..1_000_000);
+        session.sms_code_hash = Some(tfa::hash_knowledge(&format!("{code:06}")));
+        session.sms_issued_at = Some(chrono::Utc::now());
+        session.sms_sends += 1;
+        session.code_requested = true;
+        (session.phone.clone(), code)
+    };
+
+    let sender = state.sms_sender.as_ref().ok_or_else(|| {
+        AppError::Internal(
+            "SMS delivery is not configured on this server — set the relay credentials".into(),
+        )
+    })?;
+
+    // A carrier failure must not read as a passed factor, and must not leave a
+    // live code behind. Clear it before reporting the failure.
+    let echoed = match tfa::SmsSender::send_code(sender.as_ref(), &phone, code) {
+        Ok(v) => v,
+        Err(e) => {
+            let mut sessions = state.three_factor_sessions.write().await;
+            if let Some(s) = sessions.get_mut(&session_id) {
+                s.sms_code_hash = None;
+                s.sms_issued_at = None;
+            }
+            tracing::error!(error = %e, "Gate SMS delivery failed");
+            return Err(AppError::Internal(
+                "The confirmation text could not be delivered — try again shortly".into(),
+            ));
+        }
+    };
+
+    let mut out = vec![
+        ("sent", "1".to_string()),
+        ("phone_hint", mask_phone(&phone)),
+        ("expires", tfa::SMS_CODE_TTL_SECS.to_string()),
+        (
+            "sends_left",
+            tfa::MAX_SMS_SENDS.saturating_sub(1).to_string(),
+        ),
+    ];
+    // Second, independent guard on the echo. The console sender is the only
+    // one that returns a code and it cannot be selected outside a positively
+    // identified development environment — but the response boundary re-checks
+    // rather than trusting that, because the cost of being wrong is a live
+    // one-time code handed to whoever asked.
+    if let (Some(c), true) = (echoed, sender.echoes_code()) {
+        out.push(("dev_code", format!("{c:06}")));
+    }
+    Ok(wire_ok(&out))
+}
+
+/// POST /api/gate/sms/verify — Factor 3 (delivered SMS code).
+/// Fields: `session` `code`. Returns `ok 1`.
+async fn gate_sms_verify(
+    State(state): State<AppState>,
+    body: String,
+) -> Result<Response, AppError> {
+    let f = tfa::wire::parse(&body);
+    let session_id: Uuid = f
+        .get("session")
+        .and_then(|s| s.parse().ok())
+        .ok_or_else(|| AppError::Validation("valid session required".into()))?;
+    let code = f
+        .get("code")
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+        .ok_or_else(|| AppError::Validation("code required".into()))?;
+
+    let mut sessions = state.three_factor_sessions.write().await;
+    let session = sessions
+        .get_mut(&session_id)
+        .filter(|s| !s.is_expired())
+        .ok_or(AppError::NotFound("Gate session not found or expired".into()))?;
+    if !session.possession_ok {
+        return Err(AppError::Forbidden("Complete the step before this one first".into()));
+    }
+    if session.sms_attempts >= tfa::MAX_FACTOR_ATTEMPTS {
+        sessions.remove(&session_id);
+        return Err(AppError::Unauthorized(
+            "Too many wrong codes — session burned, please restart".into(),
+        ));
+    }
+
+    let issued = session.sms_issued_at;
+    let expected = session.sms_code_hash;
+    let fresh = issued
+        .map(|t| (chrono::Utc::now() - t).num_seconds() <= tfa::SMS_CODE_TTL_SECS)
+        .unwrap_or(false);
+    let matches = expected == Some(tfa::hash_knowledge(&code));
+
+    if !fresh || !matches {
+        session.sms_attempts += 1;
+        // Burn a stale code either way, so an expired one cannot be retried.
+        if !fresh {
+            session.sms_code_hash = None;
+            session.sms_issued_at = None;
+        }
+        if session.sms_attempts >= tfa::MAX_FACTOR_ATTEMPTS {
+            sessions.remove(&session_id);
+            return Err(AppError::Unauthorized(
+                "Too many wrong codes — session burned, please restart".into(),
+            ));
+        }
+        return Err(AppError::Unauthorized(if expected.is_none() {
+            "No code is outstanding — ask the Gate to send one".into()
+        } else if fresh {
+            "That code does not match the one we sent".into()
+        } else {
+            "That code has expired — ask the Gate for another".into()
+        }));
+    }
+
+    // Single use: spend the code the moment it succeeds.
+    session.sms_code_hash = None;
+    session.sms_issued_at = None;
+    session.sms_ok = true;
+    Ok(wire_ok(&[("ok", "1".into())]))
+}
+
 /// How long an opaque gate handle stays valid before the operator must pass
 /// all three factors again. There is no refresh token: a handle is cheap to
 /// re-mint and, unlike a JWT, can be revoked the instant it is not wanted.
@@ -818,6 +1080,14 @@ async fn gate_codepoint(
                 "Complete the credentials and the Θ-lock first".into(),
             ));
         }
+        // The SMS confirmation is required exactly when a handset is enrolled.
+        // An account with no number on file has nothing to text and is not held
+        // at a stage it could never clear.
+        if !session.phone.trim().is_empty() && !session.sms_ok {
+            return Err(AppError::Forbidden(
+                "Enter the code we texted you first".into(),
+            ));
+        }
         // Cap brute force on the codepoint — only 27 cubes exist, so an
         // uncapped session would let an attacker who already holds factors 1+2
         // enumerate the third. Burn the session once the cap is hit.
@@ -843,7 +1113,7 @@ async fn gate_codepoint(
                 ));
             }
             return Err(AppError::Unauthorized(
-                "Selected cube does not match your enrolled codepoint".into(),
+                "Those aren't the three numbers you chose when you set up this account".into(),
             ));
         }
         let uid = session.user_id.expect("filtered on is_some");

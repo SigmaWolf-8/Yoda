@@ -84,12 +84,15 @@ function primaryBtn(pending) {
 // The Crystal codepoint picker — three trit axes (X·Y·Z), each 1..3 (Rep C).
 // This IS the third factor, rendered on the canvas as three rows of cubes.
 function CrystalPicker({ value, onChange, C, fBody, fDisplay }) {
-  const axes = ['X', 'Y', 'Z'];
+  // Named for what the operator is doing — picking one number in each of three
+  // rows — rather than for the geometry underneath. X/Y/Z means nothing to the
+  // person being asked to remember it.
+  const axes = ['1st', '2nd', '3rd'];
   return (
     <div style={{ marginBottom: '0.4rem' }}>
       {axes.map((axis, ai) => (
         <div key={axis} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.55rem' }}>
-          <span style={{ ...fDisplay, width: '1.4rem', color: C.faint, fontSize: '0.8rem' }}>{axis}</span>
+          <span style={{ ...fDisplay, width: '2.1rem', color: C.faint, fontSize: '0.72rem' }}>{axis}</span>
           <div style={{ display: 'flex', gap: '0.4rem', flex: 1 }}>
             {[1, 2, 3].map((t) => {
               const sel = value[ai] === t;
@@ -121,7 +124,7 @@ function CrystalPicker({ value, onChange, C, fBody, fDisplay }) {
         </div>
       ))}
       <div style={{ ...fBody, textAlign: 'center', fontSize: '0.74rem', color: C.muted, marginTop: '0.5rem' }}>
-        Codepoint · {value[0]}.{value[1]}.{value[2]}
+        YOUR THREE NUMBERS · {value[0]} · {value[1]} · {value[2]}
       </div>
     </div>
   );
@@ -145,8 +148,8 @@ export function TorusGatePage() {
   const [password, setPassword] = useState('');
   const [remember, setRemember] = useState(true);
 
-  // ── Staged 3-factor gate: credentials → Θ-lock → Crystal cube ──
-  // 'creds' | 'possession' | 'codepoint' | 'enroll'
+  // ── Staged gate: credentials → Θ-lock → texted code → Crystal cube ──
+  // 'creds' | 'possession' | 'sms' | 'codepoint' | 'enroll'
   const [stage, setStage] = useState('creds');
   const [session, setSession] = useState('');
   const [cube, setCube] = useState([1, 1, 1]); // Crystal codepoint trits 1..3
@@ -158,6 +161,15 @@ export function TorusGatePage() {
   const [reading, setReading] = useState('');
   const [seedEntry, setSeedEntry] = useState('');
   const [needSeed, setNeedSeed] = useState(false);
+  // SMS confirmation. Unlike the Θ-lock this factor is *delivered*: the code is
+  // minted at the Gate and sent to the enrolled handset. Only accounts with a
+  // number on file are held here.
+  const [smsRequired, setSmsRequired] = useState(false);
+  const [phoneHint, setPhoneHint] = useState('');
+  const [smsCode, setSmsCode] = useState('');
+  const [smsSent, setSmsSent] = useState(false);
+  const [smsExpires, setSmsExpires] = useState(0);
+  const [devCode, setDevCode] = useState('');
   // First-login enrollment (existing accounts with no cube on file yet).
   const [enrollPhone, setEnrollPhone] = useState('');
   const [enrollCube, setEnrollCube] = useState([1, 1, 1]);
@@ -181,6 +193,8 @@ export function TorusGatePage() {
         return;
       }
       setSession(r.session);
+      setSmsRequired(r.sms_required === '1');
+      setPhoneHint(r.phone_hint || '');
       await enterThetaStage();
     } catch (err) {
       setGateError(err?.message || 'The gate refused these keys');
@@ -215,7 +229,7 @@ export function TorusGatePage() {
     e.preventDefault();
     const seed = seedEntry.trim().toLowerCase();
     if (!/^[0-9a-f]{64}$/.test(seed)) {
-      setGateError('A Crystal seed is 64 hexadecimal characters');
+      setGateError('That key does not look right — it is 64 characters of letters a–f and digits, with no spaces.');
       return;
     }
     setGateError(null);
@@ -241,9 +255,52 @@ export function TorusGatePage() {
       const now = formatReading(await currentReading(seed));
       setReading(now);
       await gatePost('/gate/theta', { session, reading: now });
-      setStage('codepoint');
+      // The Θ-lock proves the seed. The text proves the handset. An account
+      // with no handset on file skips straight to the Crystal rather than
+      // being held at a stage it could never clear.
+      if (smsRequired) {
+        setStage('sms');
+        await requestSms();
+      } else {
+        setStage('codepoint');
+      }
     } catch (err) {
       setGateError(err?.message || 'The circle rejected that reading');
+    } finally {
+      setPending(false);
+    }
+  }
+
+  // Ask the Gate to text the enrolled handset. Called on entering the stage
+  // and again if the operator asks for another.
+  async function requestSms() {
+    setGateError(null);
+    setSmsCode('');
+    setDevCode('');
+    try {
+      const r = await gatePost('/gate/sms', { session });
+      setSmsSent(true);
+      if (r.phone_hint) setPhoneHint(r.phone_hint);
+      setSmsExpires(Number(r.expires) || 120);
+      // Present only outside production, where a console sender stands in for
+      // a carrier. In production nothing is echoed and this stays empty.
+      if (r.dev_code) setDevCode(r.dev_code);
+    } catch (err) {
+      setSmsSent(false);
+      setGateError(err?.message || 'The Gate could not send that text');
+    }
+  }
+
+  // Factor 3 — the delivered code.
+  async function submitSmsCode(e) {
+    e.preventDefault();
+    setGateError(null);
+    setPending(true);
+    try {
+      await gatePost('/gate/sms/verify', { session, code: smsCode.trim() });
+      setStage('codepoint');
+    } catch (err) {
+      setGateError(err?.message || 'That code was refused');
     } finally {
       setPending(false);
     }
@@ -290,8 +347,13 @@ export function TorusGatePage() {
       setIssuedSeed(en.seed);
       setGateError(null);
       // Straight back into begin so the operator flows through in one go.
+      // The handset they may have just given only becomes a factor here, so
+      // carry the answer through — without it the first sign-in after
+      // enrolling silently skips the texted code it was just promised.
       const r = await gatePost('/gate/begin', { email, password });
       setSession(r.session);
+      setSmsRequired(r.sms_required === '1');
+      setPhoneHint(r.phone_hint || '');
       await enterThetaStage();
     } catch (err) {
       setGateError(err?.message || 'Enrollment failed');
@@ -306,6 +368,11 @@ export function TorusGatePage() {
     setReading('');
     setNeedSeed(false);
     setGateError(null);
+    setSmsRequired(false);
+    setPhoneHint('');
+    setSmsCode('');
+    setSmsSent(false);
+    setDevCode('');
   }
 
   // While the operator is at Factor 2, keep the angle and the reading live —
@@ -319,6 +386,16 @@ export function TorusGatePage() {
     }, 1000);
     return () => clearInterval(tick);
   }, [stage, needSeed]);
+
+  // Run the delivered code's short life down in front of the operator, so an
+  // expired code is visibly expired rather than a surprise rejection.
+  useEffect(() => {
+    if (stage !== 'sms' || !smsSent) return;
+    const tick = setInterval(() => {
+      setSmsExpires((s) => (s > 0 ? s - 1 : 0));
+    }, 1000);
+    return () => clearInterval(tick);
+  }, [stage, smsSent]);
 
   // ── 432Hz square-wave "attune" — a real oscillator, opt-in on click ─────────
   function toggleTone() {
@@ -783,7 +860,7 @@ export function TorusGatePage() {
             marginBottom: '1.6rem',
           }}
         >
-          Functional Lawful Access Gate — present your keys to pass
+          Functional Lawful Access Gate — sign in below
         </div>
 
         {/* Access card | the only interactive surface. Staged 3-factor flow. */}
@@ -793,9 +870,11 @@ export function TorusGatePage() {
               ? submitCreds
               : stage === 'possession'
                 ? (needSeed ? adoptSeed : submitReading)
-                : stage === 'codepoint'
-                  ? submitCube
-                  : submitEnroll
+                : stage === 'sms'
+                  ? submitSmsCode
+                  : stage === 'codepoint'
+                    ? submitCube
+                    : submitEnroll
           }
           style={{
             pointerEvents: 'auto',
@@ -831,9 +910,14 @@ export function TorusGatePage() {
             {[
               { key: 'creds', n: 'I' },
               { key: 'possession', n: 'II' },
-              { key: 'codepoint', n: 'III' },
+              // The texted code only exists as a stage for accounts with a
+              // handset enrolled; the rail follows suit.
+              ...(smsRequired ? [{ key: 'sms', n: 'III' }] : []),
+              { key: 'codepoint', n: smsRequired ? 'IV' : 'III' },
             ].map((f, i) => {
-              const order = { creds: 0, enroll: 0, possession: 1, codepoint: 2 };
+              const order = smsRequired
+                ? { creds: 0, enroll: 0, possession: 1, sms: 2, codepoint: 3 }
+                : { creds: 0, enroll: 0, possession: 1, sms: 2, codepoint: 2 };
               const active = order[stage] === i;
               const done = order[stage] > i;
               return (
@@ -894,7 +978,7 @@ export function TorusGatePage() {
               <div style={{ ...fBody, textAlign: 'center', marginTop: '1.1rem', fontSize: '0.82rem', color: C.muted }}>
                 No mark yet?{' '}
                 <Link to="/register" style={{ color: C.brassLight, textDecoration: 'none' }}>
-                  Petition for one
+                  Create an account
                 </Link>
               </div>
             </>
@@ -903,8 +987,12 @@ export function TorusGatePage() {
           {/* ── Stage II — Possession: Θ-lock on the unified epoch ── */}
           {stage === 'possession' && !needSeed && (
             <>
-              <div style={{ ...fSerif, color: C.brassLight, fontSize: '1rem', fontStyle: 'italic', textAlign: 'center', marginBottom: '1rem' }}>
-                The circle stands at θ&nbsp;{angle.degrees}°. Your Crystal reads:
+              <div style={{ ...fSerif, color: C.brassLight, fontSize: '1rem', fontStyle: 'italic', textAlign: 'center', marginBottom: '0.4rem' }}>
+                This device's number right now:
+              </div>
+              <div style={{ ...fBody, fontSize: '0.76rem', color: C.faint, textAlign: 'center', marginBottom: '0.8rem', lineHeight: 1.5 }}>
+                Worked out here, from the secret key held on this device.
+                Nothing was sent to you — just press the button below.
               </div>
 
               {/* The reading is derived here, from the seed this device holds.
@@ -960,9 +1048,14 @@ export function TorusGatePage() {
           {stage === 'possession' && needSeed && (
             <>
               <div style={{ ...fSerif, color: C.brassLight, fontSize: '1rem', fontStyle: 'italic', textAlign: 'center', marginBottom: '1rem' }}>
-                This Crystal holds no seed. Present the one issued at your enrollment.
+                This device doesn't have your key yet.
               </div>
-              <label style={labelStyle}>Crystal Seed (64 hex)</label>
+              <div style={{ ...fBody, fontSize: '0.78rem', color: C.muted, textAlign: 'center', marginBottom: '1.1rem', lineHeight: 1.5 }}>
+                You were shown a long secret key when you set up your account.
+                Paste it here to use this machine, or go back to the one you set
+                up on.
+              </div>
+              <label style={labelStyle}>Your secret key</label>
               <input
                 type="password" value={seedEntry} autoComplete="off" spellCheck={false}
                 onChange={(e) => setSeedEntry(e.target.value.trim())}
@@ -978,11 +1071,54 @@ export function TorusGatePage() {
             </>
           )}
 
-          {/* ── Stage III — Codepoint: the Crystal cube ── */}
+          {/* ── Stage III — the delivered code (only when a handset is on file) ── */}
+          {stage === 'sms' && (
+            <>
+              <div style={{ ...fSerif, color: C.brassLight, fontSize: '1rem', fontStyle: 'italic', textAlign: 'center', marginBottom: '0.9rem' }}>
+                {smsSent
+                  ? <>We texted a 6-digit code to&nbsp;{phoneHint || 'your phone'}.</>
+                  : <>Texting a code to&nbsp;{phoneHint || 'your phone'}…</>}
+              </div>
+
+              <label style={labelStyle}>Type the code from the text</label>
+              <input
+                type="text" inputMode="numeric" autoComplete="one-time-code"
+                value={smsCode} onChange={(e) => setSmsCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                required placeholder="······" spellCheck={false}
+                style={{ ...inputStyle, textAlign: 'center', fontSize: '1.4rem', letterSpacing: '0.42em', textIndent: '0.42em' }}
+              />
+
+              <div style={{ ...fBody, textAlign: 'center', margin: '0.2rem 0 1.1rem', fontSize: '0.74rem', color: C.muted, letterSpacing: '0.08em' }}>
+                {smsExpires > 0 ? <>EXPIRES IN {smsExpires}s</> : <>EXPIRED — SEND ANOTHER</>}
+                {/* A console sender stands in for the carrier outside
+                    production. This never renders in production — the server
+                    does not echo the code there. */}
+                {devCode && (
+                  <div style={{ marginTop: '0.35rem', color: '#f0b4b4' }}>
+                    NO CARRIER CONNECTED — TEST CODE: {devCode}
+                  </div>
+                )}
+              </div>
+
+              <button type="submit" disabled={pending || smsCode.length < 6} style={primaryBtn(pending || smsCode.length < 6)}>
+                {pending ? 'Confirming…' : 'Confirm the Code'}
+              </button>
+              <div style={{ ...fBody, textAlign: 'center', marginTop: '1.1rem', fontSize: '0.8rem', color: C.muted }}>
+                <span onClick={() => { if (!pending) requestSms(); }} style={{ color: C.brassLight, cursor: 'pointer' }}>Send another</span>
+                {'  ·  '}
+                <span onClick={restartGate} style={{ color: C.faint, cursor: 'pointer' }}>Start over</span>
+              </div>
+            </>
+          )}
+
+          {/* ── Final stage — Codepoint: the Crystal cube ── */}
           {stage === 'codepoint' && (
             <>
               <div style={{ ...fSerif, color: C.brassLight, fontSize: '1rem', fontStyle: 'italic', textAlign: 'center', marginBottom: '0.9rem' }}>
-                Select your cube on the Crystal.
+                Last step — your three numbers.
+              </div>
+              <div style={{ ...fBody, fontSize: '0.78rem', color: C.muted, textAlign: 'center', marginBottom: '1rem', lineHeight: 1.5 }}>
+                The same three you chose when you set up this account.
               </div>
               <CrystalPicker value={cube} onChange={setCube} C={C} fBody={fBody} fDisplay={fDisplay} />
               <button type="submit" disabled={pending} style={{ ...primaryBtn(pending), marginTop: '1.1rem' }}>
@@ -997,17 +1133,36 @@ export function TorusGatePage() {
           {/* ── First-login enrollment for pre-existing accounts ── */}
           {stage === 'enroll' && (
             <>
-              <div style={{ ...fSerif, color: C.brassLight, fontSize: '1rem', fontStyle: 'italic', textAlign: 'center', marginBottom: '1rem' }}>
-                One-time enrollment: choose your Crystal cube. The Gate will
-                seat a Θ-lock seed on this device.
+              <div style={{ ...fSerif, color: C.brassLight, fontSize: '1rem', fontStyle: 'italic', textAlign: 'center', marginBottom: '0.5rem' }}>
+                Set up your gate. You only do this once.
               </div>
-              <label style={labelStyle}>Phone — contact only, not a key</label>
+              <div style={{ ...fBody, fontSize: '0.78rem', color: C.muted, textAlign: 'center', marginBottom: '1.2rem', lineHeight: 1.5 }}>
+                Your password alone won't open this gate. Below you'll add two
+                more things only you have.
+              </div>
+
+              <label style={labelStyle}>1 · Your mobile number</label>
               <input
                 type="tel" value={enrollPhone} onChange={(e) => setEnrollPhone(e.target.value)}
-                placeholder="optional · +15551234567" style={inputStyle}
+                placeholder="780 555 1234" style={inputStyle}
               />
-              <label style={labelStyle}>Your Crystal Cube</label>
+              <div style={{ ...fBody, fontSize: '0.76rem', color: C.faint, margin: '-0.55rem 0 1.3rem', lineHeight: 1.5 }}>
+                Optional. Add it and we'll text you a 6-digit code every time you
+                sign in. Leave it blank and we won't — you'll sign in without one.
+              </div>
+
+              <label style={labelStyle}>2 · Pick three numbers</label>
+              <div style={{ ...fBody, fontSize: '0.76rem', color: C.faint, margin: '-0.35rem 0 0.9rem', lineHeight: 1.5 }}>
+                Choose one number from each row — like a 3-digit PIN you pick
+                yourself. You'll pick these same three every time you sign in, so
+                choose something you'll remember.
+              </div>
               <CrystalPicker value={enrollCube} onChange={setEnrollCube} C={C} fBody={fBody} fDisplay={fDisplay} />
+              <div style={{ ...fBody, fontSize: '0.76rem', color: C.faint, margin: '0.9rem 0 0', lineHeight: 1.5 }}>
+                When you continue, this device is also given a secret key of its
+                own. It stays on this device and is never sent anywhere — it's
+                what lets the gate recognise the machine you're sitting at.
+              </div>
               <button type="submit" disabled={pending} style={{ ...primaryBtn(pending), marginTop: '1.1rem' }}>
                 {pending ? 'Enrolling…' : 'Enroll & Enter'}
               </button>

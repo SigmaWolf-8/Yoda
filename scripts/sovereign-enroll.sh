@@ -88,7 +88,9 @@ psql "$DATABASE_URL" -qtAc "
     UPDATE users
        SET password_hash = '${HASH}',
            gate_enrolled = FALSE,
-           gate_theta_seed = NULL
+           gate_possession_seed = NULL,
+           gate_theta_seed = NULL,
+           gate_theta_last_station = NULL
      WHERE lower(email) = lower('${EMAIL}')" >/dev/null
 
 # Any sessions opened under the old passphrase are no longer yours to honour.

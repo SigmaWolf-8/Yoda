@@ -33,7 +33,8 @@ The backend is a Rust workspace at the repo root with seven crates:
 **Key backend patterns:**
 - `sqlx` with compile-time checked queries against PostgreSQL
 - Two credential forms: the Torus Gate issues opaque server-side session handles (no JWT, no JSON — see `crates/yoda-api/src/gate_handle.rs`); the legacy `/api/auth/login` still issues JWT access + refresh tokens. The auth middleware accepts both.
-- Torus Gate 3-factor login: passphrase → Θ-lock reading (derived from the unified epoch's theta angle, `crates/yoda-api/src/theta.rs` — no SMS, no carrier) → Crystal codepoint cube. The gate speaks a JSON-free line protocol.
+- Torus Gate staged login: passphrase → Θ-lock reading (derived from the unified epoch's theta angle, `crates/yoda-api/src/theta.rs`; never transmitted) → texted code, only for accounts with a handset enrolled → Crystal codepoint cube. The gate speaks a JSON-free line protocol.
+- SMS delivery: the PlenumNET relay sender is used everywhere except a positively identified development environment, where a console sender logs and echoes the code instead. Production requires `PLENUMNET_RELAY_ENDPOINT` and `PLENUMNET_RELAY_SIGNATURE`; without them the SMS factor is disarmed at boot and accounts with a handset cannot pass it.
 - WebSocket endpoint at `/ws/pipeline/{project_id}` for real-time task progress events
 - PlenumNET bridge functions currently stubbed with `todo!()` — implementation pending
 - External `ternary-math` crate sourced from `https://github.com/SigmaWolf-8/Ternary` via Cargo git dependency
