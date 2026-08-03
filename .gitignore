@@ -14,6 +14,12 @@ agents/compiled/
 .env.local
 .env.production
 
+# Tauri desktop shell — build output and generated bundle payload
+tauri/target/
+tauri/gen/schemas/
+tauri/binaries/
+tauri/resources/
+
 # Node.js / React frontend
 frontend/node_modules/
 frontend/dist/
