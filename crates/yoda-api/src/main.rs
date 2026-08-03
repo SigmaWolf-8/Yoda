@@ -148,6 +148,11 @@ async fn main() -> anyhow::Result<()> {
     // ── Spawn relay health monitor (updates engine DB every 30 s) ───
     cube_relay::spawn_relay_health_monitor(state.clone());
 
+    // ── Probe every configured engine once, right now ────────────────
+    // The background monitors only write a status on their first tick (30–60 s
+    // in), so without this the UI shows "offline" for everything on boot.
+    routes::spawn_startup_engine_probes(state.clone());
+
     // ── Initialize Kyokushin Brothers (Alpha/Beta/Gamma orchestrator) ─
     let kyokushin = kyokushin_brothers::init_kyokushin_brothers().await;
 

@@ -105,43 +105,57 @@ pub fn spawn_health_monitor(
             s.insert(config.slot, EngineHealth::new(config.slot));
         }
 
+        // Probe immediately on startup so the engine has a real status before
+        // the first polling interval elapses — otherwise every engine reads
+        // "offline" for the first 30–60 s regardless of whether it is up.
+        tracing::info!(slot = ?config.slot, "Initial engine health probe");
+        run_health_check(&client, &config, &state).await;
+
         loop {
-            let start = Instant::now();
-            let result = check_engine_health(&client, &config).await;
-            let latency_ms = start.elapsed().as_millis() as u64;
-
-            {
-                let mut s = state.write().await;
-                let health = s.entry(config.slot).or_insert_with(|| EngineHealth::new(config.slot));
-
-                match result {
-                    Ok(()) => {
-                        health.record_success(latency_ms);
-                        if start.elapsed() > SUSPECT_THRESHOLD {
-                            health.status = HealthStatus::Suspect;
-                            tracing::warn!(slot = ?config.slot, latency_ms, "Slow health check — suspect");
-                        }
-                    }
-                    Err(e) => {
-                        health.record_failure();
-                        tracing::warn!(
-                            slot = ?config.slot,
-                            failures = health.consecutive_failures,
-                            status = ?health.status,
-                            error = %e,
-                            "Health check failed"
-                        );
-                    }
-                }
-            }
-
             tokio::time::sleep(interval).await;
+            run_health_check(&client, &config, &state).await;
         }
     })
 }
 
+/// Run one health check and fold the outcome into the shared state.
+async fn run_health_check(
+    client: &reqwest::Client,
+    config: &EngineConfig,
+    state: &SharedHealthState,
+) {
+    let start = Instant::now();
+    let result = check_engine_health(client, config).await;
+    let latency_ms = start.elapsed().as_millis() as u64;
+
+    let mut s = state.write().await;
+    let health = s
+        .entry(config.slot)
+        .or_insert_with(|| EngineHealth::new(config.slot));
+
+    match result {
+        Ok(()) => {
+            health.record_success(latency_ms);
+            if start.elapsed() > SUSPECT_THRESHOLD {
+                health.status = HealthStatus::Suspect;
+                tracing::warn!(slot = ?config.slot, latency_ms, "Slow health check — suspect");
+            }
+        }
+        Err(e) => {
+            health.record_failure();
+            tracing::warn!(
+                slot = ?config.slot,
+                failures = health.consecutive_failures,
+                status = ?health.status,
+                error = %e,
+                "Health check failed"
+            );
+        }
+    }
+}
+
 /// Perform a single health check on an engine.
-async fn check_engine_health(
+pub async fn check_engine_health(
     client: &reqwest::Client,
     config: &EngineConfig,
 ) -> Result<(), String> {

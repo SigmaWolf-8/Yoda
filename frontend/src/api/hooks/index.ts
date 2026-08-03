@@ -39,6 +39,7 @@ export {
   useDeleteEngine,
   useMarkEngineOnline,
   useMarkEngineOffline,
+  usePingEngine,
   useDisableEngine,
   useEnableEngine,
   useValidateDiversity,

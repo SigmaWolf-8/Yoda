@@ -84,6 +84,31 @@ export function useDeleteEngine() {
   });
 }
 
+export interface EnginePingResult {
+  slot: EngineSlot;
+  status: string;
+  reachable: boolean;
+  latency_ms: number;
+  error?: string | null;
+  note?: string | null;
+}
+
+/**
+ * On-demand engine health check. Runs the probe server-side and resolves with
+ * the fresh status + latency, so a "Test Connection" button can show pass/fail
+ * without waiting for the background poll.
+ */
+export function usePingEngine() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (slot: EngineSlot) => {
+      const res = await apiClient.post<EnginePingResult>(`/yoda/engines/${slot}/ping`);
+      return res.data;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['engines'] }),
+  });
+}
+
 export function useMarkEngineOnline() {
   const qc = useQueryClient();
   return useMutation({

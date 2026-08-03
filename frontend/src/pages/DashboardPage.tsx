@@ -1,6 +1,7 @@
 import { LayoutDashboard } from 'lucide-react';
 import { usePageHeader } from '../context/PageHeader';
 import { useVideoPlay } from '../context/VideoPlay';
+import { EngineStatusStrip } from '../components/monitoring/EngineStatusStrip';
 
 const SIDEBAR_PLAY_OFFSET_MS = 800;
 
@@ -15,6 +16,9 @@ export function DashboardPage() {
 
   return (
     <div className="flex flex-col gap-6 animate-fade-in">
+
+      {/* ── Engine status strip (slots A/B/C) ── */}
+      <EngineStatusStrip />
 
       {/* ── Hero video ── */}
       <div

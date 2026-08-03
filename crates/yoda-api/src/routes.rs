@@ -124,6 +124,8 @@ pub fn build_router(state: AppState) -> Router {
         .route("/api/settings/engines/{slot}", put(update_engine))
         .route("/api/settings/engines/{slot}", delete(clear_engine))
         .route("/api/settings/engines/{slot}/probe", get(probe_engine))
+        // On-demand engine ping — synchronous health check for one slot
+        .route("/api/yoda/engines/{slot}/ping", post(ping_engine))
         .route("/api/settings/engines/{slot}/mark-online", post(mark_engine_online))
         .route("/api/settings/engines/{slot}/mark-offline", post(mark_engine_offline))
         .route("/api/settings/engines/{slot}/disable", post(disable_engine))
@@ -2514,6 +2516,121 @@ async fn probe_engine(
         user.org_id,
         slot,
     ).await))
+}
+
+/// POST /api/yoda/engines/{slot}/ping
+///
+/// On-demand health check for one engine slot. Runs the same probe the
+/// background monitor uses, synchronously, and returns the resulting status
+/// plus round-trip latency so the UI can show pass/fail in seconds instead of
+/// waiting for the next polling tick. Auth + org scope match the other engine
+/// settings endpoints (JWT via the protected router, `user.org_id`).
+async fn ping_engine(
+    State(state): State<AppState>,
+    user: axum::Extension<auth::AuthenticatedUser>,
+    Path(slot): Path<String>,
+) -> Result<Json<serde_json::Value>, AppError> {
+    if !["a", "b", "c"].contains(&slot.as_str()) {
+        return Err(AppError::Validation("Slot must be 'a', 'b', or 'c'".into()));
+    }
+
+    let started = std::time::Instant::now();
+    let probe = probe_engine_inner(
+        state.db.clone(),
+        state.relay_tx.clone(),
+        state.live_cube_peer.clone(),
+        user.org_id,
+        slot.clone(),
+    )
+    .await;
+
+    let reachable = probe.get("reachable").and_then(|v| v.as_bool()).unwrap_or(false);
+    let latency_ms = probe
+        .get("latency_ms")
+        .and_then(|v| v.as_u64())
+        .unwrap_or_else(|| started.elapsed().as_millis() as u64);
+    let error = probe
+        .get("error")
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_string());
+    let note = probe
+        .get("note")
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_string());
+
+    // `probe_engine_inner` writes the conclusive status to the DB, so read it
+    // back rather than re-deriving it here — the two can never disagree.
+    let stored_status: Option<String> = sqlx::query_scalar(
+        "SELECT health_status FROM engine_configs WHERE org_id=$1 AND slot=$2",
+    )
+    .bind(user.org_id)
+    .bind(&slot)
+    .fetch_optional(&state.db)
+    .await
+    .map_err(AppError::Database)?;
+
+    let status = stored_status.unwrap_or_else(|| {
+        if reachable { "online".to_string() } else { "offline".to_string() }
+    });
+
+    Ok(Json(serde_json::json!({
+        "slot": slot,
+        "status": status,
+        "reachable": reachable,
+        "latency_ms": latency_ms,
+        "error": error,
+        "note": note,
+    })))
+}
+
+/// Probe every configured engine once, immediately at startup.
+///
+/// Without this the first status the UI can show comes from the 30 s relay
+/// monitor tick (self-hosted) or the next background poll (cloud), so engines
+/// read "offline" for the first half-minute of every boot even when they are
+/// up. Spawned as a background task so it never delays binding the port; all
+/// slots are probed concurrently, so status normally lands within a few seconds.
+pub fn spawn_startup_engine_probes(state: AppState) {
+    tokio::spawn(async move {
+        let rows = match sqlx::query_as::<_, (Uuid, String)>(
+            "SELECT org_id, slot FROM engine_configs \
+             WHERE COALESCE(model_name, '') <> '' AND COALESCE(is_disabled, FALSE) = FALSE",
+        )
+        .fetch_all(&state.db)
+        .await
+        {
+            Ok(r) => r,
+            Err(e) => {
+                tracing::warn!(error = %e, "Startup engine probe: could not list engines");
+                return;
+            }
+        };
+
+        if rows.is_empty() {
+            tracing::info!("Startup engine probe: no configured engines to probe");
+            return;
+        }
+
+        let count = rows.len();
+        let handles: Vec<_> = rows
+            .into_iter()
+            .map(|(org_id, slot)| {
+                let db = state.db.clone();
+                let relay_tx = state.relay_tx.clone();
+                let live_peer = state.live_cube_peer.clone();
+                tokio::spawn(async move {
+                    let result = probe_engine_inner(db, relay_tx, live_peer, org_id, slot.clone()).await;
+                    let reachable = result.get("reachable").and_then(|v| v.as_bool()).unwrap_or(false);
+                    tracing::info!(slot = %slot, reachable, "Startup engine probe complete");
+                })
+            })
+            .collect();
+
+        for h in handles {
+            let _ = h.await;
+        }
+        tracing::info!(count, "Startup engine probes finished");
+    });
 }
 
 /// POST /api/settings/engines/{slot}/mark-online

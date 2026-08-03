@@ -35,7 +35,8 @@ import {
   makePsStep2Script,
   triggerDownload,
 } from './installScripts';
-import { useUpdateEngine, useDeleteEngine, useMarkEngineOffline, useDisableEngine, useEnableEngine } from '../../api/hooks';
+import { useUpdateEngine, useDeleteEngine, useMarkEngineOffline, useDisableEngine, useEnableEngine, usePingEngine } from '../../api/hooks';
+import type { EnginePingResult } from '../../api/hooks/useEngines';
 import { getStoredToken } from '../../api/client';
 import { useToast } from '../common/Toast';
 import type {
@@ -539,6 +540,7 @@ export function EngineSlotCard({
   const markOffline = useMarkEngineOffline();
   const disableEngine = useDisableEngine();
   const enableEngine = useEnableEngine();
+  const pingEngine = usePingEngine();
   const qc = useQueryClient();
   const { toast } = useToast();
 
@@ -559,6 +561,7 @@ export function EngineSlotCard({
   const [downloaded, markDownloaded] = useDownloadedModels();
   type ProbeResult = { reachable: boolean; latency_ms?: number; http_status?: number; error?: string; note?: string | null };
   const [probeState, setProbeState] = useState<null | 'loading' | ProbeResult>(null);
+  const [pingResult, setPingResult] = useState<EnginePingResult | null>(null);
   const [syncing,    setSyncing]    = useState(false);
   const [syncResult, setSyncResult] = useState<'ok' | 'fail' | null>(null);
 
@@ -1014,6 +1017,23 @@ export function EngineSlotCard({
 
   const isDisabled = config?.is_disabled ?? false;
 
+  // ── On-demand connection test (Task #11) ──────────────────────────────
+  // Hits POST /api/yoda/engines/{slot}/ping and shows the result inline —
+  // no page reload, no waiting for the background poll.
+  function handleTestConnection() {
+    setPingResult(null);
+    pingEngine.mutate(slot, {
+      onSuccess: (data) => setPingResult(data),
+      onError:   () => setPingResult({
+        slot,
+        status: 'offline',
+        reachable: false,
+        latency_ms: 0,
+        error: 'Could not reach the YODA server',
+      }),
+    });
+  }
+
   function handleToggleDisabled() {
     if (isDisabled) {
       enableEngine.mutate(slot, {
@@ -1049,6 +1069,18 @@ export function EngineSlotCard({
                 <span className="text-xs text-[var(--color-text-muted)] italic">disabled</span>
               )}
               <button
+                onClick={handleTestConnection}
+                disabled={pingEngine.isPending}
+                title="Run a health check on this engine right now"
+                className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium border border-[var(--color-border-default)] text-[var(--color-text-muted)] hover:border-[var(--color-border-strong)] hover:text-[var(--color-text-secondary)] transition-colors disabled:opacity-50"
+              >
+                {pingEngine.isPending
+                  ? <Loader2 className="w-3 h-3 animate-spin" />
+                  : <Radio className="w-3 h-3" />
+                }
+                {pingEngine.isPending ? 'Testing…' : 'Test Connection'}
+              </button>
+              <button
                 onClick={handleToggleDisabled}
                 disabled={disableEngine.isPending || enableEngine.isPending}
                 title={isDisabled ? 'Enable this engine' : 'Disable this engine — YODA will skip it'}
@@ -1068,6 +1100,39 @@ export function EngineSlotCard({
           )}
         </div>
       </div>
+
+      {/* Inline result of the on-demand connection test */}
+      {(pingEngine.isPending || pingResult) && (
+        <div
+          className={`flex items-center gap-1.5 text-sm px-2.5 py-1.5 rounded-md mb-2.5 ${
+            pingEngine.isPending
+              ? 'bg-[var(--color-surface-tertiary)] text-[var(--color-text-muted)]'
+              : pingResult?.reachable
+                ? pingResult?.note
+                  ? 'bg-[var(--color-gold-500)]/10 text-[var(--color-gold-400)]'
+                  : 'bg-[var(--color-plex-500)]/10 text-[var(--color-plex-400)]'
+                : 'bg-[var(--color-surface-tertiary)] text-[var(--color-text-muted)]'
+          }`}
+        >
+          {pingEngine.isPending ? (
+            <><Loader2 className="w-3 h-3 animate-spin flex-shrink-0" /> Testing connection…</>
+          ) : pingResult?.reachable ? (
+            <>
+              <CheckCircle2 className="w-3 h-3 flex-shrink-0" />
+              {pingResult.note
+                ? `${pingResult.note} · ${pingResult.latency_ms} ms`
+                : `Connected — ${pingResult.status} · ${pingResult.latency_ms} ms`}
+            </>
+          ) : (
+            <>
+              <XCircle className="w-3 h-3 flex-shrink-0" />
+              {`No connection — ${pingResult?.status ?? 'offline'}`}
+              {pingResult?.error ? ` · ${pingResult.error}` : ''}
+              {pingResult?.note ? ` · ${pingResult.note}` : ''}
+            </>
+          )}
+        </div>
+      )}
 
       {/* Mode selector */}
       <div className="flex gap-1.5 mb-2.5">
