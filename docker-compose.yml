@@ -1,16 +1,29 @@
-# YODA — Docker Compose (local production)
+# YODA — Docker Compose
 #
-# Starts YODA backend + PostgreSQL in containers.
+# Two shapes, selected by profile:
+#
+#   Database only (local development — backend runs natively via `cargo run`
+#   or `cargo tauri dev`, so there is no image to build):
+#     docker compose --profile db up -d
+#
+#   Full stack (backend + database in containers):
+#     cp .env.example .env  # Edit with real values
+#     docker compose --profile full up -d
+#     docker compose logs -f yoda
+#
+# `postgres` carries no profile, so it starts under any profile — and a bare
+# `docker compose up -d` brings up just the database.
+#
 # For development with self-hosted inference engines, add llama-server
 # services or point the Settings page at your local instances.
 #
-# Usage:
-#   cp .env.example .env  # Edit with real values
-#   docker compose up -d
-#   docker compose logs -f yoda
+# See docker-compose.local.yml for the laptop-friendly database override.
 
 services:
   yoda:
+    # Profiled: local development runs the backend on the host, and building
+    # this image on every `up` is a multi-minute Rust compile nobody wants.
+    profiles: ["full"]
     build: .
     ports:
       - "3000:3000"

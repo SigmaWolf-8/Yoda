@@ -1,0 +1,31 @@
+# YODA — local development override
+#
+# Layered on top of docker-compose.yml when you are running the backend
+# natively (cargo run / cargo tauri dev) and only want the database in Docker.
+#
+# Usage:
+#   docker compose -f docker-compose.yml -f docker-compose.local.yml up -d
+#
+# Or make it the default for this checkout by adding to your shell profile:
+#   export COMPOSE_FILE=docker-compose.yml:docker-compose.local.yml
+#
+# Differences from the base file:
+#   * a predictable container name, so `docker logs yoda-postgres` just works
+#   * the host port is configurable via POSTGRES_HOST_PORT (default 5432) for
+#     machines that already have PostgreSQL bound to 5432
+#   * `restart: no` — a dev database should not come back on every reboot
+#   * tuned for a laptop rather than a server: verbose slow-query logging,
+#     smaller shared buffers
+
+services:
+  postgres:
+    container_name: yoda-postgres
+    restart: "no"
+    ports:
+      - "${POSTGRES_HOST_PORT:-5432}:5432"
+    command:
+      - postgres
+      - -c
+      - log_min_duration_statement=250
+      - -c
+      - shared_buffers=128MB

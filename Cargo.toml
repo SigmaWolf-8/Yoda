@@ -11,6 +11,9 @@ members = [
     "crates/ninja-exec",
     "tools/yoda-agent-compiler",
 ]
+# The Tauri desktop shell is its own workspace (tauri/Cargo.toml). Excluding it
+# keeps the GUI toolkit dependencies out of every server-side build.
+exclude = ["tauri"]
 resolver = "2"
 
 [workspace.package]

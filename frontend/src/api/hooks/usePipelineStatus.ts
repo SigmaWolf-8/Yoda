@@ -12,6 +12,24 @@ interface UsePipelineStatusOptions {
 const MAX_RECONNECT_DELAY = 30_000;
 const BASE_DELAY = 1_000;
 
+/**
+ * Origin to open the pipeline socket against.
+ *
+ * In the browser the API is same-origin — Vite proxies `/ws` in dev, Axum
+ * serves it in production — so `window.location` is correct. Inside the
+ * packaged Tauri app the page is loaded from `tauri://localhost`, which hosts
+ * no server at all; there the build injects an absolute VITE_API_BASE_URL
+ * pointing at the sidecar, and the socket has to follow it.
+ */
+function wsOrigin(): string {
+  const apiBase = import.meta.env.VITE_API_BASE_URL;
+  if (apiBase && /^https?:\/\//.test(apiBase)) {
+    return new URL(apiBase).origin.replace(/^http/, 'ws');
+  }
+  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+  return `${protocol}//${window.location.host}`;
+}
+
 export function usePipelineStatus({
   projectId,
   enabled = true,
@@ -30,10 +48,7 @@ export function usePipelineStatus({
     const token = getStoredToken();
     if (!token) return;
 
-    // Build WebSocket URL from current location
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const host = window.location.host;
-    const url = `${protocol}//${host}/ws/pipeline/${projectId}?token=${encodeURIComponent(token)}`;
+    const url = `${wsOrigin()}/ws/pipeline/${projectId}?token=${encodeURIComponent(token)}`;
 
     const ws = new WebSocket(url);
     wsRef.current = ws;

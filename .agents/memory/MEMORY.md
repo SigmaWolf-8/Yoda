@@ -9,4 +9,5 @@
 - [Θ-lock possession factor](theta-lock-possession.md) — gate factor 2 is a locally-derived time reading, not SMS; Rust/TS derivations must agree bit-for-bit and grace windows need a replay ledger.
 - [Torus Gate: no JWT](torus-gate-no-jwt.md) — gate login mints an opaque 32-byte handle (digest stored server-side), never a JWT/JSON; no refresh token by design.
 - [Frontend WebGL fallback](frontend-webgl-fallback.md) — wrap three.js renderer creation in try/catch or an uncaught throw blanks the whole SPA; never gate login/critical UI behind WebGL.
+- [Tauri desktop shell](tauri-desktop-shell.md) — standalone workspace, excluded from root; verify with `nix-shell -p webkitgtk_4_1 ...` (never `--pure`); packaged builds can't use relative /api.
 - [Treatise plaintext cleaning](treatise-plaintext-cleaning.md) — Capomastro "Edified Treatise" attachments: unify duplicate drafts to one clean copy each; strip markdown but keep # | in KaTeX and convert multiplication * to ×.

@@ -172,8 +172,15 @@ DM Sans, Instrument Serif, JetBrains Mono — loaded via Google Fonts CDN in `in
 
 Optional GitHub PAT (Personal Access Token) storage for Ronin mode code output — configured via `/settings/github-pat` endpoint, stored server-side, never returned to frontend in full.
 
+### Desktop Shell (Tauri v2)
+
+`tauri/` holds a Tauri v2 desktop wrapper (`com.capomastro.yoda`). It is a **standalone cargo workspace**, excluded from the root workspace, so server-side builds never resolve the GUI toolchain. The window loads the Vite dev server in development and the bundled `frontend/dist` in production; `yoda-api` runs as an `externalBin` sidecar spawned in `setup` and killed on exit, configured from `.env.local`. Local install, prerequisites and troubleshooting live in `LOCAL_SETUP.md`.
+
 ### Scripts
 
 - `scripts/sync-upstream.sh` — Syncs upstream MIT agent definitions
 - `scripts/compile-agents.sh` — Runs `yoda-agent-compiler` to produce `agents/compiled/*.json`
+- `scripts/local-setup.sh` — Local dev bootstrap: prerequisite checks, `.env.local`, Docker PostgreSQL, frontend deps, agent roster
+- `scripts/build-sidecar.mjs` — Compiles `yoda-api` and stages it (plus agents/lineages) for the Tauri bundle
+- `scripts/build-frontend.mjs` — Frontend build for the desktop bundle, with an absolute `VITE_API_BASE_URL`
 - `scripts/deploy.sh` — Deployment automation

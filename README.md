@@ -37,6 +37,7 @@ yoda/
 ├── tools/
 │   └── yoda-agent-compiler/       ← BUILD-TIME CLI: MD → JSON agent compiler
 ├── frontend/                      ← React SPA (Vite + TypeScript + Tailwind)
+├── tauri/                         ← Tauri v2 desktop shell (own workspace)
 ├── agents/
 │   ├── upstream/                  ← Forked agency-agents (MIT, read-only sync)
 │   ├── capomastro/                ← Proprietary Capomastro agents
@@ -44,6 +45,8 @@ yoda/
 └── scripts/
     ├── sync-upstream.sh
     ├── compile-agents.sh
+    ├── local-setup.sh             ← Local dev bootstrap (prereqs, DB, deps)
+    ├── build-sidecar.mjs          ← Stages yoda-api as the Tauri sidecar
     └── deploy.sh
 ```
 
@@ -62,6 +65,25 @@ cargo run --bin yoda-api
 # Frontend (development)
 cd frontend && npm run dev
 ```
+
+## Local install & desktop app
+
+One command checks every prerequisite, provisions PostgreSQL in Docker, writes
+a `.env.local` with generated secrets and compiles the agent roster:
+
+```bash
+bash scripts/local-setup.sh
+```
+
+Then run YODA in a browser, or as a native window with the backend attached as
+a sidecar:
+
+```bash
+cd tauri && cargo tauri dev      # desktop
+cargo tauri build                # .dmg / .exe / .AppImage
+```
+
+Prerequisites, wiring and troubleshooting: [`LOCAL_SETUP.md`](LOCAL_SETUP.md).
 
 ## Running with a local LLM (Windows)
 

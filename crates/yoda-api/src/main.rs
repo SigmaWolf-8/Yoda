@@ -182,7 +182,15 @@ async fn main() -> anyhow::Result<()> {
     let port: u16 = std::env::var("BIND_PORT")
         .unwrap_or_else(|_| "3000".to_string())
         .parse()?;
-    let addr = SocketAddr::from(([0, 0, 0, 0], port));
+    // BIND_ADDR was documented in .env.example and docker-compose.yml but never
+    // read — the server always listened on 0.0.0.0. That is right for a
+    // container, wrong for the desktop build, which passes 127.0.0.1 so the API
+    // is not published to the local network. Default stays 0.0.0.0.
+    let bind_addr = std::env::var("BIND_ADDR").unwrap_or_else(|_| "0.0.0.0".to_string());
+    let ip: std::net::IpAddr = bind_addr.parse().map_err(|_| {
+        anyhow::anyhow!("BIND_ADDR is not a valid IP address: {bind_addr:?}")
+    })?;
+    let addr = SocketAddr::new(ip, port);
 
     tracing::info!("Listening on {}", addr);
     let listener = tokio::net::TcpListener::bind(addr).await?;

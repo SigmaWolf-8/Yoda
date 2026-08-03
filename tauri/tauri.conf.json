@@ -1,0 +1,79 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "YODA",
+  "version": "0.1.0",
+  "identifier": "com.capomastro.yoda",
+  "build": {
+    "devUrl": "http://localhost:5173",
+    "frontendDist": "../frontend/dist",
+    "beforeDevCommand": "node scripts/build-sidecar.mjs && node scripts/build-frontend.mjs --dev",
+    "beforeBuildCommand": "node scripts/build-sidecar.mjs --release && node scripts/build-frontend.mjs"
+  },
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "YODA — Development Intelligence Platform",
+        "width": 1440,
+        "height": 900,
+        "minWidth": 1024,
+        "minHeight": 640,
+        "center": true,
+        "resizable": true,
+        "fullscreen": false,
+        "theme": "Dark",
+        "backgroundColor": "#0B0908"
+      }
+    ],
+    "security": {
+      "csp": null
+    },
+    "withGlobalTauri": false
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "createUpdaterArtifacts": false,
+    "publisher": "Capomastro Holdings Ltd.",
+    "copyright": "Copyright (c) 2026 Capomastro Holdings Ltd. — Applied Physics Division",
+    "category": "DeveloperTool",
+    "shortDescription": "YODA — Development Intelligence Platform",
+    "longDescription": "YODA runs a multi-agent development intelligence pipeline against your own inference engines. The desktop build ships the Axum API as a sidecar; PostgreSQL is supplied by the operator.",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "externalBin": ["binaries/yoda-api"],
+    "resources": {
+      "resources/agents/compiled/": "agents/compiled/",
+      "resources/model_lineages.json": "model_lineages.json"
+    },
+    "linux": {
+      "deb": {
+        "depends": []
+      }
+    },
+    "macOS": {
+      "minimumSystemVersion": "10.15",
+      "signingIdentity": null,
+      "providerShortName": null,
+      "entitlements": null
+    },
+    "windows": {
+      "digestAlgorithm": "sha256",
+      "certificateThumbprint": null,
+      "timestampUrl": "",
+      "nsis": {
+        "installMode": "currentUser"
+      }
+    }
+  },
+  "plugins": {
+    "shell": {
+      "open": false
+    }
+  }
+}
