@@ -10,4 +10,6 @@
 - [Torus Gate: no JWT](torus-gate-no-jwt.md) — gate login mints an opaque 32-byte handle (digest stored server-side), never a JWT/JSON; no refresh token by design.
 - [Frontend WebGL fallback](frontend-webgl-fallback.md) — wrap three.js renderer creation in try/catch or an uncaught throw blanks the whole SPA; never gate login/critical UI behind WebGL.
 - [Tauri desktop shell](tauri-desktop-shell.md) — standalone workspace, excluded from root; verify with `nix-shell -p webkitgtk_4_1 ...` (never `--pure`); packaged builds can't use relative /api.
+- [CI dying in under a minute](ci-dies-in-under-a-minute.md) — a whole matrix failing fast = `-D warnings` promoting lints, not broken logic; also why `no_std` never turns `std` off.
+- [GitHub connector limits](github-connector-limits.md) — token can't write `.github/workflows` (bare 404, no `workflow` scope) and can't read Actions logs (403); `base_tree` wants a tree sha, not a commit sha.
 - [Treatise plaintext cleaning](treatise-plaintext-cleaning.md) — Capomastro "Edified Treatise" attachments: unify duplicate drafts to one clean copy each; strip markdown but keep # | in KaTeX and convert multiplication * to ×.

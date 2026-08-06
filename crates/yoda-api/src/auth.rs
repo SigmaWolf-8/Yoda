@@ -193,7 +193,12 @@ pub async fn register(
     }
 
     // Check if email exists
-    let existing = sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM users WHERE email = $1")
+    // Case-insensitive, matching how the account is looked up at sign-in —
+    // otherwise Someone@x.com and someone@x.com become two accounts that then
+    // compete to answer one login.
+    let existing = sqlx::query_scalar::<_, i64>(
+        "SELECT COUNT(*) FROM users WHERE lower(email) = lower($1)",
+    )
         .bind(&req.email)
         .fetch_one(&state.db)
         .await
@@ -263,7 +268,7 @@ pub async fn login(
 ) -> Result<Json<AuthResponse>, AppError> {
     // Find user
     let row = sqlx::query_as::<_, (Uuid, String, String, String)>(
-        "SELECT id, email, password_hash, name FROM users WHERE email = $1"
+        "SELECT id, email, password_hash, name FROM users WHERE lower(email) = lower($1)"
     )
     .bind(&req.email)
     .fetch_optional(&state.db)

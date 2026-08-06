@@ -571,7 +571,10 @@ async fn gate_enroll(
     })?;
 
     let existing = sqlx::query_as::<_, (Uuid, String, bool)>(
-        "SELECT id, password_hash, COALESCE(gate_enrolled, FALSE) FROM users WHERE email = $1",
+        // Case-insensitive: nobody remembers how they capitalized their own
+        // address, and typing it in lower case must not read as a wrong one.
+        "SELECT id, password_hash, COALESCE(gate_enrolled, FALSE) FROM users \
+         WHERE lower(email) = lower($1)",
     )
     .bind(&email)
     .fetch_optional(&state.db)
@@ -688,7 +691,8 @@ async fn gate_begin(
         (Uuid, String, bool, Option<String>, Option<String>, Option<i16>, Option<i16>, Option<i16>),
     >(
         "SELECT id, password_hash, COALESCE(gate_enrolled, FALSE), gate_phone, \
-         gate_possession_seed, gate_cp_x, gate_cp_y, gate_cp_z FROM users WHERE email = $1",
+         gate_possession_seed, gate_cp_x, gate_cp_y, gate_cp_z FROM users \
+         WHERE lower(email) = lower($1)",
     )
     .bind(&email)
     .fetch_optional(&state.db)

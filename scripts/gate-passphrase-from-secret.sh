@@ -35,6 +35,15 @@ if [[ ${#GATE_PASSPHRASE} -lt 8 ]]; then
     exit 1
 fi
 
+# The enroll endpoint speaks a line protocol, so a newline inside the
+# passphrase would end the password field early and let the rest be read as
+# another field. Refuse rather than silently seat a different passphrase than
+# the one that was given.
+if [[ "$GATE_PASSPHRASE" == *$'\n'* || "$GATE_PASSPHRASE" == *$'\r'* ]]; then
+    echo "That passphrase contains a line break — choose one without one." >&2
+    exit 1
+fi
+
 exists=$(psql "$DATABASE_URL" -tAc \
     "SELECT count(*) FROM users WHERE lower(email) = lower('${EMAIL}')")
 if [[ "$exists" != "1" ]]; then
@@ -60,12 +69,16 @@ cleanup() {
 trap cleanup EXIT
 
 # The passphrase goes over a loopback socket to our own API and nowhere else.
+# It is fed on stdin rather than as an argument: anything on a command line is
+# readable by every other process on the host for as long as the command runs.
 curl -sf -X POST "${API}/gate/enroll" \
     -H 'Content-Type: text/plain' \
-    --data-binary "email ${SCRATCH}
+    --data-binary @- >/dev/null <<EOF
+email ${SCRATCH}
 password ${GATE_PASSPHRASE}
 name Scratch
-cube 1.1.1" >/dev/null
+cube 1.1.1
+EOF
 
 HASH=$(psql "$DATABASE_URL" -tAc \
     "SELECT password_hash FROM users WHERE email = '${SCRATCH}'")
@@ -78,19 +91,31 @@ fi
 # account through setting up again and issues a fresh key. Both seed columns
 # are cleared: the Gate reads gate_possession_seed, and a leftover value in
 # either one makes the new enrollment disagree with itself.
-psql "$DATABASE_URL" -qtAc "
+#
+# One transaction, because a half-applied reset is the dangerous state: the
+# passphrase changed while sessions opened under the old one stay live.
+# Piped in rather than passed as an argument, so the hash stays out of the
+# process table the same way the passphrase does.
+psql "$DATABASE_URL" -qtA -f - >/dev/null <<EOF
+BEGIN;
+    UPDATE gate_sessions SET revoked = TRUE
+     WHERE user_id = (SELECT id FROM users WHERE lower(email) = lower('${EMAIL}'));
     UPDATE users
        SET password_hash = '${HASH}',
            gate_enrolled = FALSE,
            gate_possession_seed = NULL,
            gate_theta_seed = NULL,
            gate_theta_last_station = NULL
-     WHERE lower(email) = lower('${EMAIL}')" >/dev/null
+     WHERE lower(email) = lower('${EMAIL}');
+COMMIT;
+EOF
 
-# Any sessions opened under the old passphrase are no longer ours to honour.
-psql "$DATABASE_URL" -qtAc "
-    UPDATE gate_sessions SET revoked = TRUE
-     WHERE user_id = (SELECT id FROM users WHERE lower(email) = lower('${EMAIL}'))" >/dev/null
+# Confirm it actually landed rather than trusting a silent exit code.
+if [[ "$(psql "$DATABASE_URL" -tAc \
+      "SELECT password_hash = '${HASH}' FROM users WHERE lower(email) = lower('${EMAIL}')")" != "t" ]]; then
+    echo "The passphrase did not take — the account is unchanged." >&2
+    exit 1
+fi
 
 cat <<EOF
 

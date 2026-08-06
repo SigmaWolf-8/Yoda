@@ -113,6 +113,35 @@ itself wrote — reimplementing argon2 risks a parameter mismatch the server
 silently rejects. Clear **both** seed columns and the last-station marker when
 resetting, or the fresh enrollment disagrees with a leftover value.
 
+## Email comparison is case-insensitive
+
+Every account lookup — gate begin, gate codepoint, legacy register and login —
+compares on `lower(email)`, backed by a unique index on `lower(email)`.
+
+**Why:** the owner was locked out of his own account for a session because his
+row was stored `Capomastro@Outlook.com` and he typed it lower case. The gate
+answered "Invalid credentials", which reads as a wrong password and sends you
+hunting in entirely the wrong place.
+
+**How to apply:** any new query that finds a user by email must use
+`lower(email) = lower($1)`. The unique index is what stops two accounts existing
+that differ only by case — without it, case-insensitive lookup would have to
+pick one of them arbitrarily.
+
+## Secrets must never reach a command line
+
+Passphrases and hashes go to `curl` and `psql` on **stdin** (`--data-binary @-`,
+`psql -f -`), never as arguments.
+
+**Why:** every process on the host can read another's argv for as long as it
+runs. A recovery script that took the passphrase as a curl argument leaked it to
+the whole machine for the life of the request.
+
+**How to apply:** when testing for this, remember that a watcher built on
+`ps | grep <secret>` matches its own grep argv and reports a false positive —
+dump `ps` output first, filter out the watcher's own lines, then search using a
+pattern file rather than a pattern argument.
+
 ## Known, accepted tradeoff
 
 The seed lives in browser storage and is transferable by hand, so this is a
