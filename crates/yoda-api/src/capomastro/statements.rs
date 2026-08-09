@@ -162,12 +162,13 @@ pub struct Obligation {
     pub authority: String,
     /// Read from the Balance Sheet, never from the terms file.
     pub principal: Dec,
-    pub rate_index: String,
+    /// Null when the estate supplied no rate basis. Nothing is imputed here.
+    pub rate_index: Option<String>,
     pub index_percent: Option<Dec>,
-    pub spread_bps: Dec,
+    pub spread_bps: Option<Dec>,
     /// index + spread, the rate actually applied.
     pub all_in_percent: Option<Dec>,
-    pub day_count: String,
+    pub day_count: Option<String>,
     pub days_accrued: i64,
     pub accrued_interest: Option<Dec>,
     pub total_owed: Option<Dec>,
@@ -175,7 +176,7 @@ pub struct Obligation {
     pub call_notice_days: i64,
     /// Principal + accrual, but only for obligations callable without notice.
     pub callable_now: Option<Dec>,
-    /// `accruing` | `rate_unavailable`.
+    /// `accruing` | `rate_unavailable` | `basis_not_supplied`.
     pub status: &'static str,
     pub note: Option<String>,
     pub basis: String,
@@ -487,9 +488,12 @@ struct TermEntry {
     creditor: String,
     instrument: String,
     authority: String,
-    rate_index: String,
-    spread_bps: String,
-    day_count: String,
+    /// Null when the estate has not supplied a rate basis. No index is ever
+    /// imputed in its place: the obligation is carried unpriced and its accrual
+    /// is withheld, exactly as if the rate source had failed to publish.
+    rate_index: Option<String>,
+    spread_bps: Option<String>,
+    day_count: Option<String>,
     call_basis: String,
     call_notice_days: i64,
     basis: String,
@@ -570,10 +574,68 @@ pub async fn get_statements(
             bs_line.get("value").unwrap_or(&Value::Null),
             &format!("liability `{}`", term.ledger_line),
         )?;
-        let spread_bps = Dec::parse(&term.spread_bps)
-            .map_err(|e| bad(&format!("{} spreadBps `{}`", term.id, term.spread_bps), e))?;
+        // The rate basis is all or nothing: index, spread and day count together.
+        // A missing component is never defaulted — an invented index or a
+        // silently zeroed spread reads as a term of the instrument, and no
+        // reader can tell the difference once it is on the face of a statement.
+        // Whatever the estate did supply is carried through unpriced, so the
+        // gap is visible rather than papered over.
+        let (Some(rate_index), Some(spread_raw), Some(day_count)) = (
+            term.rate_index.as_deref(),
+            term.spread_bps.as_deref(),
+            term.day_count.clone(),
+        ) else {
+            let missing: Vec<&str> = [
+                ("rateIndex", term.rate_index.is_none()),
+                ("spreadBps", term.spread_bps.is_none()),
+                ("dayCount", term.day_count.is_none()),
+            ]
+            .iter()
+            .filter(|(_, absent)| *absent)
+            .map(|(name, _)| *name)
+            .collect();
+            let why = format!(
+                "the estate has not supplied a rate basis for this obligation (missing: {}) — it is interest-bearing but unpriced, so its accrual and every total depending on it are withheld",
+                missing.join(", ")
+            );
+            rate_failures.push(format!("{}: {}", term.id, why));
+            // A supplied spread is still parsed: malformed input is an error,
+            // not a silent omission.
+            let spread_bps = match term.spread_bps.as_deref() {
+                Some(raw) => Some(
+                    Dec::parse(raw)
+                        .map_err(|e| bad(&format!("{} spreadBps `{}`", term.id, raw), e))?,
+                ),
+                None => None,
+            };
+            obligations.push(Obligation {
+                id: term.id.clone(),
+                ledger_line: term.ledger_line.clone(),
+                creditor: term.creditor.clone(),
+                instrument: term.instrument.clone(),
+                authority: term.authority.clone(),
+                principal,
+                rate_index: term.rate_index.clone(),
+                index_percent: None,
+                spread_bps,
+                all_in_percent: None,
+                day_count: term.day_count.clone(),
+                days_accrued: days_elapsed,
+                accrued_interest: None,
+                total_owed: None,
+                call_basis: term.call_basis.clone(),
+                call_notice_days: term.call_notice_days,
+                callable_now: None,
+                status: "basis_not_supplied",
+                note: Some(why),
+                basis: term.basis.clone(),
+            });
+            continue;
+        };
+        let spread_bps = Dec::parse(spread_raw)
+            .map_err(|e| bad(&format!("{} spreadBps `{}`", term.id, spread_raw), e))?;
 
-        let quote = rate_snapshot.quote(&term.rate_index);
+        let quote = rate_snapshot.quote(rate_index);
         let index_percent = quote.and_then(|q| q.percent);
 
         let (all_in, accrued, total_owed, status, note) = match index_percent {
@@ -581,7 +643,7 @@ pub async fn get_statements(
                 let why = match quote {
                     None => format!(
                         "no reference rate published under id `{}` — check debt-terms.json against the rate sources",
-                        term.rate_index
+                        rate_index
                     ),
                     Some(q) => q
                         .error
@@ -598,7 +660,7 @@ pub async fn get_statements(
                 let fraction = all_in
                     .div(&Dec::from_int(100), RATE_SCALE)
                     .map_err(|e| bad("rate fraction", e))?;
-                let basis = year_basis(&term.day_count)?;
+                let basis = year_basis(&day_count)?;
                 // principal × rate × days ÷ basis, dividing LAST. Rounding the
                 // day-count fraction before multiplying pushes a large
                 // principal off by a cent — see dec::tests.
@@ -627,11 +689,11 @@ pub async fn get_statements(
             instrument: term.instrument.clone(),
             authority: term.authority.clone(),
             principal,
-            rate_index: term.rate_index.clone(),
+            rate_index: Some(rate_index.to_string()),
             index_percent,
-            spread_bps,
+            spread_bps: Some(spread_bps),
             all_in_percent: all_in,
-            day_count: term.day_count.clone(),
+            day_count: Some(day_count),
             days_accrued: days_elapsed,
             accrued_interest: accrued,
             total_owed,
@@ -1304,13 +1366,15 @@ pub async fn get_statements(
         )?,
         check(
             "ASSET-COVERAGE",
-            "Every interest-earning asset is declared; the rest are listed as non-earning".into(),
-            format!("{} asset lines classified", all_asset_lines.len()),
             format!(
-                "{} asset lines classified ({} earning + {} non-earning)",
-                income_schedule.assets.len() + income_schedule.non_earning_assets.len(),
+                "Every balance-sheet asset line is classified: {} earning, {} non-earning",
                 income_schedule.assets.len(),
                 income_schedule.non_earning_assets.len()
+            ),
+            format!("{} asset lines classified", all_asset_lines.len()),
+            format!(
+                "{} asset lines classified",
+                income_schedule.assets.len() + income_schedule.non_earning_assets.len()
             ),
         ),
     ];
@@ -1358,6 +1422,7 @@ pub async fn get_statements(
             "Interest accrues on both sides. Obligations post debit Interest Expense (5900) / credit Accrued Interest Payable (2900); interest-earning assets post debit Accrued Interest Receivable (1900) / credit Interest Income (4900).",
             "Interest is presented gross on the income statement with a separate net interest line, so the cost of the obligations and the return on the assets funding them are both visible.",
             "If a reference rate cannot be fetched, the dependent figures are withheld as null with the transport error attached. No fallback or assumed rate is ever substituted.",
+            "If the estate has not supplied a rate basis for a position, no index is imputed for it. The position is reported as interest-bearing but unpriced, its accrual is withheld, and every total that would depend on that accrual is withheld with it — the statement does not foot rather than foot on an invented rate.",
             "All arithmetic is exact base-10 decimal. No IEEE floating point is used anywhere in this computation.",
             "Gold appreciation is disclosed as an unrecorded memo, not posted, because the estate is carried on a historical-cost basis.",
         ],

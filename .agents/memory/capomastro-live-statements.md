@@ -23,6 +23,27 @@ are no fallback constants anywhere in this path, and none may be added.
 coerce to zero, and the UI must render withheld figures as an explicit gap with
 the reason, not as a dash that reads like nothing was owed.
 
+## The rate basis is all or nothing, and it is never invented
+
+A position's basis is the tuple (index, spread, day count). If the estate has
+not supplied *any one* of them, the position is reported as interest-bearing but
+**unpriced**: no accrual, and every dependent total withheld — the same path a
+failed rate fetch takes.
+
+**Why:** the owner supplied liabilities with no stated terms. Pricing one
+against a plausible index produced a multi-billion loss that read as fact, and
+he rejected it as fabrication — correctly, because nothing on the face of the
+statement distinguished an invented index from a contractual one. A defaulted
+zero spread is the same failure in miniature: it silently makes the position
+price at the bare index.
+
+**How to apply:** absence of a basis is not a licence to choose one, and it is
+also not a declaration that the position is interest-free — those are three
+distinct states and the statement must say which one it is in. Withholding is
+the correct output, even when it withholds net income and the trial-balance
+foot. Do not reach for a euphemism ("assumption", "estimate", "modelled basis")
+to keep the page footing; the honest word for an unsourced input is fabricated.
+
 ## Interest divides last
 
 Accrual is `principal × rate × days ÷ basis`, with the division performed last

@@ -81,18 +81,19 @@ interface Obligation {
   instrument: string;
   authority: string;
   principal: Dec;
-  rateIndex: string;
+  /** Null when the estate supplied no rate basis. Nothing is imputed. */
+  rateIndex: string | null;
   indexPercent: Dec | null;
-  spreadBps: Dec;
+  spreadBps: Dec | null;
   allInPercent: Dec | null;
-  dayCount: string;
+  dayCount: string | null;
   daysAccrued: number;
   accruedInterest: Dec | null;
   totalOwed: Dec | null;
   callBasis: string;
   callNoticeDays: number;
   callableNow: Dec | null;
-  status: 'accruing' | 'rate_unavailable';
+  status: 'accruing' | 'rate_unavailable' | 'basis_not_supplied';
   note: string | null;
   basis: string;
 }
@@ -536,7 +537,7 @@ export function StatementsPage() {
           sub={
             balanceSheet.totalAssets
               ? money(balanceSheet.totalAssets)
-              : 'A reference rate was unavailable — see Reconciliations'
+              : (debtSchedule.incompleteReason ?? 'See Reconciliations')
           }
         />
         <Kpi
@@ -547,7 +548,7 @@ export function StatementsPage() {
           sub={
             balanceSheet.totalLiabilities
               ? 'Including interest accrued to today'
-              : 'A reference rate was unavailable — see Reconciliations'
+              : (debtSchedule.incompleteReason ?? 'See Reconciliations')
           }
           tone="warn"
         />
@@ -749,13 +750,23 @@ export function StatementsPage() {
                   </Td>
                   <Td right>{money(o.principal)}</Td>
                   <Td>
-                    <span className="font-mono text-[11px] text-[var(--color-text-secondary)]">
-                      {o.rateIndex}
-                    </span>
-                    <div className="text-[10px] text-[var(--color-text-muted)]">
-                      {o.indexPercent ? rate(o.indexPercent) : 'n/a'}{' '}
-                      {o.spreadBps !== '0' && `${o.spreadBps.startsWith('-') ? '' : '+'}${o.spreadBps} bp`}
-                    </div>
+                    {o.rateIndex ? (
+                      <>
+                        <span className="font-mono text-[11px] text-[var(--color-text-secondary)]">
+                          {o.rateIndex}
+                        </span>
+                        <div className="text-[10px] text-[var(--color-text-muted)]">
+                          {o.indexPercent ? rate(o.indexPercent) : 'n/a'}{' '}
+                          {o.spreadBps &&
+                            o.spreadBps !== '0' &&
+                            `${o.spreadBps.startsWith('-') ? '' : '+'}${o.spreadBps} bp`}
+                        </div>
+                      </>
+                    ) : (
+                      <span className="font-mono text-[11px] text-amber-400">
+                        not supplied
+                      </span>
+                    )}
                   </Td>
                   <Td right>
                     {o.allInPercent ? (
@@ -766,7 +777,7 @@ export function StatementsPage() {
                   </Td>
                   <Td>
                     <span className="font-mono text-[11px] text-[var(--color-text-secondary)]">
-                      {o.dayCount}
+                      {o.dayCount ?? '—'}
                     </span>
                   </Td>
                   <Td right>{o.daysAccrued}</Td>
