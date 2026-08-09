@@ -1,0 +1,12 @@
+[package]
+name = "capomastro-pacs008"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "ISO 20022 pacs.008.001.10 (FIToFICustomerCreditTransfer) parser for the Capomastro sovereign ledger."
+
+[dependencies]
+quick-xml = { version = "0.36", features = ["serialize"] }
+serde = { version = "1", features = ["derive"] }

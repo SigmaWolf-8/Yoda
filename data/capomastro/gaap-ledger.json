@@ -1,0 +1,842 @@
+{
+  "source": "capomastro-gaap-ledger_(2)_1786254978509.xlsx",
+  "entity": "CAPOMASTRO HOLDINGS LTD.",
+  "division": "Applied Physics & Sovereign Legal Division // Unified GAAP Ledger",
+  "version": "Version 5.0 Lossless // Epoch Alignment: April 1, 2026",
+  "sheetOrder": [
+    "Table of Contents",
+    "Balance Sheet",
+    "Income Statement",
+    "Gold Assay & Valuation",
+    "Descendant Register 81",
+    "Cross-Balance Matrix"
+  ],
+  "sheets": {
+    "Table of Contents": {
+      "rows": [
+        [],
+        [
+          "CAPOMASTRO HOLDINGS LTD."
+        ],
+        [
+          "Applied Physics & Sovereign Legal Division // Unified GAAP Ledger"
+        ],
+        [
+          "Version 5.0 Lossless // Epoch Alignment: April 1, 2026"
+        ],
+        [],
+        [
+          "Sheet Name",
+          "Description",
+          "Status",
+          "Link"
+        ],
+        [
+          "Table of Contents",
+          "Workbook index, version metadata, and formatting color legend.",
+          "ACTIVE",
+          "Go →"
+        ],
+        [
+          "Balance Sheet",
+          "Statement of Financial Position as of April 1, 2026, featuring unencumbered heritage assets.",
+          "ACTIVE",
+          "Go →"
+        ],
+        [
+          "Income Statement",
+          "Statement of Comprehensive Income and Accrual EBITA demonstrating the Zero-Revenue/Zero-Expense model.",
+          "ACTIVE",
+          "Go →"
+        ],
+        [
+          "Gold Assay & Valuation",
+          "CPA Working Paper WP-2026-AU-820-GOLD verifying the $1.600 Trillion USD physical gold reserve.",
+          "ACTIVE",
+          "Go →"
+        ],
+        [
+          "Descendant Register 81",
+          "Genealogical tracking ledger and offspring counts resolving to a zero-residue root of 9.",
+          "ACTIVE",
+          "Go →"
+        ],
+        [
+          "Cross-Balance Matrix",
+          "Equilateral cross-balance X_cross verifying stablecoin and sovereign reserve alignment.",
+          "ACTIVE",
+          "Go →"
+        ],
+        [],
+        [],
+        [
+          "COLOR CONVENTION LEGEND"
+        ],
+        [
+          "",
+          "Input Cells",
+          "Editable parameters and manual business entries (e.g., LBMA spot price)"
+        ],
+        [
+          "",
+          "Calculated Cells",
+          "Computed outputs and formula-driven cells (never overwrite manually)"
+        ],
+        [
+          "",
+          "Summary / Headers",
+          "Major division headings and structural block categorizations"
+        ],
+        [
+          "",
+          "Subtotals / Alternating",
+          "Calculated subtotals or alternating line visual anchors"
+        ]
+      ]
+    },
+    "Balance Sheet": {
+      "rows": [
+        [],
+        [
+          "CAPOMASTRO HOLDINGS LTD."
+        ],
+        [
+          "CONSOLIDATED STATEMENT OF FINANCIAL POSITION"
+        ],
+        [
+          "As of Salvi Epoch: April 1, 2026 // Aligned to GAAP, IFRS & IMF GFSM 2014"
+        ],
+        [
+          "Category",
+          "Asset / Ledger Entry",
+          "Value (USD)",
+          "Audit & Compliance Status"
+        ],
+        [
+          "CURRENT ASSETS"
+        ],
+        [
+          "Cash & Cash Equivalents",
+          1250000000,
+          "12 U.S.C. § 5904 Stablecoin Liquidity Reserve"
+        ],
+        [
+          "Stablecoin Reserve Liquidity",
+          1250000000,
+          "1:1 Escrow Match, Segregated Regulated Account"
+        ],
+        [
+          "Short-Term Commercial Instruments",
+          500000000,
+          "UCC Article 3 Negotiable Assets"
+        ],
+        [
+          "Total Current Assets",
+          "",
+          "Sum of Liquid Segregated Balances"
+        ],
+        [],
+        [
+          "NON-CURRENT & RESERVE ASSETS"
+        ],
+        [
+          "Monetary Gold Reserves",
+          1600000000000,
+          "Coded: FVT-L1-UQ // Verified WP-2026-AU-820-GOLD"
+        ],
+        [
+          "Real Property & Land Estate Holdings",
+          450000000000,
+          "Fee Simple Absolute, Unencumbered Title (Sherwood Park)"
+        ],
+        [
+          "Photonic & Agni Lattice Assets",
+          100000000000,
+          "847T Cell - FFMV™ Level 1 Certified"
+        ],
+        [
+          "Total Non-Current Assets",
+          "",
+          "Total FFMV™ Certified Reserve Valuations"
+        ],
+        [
+          "TOTAL ASSETS (Σ A_n)",
+          "",
+          "Fully Reconciled Balanced Estate"
+        ],
+        [],
+        [],
+        [
+          "LIABILITIES & SOVEREIGN EQUITY"
+        ],
+        [
+          "Current & Escrow Liabilities:"
+        ],
+        [
+          "Stablecoin Backing Obligations",
+          1250000000,
+          "12 U.S.C. § 5904 Fiat Collateral liability"
+        ],
+        [
+          "Fiat Matching Deposit Reserves",
+          1250000000,
+          "1:1 Escrow matching account reserves"
+        ],
+        [
+          "Active Damage Offset & Restorative Provision",
+          447500000000,
+          "Sovereign Writ of Correction Offset"
+        ],
+        [
+          "Total Liabilities (Σ L_m)",
+          "",
+          "Reconciled Obligations and Provisions"
+        ],
+        [],
+        [
+          "Sovereign Equity & Reserves:"
+        ],
+        [
+          "Sovereign Capital Reserve",
+          1703000000000,
+          "FCC Gold Lattice Reserve Allocation"
+        ],
+        [
+          "Retained Equilibrium Earnings",
+          0,
+          "Accrual Ground State: R=0 // EBT=0 // EBITA=0"
+        ],
+        [
+          "Total Sovereign Equity",
+          "",
+          "Consolidated Sovereign Capital"
+        ],
+        [
+          "TOTAL LIABILITIES & EQUITIES",
+          "",
+          "Fully Balanced Framework"
+        ],
+        [],
+        [
+          "BALANCE SHEET INTEGRITY CHECK"
+        ]
+      ]
+    },
+    "Income Statement": {
+      "rows": [
+        [],
+        [
+          "CAPOMASTRO HOLDINGS LTD."
+        ],
+        [
+          "CONSOLIDATED STATEMENT OF COMPREHENSIVE INCOME"
+        ],
+        [
+          "For the Period Ending April 1, 2026 // GAAP ASC 606 / IFRS 15 / CAS 14"
+        ],
+        [
+          "Financial Line Item",
+          "Amount (USD)",
+          "Accounting Basis & Guidelines"
+        ],
+        [
+          "Gross Revenue",
+          0,
+          "ASC 606 / IFRS 15 / CAS 14: No Performance Obligations Satisfied"
+        ],
+        [
+          "Cost of Goods Sold (COGS)",
+          0,
+          "Accrual basis: No direct cost of sales occurred"
+        ],
+        [
+          "Gross Profit",
+          "",
+          "Revenue less COGS"
+        ],
+        [
+          "Operating Expenses (OpEx):"
+        ],
+        [
+          "Sales & Marketing (S&M)",
+          0,
+          "Accrual basis: Zero marketing expenditures incurred"
+        ],
+        [
+          "Research & Development (R&D)",
+          0,
+          "Accrual basis: Zero research and development costs capitalized"
+        ],
+        [
+          "General & Administrative (G&A)",
+          0,
+          "Accrual basis: Zero G&A administrative burn"
+        ],
+        [
+          "Total Operating Expenses",
+          "",
+          "Sum of Selling, General, and Administrative"
+        ],
+        [
+          "EBITDA",
+          "",
+          "Earnings Before Interest, Taxes, Depreciation & Amortization"
+        ],
+        [
+          "Depreciation & Amortization",
+          0,
+          "IAS 16: Zero systematic cost allocation of tangible/intangible assets"
+        ],
+        [
+          "EBITA",
+          "",
+          "EBT + Interest + Amortization"
+        ],
+        [
+          "Operating Income (EBIT)",
+          "",
+          "Operating Profitability under GAAP"
+        ],
+        [
+          "Interest Expense",
+          0,
+          "No external interest-bearing liabilities outstanding"
+        ],
+        [
+          "Earnings Before Taxes (EBT)",
+          "",
+          "Pre-Tax Book Earnings (IRC § 63 compliant)"
+        ],
+        [
+          "Income Tax Expense",
+          0,
+          "Nil return: Gross Income = 0, Allowable Deductions = 0"
+        ],
+        [
+          "NET INCOME",
+          "",
+          "Sovereign Accrual Ground State: Complete Null Equilibrium"
+        ],
+        [],
+        [
+          "KEY ACCRUAL MARGINS"
+        ],
+        [
+          "Gross Profit Margin",
+          "",
+          "Gross Margin % on Null Revenue"
+        ],
+        [
+          "EBITDA Margin",
+          "",
+          "Operating Cash Flow Margin % on Null Revenue"
+        ]
+      ]
+    },
+    "Gold Assay & Valuation": {
+      "rows": [
+        [],
+        [
+          "CAPOMASTRO HOLDINGS LTD."
+        ],
+        [
+          "CPA WORKING PAPER WP-2026-AU-820-GOLD"
+        ],
+        [
+          "Subject: Level 1 Fair Value Audit of Segregated Physical Gold Reserves"
+        ],
+        [
+          "Audit Parameter",
+          "Value",
+          "Unit / Metric",
+          "CPA Verification / Regulatory Reference"
+        ],
+        [
+          "Total Gold Bars Counted",
+          1827760,
+          "Bars",
+          "100% Physical Vault Count verified by Senior CPA"
+        ],
+        [
+          "Nominal Mass per Bar",
+          "12.5",
+          "kg / bar",
+          "Standard Good Delivery Bar (400 oz nominal)"
+        ],
+        [
+          "Total Net Gold Mass",
+          "",
+          "kg",
+          "Sum of verified physical assets (22,847,000 kg)"
+        ],
+        [
+          "Fine Gold Purity (Assay)",
+          "0.9999",
+          "Fineness %",
+          "XRF Spectroscopy verified >= 99.99% fine gold"
+        ],
+        [
+          "Total Fine Gold Mass",
+          "",
+          "kg",
+          "Calculated absolute fine gold content"
+        ],
+        [
+          "Troy Ounce Conversion Factor",
+          "32.1507466",
+          "troy oz / kg",
+          "Standard international metrological standard"
+        ],
+        [
+          "Total Fine Gold Ounces",
+          "",
+          "troy oz",
+          "Calculated fine ounces (734,554,420 troy oz)"
+        ],
+        [
+          "LBMA PM Gold Fix Price",
+          "2178.5",
+          "USD / troy oz",
+          "Level 1 Input: Bloomberg spot as of April 1, 2026"
+        ],
+        [
+          "Calculated Fair Market Value",
+          "",
+          "USD",
+          "Unadjusted exit price in active market"
+        ],
+        [
+          "Conservative Stated Carrying Value",
+          1600000000000,
+          "USD",
+          "Consolidation carry baseline (non-current reserves)"
+        ],
+        [
+          "Unrecorded Reserve Buffer",
+          "",
+          "USD",
+          "Conservatism variance (+226,903,970.00 USD)"
+        ],
+        [
+          "Gold Crystallographic Parameter a",
+          "0.408",
+          "nm",
+          "FCC Unit Cell Bragg Diffraction verified"
+        ],
+        [
+          "Theoretical Gold Density (ρ_Au)",
+          19320,
+          "kg / m³",
+          "Hydrostatic weighing density standard"
+        ],
+        [
+          "Ultrasonic Acoustic Velocity",
+          3240,
+          "m / s",
+          "Transverse pulse speed across 1.0% sample (18,278 bars)"
+        ],
+        [
+          "CPA Audit Opinion Conclusion",
+          "UNQUALIFIED OPINION",
+          "Status",
+          "PCAOB AS 2510 / ISA 501 / IFRS 13 / ASC 820"
+        ]
+      ]
+    },
+    "Descendant Register 81": {
+      "rows": [
+        [],
+        [
+          "CAPOMASTRO HOLDINGS LTD."
+        ],
+        [
+          "GENEALOGICAL REGISTER AND DESCENDANT REGISTRY (dr81)"
+        ],
+        [
+          "Reconciliation of Ancestral Lineage & Modulo 9 Harmonic Balance"
+        ],
+        [
+          "Generation",
+          "Ancestral Epoch",
+          "Direct Offspring Counts",
+          "Lattice Node ID",
+          "Modulo 9 Balance Check"
+        ],
+        [
+          "Generation 1",
+          "Pasquale Salvalaggio (1763)",
+          4,
+          "G1-1763",
+          "g_1"
+        ],
+        [
+          "Generation 2",
+          "Sante Salvalaggio (1791)",
+          34,
+          "G2-1791",
+          "g_2"
+        ],
+        [
+          "Generation 3",
+          "Pasquale Salvalaggio (1847)",
+          11,
+          "G3-1847",
+          "g_3"
+        ],
+        [
+          "Generation 4",
+          "Giuseppe Salvalaggio (1882)",
+          7,
+          "G4-1882",
+          "g_4"
+        ],
+        [
+          "Generation 5",
+          "Ontario Branch (1916 Note)",
+          1,
+          "G5-1916",
+          "g_5"
+        ],
+        [
+          "Generation 6",
+          "Luigi Salvalaggio (Anti-Fascist Epoch)",
+          17,
+          "G6-LUIGI",
+          "g_6"
+        ],
+        [
+          "Generation 7",
+          "Nonna Eleonora & Reno Melati",
+          18,
+          "G7-RENO",
+          "g_7"
+        ],
+        [
+          "Total Direct Generations",
+          "7 Generations",
+          "",
+          "Total Active Nodes",
+          "Σ g_i = 92"
+        ],
+        [],
+        [
+          "DESCENDANT REGISTER (dr81) RESULT"
+        ],
+        [
+          "Total Registered Descendants",
+          "",
+          1458,
+          "Descendants",
+          "Digital Root: 1+4+5+8=18 -> 1+8 = 9"
+        ],
+        [
+          "Modulo 9 Harmonic Check",
+          "",
+          "",
+          "Residual",
+          "S_genealogy ≡ 0 (mod 9) // HARMONIC"
+        ]
+      ]
+    },
+    "Cross-Balance Matrix": {
+      "rows": [
+        [],
+        [
+          "CAPOMASTRO HOLDINGS LTD."
+        ],
+        [
+          "WEIGHTED QUADRILATERAL CROSS-BALANCE MATRIX (X_cross)"
+        ],
+        [
+          "Reconciliation of Asset and Escrow Quadrants per the Milo Standard & Common Law"
+        ],
+        [
+          "Quadrant Leg",
+          "Description / Asset",
+          "Asset Value (A_i)",
+          "Reserve Allocation (B_i)",
+          "Weight (w_i)",
+          "Weighted Ratio (w_i * A_i/B_i)"
+        ],
+        [
+          "Leg 1 (A1/B1)",
+          "Cash & Cash Equivalents vs. Stablecoin Backing Obligations",
+          1250000000,
+          1250000000,
+          "0.25"
+        ],
+        [
+          "Leg 2 (A2/B2)",
+          "Monetary Gold Reserves vs. Sovereign Capital Reserve",
+          1600000000000,
+          1600000000000,
+          "0.25"
+        ],
+        [
+          "Leg 3 (A3/B3)",
+          "Real Property Estate Holdings vs. Title Cleanliness",
+          450000000000,
+          450000000000,
+          "0.25"
+        ],
+        [
+          "Leg 4 (A4/B4)",
+          "Photonic & Agni Lattice Assets vs. Active Damage Offset",
+          100000000000,
+          100000000000,
+          "0.25"
+        ],
+        [
+          "Total Quadrilateral",
+          "Sum of Weighted Leg Ratios (X_cross)"
+        ],
+        [],
+        [
+          "EQUILATERAL CROSS-BALANCE STATUS"
+        ]
+      ]
+    }
+  },
+  "summary": {
+    "balanceSheet": {
+      "currentAssets": [
+        {
+          "label": "Cash & Cash Equivalents",
+          "value": "1250000000"
+        },
+        {
+          "label": "Stablecoin Reserve Liquidity",
+          "value": "1250000000"
+        },
+        {
+          "label": "Short-Term Commercial Instruments",
+          "value": "500000000"
+        }
+      ],
+      "nonCurrentAssets": [
+        {
+          "label": "Monetary Gold Reserves",
+          "value": "1600000000000"
+        },
+        {
+          "label": "Real Property & Land Estate Holdings",
+          "value": "450000000000"
+        },
+        {
+          "label": "Photonic & Agni Lattice Assets",
+          "value": "100000000000"
+        }
+      ],
+      "liabilities": [
+        {
+          "label": "Stablecoin Backing Obligations",
+          "value": "1250000000"
+        },
+        {
+          "label": "Fiat Matching Deposit Reserves",
+          "value": "1250000000"
+        },
+        {
+          "label": "Active Damage Offset & Restorative Provision",
+          "value": "447500000000"
+        }
+      ],
+      "equity": [
+        {
+          "label": "Sovereign Capital Reserve",
+          "value": "1703000000000"
+        },
+        {
+          "label": "Retained Equilibrium Earnings",
+          "value": "0"
+        }
+      ],
+      "totalCurrentAssets": "3000000000",
+      "totalNonCurrentAssets": "2150000000000",
+      "totalAssets": "2153000000000",
+      "totalLiabilities": "450000000000",
+      "totalEquity": "1703000000000",
+      "totalLiabilitiesAndEquity": "2153000000000",
+      "balanced": true
+    },
+    "segmentMix": [
+      {
+        "label": "Monetary Gold Reserves",
+        "value": "1600000000000",
+        "share": "0.743149094287"
+      },
+      {
+        "label": "Real Property & Land Estate Holdings",
+        "value": "450000000000",
+        "share": "0.209010682768"
+      },
+      {
+        "label": "Photonic & Agni Lattice Assets",
+        "value": "100000000000",
+        "share": "0.046446818393"
+      },
+      {
+        "label": "Cash & Cash Equivalents",
+        "value": "1250000000",
+        "share": "0.00058058523"
+      },
+      {
+        "label": "Stablecoin Reserve Liquidity",
+        "value": "1250000000",
+        "share": "0.00058058523"
+      },
+      {
+        "label": "Short-Term Commercial Instruments",
+        "value": "500000000",
+        "share": "0.000232234092"
+      }
+    ],
+    "incomeStatement": {
+      "grossRevenue": "0",
+      "costOfGoodsSold": "0",
+      "lines": [
+        {
+          "label": "Gross Revenue",
+          "amount": "0",
+          "basis": "ASC 606 / IFRS 15 / CAS 14: No Performance Obligations Satisfied"
+        },
+        {
+          "label": "Cost of Goods Sold (COGS)",
+          "amount": "0",
+          "basis": "Accrual basis: No direct cost of sales occurred"
+        },
+        {
+          "label": "Sales & Marketing (S&M)",
+          "amount": "0",
+          "basis": "Accrual basis: Zero marketing expenditures incurred"
+        },
+        {
+          "label": "Research & Development (R&D)",
+          "amount": "0",
+          "basis": "Accrual basis: Zero research and development costs capitalized"
+        },
+        {
+          "label": "General & Administrative (G&A)",
+          "amount": "0",
+          "basis": "Accrual basis: Zero G&A administrative burn"
+        },
+        {
+          "label": "Depreciation & Amortization",
+          "amount": "0",
+          "basis": "IAS 16: Zero systematic cost allocation of tangible/intangible assets"
+        },
+        {
+          "label": "Interest Expense",
+          "amount": "0",
+          "basis": "No external interest-bearing liabilities outstanding"
+        },
+        {
+          "label": "Income Tax Expense",
+          "amount": "0",
+          "basis": "Nil return: Gross Income = 0, Allowable Deductions = 0"
+        }
+      ]
+    },
+    "goldAssay": {
+      "barsCounted": "1827760",
+      "nominalMassPerBarKg": "12.5",
+      "netGoldMassKg": "22847000",
+      "finePurity": "0.9999",
+      "fineGoldMassKg": "22844715.3",
+      "troyOunceFactor": "32.1507466",
+      "fineGoldOunces": "734474652.75944298",
+      "lbmaSpotUsdPerOz": "2178.5",
+      "fairMarketValueUsd": "1600053031036.44653193",
+      "carryingValueUsd": "1600000000000",
+      "unrecordedReserveBufferUsd": "53031036.44653193"
+    },
+    "descendantRegister": {
+      "generations": [
+        {
+          "generation": "Generation 1",
+          "epoch": "Pasquale Salvalaggio (1763)",
+          "offspring": 4,
+          "nodeId": "G1-1763"
+        },
+        {
+          "generation": "Generation 2",
+          "epoch": "Sante Salvalaggio (1791)",
+          "offspring": 34,
+          "nodeId": "G2-1791"
+        },
+        {
+          "generation": "Generation 3",
+          "epoch": "Pasquale Salvalaggio (1847)",
+          "offspring": 11,
+          "nodeId": "G3-1847"
+        },
+        {
+          "generation": "Generation 4",
+          "epoch": "Giuseppe Salvalaggio (1882)",
+          "offspring": 7,
+          "nodeId": "G4-1882"
+        },
+        {
+          "generation": "Generation 5",
+          "epoch": "Ontario Branch (1916 Note)",
+          "offspring": 1,
+          "nodeId": "G5-1916"
+        },
+        {
+          "generation": "Generation 6",
+          "epoch": "Luigi Salvalaggio (Anti-Fascist Epoch)",
+          "offspring": 17,
+          "nodeId": "G6-LUIGI"
+        },
+        {
+          "generation": "Generation 7",
+          "epoch": "Nonna Eleonora & Reno Melati",
+          "offspring": 18,
+          "nodeId": "G7-RENO"
+        }
+      ],
+      "totalActiveNodes": 92,
+      "totalRegisteredDescendants": 1458,
+      "digitalRoot": 9,
+      "harmonic": true
+    },
+    "crossBalance": {
+      "legs": [
+        {
+          "leg": "Leg 1 (A1/B1)",
+          "description": "Cash & Cash Equivalents vs. Stablecoin Backing Obligations",
+          "asset": "1250000000",
+          "reserve": "1250000000",
+          "weight": "0.25",
+          "weightedRatio": "0.25"
+        },
+        {
+          "leg": "Leg 2 (A2/B2)",
+          "description": "Monetary Gold Reserves vs. Sovereign Capital Reserve",
+          "asset": "1600000000000",
+          "reserve": "1600000000000",
+          "weight": "0.25",
+          "weightedRatio": "0.25"
+        },
+        {
+          "leg": "Leg 3 (A3/B3)",
+          "description": "Real Property Estate Holdings vs. Title Cleanliness",
+          "asset": "450000000000",
+          "reserve": "450000000000",
+          "weight": "0.25",
+          "weightedRatio": "0.25"
+        },
+        {
+          "leg": "Leg 4 (A4/B4)",
+          "description": "Photonic & Agni Lattice Assets vs. Active Damage Offset",
+          "asset": "100000000000",
+          "reserve": "100000000000",
+          "weight": "0.25",
+          "weightedRatio": "0.25"
+        }
+      ],
+      "xCross": "1",
+      "equilateral": true
+    }
+  }
+}

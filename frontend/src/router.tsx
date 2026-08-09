@@ -1,6 +1,6 @@
 import { createBrowserRouter, Navigate, Outlet } from 'react-router-dom';
 import { AppShell } from './components/layout/AppShell';
-import { getStoredToken } from './api/client';
+
 
 // ── Lazy-loaded page components ──
 // Each page will be built in subsequent tasks.
@@ -25,24 +25,22 @@ import { KyokushinPage } from './pages/KyokushinPage';
 import { ForgePage } from './pages/ForgePage';
 import { AgentsPage } from './pages/AgentsPage';
 import { AboutPage } from './pages/AboutPage';
+import { SovereignLedgerPage } from './pages/capomastro/SovereignLedgerPage';
+import { CodexPage } from './pages/capomastro/CodexPage';
+import { SealPage } from './pages/capomastro/SealPage';
 
-// ── Protected Route wrapper ──
+// ── Route wrappers ──
+//
+// The Torus Gate no longer stands between the operator and the app. Identity
+// comes from the synchronous framework, so no route redirects to /login and no
+// page is withheld pending a token. The gate pages remain reachable by URL for
+// enrolment and testing; they simply no longer block anything.
 
 function ProtectedRoute() {
-  const token = getStoredToken();
-  if (!token) {
-    return <Navigate to="/login" replace />;
-  }
   return <Outlet />;
 }
 
-// ── Public Route wrapper (redirect to dashboard if already logged in) ──
-
 function PublicRoute() {
-  const token = getStoredToken();
-  if (token) {
-    return <Navigate to="/" replace />;
-  }
   return <Outlet />;
 }
 
@@ -64,6 +62,10 @@ export const router = createBrowserRouter([
     children: [
       { path: 'forge',      element: <ForgePage /> },
       { path: 'monitoring', element: <MonitoringPage /> },
+      // ── Capomastro sovereign record — a published record, so no auth gate ──
+      { path: 'capomastro/ledger', element: <SovereignLedgerPage /> },
+      { path: 'capomastro/codex',  element: <CodexPage /> },
+      { path: 'capomastro/seal',   element: <SealPage /> },
     ],
   },
 

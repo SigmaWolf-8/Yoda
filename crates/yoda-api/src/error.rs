@@ -22,6 +22,14 @@ pub enum AppError {
     Conflict(String),
     /// 500 — internal server error
     Internal(String),
+    /// 503 — a service this request depends on is not reachable.
+    ///
+    /// Unlike `Internal`, the message is returned to the caller rather than
+    /// masked. An operator checking whether the daemon arrays are connected
+    /// needs to see *which* address failed and why; "Internal server error"
+    /// tells them nothing and looks like a bug in the app itself. These
+    /// messages name only infrastructure endpoints, never user data.
+    Unavailable(String),
     /// Database error
     Database(sqlx::Error),
 }
@@ -37,6 +45,10 @@ impl IntoResponse for AppError {
             AppError::Internal(msg) => {
                 tracing::error!(error = %msg, "Internal server error");
                 (StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "Internal server error".into())
+            }
+            AppError::Unavailable(msg) => {
+                tracing::warn!(error = %msg, "Upstream service unavailable");
+                (StatusCode::SERVICE_UNAVAILABLE, "UNAVAILABLE", msg.clone())
             }
             AppError::Database(e) => {
                 tracing::error!(error = %e, "Database error");

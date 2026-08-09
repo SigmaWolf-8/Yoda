@@ -14,6 +14,9 @@ import {
   ChevronRight,
   Zap,
   ArrowLeft,
+  Scale,
+  BookOpen,
+  Stamp,
 } from 'lucide-react';
 import { UserProfile } from '../auth/UserProfile';
 import { usePageHeaderCtx } from '../../context/PageHeader';
@@ -39,6 +42,14 @@ const NAV_GROUPS: ReadonlyArray<{
     items: [
       { to: '/kyokushin', icon: Zap, label: 'Kyokushin' },
       { to: '/forge',     icon: Zap, label: 'Forge'     },
+    ],
+  },
+  {
+    label: 'Capomastro',
+    items: [
+      { to: '/capomastro/ledger', icon: Scale,    label: 'Ledger' },
+      { to: '/capomastro/codex',  icon: BookOpen, label: 'Codex'  },
+      { to: '/capomastro/seal',   icon: Stamp,    label: 'Seal'   },
     ],
   },
   {

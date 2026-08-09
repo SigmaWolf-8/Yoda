@@ -46,6 +46,9 @@ tokio-tungstenite = { version = "0.24", features = ["rustls-tls-native-roots"] }
 futures-util = "0.3"
 rand = "0.8"
 
+# Capomastro sovereign ledger — ISO 20022 pacs.008 parsing
+capomastro-pacs008 = { path = "../capomastro-pacs008" }
+
 [dev-dependencies]
 wiremock.workspace = true
 tokio-test.workspace = true

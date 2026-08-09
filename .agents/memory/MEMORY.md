@@ -7,9 +7,12 @@
 - [sqlx migration checksum drift](sqlx-migration-drift.md) — editing an already-applied migration aborts ALL pending migrations silently (new columns never land → 500s); never edit applied migrations, re-baseline the checksum to recover.
 - [Route-verify & dist serving](yoda-build-deploy.md) — SPA fallback returns 200 text/html so verify API routes by content-type not status; dev serves frontend/dist so cp public→dist after edits.
 - [Θ-lock possession factor](theta-lock-possession.md) — gate factor 2 is a locally-derived time reading, not SMS; Rust/TS derivations must agree bit-for-bit and grace windows need a replay ledger.
+- [Gate removed, sovereign identity](gate-removed-sovereign-identity.md) — login no longer blocks anything; uncredentialed requests run as the first owner account, so the API is effectively open.
 - [Torus Gate: no JWT](torus-gate-no-jwt.md) — gate login mints an opaque 32-byte handle (digest stored server-side), never a JWT/JSON; no refresh token by design.
 - [Frontend WebGL fallback](frontend-webgl-fallback.md) — wrap three.js renderer creation in try/catch or an uncaught throw blanks the whole SPA; never gate login/critical UI behind WebGL.
 - [Tauri desktop shell](tauri-desktop-shell.md) — standalone workspace, excluded from root; verify with `nix-shell -p webkitgtk_4_1 ...` (never `--pure`); packaged builds can't use relative /api.
 - [CI dying in under a minute](ci-dies-in-under-a-minute.md) — a whole matrix failing fast = `-D warnings` promoting lints, not broken logic; also why `no_std` never turns `std` off.
 - [GitHub connector limits](github-connector-limits.md) — token can't write `.github/workflows` (bare 404, no `workflow` scope) and can't read Actions logs (403); `base_tree` wants a tree sha, not a commit sha.
+- [Money as decimal strings](capomastro-money-as-decimal-strings.md) — Capomastro figures are exact decimal strings end to end; no layer below the extractor may do money arithmetic or touch a float.
+- [Frontend apiClient base URL](frontend-api-base-url.md) — axios baseURL is already `/api`; a doubled prefix hits the SPA fallback (200 text/html), so JSON pages crash in render, not at the fetch.
 - [Treatise plaintext cleaning](treatise-plaintext-cleaning.md) — Capomastro "Edified Treatise" attachments: unify duplicate drafts to one clean copy each; strip markdown but keep # | in KaTeX and convert multiplication * to ×.

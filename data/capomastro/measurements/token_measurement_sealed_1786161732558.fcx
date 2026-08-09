@@ -1,0 +1,21 @@
+⟦ SEC-TOKEN-MEASUREMENT-0001 ┃ V1.2.2.10.1 ┃ FLYWHEEL-GAAP
+walked_W ┃ 26167806 ┃ [1]
+coast_T ┃ 0 ┃ [ms]
+charge_T ┃ 6883710716 ┃ [ms]
+coast_throughput ┃ 26167806000000/1 ┃ [s^-1]
+token_yield ┃ 825762/26167806 ┃ [1]
+cost_per_token ┃ 26167806/825762 ┃ [1]
+scaler ┃ 23/47 ┃ [1]
+tokens ┃ 825762 ┃ [1]
+b9_primes ┃ 818468 ┃ [1]
+repunits ┃ 90 ┃ [1]
+triangulars ┃ 7232 ┃ [1]
+gaap_debit ┃ 26167932 ┃ ISO80000-4 [J]
+gaap_credit ┃ 26167806 ┃ ISO80000-4 [J]
+gaap_stored ┃ 126 ┃ ISO80000-4 [J]
+gaap_balanced ┃ true ┃ [1]
+roots_of_unity_sum ┃ 0 ┃ [1]
+seed ┃ Salvi=243=3^5 | Y-oida ┃ [1]
+entropy ┃ null ┃ [1]
+┃ PIF-127 ┃ 3eabdb8d58ee9823c35b57cb91d82586
+⟧

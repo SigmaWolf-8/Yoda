@@ -12,7 +12,7 @@
 
 use axum::{
     body::Bytes,
-    extract::{Path, Query, State},
+    extract::{DefaultBodyLimit, Path, Query, State},
     http::StatusCode,
     middleware,
     response::{IntoResponse, Response},
@@ -27,6 +27,7 @@ use crate::auth;
 use crate::audit;
 use crate::bible;
 use crate::capability;
+use crate::capomastro;
 use crate::cube_relay::{RelayInferRequest, slot_to_cube_address};
 use crate::error::AppError;
 use crate::gate_handle::GateHandle;
@@ -67,6 +68,21 @@ pub fn build_router(state: AppState) -> Router {
         .route("/api/relay/status", get(relay_status))
         .route("/api/system/status", get(system_status))
         // Local-install download endpoints (public — needed by install script)
+        // ── Capomastro sovereign ledger (public read surfaces) ──
+        // Published record of the estate: the workbook, the sealed token
+        // measurements, and the ISO 20022 parse endpoint.
+        .route("/api/capomastro/ledger", get(capomastro::get_ledger))
+        .route("/api/capomastro/revenue", get(capomastro::get_revenue))
+        .route("/api/capomastro/measurements", get(capomastro::get_measurements))
+        // The parse endpoint is public and buffers its whole body, so it gets a
+        // tight limit of its own — a pacs.008 message is kilobytes, not
+        // megabytes, and without this an anonymous caller can force unbounded
+        // buffering. Over-limit bodies are rejected with 413.
+        .route(
+            "/api/capomastro/pacs008/parse",
+            post(capomastro::parse_pacs008)
+                .layer(DefaultBodyLimit::max(capomastro::MAX_PACS008_BYTES)),
+        )
         .route("/api/install/source.tar.gz", get(install::download_source))
         .route("/api/install/install.ps1", get(install::windows_installer));
 
@@ -2841,6 +2857,39 @@ async fn get_local_crs_base(db: &sqlx::PgPool) -> Result<String, AppError> {
     }))
 }
 
+/// Read a CRS proxy response, turning a non-JSON body into an honest error.
+///
+/// The CRS daemon serves only a handful of routes. Asking it for one it does
+/// not have returns a 404 with an empty body; parsing that as JSON fails, and
+/// that failure used to surface as an opaque 500 "Internal server error" —
+/// which reads like a bug in this server rather than a missing upstream route.
+/// An operator verifying that the daemon arrays are connected needs the real
+/// reason, so it is reported rather than masked.
+async fn crs_json(
+    resp: reqwest::Response,
+    crs_base: &str,
+) -> Result<(StatusCode, serde_json::Value), AppError> {
+    let status =
+        StatusCode::from_u16(resp.status().as_u16()).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR);
+    let url = resp.url().to_string();
+
+    let body = resp.text().await.map_err(|e| {
+        AppError::Unavailable(format!("CRS at {crs_base} sent an unreadable body: {e}"))
+    })?;
+
+    match serde_json::from_str::<serde_json::Value>(&body) {
+        Ok(json) => Ok((status, json)),
+        Err(_) if !status.is_success() => Err(AppError::Unavailable(format!(
+            "CRS at {url} returned {} with no JSON body — the daemon does not serve this route",
+            status.as_u16()
+        ))),
+        Err(e) => Err(AppError::Unavailable(format!(
+            "CRS at {url} returned {} with a malformed JSON body: {e}",
+            status.as_u16()
+        ))),
+    }
+}
+
 /// Helper: build a one-shot reqwest client (no connection pooling needed).
 fn crs_client() -> Result<reqwest::Client, AppError> {
     reqwest::Client::builder()
@@ -2867,14 +2916,9 @@ async fn crs_register(
         .body(body)
         .send()
         .await
-        .map_err(|e| AppError::Internal(format!("CRS unreachable: {e}")))?;
+        .map_err(|e| AppError::Unavailable(format!("CRS daemon unreachable at {crs_base}: {e}")))?;
 
-    let status = StatusCode::from_u16(resp.status().as_u16())
-        .unwrap_or(StatusCode::INTERNAL_SERVER_ERROR);
-    let json: serde_json::Value = resp
-        .json()
-        .await
-        .map_err(|e| AppError::Internal(format!("CRS response: {e}")))?;
+    let (status, json) = crs_json(resp, &crs_base).await?;
 
     // On successful registration, mark any matching engine slot online
     if status.is_success() {
@@ -3038,14 +3082,9 @@ async fn crs_stats(
         .get(format!("{crs_base}/api/salvi/inter-cube/crs/stats"))
         .send()
         .await
-        .map_err(|e| AppError::Internal(format!("CRS unreachable: {e}")))?;
+        .map_err(|e| AppError::Unavailable(format!("CRS daemon unreachable at {crs_base}: {e}")))?;
 
-    let status = StatusCode::from_u16(resp.status().as_u16())
-        .unwrap_or(StatusCode::INTERNAL_SERVER_ERROR);
-    let json: serde_json::Value = resp
-        .json()
-        .await
-        .map_err(|e| AppError::Internal(format!("CRS response: {e}")))?;
+    let (status, json) = crs_json(resp, &crs_base).await?;
     Ok((status, Json(json)))
 }
 
@@ -3059,13 +3098,8 @@ async fn crs_topology(
         .get(format!("{crs_base}/api/salvi/inter-cube/topology"))
         .send()
         .await
-        .map_err(|e| AppError::Internal(format!("CRS unreachable: {e}")))?;
-    let status = StatusCode::from_u16(resp.status().as_u16())
-        .unwrap_or(StatusCode::INTERNAL_SERVER_ERROR);
-    let json: serde_json::Value = resp
-        .json()
-        .await
-        .map_err(|e| AppError::Internal(format!("CRS response: {e}")))?;
+        .map_err(|e| AppError::Unavailable(format!("CRS daemon unreachable at {crs_base}: {e}")))?;
+    let (status, json) = crs_json(resp, &crs_base).await?;
     Ok((status, Json(json)))
 }
 
@@ -3079,13 +3113,8 @@ async fn crs_fts_status(
         .get(format!("{crs_base}/api/salvi/inter-cube/fts/status"))
         .send()
         .await
-        .map_err(|e| AppError::Internal(format!("CRS unreachable: {e}")))?;
-    let status = StatusCode::from_u16(resp.status().as_u16())
-        .unwrap_or(StatusCode::INTERNAL_SERVER_ERROR);
-    let json: serde_json::Value = resp
-        .json()
-        .await
-        .map_err(|e| AppError::Internal(format!("CRS response: {e}")))?;
+        .map_err(|e| AppError::Unavailable(format!("CRS daemon unreachable at {crs_base}: {e}")))?;
+    let (status, json) = crs_json(resp, &crs_base).await?;
     Ok((status, Json(json)))
 }
 
@@ -3354,14 +3383,9 @@ async fn crs_session(
         .get(format!("{crs_base}/api/yoda/crs/session/{token}"))
         .send()
         .await
-        .map_err(|e| AppError::Internal(format!("CRS unreachable: {e}")))?;
+        .map_err(|e| AppError::Unavailable(format!("CRS daemon unreachable at {crs_base}: {e}")))?;
 
-    let status = StatusCode::from_u16(resp.status().as_u16())
-        .unwrap_or(StatusCode::INTERNAL_SERVER_ERROR);
-    let json: serde_json::Value = resp
-        .json()
-        .await
-        .map_err(|e| AppError::Internal(format!("CRS response: {e}")))?;
+    let (status, json) = crs_json(resp, &crs_base).await?;
     Ok((status, Json(json)))
 }
 

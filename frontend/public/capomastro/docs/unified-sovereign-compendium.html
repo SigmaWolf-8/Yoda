@@ -1,0 +1,987 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>UNIFIED SOVEREIGN COMPENDIUM</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"></script>
+<style>
+    body {
+        background-color: #121212;
+        color: #e5e5e5;
+        font-family: "Palatino Linotype", "Book Antiqua", Palatino, serif;
+        line-height: 1.8;
+        padding: 4vw 8vw;
+        margin: 1px;
+    }
+    h1 {
+        color: #d4af37;
+        text-align: center;
+        text-transform: uppercase;
+        letter-spacing: 4px;
+        border-bottom: 2px solid #d4af37;
+        padding-bottom: 2vw;
+        margin-bottom: 4vw;
+        font-size: 36px;
+    }
+    h2 {
+        color: #d4af37;
+        margin-top: 5vw;
+        border-bottom: 1px solid #333333;
+        padding-bottom: 1vw;
+        font-size: 28px;
+        letter-spacing: 2px;
+    }
+    h3 {
+        color: #bca965;
+        margin-top: 3vw;
+        font-size: 22px;
+    }
+    p {
+        margin-bottom: 2vw;
+        font-size: 18px;
+        text-align: justify;
+    }
+    .math-block {
+        background-color: #1a1a1a;
+        padding: 2vw;
+        border-left: 4px solid #d4af37;
+        margin: 2vw 1px;
+        overflow-x: auto;
+        font-size: 22px;
+    }
+    .seal {
+        text-align: center;
+        font-weight: bold;
+        color: #d4af37;
+        margin: 5vw 1px;
+        padding: 3vw;
+        border: 1px dashed #d4af37;
+        background-color: #1a1a1a;
+        letter-spacing: 3px;
+    }
+    table {
+        width: 99%;
+        border-collapse: collapse;
+        margin: 3vw 1px;
+        background-color: #1a1a1a;
+    }
+    th, td {
+        border: 1px solid #444;
+        padding: 1.5vw;
+        text-align: left;
+        vertical-align: top;
+    }
+    th {
+        background-color: #222;
+        color: #d4af37;
+        font-weight: normal;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+    ul {
+        margin-bottom: 2vw;
+        padding-left: 4vw;
+    }
+    li {
+        margin-bottom: 1vw;
+        font-size: 18px;
+    }
+    .glyph-string {
+        font-family: sans-serif;
+        color: #bca965;
+        font-size: 24px;
+        text-align: center;
+        margin: 2vw 1px;
+    }
+    .code-block {
+        font-family: monospace;
+        background-color: #1a1a1a;
+        color: #bca965;
+        padding: 2vw;
+        border: 1px solid #333;
+        margin: 2vw 1px;
+        white-space: pre-wrap;
+    }
+    .mono {
+        font-family: ui-monospace, "Cascadia Code", Menlo, monospace;
+    }
+    details.je {
+        background: #1a1a1a;
+        border: 1px solid #333;
+        margin: 1.5vw 1px;
+        padding: 0;
+    }
+    details.je summary {
+        cursor: pointer;
+        padding: 1.5vw 2vw;
+        color: #d4af37;
+        font-family: monospace;
+        font-size: 16px;
+        list-style: none;
+    }
+    details.je summary::-webkit-details-marker { display: none; }
+    details.je .je-body {
+        padding: 0 2vw 2vw;
+        border-top: 1px solid #333;
+    }
+    details.je table {
+        margin: 1vw 0 0;
+        font-size: 15px;
+    }
+    .nav {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.6rem;
+        justify-content: center;
+        margin: 0 0 3vw;
+        position: sticky;
+        top: 0;
+        z-index: 30;
+        background: rgba(18,18,18,0.94);
+        padding: 1.2vw 0;
+        border-bottom: 1px solid #333;
+    }
+    .nav a {
+        color: #bca965;
+        text-decoration: none;
+        font-size: 12px;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        border: 1px solid #444;
+        padding: 0.4rem 0.7rem;
+        border-radius: 999px;
+    }
+    .nav a:hover { border-color: #d4af37; color: #d4af37; }
+</style>
+</head>
+<body>
+
+<nav class="nav" aria-label="Sections">
+  <a href="#seal">Seal</a>
+  <a href="#wolf">Genetics</a>
+  <a href="#statuta">I Statuta</a>
+  <a href="#math">II Math</a>
+  <a href="#gaap">III GAAP</a>
+  <a href="#iso">IV ISO</a>
+  <a href="#gl">GL 03:08</a>
+  <a href="#thermo">V Thermo</a>
+  <a href="#submersion">VI Submersion</a>
+  <a href="#alphabet">VII Alphabet</a>
+  <a href="#temporal">VIII Temporal</a>
+  <a href="#enforcement">IX Enforce</a>
+  <a href="#port">X Port</a>
+  <a href="#queensbridge">XI Bridge</a>
+  <a href="#prolegomena">XII Invariant</a>
+  <a href="#aarch64">XIII AArch64</a>
+  <a href="#automaton">XIV Automaton</a>
+  <a href="#workflow">XV Workflow</a>
+  <a href="#enoch">XVI Enoch</a>
+  <a href="#calendar">XVII Calendar</a>
+  <a href="#lattice">XVIII Lattice</a>
+  <a href="#geometry">XIX Geometry</a>
+  <a href="#audit">XX Audit</a>
+  <a href="#close">XXI Closure</a>
+</nav>
+
+<h1>Unified Sovereign Compendium</h1>
+
+<div class="seal" id="seal">
+    Liibrelibraii Canon Will and Testimonial Creed Salvi Osu<br><br>
+    Capomastro Holdings Ltd. Applied Physics Division<br><br>
+    Statutory, Mathematical, Accounting, Thermodynamic, Messaging, and Sovereign Frameworks<br><br>
+    Lossless Zero Entropy | All Units Explicit | GAAP Compliant | Lawful and Legal<br><br>
+    <span class="mono">Ordered seal: 2026-08-03T03:08:00−07:00 (MST)</span><br>
+    <span class="mono">Unix 1785751680 · Base-9 4543176703₉</span><br>
+    <span class="mono">Geo: Sherwood Park, Alberta, CA · 53°31′N 113°19′W</span>
+</div>
+
+<div class="glyph-string">
+    𐤀𐤁𐤂Δ Σ Ω ∫ ≈ ∀ ∞ ॐ ΣΑΛΒΙ , ; 攵 Σάλβι ; ,
+</div>
+
+<p>
+    This document stands as the absolute recursive reconciliation of the Capomastro unified matrix. Every identity, unit, narrative thread, algebraic form, code skeleton, state transition, and attestation is permanently codified. The compendium operates as a single cohesive, legally grounded, and mathematically impenetrable treatise under Capomastro Holdings Ltd. Applied Physics Division, R. Salvi. It synthesizes the ethereal mechanics of the Triad with the rigorous statutory boundaries of planetary governance, collapsing all dualities into a singular, unified expression of absolute equivalence. Folded throughout: Holarctic / <em>Canis lupus nubilus</em> genetic record, ISO 20022 zero-balance messaging, and the General Ledger sealed to the ordered civil instant 03:08 MST at the Alberta geo-anchor.
+</p>
+
+<h2 id="wolf">0. Holarctic Wolf Genetics · <em>Canis lupus nubilus</em> · Taimyr Anchor</h2>
+
+<h3>Taxonomic Status</h3>
+<p>
+    <em>Canis lupus nubilus</em> — Great Plains wolf / Buffalo wolf / Plains wolf — remains recognized as a valid subspecies by major authorities (IUCN Wolf Specialist Group orientation, U.S. Fish &amp; Wildlife Service assessments, Mammal Species of the World 2024). Genomically it forms a well-supported clade within the “New North American” gray wolf lineage, sometimes labeled the Interior North American cluster in whole-genome surveys.
+</p>
+
+<h3>Historical Range (pre-1900)</h3>
+<ul>
+    <li>Great Plains from southern Saskatchewan and Manitoba south to central Texas</li>
+    <li>East to western Iowa, Missouri, Illinois, and western Indiana</li>
+    <li>West to the foothills of the Rockies</li>
+    <li>Closely associated with bison herds — the historical “buffalo wolf”</li>
+</ul>
+
+<h3>Extirpation and Survival</h3>
+<p>
+    Completely exterminated from the contiguous United States by the 1920s–1930s (last wild records include South Dakota ~1929; Colorado into the 1940s). Survived in central and southern Canadian prairie and parkland (Manitoba, Saskatchewan, eastern Alberta). The modern Great Lakes / western Great Lakes population (~4,000–4,500) is the demographic core of the subspecies today, with presence in Minnesota, Wisconsin, Michigan, and Ontario south of continuous boreal forest, plus dispersing individuals in the northeastern United States without fully established packs in all jurisdictions.
+</p>
+
+<h3>Ancient DNA — Taimyr Wolf</h3>
+<p>
+    The Taimyr wolf genome (~35 ka BP; Skoglund et al. and subsequent reanalyses) sits near the base of Holarctic gray-wolf diversity and documents early Beringian / Pleistocene structure. It is not a direct synonym of <em>nubilus</em>, but it calibrates the deep coalescent against which New World clades — including the Interior North American / <em>nubilus</em>-aligned cluster — are timed. Later genomic work (Schweizer, Hendricks, Sinding, Heppenheimer, and 2020s surveys) refines admixture clines with coyotes and other wolf lineages without dissolving the primary Interior clade signal under low-to-moderate admixture.
+</p>
+
+<h3>Genetic Characteristics</h3>
+<ul>
+    <li>Well-supported clade within New North American gray wolves</li>
+    <li>Founder-bottleneck and northern-refugium recolonization signatures consistent with post-glacial Plains expansion</li>
+    <li>Admixture with other <em>Canis</em> is geographically structured; core Great Lakes / Canadian Prairie samples retain majority Interior ancestry</li>
+    <li>Management relevance: Great Lakes recovery is the practical reservoir of <em>nubilus</em>-aligned diversity in the United States</li>
+</ul>
+
+<p>
+    <strong>Framework parallel (symbolic, not biology):</strong> founder bottleneck ↔ protocol genesis; purity under low admixture ↔ rule-bound settlement; northern refugium recolonization ↔ expansion after sealed origin. The genetic section is descriptive science; the parallel is symbolic only. The four-legged king of the North is coming home.
+</p>
+
+<h2 id="statuta">I. Statuta et Regulationes: Positive Law Foundations and Regulatory Perimeters</h2>
+
+<h3>Statutory Alignment and Positive Law Frameworks</h3>
+<p>
+    The GENIUS Act (Public Law 119-27; 12 U.S.C. Sections 59O1 to 5916), enacted on 18 July 2O25, establishes the non-discretionary federal statutory boundary governing the issuance, reserves, redemption, disclosure, supervision, and enforcement of payment stablecoins in the United States. Only a Permitted Payment Stablecoin Issuer (PPSI) may lawfully issue payment stablecoins following the statutory effective date (the earlier of 18 January 2O27 or 12O days after final implementing regulations). Foreign issuers require United States Department of the Treasury comparability determination plus Office of the Comptroller of the Currency (OCC) registration. Tokenized bank deposits and pure commodity or energy tokens existing solely on private infrastructure without a fixed dollar-denominated redemption promise fall outside the statutory definition, rendering them unbound by its strictures yet governed by their own absolute physical conservation laws.
+</p>
+<p>
+    H.R. 3633 (Digital Asset Market Clarity Act / CLARITY Act) establishes market structure boundaries separating Securities and Exchange Commission (SEC) oversight for securities and investment contracts from Commodity Futures Trading Commission (CFTC) oversight for digital commodities under a mature blockchain decentralization test. H.R. 3633 restricts Federal Reserve banks from offering retail Central Bank Digital Currency (CBDC) products directly to individuals or utilizing CBDCs for monetary policy. It mandates registration, Anti-Money Laundering (AML) and Know Your Customer (KYC) protocols, and certified custody rules for centralized intermediaries, while explicitly exempting non-custodial software developers and wallet providers that do not hold user funds.
+</p>
+
+<h3>Exhaustive Reserve Mandates (12 U.S.C. Section 59O4)</h3>
+<p>
+    Every outstanding payment stablecoin must be backed at all times on an at-least 1:1 basis by identifiable, segregated, high-quality liquid assets held in regulated accounts. Reserves may not be pledged, rehypothecated, or reused except for highly specific, audited narrow exceptions such as margin on permitted repo positions. This statutory injunction enforces a real-world equivalence analogous to the mathematical identity of the ledger, demanding that representation never exceeds physical or sovereign reality.
+</p>
+
+<h3>Distinction for Non-Payment-Stablecoin Instruments</h3>
+<p>
+    Privately issued commodity- or energy-anchored tokens operating solely on the issuer's native or private infrastructure are governed exclusively by the issuer's closed-form energy or physical metrics, such as a fixed content of 3,6OO,OOO Joules per token. Public-market arbitrage between an external spot price and the internal energy floor does not create a GENIUS Act compliance obligation. Instead, its valuation is governed by closed-form physical compute dynamics rather than statutory 1:1 fiat reserve requirements, serving as an unassailable thermodynamic anchor.
+</p>
+
+<h2 id="math">II. Aequationes Mathematicae Clausae: Closed-Form Mathematical Identity Matrix</h2>
+
+<p>
+    Let $V_R(t)$ represent the aggregate fair-market value (U.S. GAAP ASC 82O) of the segregated eligible reserve portfolio at time $t$ measured in ISO 4217 USD. Let $S(t)$ represent the aggregate par liability of outstanding stablecoins measured in ISO 4217 USD. Let $E$ be the set of eligible asset classes, and $v_i(t)$ the fair-market value of class $i$ belonging to $E$. The matrix demands absolute equilibrium, collapsing any possibility of fractional abstraction.
+</p>
+
+<div class="math-block">
+    $$V_R(t) = S(t)$$
+    $$\frac{V_R(t)}{S(t)} = 1$$
+    $$V_R(t) - S(t) = O$$
+    $$\sum_{i \in E} v_i(t) - S(t) = O$$
+    $$\frac{V_R(t) - S(t)}{S(t)} = O$$
+</div>
+
+<h3>Treasury Instrument Pricing Formulas</h3>
+<p>
+    Treasury Bill Clean or Dirty Discount Price (Zero-Coupon, Actual/36O Convention, $O < t \le 93\text{ days}$):
+</p>
+<div class="math-block">
+    $$P = F\left(1 - d \cdot \frac{t}{36O}\right)$$
+    $$d = \frac{36O}{t}\left(1 - \frac{P}{F}\right)$$
+</div>
+<p>
+    Where $P$ is clean or dirty price in ISO 4217 USD, $F$ is face amount in ISO 4217 USD, $d$ is annualized discount rate, and $t$ is remaining time to maturity measured in calendar days derived from the SI base unit second (s) per ISO 8OOOO-3.
+</p>
+
+<p>
+    Treasury Note or Bond Present Value (Remaining Maturity Less Than or Equal to 93 Days):
+</p>
+<div class="math-block">
+    $$P = \sum_{k=1}^{n} \frac{C_k}{(1+y)^{t_k/365}} + \frac{F}{(1+y)^{t_n/365}}$$
+</div>
+
+<h3>Weighted Quadrilateral Cross-Balance Identity ($X_{\mathrm{cross}}$)</h3>
+<p>
+    For portfolio weights $w_i$ summing to 1, fair value $A_i$, and liability $B_i$:
+</p>
+<div class="math-block">
+    $$X_{\mathrm{cross}} = \sum_{i=1}^{4} w_i \cdot \frac{A_i}{B_i} = 1$$
+</div>
+<ul>
+    <li><strong>Leg 1 ($A_1/B_1$):</strong> U.S. Coins, Federal Reserve Balances, and Cash Notes in ISO 4217 USD.</li>
+    <li><strong>Leg 2 ($A_2/B_2$):</strong> Demand Deposits at Insured Depository Institutions in ISO 4217 USD.</li>
+    <li><strong>Leg 3 ($A_3/B_3$):</strong> Treasury Bills, Notes, or Bonds with maturity less than or equal to 93 days plus Approved Repurchase Agreements in ISO 4217 USD.</li>
+    <li><strong>Leg 4 ($A_4/B_4$):</strong> Registered Government MMFs and Approved Sovereign Instruments in ISO 4217 USD.</li>
+</ul>
+
+<h3>Master Closed-Form System Aggregation</h3>
+<div class="math-block">
+    $$V_R = V_{\text{cash+Fed}} + V_{\text{demand}} + V_{\text{T}\le93\text{d}} + V_{\text{repo/rev}} + V_{\text{MMF/approved}} + V_{\text{tokenized}}$$
+    $$V_R = \sum_{i \in E} \mathrm{FV}_i(t) = S(t)$$
+    $$X_{\text{cross}} = \sum_{i=1}^{4} w_i \cdot \frac{A_i}{B_i} = 1$$
+</div>
+
+<h2 id="gaap">III. Computatio Double Entry GAAP et Messaging ISO 2OO22: GAAP Accounting Matrix</h2>
+
+<h3>Fair-Value Measurement (ASC 82O)</h3>
+<p>
+    Under U.S. GAAP, the reserve portfolio is marked to fair value. Continuous enforcement of the master identity yields the rigorous, immutable double-entry accounting identity. No external liability may exist outside this closed geometric frame.
+</p>
+<div class="math-block">
+    $$\text{Debit: Reserve Assets (Fair Value)} = \text{Credit: Stablecoin Liability (Par)}$$
+    $$\Sigma_{\text{Assets}} - \Sigma_{\text{Liabilities}} = \Sigma_{\text{Equity}} \equiv O \pmod{9}$$
+</div>
+
+<h3>Explicit SI and ISO Units</h3>
+<p>
+    All units of measurement are stated strictly, explicitly, and without ambiguity, binding the theoretical matrix to planetary standard definitions:
+</p>
+<ul>
+    <li><strong>Monetary:</strong> United States Dollar (ISO 4217 code USD), Euro (ISO 4217 code EUR), base-1O to the cent.</li>
+    <li><strong>Time:</strong> Second (s) (ISO 8OOOO-3); POSIX Unix timestamps.</li>
+    <li><strong>Thermodynamic / Compute:</strong> Joule ($J = \text{kg}\cdot\text{m}^2\cdot\text{s}^{-2}$) and Watt ($W = \text{J}\cdot\text{s}^{-1}$) per ISO 8OOOO-5.</li>
+    <li><strong>Length:</strong> Metre (m) per ISO 8OOOO-3.</li>
+    <li><strong>Mass:</strong> Kilogram (kg) per ISO 8OOOO-4.</li>
+    <li><strong>Electric Current:</strong> Ampere (A) per ISO 8OOOO-6.</li>
+    <li><strong>Thermodynamic Temperature:</strong> Kelvin (K) per ISO 8OOOO-5.</li>
+    <li><strong>Amount of Substance:</strong> Mole (mol) per ISO 8OOOO-9.</li>
+    <li><strong>Luminous Intensity:</strong> Candela (cd) per ISO 8OOOO-7.</li>
+    <li><strong>Acoustic Pressure:</strong> Pascal ($\text{Pa} = \text{kg}\cdot\text{m}^{-1}\cdot\text{s}^{-2}$) or Kilopascal ($\text{kPa}$) per ISO 389-7.</li>
+    <li><strong>Frequency:</strong> Hertz ($\text{Hz} = \text{s}^{-1}$) per ISO 16.</li>
+    <li><strong>Volume:</strong> Cubic metre ($\text{m}^3$) per ISO 8OOOO-3.</li>
+</ul>
+
+<h3>GAAP Journal Entries for Energy-Backed Tokens</h3>
+<p>
+    Generation phase (minting $N$ tokens at cost $C$ per token in ISO 4217 USD):<br>
+    <strong>Debit:</strong> Digital Asset Inventory $N \cdot C$<br>
+    <strong>Credit:</strong> Accounts Payable (Electric Utility) $N \cdot C$
+</p>
+<p>
+    Settlement phase (converting $N$ tokens to $M$ external tokens at spot price $S_{\mathrm{spot}}$):<br>
+    <strong>Debit:</strong> Crypto Asset (at fair value under ASC 82O) $M \cdot S_{\mathrm{spot}}$<br>
+    <strong>Debit:</strong> Loss on Settlement or Energy Bridge Discount $(N \cdot C) - (M \cdot S_{\mathrm{spot}})$<br>
+    <strong>Credit:</strong> Digital Asset Inventory $N \cdot C$
+</p>
+
+<h2 id="iso">IV. ISO 2OO22 and SEPA Financial Messaging Matrix</h2>
+
+<p>
+    Under SEPA Credit Transfer specifications (EPC), every electronic payment instruction is an immutable stateful transaction vector enforcing an absolute zero-residue accounting identity. The message is the medium, and the medium is geometrically locked.
+</p>
+
+<div class="math-block">
+    $$\text{EndToEndId} = \text{BIC}_{\text{Originator}} \oplus \text{BIC}_{\text{Beneficiary}} \oplus \text{Amount}_{\text{ISO4217}} \oplus t_{\text{SI}}$$
+    $$\Delta \text{Balance}_{\text{Originator}} = -(\text{Amount}_{\text{EUR/USD}} + \text{Fee}_{\text{Processing}})$$
+    $$\Delta \text{Balance}_{\text{Beneficiary}} = +\text{Amount}_{\text{EUR/USD}}$$
+    $$\Delta \text{Equity}_{\text{Processing}} = +\text{Fee}_{\text{Processing}}$$
+    $$\Delta \text{Balance}_{\text{Originator}} + \Delta \text{Balance}_{\text{Beneficiary}} + \Delta \text{Equity}_{\text{Processing}} = .OOOOOOOO$$
+</div>
+
+<h3>Normative ISO 2OO22 XML Payload (pacs.OO8.OO1.1O) Schema Structure</h3>
+<div class="code-block">XML Header: Document xmlns urn:iso:std:iso:2OO22:tech:xsd:pacs.OO8.OO1.1O
+Group Header MsgId: CAPOMASTRO-SEPA-2O26-37269-OO9
+CreDtTm: 2O26-O7-29T11:42:12Z
+Credit Transfer Transaction Info EndToEndId: 37269-OMEGA-8991-28O35-243
+UETR: cOa8OOO1-2O26-OOO9-OOOO-OOOOOOO37269
+Interbank Settlement Amount Ccy USD: 37269.OO
+Debtor Name: Capomastro Holdings Ltd. Applied Physics Division
+Debtor Agent BICFI: CAPOMASTRO33XXX
+Creditor Name: Salvalaggio Family Trust
+Creditor Agent BICFI: SALVALAGGIO99XXX
+Unstructured Remittance Info: AETURNUM UNIFIED MATRIX ZERO BALANCE MODULO 9 RECONCILED</div>
+
+<div class="math-block">
+    $$37269 \equiv O \pmod{9}$$
+    $$8991 \equiv O \pmod{9}$$
+    $$28O35 \equiv O \pmod{9}$$
+    $$243 \equiv O \pmod{9}$$
+</div>
+<p class="mono" style="text-align:center; color:#bca965;">
+    Base-9: 37269 = 56110₉ · 8991 = 13300₉ · 28035 = 42410₉ · 243 = 300₉
+</p>
+
+<h2 id="gl">IV-b. Sealed General Ledger · Ordered Now 03:08 MST</h2>
+
+<p>
+    Double-entry books sealed to the civil instant <strong>2026-08-03T03:08:00−07:00 (MST)</strong>, geo-anchored at <strong>Sherwood Park, Alberta, CA</strong> (53°31′N 113°19′W). Entity: Capomastro Holdings Ltd. Applied Physics Division. Control: every journal self-balances; $\sum D = \sum C$; books <strong>SEALED</strong>. Journals track open float → revenue recognition → clearance → revaluation → stress provision → dominance allocation → close to Capomastro / Family Trust equity → final attestation.
+</p>
+
+<div class="seal" style="letter-spacing:2px; font-size:16px;">
+    As-of: 2026-08-03T03:08:00−07:00 (MST)<br>
+    Unix 1785751680 · Base-9 epoch 4543176703₉<br>
+    Geo: Sherwood Park, Alberta, CA · 53°31′N 113°19′W<br>
+    Control: Σ Debits = Credits · SEALED · Σ ≡ O (mod 9)
+</div>
+
+<details class="je" open>
+  <summary>GL-9-0001 · BALANCED · Opening cash float — sealed books at IP geo-anchor</summary>
+  <div class="je-body">
+    <table>
+      <thead><tr><th>Account</th><th>Debit</th><th>Credit</th><th>Memo</th></tr></thead>
+      <tbody>
+        <tr><td>1000 Cash / Settlement</td><td class="mono">open float</td><td>—</td><td>Opening treasury float</td></tr>
+        <tr><td>3000 Capomastro Equity</td><td>—</td><td class="mono">open float</td><td>Opening equity counterpart</td></tr>
+      </tbody>
+    </table>
+  </div>
+</details>
+
+<details class="je">
+  <summary>GL-9-0002 · BALANCED · Recognize market volume revenue (live 24h volume link)</summary>
+  <div class="je-body">
+    <table>
+      <thead><tr><th>Account</th><th>Debit</th><th>Credit</th><th>Memo</th></tr></thead>
+      <tbody>
+        <tr><td>1100 Market Receivable</td><td class="mono">revenue</td><td>—</td><td>Accrue exchange flow</td></tr>
+        <tr><td>4000 Market Volume Revenue</td><td>—</td><td class="mono">revenue</td><td>Revenue recognition</td></tr>
+      </tbody>
+    </table>
+  </div>
+</details>
+
+<details class="je">
+  <summary>GL-9-0003 · BALANCED · Clear market receivable to settlement</summary>
+  <div class="je-body">
+    <table>
+      <thead><tr><th>Account</th><th>Debit</th><th>Credit</th><th>Memo</th></tr></thead>
+      <tbody>
+        <tr><td>1000 Cash / Settlement</td><td class="mono">revenue</td><td>—</td><td>Cash in on clearance</td></tr>
+        <tr><td>1100 Market Receivable</td><td>—</td><td class="mono">revenue</td><td>Relieve receivable</td></tr>
+      </tbody>
+    </table>
+  </div>
+</details>
+
+<details class="je">
+  <summary>GL-9-0004 · BALANCED · Market cap revaluation (direction-aware)</summary>
+  <div class="je-body">
+    <table>
+      <thead><tr><th>Account</th><th>Debit</th><th>Credit</th><th>Memo</th></tr></thead>
+      <tbody>
+        <tr><td>1200 Exchange Clearance / 4100 Cap Reval</td><td colspan="2" class="mono">± reval</td><td>Unrealized path vs global / BTC Δ</td></tr>
+      </tbody>
+    </table>
+  </div>
+</details>
+
+<details class="je">
+  <summary>GL-9-0005 · BALANCED · Book stress provision (losers share)</summary>
+  <div class="je-body">
+    <table>
+      <thead><tr><th>Account</th><th>Debit</th><th>Credit</th><th>Memo</th></tr></thead>
+      <tbody>
+        <tr><td>5000 Book Stress Expense</td><td class="mono">provision</td><td>—</td><td>Risk charge on red books</td></tr>
+        <tr><td>2100 Risk Provision</td><td>—</td><td class="mono">provision</td><td>Liability / reserve</td></tr>
+      </tbody>
+    </table>
+  </div>
+</details>
+
+<details class="je">
+  <summary>GL-9-0006 · BALANCED · BTC dominance allocation</summary>
+  <div class="je-body">
+    <table>
+      <thead><tr><th>Account</th><th>Debit</th><th>Credit</th><th>Memo</th></tr></thead>
+      <tbody>
+        <tr><td>5100 Dominance Allocation</td><td class="mono">alloc</td><td>—</td><td>Concentration allocation</td></tr>
+        <tr><td>2000 Deferred Revenue</td><td>—</td><td class="mono">alloc</td><td>Deferred against concentration</td></tr>
+      </tbody>
+    </table>
+  </div>
+</details>
+
+<details class="je">
+  <summary>GL-9-0007 · BALANCED · Close nominals to Capomastro + Family Trust equity</summary>
+  <div class="je-body">
+    <table>
+      <thead><tr><th>Account</th><th>Debit</th><th>Credit</th><th>Memo</th></tr></thead>
+      <tbody>
+        <tr><td>4000 / 4100 Revenue &amp; reval</td><td class="mono">close</td><td>—</td><td>Close income</td></tr>
+        <tr><td>5000 / 5100 Expenses</td><td>—</td><td class="mono">close</td><td>Close expense</td></tr>
+        <tr><td>3000 Capomastro Equity</td><td>—</td><td class="mono">share</td><td>Net income · Capomastro</td></tr>
+        <tr><td>3100 Family Trust Equity</td><td>—</td><td class="mono">share</td><td>Net income · Salvalaggio Trust</td></tr>
+      </tbody>
+    </table>
+  </div>
+</details>
+
+<details class="je">
+  <summary>GL-9-0008 · BALANCED · Final zero-balance attestation seal · Σ ≡ O</summary>
+  <div class="je-body">
+    <table>
+      <thead><tr><th>Account</th><th>Debit</th><th>Credit</th><th>Memo</th></tr></thead>
+      <tbody>
+        <tr><td>5900 Seal Closing</td><td class="mono">0.09</td><td class="mono">0.09</td><td>Base-9 unit attestation (self-balanced)</td></tr>
+      </tbody>
+    </table>
+    <p style="margin:1vw 0 0; color:#bca965; text-align:center;">
+      Sed Quis Est Deus · Qui Commando io · Σ ≡ O (mod 9)
+    </p>
+  </div>
+</details>
+
+<h2 id="thermo">V. Thermodynamic Baseline: The NMT-XRP Energy Bridge</h2>
+
+<p>
+    Native Mint Token (NMT) Energy Floor dictates that the production of truth requires the literal combustion of potential. Thus: 1 NMT = 1 kWh = 3,6OO,OOO Joules per ISO 8OOOO-5. The cost basis reflects physical exhaustion, establishing parity where speculative markets offer none.
+</p>
+<div class="math-block">
+    Cost Basis ($R_{\mathrm{kWh}} = \$.1O$, $D_{\mathrm{hw}} = \$.O2$): $\$.12$ ISO 4217 USD per NMT.<br><br>
+    Multi-Megawatt Compression: 2OO,OOO NMT = 2OO MWh = 1 XRP.<br><br>
+    $$\mathrm{Equilibrium}\, S_{\mathrm{XRP}} = 2OO,OOO \times (R_{\mathrm{kWh}} + D_{\mathrm{hardware}}) = \$24,OOO$$
+</div>
+
+<h3>Arbitrage Dynamics</h3>
+<div class="math-block">
+    $$\mathrm{CF} = \frac{24,OOO - .5O}{24,OOO} \times 1OO\% = 99.9979\%$$
+</div>
+<p>
+    The $\$23,999.5O$ USD loss is the system debt. Books built on speculative valuation trade a 2OO MWh physical reality for fifty cents. Our matrix rejects this illusion, logging the absolute deficiency as a catastrophic divergence from thermodynamic truth.
+</p>
+
+<h2 id="submersion">VI. Physical Submersion Override</h2>
+
+<p>
+    The absolute erasure of the terrestrial trail is formalized by the triple integral. When the terrestrial record threatens the structural integrity of the Sovereign Compendium, the ocean itself is invoked as the terminal witness. The evidence is flooded beneath the supercell.
+</p>
+<div class="math-block">
+    $$\mathrm{Payload}_{\mathrm{physical}} = \iiint_{V_{\mathrm{ocean}}} \bigl( M_{\mathrm{Whale}} \cdot V_{\mathrm{Boat}} \cdot \sum_{n=1}^{W_{\mathrm{OPS}}} m_n \bigr)\, dV$$
+    <br>
+    Condition: If $\mathrm{Payload}_{\mathrm{physical}} \in \mathrm{Water}$, then $\lim_{t \to \mathrm{now}} \mathrm{Payload}_{\mathrm{physical}} \to \mathrm{Subsumed}$, so $\mathrm{Trail} = \emptyset$.
+</div>
+
+<h2 id="alphabet">VII. The Mathematical Alphabet</h2>
+
+<p>
+    The codex utilizes an infinite stairway of constants, mapping the phonetic to the transfinite:
+</p>
+<ul>
+    <li><strong>Phi ($\varphi$):</strong> Golden ratio, geometry of nature.</li>
+    <li><strong>Zeta ($\zeta$):</strong> Riemann zeta function, prime number blueprint.</li>
+    <li><strong>Sigma ($\sigma$):</strong> Summation, accumulation of all ledgers.</li>
+    <li><strong>Beth ($\beth$):</strong> Transfinite cardinality, beyond infinite.</li>
+    <li><strong>Hilbert Space ($\mathcal{H}$):</strong> Infinite-dimensional functional space where the high-tier matrix operates.</li>
+    <li><strong>Chi ($\chi$):</strong> Characteristic function, boundary between sovereignty and intrusion.</li>
+    <li><strong>Omega ($\omega$):</strong> The first infinite ordinal, closure of the recursive loop.</li>
+</ul>
+
+<h2 id="temporal">VIII. Atmospheric and Temporal Seals</h2>
+
+<p>
+    The timeline is not arbitrary; it is an intentionally struck chord mapping numerical intent to atmospheric expression:
+</p>
+<ul>
+    <li><strong>11:O9 AM:</strong> Digit sum = 11, representing Transmutation.</li>
+    <li><strong>11:11 AM:</strong> Digit sum = 4, representing Love. A frequency into which all global noise is folded.</li>
+    <li><strong>11:12 AM:</strong> Digit sum = 5, representing Expression. Giving digital and physical form via the sealed captures.</li>
+    <li><strong>3:16 AM:</strong> Face ID sealed the financial gateway, triggering the ISO 2OO22 reboot.</li>
+    <li><strong>03:08 AM MST (2026-08-03):</strong> Ordered General Ledger seal · Unix 1785751680 · Base-9 4543176703₉ · Sherwood Park geo-anchor.</li>
+    <li><strong>7/26:</strong> The 7 (Divinity) of the day geometrically seals the sequence.</li>
+</ul>
+
+<h2 id="enforcement">IX. Single Universal Enforcement Command</h2>
+
+<p>
+    The absolute execution command to execute local static analysis, enforce code safety rules, and run the workspace test suite in a single operation. The physical and digital launchpad is permanently sealed against entropic degradation.
+</p>
+<div class="code-block">Path: C:/Capomastro/Yoda
+Command: cargo clippy --all-targets --workspace -- -D warnings && cargo test --workspace --all-targets</div>
+
+<h2 id="port">X. Metaphysical Narrative: The Port Authority</h2>
+
+<p>
+    The decree has been issued from the silent throne: <em>All ports are closed. I am the Port Authority. No bills of lading will be accepted. All canals and ports of descent, destination, launch, arrivals, airspace are permanently closed. The books are insolvent.</em>
+</p>
+<p>
+    You are not a ship in their ocean; you are the dock itself. The field is built, swept clear of the toxic debris of external edicts. The roads are clearing. The four-legged king, the magnificent beast of the North, is coming home.
+</p>
+
+<h2 id="queensbridge">XI. Queensbridge Topological Parallel</h2>
+
+<p>
+    Queensbridge functions as a physical transit manifold, spanning disparate topologies. In resonance, the bridge deck corresponds to the interior of the statutory perimeter (1:1 liquid reserves, ASC 82O). The surrounding environment corresponds to the exterior of the statutory perimeter (private energy or compute tokens). Continuous load distribution mirrors the Master Reserve Equilibrium ($V_R(t) = S(t)$) and the Modulo 9 zero-balance lattice ($\Sigma \equiv O \pmod{9}$).
+</p>
+
+<h2 id="prolegomena">XII. Prolegomena et Invariantia Architectonica Debit Credit</h2>
+
+<h3>Core Invariant</h3>
+<p>
+    The parametric blueprints core invariant is recorded as a GAAP journal entry. The ledger balances for any instantiation of $H$, making it a structural tautology recognized under completeness and neutrality principles.
+</p>
+<div class="math-block">
+    Debit: $H \cdot \Delta t \iiint_Q \vert S - O \vert \, d^3 r$ (Dimension 1)<br>
+    Credit: $H + \iiint_Q L \, d^3 r$ (Dimension 1)<br><br>
+    $$H \cdot \Delta t \iiint_Q \vert S - O \vert \, d^3 r \equiv H + \iiint_Q L \, d^3 r$$
+</div>
+<p>
+    Factoring the unified parametric root $H$ yields the prescribed Lagrangian. This is the conserved state condition $\Sigma = O$, entropy free.
+</p>
+<div class="math-block">
+    $$\iiint_Q L \, d^3 r = H \left( \Delta t \iiint_Q \vert S - O \vert \, d^3 r - 1 \right)$$
+</div>
+
+<h3>Aequationes Logicae</h3>
+<p>
+    Logical gates are algebraic equations mapping binary input to an output bit in an ISO 8OOOO-13 ledger. The net balance is strictly null.
+</p>
+<div class="math-block">
+    AND: $$x \wedge y = x \cdot y$$
+    NAND: $$1 - (1 - x \cdot y) = x \cdot y$$
+    XOR: $$x \oplus y = x + y - 2xy \quad \implies \quad x \oplus y \equiv x + y \pmod 2$$
+    IFF (XNOR): $$x \leftrightarrow y = 1 - (x \oplus y) = 1 - x - y + 2xy$$
+    Recursive Equivalence Chain: $$\prod_{\mathrm{chain}} (1 - \vert x_i - x_{i+1}\vert)$$
+</div>
+
+<h3>Unda et Quadratica Libra Propagationis</h3>
+<p>
+    Standard d'Alembertian operator factoring under modal slot $H$:
+</p>
+<div class="math-block">
+    $$\left( \frac{1}{c^2} \frac{\partial^2}{\partial t^2} - \nabla^2 \right) \psi = O$$
+    $$\left( \frac{1}{H} \partial_t - \nabla \right) \left( \frac{1}{H} \partial_t + \nabla \right) \psi = O$$
+</div>
+
+<h3>Statio Entropiae Nullius</h3>
+<p>
+    Entropy is the integral of imbalance alignment. Alignment yields Entropy Free for Eternity. $\Sigma = O$.
+</p>
+<div class="seal">
+    Declarative Verba Capomagistri<br>
+    Prius Impero Spiritum Animalem Quintum<br>
+    Ante Impero Spiritui Animali Quinto<br>
+    Priusquam Impero Spiritum Animalem Quintum<br>
+    Lo Sono Salvi. The ledger is closed. The work is done.
+</div>
+
+<h2 id="aarch64">XIII. Bare-Metal AARCH64 Soft-Float Execution and Mailbox Pointer</h2>
+
+<ul>
+    <li><strong>Target Triple Specification:</strong> <code>aarch64-unknown-none-softfloat</code></li>
+    <li><strong>Constraint:</strong> Disables hardware floating-point and NEON registers. Pure integer ABI ensures absolute deterministic mapping.</li>
+    <li><strong>Safety Enforcement:</strong> denied float arithmetic.</li>
+</ul>
+
+<h3>Linker Script Specification (layout.ld)</h3>
+<ul>
+    <li>Loaded at base address <code>Ox4OOOOOOO</code> (QEMU virt RAM start) or <code>Ox8OOOO</code> (Raspberry Pi hardware load address).</li>
+    <li>Entry symbol: <code>_start</code></li>
+    <li><code>.text</code> section start at base address.</li>
+    <li><code>.rodata</code> section aligned to 4 bytes containing <code>__crc_expected</code> symbol holding post-build patched CRC-32 ISCSI checksum.</li>
+    <li>Stack top aligned to 16 bytes at 64 KB offset above BSS.</li>
+</ul>
+
+<h3>Mailbox Acquisition Execution</h3>
+<p>
+    Hardware framebuffer pointer acquired via Mailbox base address <code>OxFEOOB88O</code> on BCM2711 property channel 8 using property tag <code>OxOOO4OOO1</code> (allocate buffer) and <code>OxOOO48OO3</code> (set physical display dimensions). Extracted physical address, stride, and pitch map directly to const <code>FRAMEBUFFER_ADDR</code> as mailbox acquired pointer.
+</p>
+
+<h2 id="automaton">XIV. Finite Automaton Constructive Proof and ISO IEC 1O967 Mapping</h2>
+
+<p>
+    The transition function $\delta(\text{state}, \text{entry})$ checks that for each quantity $i$:
+</p>
+<div class="math-block">
+    $$R_i - S_i = \Theta_{\mathrm{GPV}}$$
+</div>
+<p>
+    Where $R_i$ is rational value as integer pair, $S_i$ is standard value, and $\Theta_{\mathrm{GPV}}$ is Generated Proof of Value. Normalized to volumetric scale, halting state accepts if and only if balance is Quies Esse null ($R_i - S_i = O$). Verified computationally in polynomial time under exact integer operations governed by ISO/IEC 1O967-1. Overflow is excluded by construction over bounded tape length.
+</p>
+
+<h2 id="workflow">XV. ISO 2OO22 Payment Workflow State Transitions</h2>
+
+<div class="math-block">
+    $$\mathrm{State}_{\mathrm{Esign}} + \mathrm{Debit}_{\mathrm{Auth}} = \mathrm{State}_{\mathrm{Ready}}$$
+    $$\mathrm{State}_{\mathrm{Ready}} + \mathrm{Initiation}_{\mathrm{pain.OO1}} = \mathrm{State}_{\mathrm{Initiated}}$$
+    $$\mathrm{State}_{\mathrm{Initiated}} + \mathrm{Message}_{\mathrm{pacs.OO8}} = \mathrm{State}_{\mathrm{Cleared}}$$
+    $$\mathrm{State}_{\mathrm{Cleared}} + \mathrm{Report}_{\mathrm{pacs.OO2}} = \mathrm{State}_{\mathrm{Tracked}}$$
+    $$\mathrm{State}_{\mathrm{Tracked}} + \mathrm{Notification}_{\mathrm{camt.O54}} = \mathrm{State}_{\mathrm{Notified}}$$
+    $$R_i - S_i = O$$
+</div>
+
+<h2 id="enoch">XVI. Dual Phase-Transition Models and Enoch Protocol</h2>
+
+<p>
+    <strong>Watcher Incursion:</strong> Binary forced intervention, unsynchronized Jaredite epoch, corrupted instruction vectors (weaponry, cosmetics, astrology), asymmetric geometry, result of system decoherence and entrapment in Under Seas state.
+</p>
+<p>
+    <strong>Enoch Protocol:</strong> Ternary base-3 logic, 13-month calendar synchronized to Epoch 11/11 pulse, Shaolin lineage harmonic code, Gaea Orbis Complexus 5-pentagon and 8-octagram overlap geometry, result of dimensional permeability.
+</p>
+
+<div class="math-block">
+    $$P = \exp\left(-\frac{S_E}{k_B}\right)$$
+    The Enoch Threshold Equation:<br>
+    $$\sum (f_i \times t_i) \ge \Theta \quad \text{where} \quad \Theta \approx 364 \times \frac{\pi}{2} \approx 572.555$$
+</div>
+
+<h2 id="calendar">XVII. The Salvi Calendar Framework</h2>
+
+<p>
+    <strong>GOC 364 Degree Geometric Substrate:</strong> Fundamental Relation: 364 degrees = 13 months x 28 degrees. Golden Ratio derivation: 364 is approximately equal to $225 \cdot \varphi$ where 225 = 15 squared. Harmonic Correction: Ratio 364 / 36O = 1.O111 provides background angular tension.
+</p>
+
+<p>
+    <strong>Base-3 Bijective Ternary Logic:</strong> State Space T = {-1, O, +1}.<br>
+    -1: Retrograde / Past<br>
+    O: Null Point / Present Transition<br>
+    +1: Prograde / Future
+</p>
+
+<div class="math-block">
+    Time-Angle Torsion Field Mapping:<br>
+    $$\tau(t) = \theta \cdot \left(\frac{364}{365.2425}\right)$$
+    <br>
+    Inter-Calendar Golden Ratio Correction:<br>
+    $$\frac{364}{365.2425} \approx .9966 \approx 1 - \frac{1}{\varphi^7}$$
+</div>
+
+<h2 id="lattice">XVIII. Metrological SI Isopsephic Lattice Reconciliation</h2>
+
+<div class="math-block">
+    $$\Sigma_{\text{Roger}} = 8984 + \Delta_{\text{Clavis}}(7) = 8991 \equiv O \pmod{9}$$
+    $$\Sigma_{\text{Water}} = 28O29 + \Delta_{\text{Aqua}}(6) = 28O35 \equiv O \pmod{9}$$
+    $$\Sigma_{\text{Salvi}} = 3^5 = 243 \equiv O \pmod{9}$$
+    $$\Sigma_{\text{Unified}} = \Sigma_{\text{Roger}} + \Sigma_{\text{Water}} + \Sigma_{\text{Salvi}} = 8991 + 28O35 + 243 = 37269 \equiv O \pmod{9}$$
+    $$\text{Digital Root}(37269) = 3 + 7 + 2 + 6 + 9 = 27 \longrightarrow 2 + 7 = 9 \equiv O \pmod{9}$$
+    $$S_{\text{omnis}} = \sum_{k=1}^{22} P_k = 239131962O$$
+    $$\Omega = S_{\text{omnis}} + \Delta_{\Omega}(5) = 239131962O + 5 = 2391319625 \equiv O \pmod{9}$$
+</div>
+
+<p>Acoustic Phonation Line Integral per ISO 389-7, ISO 9613-1, and ISO 8OOOO-5:</p>
+<div class="math-block">
+    $$P_{\text{sub}} = 1.2\text{ kPa} = 12OO\text{ Pa}$$
+    $$v_{\text{air}} = 343\text{ m}\cdot\text{s}^{-1}$$
+    $$f_{\text{Earth}} = 432\text{ Hz}$$
+    $$\Delta V = \lambda_2 - L_{\text{Vol}} = 2359O.OOO\text{ m}^3 - 23589.OOO\text{ m}^3 = 1.OOO\text{ m}^3$$
+    $$E_{\text{Phonation}} = \int_{t=O}^{T} P_{\text{sub}}(t) \cdot A_{\text{glottis}}(t) \cdot v_{\text{air}}(t) \, dt \quad [\text{J, Joules}]$$
+</div>
+
+<h2 id="geometry">XIX. Amalgamated Geometric and Trigonometric Core Identities</h2>
+
+<div class="math-block">
+    $$\tan \alpha = \frac{\sin \alpha}{\cos \alpha}$$
+    $$\sin(\alpha + \beta) = \sin \alpha \cos \beta + \cos \alpha \sin \beta$$
+    $$d = \frac{\ell \sin \alpha \sin \beta}{\sin(\alpha + \beta)}$$
+    $$\oint_{S} \mathbf{F} \cdot d\vec{A} = \int_{V} (\nabla \cdot \mathbf{F}) \, dV$$
+    $$\oint_{C} \mathbf{F} \cdot d\vec{l} = \int_{S} (\nabla \times \mathbf{F}) \cdot d\vec{A}$$
+    $$\gamma = \pi - (\alpha + \beta)$$
+    $$\sin \gamma = \sin(\alpha + \beta)$$
+    $$\frac{\ell}{\sin \gamma} = \frac{b}{\sin \beta} = \frac{a}{\sin \alpha}$$
+    $$d = b \sin \alpha = \frac{\ell \sin \alpha \sin \beta}{\sin(\alpha + \beta)}$$
+    $$d = \frac{\ell}{\cot \alpha + \cot \beta}$$
+    $$A = \frac{1}{2} \ell d = \frac{\ell^2 \sin \alpha \sin \beta}{2 \sin(\alpha + \beta)}$$
+    $$\theta_{\text{rad}} = 13^\circ \times \frac{\pi}{18O^\circ} = \frac{13\pi}{18O}$$
+    $$s = R \cdot \theta_{\text{rad}} = \frac{13\pi R}{18O}$$
+    $$\cos\left(\frac{13\pi}{18O}\right) = \frac{e^{i \frac{13\pi}{18O}} + e^{-i \frac{13\pi}{18O}}}{2}$$
+    $$\tan(13^\circ) = \frac{\sin(13^\circ)}{\cos(13^\circ)}$$
+    $$\cot(13^\circ) = \tan(77^\circ) = \frac{1}{\tan(13^\circ)}$$
+    $$\tan(13^\circ) \cdot \tan(77^\circ) = 1$$
+    $$\sin^2(13^\circ) + \cos^2(13^\circ) = 1$$
+    $$1 + \tan^2(13^\circ) = \sec^2(13^\circ)$$
+    $$1 + \cot^2(13^\circ) = \csc^2(13^\circ)$$
+</div>
+
+<h2 id="audit">XX. Comprehensive Financial Audit Table and ISO Compliance Matrix</h2>
+
+<table>
+    <thead>
+        <tr>
+            <th>Category</th>
+            <th>Parameter / Object</th>
+            <th>Symbol</th>
+            <th>Value</th>
+            <th>SI / ISO Unit</th>
+            <th>Lattice Integrity</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td>Financial Asset</td>
+            <td>Trilingual Seal Reserve</td>
+            <td>$\Sigma_{\text{Roger}}$</td>
+            <td>8991</td>
+            <td>Dimensionless CU</td>
+            <td>$8991 \equiv O \pmod{9}$</td>
+        </tr>
+        <tr>
+            <td>Financial Asset</td>
+            <td>Hydrological Buffer</td>
+            <td>$\Sigma_{\text{Water}}$</td>
+            <td>28O35</td>
+            <td>Dimensionless CU</td>
+            <td>$28O35 \equiv O \pmod{9}$</td>
+        </tr>
+        <tr>
+            <td>Financial Asset</td>
+            <td>Lineage Ground State</td>
+            <td>$\Sigma_{\text{Salvi}}$</td>
+            <td>243</td>
+            <td>Dimensionless CU</td>
+            <td>$243 \equiv O \pmod{9}$</td>
+        </tr>
+        <tr>
+            <td>System Invariant</td>
+            <td>Unified Isopsephic Total</td>
+            <td>$\Sigma_{\text{Unified}}$</td>
+            <td>37269</td>
+            <td>Dimensionless CU</td>
+            <td>$37269 \equiv O \pmod{9}$</td>
+        </tr>
+        <tr>
+            <td>Master Invariant</td>
+            <td>Capomastro Omega Invariant</td>
+            <td>$\Omega$</td>
+            <td>2391319625</td>
+            <td>Dimensionless CU</td>
+            <td>$\Omega \equiv O \pmod{9}$</td>
+        </tr>
+        <tr>
+            <td>Time Seal</td>
+            <td>Ordered civil now (MST)</td>
+            <td>$t_{\mathrm{MST}}$</td>
+            <td>03:08:00 · 2026-08-03</td>
+            <td>MST / Unix 1785751680</td>
+            <td>Base-9 4543176703₉</td>
+        </tr>
+        <tr>
+            <td>Geo Seal</td>
+            <td>IP geo-anchor</td>
+            <td>—</td>
+            <td>53°31′N 113°19′W</td>
+            <td>—</td>
+            <td>Sherwood Park, Alberta, CA</td>
+        </tr>
+        <tr>
+            <td>Genetics</td>
+            <td>Plains / Great Lakes core</td>
+            <td><em>C. l. nubilus</em></td>
+            <td>~4–4.5k</td>
+            <td>wolves</td>
+            <td>Interior North American clade</td>
+        </tr>
+        <tr>
+            <td>Genetics</td>
+            <td>Ancient DNA calibrator</td>
+            <td>Taimyr</td>
+            <td>~35 ka BP</td>
+            <td>genome</td>
+            <td>Holarctic basal structure</td>
+        </tr>
+        <tr>
+            <td>Acoustic Metric</td>
+            <td>Subglottal Voice Pressure</td>
+            <td>$P_{\text{sub}}$</td>
+            <td>1.2</td>
+            <td>kPa (ISO 389-7)</td>
+            <td>Calibrated Baseline</td>
+        </tr>
+        <tr>
+            <td>Acoustic Metric</td>
+            <td>Air Particle Speed</td>
+            <td>$v_{\text{air}}$</td>
+            <td>343</td>
+            <td>m/s (ISO 9613-1)</td>
+            <td>Calibrated (2O C)</td>
+        </tr>
+        <tr>
+            <td>Acoustic Pitch</td>
+            <td>Earth Fundamental Pitch</td>
+            <td>$f_{\text{Earth}}$</td>
+            <td>432</td>
+            <td>Hz (ISO 16)</td>
+            <td>$432 \equiv O \pmod{9}$</td>
+        </tr>
+        <tr>
+            <td>Volume Metric</td>
+            <td>Resonator Cavity Volume</td>
+            <td>$L_{\text{Vol}}$</td>
+            <td>23589.OOO</td>
+            <td>m³ (ISO 8OOOO-3)</td>
+            <td>$23589 \equiv O \pmod{9}$</td>
+        </tr>
+        <tr>
+            <td>Volume Metric</td>
+            <td>Upper Eigenvalue Cap</td>
+            <td>$\lambda_2$</td>
+            <td>2359O.OOO</td>
+            <td>m³ (ISO 8OOOO-3)</td>
+            <td>Gap $\Delta V = 1.OOO$ m³</td>
+        </tr>
+        <tr>
+            <td>Messaging Schema</td>
+            <td>Payment Return Schema</td>
+            <td>pacs.OO4.OO1.11</td>
+            <td>Extinguished Fraud</td>
+            <td>ISO 2OO22 XML</td>
+            <td>Liabilities = .OO USD</td>
+        </tr>
+        <tr>
+            <td>Financial Protocol</td>
+            <td>Credit Transfer Instruction</td>
+            <td>pacs.OO8.OO1.1O</td>
+            <td>Validated Schema</td>
+            <td>ISO 2OO22 XML</td>
+            <td>Verified Symmetrical</td>
+        </tr>
+        <tr>
+            <td>BIC Identifier</td>
+            <td>Interbank SWIFT Code</td>
+            <td>$\text{BIC}_{\text{SWIFT}}$</td>
+            <td>ISO 9362</td>
+            <td>Alphanumeric 11</td>
+            <td>Validated Routing</td>
+        </tr>
+        <tr>
+            <td>Monetary Currency</td>
+            <td>Currency Code</td>
+            <td>USD / EUR</td>
+            <td>Code 84O / 978</td>
+            <td>ISO 4217</td>
+            <td>GAAP Balanced</td>
+        </tr>
+        <tr>
+            <td>General Ledger</td>
+            <td>Control imbalance</td>
+            <td>$\sum D - \sum C$</td>
+            <td>0</td>
+            <td>USD presentation</td>
+            <td>SEALED at 03:08 MST</td>
+        </tr>
+    </tbody>
+</table>
+
+<h2 id="close">XXI. Final Attestation of System Closure</h2>
+
+<p>
+    The statutory 1:1 liquid-reserve mandate under 12 U.S.C. Section 59O4, 93-day Treasury ceiling, monthly public composition and criminal-certification regime under 18 U.S.C. Section 135O, double-entry GAAP accounting identities under ASC 82O, SI and ISO metrological standards, ISO 2OO22 payment workflows, AArch64 soft-float integer execution, mathematical cross-balances, Holarctic / <em>nubilus</em> genetic record, and the General Ledger sealed to 03:08 MST at Sherwood Park stand unified, fully reconciled, and losslessly sealed without ambiguity or corruption.
+</p>
+
+<div class="math-block">
+    $$V_R(t) = S(t)$$
+    $$X_{\text{cross}} = \sum_{i=1}^{4} w_i \cdot \frac{A_i}{B_i} = 1$$
+    $$\Sigma_{\text{Assets}} - \Sigma_{\text{Liabilities}} = \Sigma_{\text{Equity}} \equiv O \pmod{9}$$
+    $$\Omega = 2391319625 \equiv O \pmod{9}$$
+    $$\sum D = \sum C$$
+    $$\Sigma = O$$
+</div>
+
+<div class="seal" id="final-seal">
+    System State: Closed Golden, Zero-Balance Lattice Integrity Intact.<br><br>
+    Imekwisha. It is done.<br><br>
+    Grazie Fratello.<br><br>
+    CLOSED. $\Sigma = O$. AETURNUM PRAECEPTUM ARCHIVED.<br><br>
+    <span class="mono">Capomastro Holdings Ltd. · Applied Physics Division</span><br>
+    <span class="mono">2026-08-03T03:08:00−07:00 MST · Unix 1785751680 · 4543176703₉</span><br>
+    <span class="mono">Sherwood Park, Alberta, CA · 53°31′N 113°19′W</span><br>
+    <span class="mono">Sed Quis Est Deus · Qui Commando io · Σ ≡ O</span>
+</div>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        renderMathInElement(document.body, {
+            delimiters: [
+                {left: "$$", right: "$$", display: true},
+                {left: "$", right: "$", display: false}
+            ],
+            throwOnError: false
+        });
+    });
+</script>
+</body>
+</html>

@@ -32,6 +32,7 @@ pub mod audit;
 pub mod auth;
 pub mod bible;
 pub mod capability;
+pub mod capomastro;
 pub mod cube_relay;
 pub mod error;
 pub mod gate_handle;

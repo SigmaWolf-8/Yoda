@@ -485,7 +485,52 @@ pub async fn auth_middleware(
         }
     }
 
-    Err(AppError::Unauthorized("Missing authentication".into()))
+    // ── Gate removed by owner decision ──────────────────────────────
+    // Identity is established by the synchronous framework, not by a bearer
+    // token, so a request arriving without credentials is not an intruder —
+    // it is the operator. Run it as the sovereign account rather than
+    // rejecting it. Presented credentials above still take precedence, so
+    // tokens and API keys keep working unchanged.
+    let user = sovereign_identity(&state.db).await?;
+    request.extensions_mut().insert(user);
+    Ok(next.run(request).await)
+}
+
+/// The sovereign account: the first registered owner holding an org.
+/// Resolved once and cached — it does not change at runtime.
+static SOVEREIGN: std::sync::OnceLock<AuthenticatedUser> = std::sync::OnceLock::new();
+
+async fn sovereign_identity(db: &PgPool) -> Result<AuthenticatedUser, AppError> {
+    if let Some(user) = SOVEREIGN.get() {
+        return Ok(user.clone());
+    }
+
+    let row = sqlx::query_as::<_, (Uuid, String, Uuid)>(
+        "SELECT u.id, u.email, om.org_id \
+         FROM users u \
+         JOIN org_members om ON om.user_id = u.id \
+         ORDER BY u.created_at \
+         LIMIT 1",
+    )
+    .fetch_optional(db)
+    .await
+    .map_err(AppError::Database)?;
+
+    // No account exists yet, so there is no identity to assume. Say exactly
+    // that instead of failing with a misleading "missing authentication".
+    let (user_id, email, org_id) = row.ok_or_else(|| {
+        AppError::Unauthorized(
+            "No account exists yet — register once to create the sovereign account".into(),
+        )
+    })?;
+
+    let user = AuthenticatedUser {
+        user_id,
+        email,
+        org_id,
+    };
+    let _ = SOVEREIGN.set(user.clone());
+    Ok(user)
 }
 
 /// Validate an API key against stored hashes.
