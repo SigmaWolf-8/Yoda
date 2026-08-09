@@ -305,6 +305,8 @@
   <div class="sec">
     <div class="stit">Daemon Config</div>
     <div id="ports-display" style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#E4DFD5;margin-bottom:6px">Ports —</div>
+    <input type="text" id="cfg-host" placeholder="Daemon host (blank = auto)" autocomplete="off" spellcheck="false" style="width:100%;padding:6px 10px;background:var(--bg-surface);border:1px solid var(--bg-border);border-radius:5px;color:var(--text-body);font-family:'JetBrains Mono',monospace;font-size:11px;outline:none;margin-bottom:4px">
+    <div id="cfg-host-hint" style="font-size:10px;color:var(--text-faint);margin-bottom:6px;line-height:1.4">Where the array actually runs — e.g. <code>192.168.1.40</code> or <code>http://box.lan</code>. Leave blank to use this page's host.</div>
     <input type="password" id="cfg-token" placeholder="Relay token (RELAY_API_TOKEN)" autocomplete="off" style="width:100%;padding:6px 10px;background:var(--bg-surface);border:1px solid var(--bg-border);border-radius:5px;color:var(--text-body);font-family:'JetBrains Mono',monospace;font-size:11px;outline:none;margin-bottom:6px">
     <div style="display:flex;gap:4px;margin-bottom:6px">
       <input type="number" id="cfg-p1" min="1" max="65535" placeholder="N1 port" style="width:33%;padding:6px 6px;background:var(--bg-surface);border:1px solid var(--bg-border);border-radius:5px;color:var(--text-body);font-family:'JetBrains Mono',monospace;font-size:11px;outline:none;text-align:center">
@@ -775,8 +777,47 @@ const STATUS={
 // LIVE DATA LAYER
 // ═══════════════════════════════════════════════════════
 const _isLocal=window.location.protocol==='file:'||!window.location.hostname||window.location.hostname==='localhost'||window.location.hostname==='127.0.0.1';
-const DAEMON_HOST=_isLocal?'127.0.0.1':window.location.hostname;
-const DAEMON_PROTO=_isLocal?'http:':window.location.protocol;
+// ── Daemon host ───────────────────────────────────────────────────
+// The daemons do not necessarily live where this page is served from. The
+// array may run on the operator's own machine or another box entirely, while
+// the monitor is served from somewhere else — in which case inferring the host
+// from window.location probes the wrong machine and reports "unreachable" for
+// daemons that are perfectly healthy. An explicit override is persisted so the
+// monitor can be pointed at the array wherever it actually runs.
+const DAEMON_HOST_AUTO=_isLocal?'127.0.0.1':window.location.hostname;
+const DAEMON_PROTO_AUTO=_isLocal?'http:':window.location.protocol;
+let DAEMON_HOST=DAEMON_HOST_AUTO, DAEMON_PROTO=DAEMON_PROTO_AUTO;
+let daemonHostOverride='';
+
+/** Parse "host", "http://host" or "https://host:1234" into {proto,host}. */
+function parseDaemonHost(raw){
+  const v=(raw||'').trim().replace(/\/+$/,'');
+  if(!v)return null;
+  let proto=null,host=v;
+  const m=/^([a-z][a-z0-9+.-]*:)\/\/(.+)$/i.exec(v);
+  if(m){proto=m[1].toLowerCase();host=m[2];}
+  host=host.replace(/\/.*$/,'');   // drop any path
+  host=host.replace(/:\d+$/,'');   // per-node ports are configured separately
+  if(!host)return null;
+  return {proto:proto||DAEMON_PROTO_AUTO,host};
+}
+
+function applyDaemonHost(raw){
+  const p=parseDaemonHost(raw);
+  daemonHostOverride=p?String(raw).trim():'';
+  DAEMON_HOST=p?p.host:DAEMON_HOST_AUTO;
+  DAEMON_PROTO=p?p.proto:DAEMON_PROTO_AUTO;
+}
+try{applyDaemonHost(localStorage.getItem('a3m.daemonHost')||'')}catch{}
+
+/**
+ * A page served over https cannot fetch an http daemon — the browser blocks it
+ * as mixed content, and the failure looks identical to the daemon being down.
+ * Detect it so the operator is told the real reason.
+ */
+function mixedContentBlocked(){
+  return window.location.protocol==='https:' && DAEMON_PROTO==='http:';
+}
 
 // ═══════════════════════════════════════════════════════
 // CANONICAL PORT DISCOVERY — mirrors Kernel salvi-kernel/discovery.rs
@@ -1430,6 +1471,8 @@ function renderPortsDisplay(){
 }
 function hydrateConfigInputs(){
   const t=document.getElementById('cfg-token');if(t)t.value=RELAY_AUTH_TOKEN||'';
+  const h=document.getElementById('cfg-host');
+  if(h){h.value=daemonHostOverride;h.placeholder='Daemon host (blank = '+DAEMON_HOST_AUTO+')';}
   const ids=['cfg-p1','cfg-p2','cfg-p3'];
   ids.forEach((id,i)=>{const el=document.getElementById(id);if(el)el.value=NODE_PORTS[i]});
   renderPortsDisplay();
@@ -1442,12 +1485,32 @@ async function applyConfigAndReconnect(){
     if(cfgStatus){cfgStatus.textContent='Invalid port — must be 1–65535';cfgStatus.style.color='#E24B4A'}
     return;
   }
+  const hostEl=document.getElementById('cfg-host');
+  const rawHost=(hostEl?hostEl.value:'').trim();
+  if(rawHost&&!parseDaemonHost(rawHost)){
+    if(cfgStatus){cfgStatus.textContent='Invalid host — use a hostname or http://hostname';cfgStatus.style.color='#E24B4A'}
+    return;
+  }
+  applyDaemonHost(rawHost);
+  try{localStorage.setItem('a3m.daemonHost',daemonHostOverride)}catch{}
+
   const newToken=(tokenEl?tokenEl.value:'').trim();
   RELAY_AUTH_TOKEN=newToken;
   NODE_PORTS=ports;
   try{localStorage.setItem('a3m.relayToken',newToken)}catch{}
   try{localStorage.setItem('a3m.nodePorts',JSON.stringify(ports))}catch{}
   renderPortsDisplay();
+
+  // Say this before probing: every request is about to fail for a reason that
+  // has nothing to do with the daemons, and the failure is indistinguishable
+  // from them being offline.
+  if(mixedContentBlocked()){
+    if(cfgStatus){
+      cfgStatus.innerHTML='This page is served over https, so the browser will block plain-http requests to <strong>'+DAEMON_HOST+'</strong>. Serve the daemons over https, or open the monitor over http.';
+      cfgStatus.style.color='#D69E2E';
+    }
+    return;
+  }
   // Remove any stale relay-error overlay from a previous bad config
   clearRelayError();
   if(cfgStatus){cfgStatus.textContent='Saved. Reconnecting…';cfgStatus.style.color=CSS.blueActive}
@@ -1476,6 +1539,9 @@ async function applyConfigAndReconnect(){
       }else if(d.triedLocal&&d.localErrors&&d.localErrors.length===NODE_PORTS.length){
         const sample=d.localErrors[0]?(' ('+d.localErrors[0].type+': '+d.localErrors[0].error+')'):'';
         msg='Cannot reach daemons at '+d.host+':'+d.ports.join(',')+sample+' — check daemons are running and bound to a routable interface.';
+        // The commonest cause is not a dead daemon: the host was inferred from
+        // this page's URL and the array runs somewhere else entirely.
+        if(!daemonHostOverride)msg+=' Host was inferred from this page — if the array runs elsewhere, set Daemon host above.';
       }else if(d.relayStatus){
         msg='Relay error '+d.relayStatus+' — see overlay for details.';
       }
@@ -1488,6 +1554,8 @@ document.getElementById('cfg-reset')?.addEventListener('click',()=>{
   document.getElementById('cfg-p1').value=NODE_PORTS_DEFAULT[0];
   document.getElementById('cfg-p2').value=NODE_PORTS_DEFAULT[1];
   document.getElementById('cfg-p3').value=NODE_PORTS_DEFAULT[2];
+  const hostEl=document.getElementById('cfg-host');
+  if(hostEl)hostEl.value='';   // back to inferring the host from this page
   const cfgStatus=document.getElementById('cfg-status');
   if(cfgStatus){cfgStatus.textContent='Defaults loaded — click Save & Reconnect to apply';cfgStatus.style.color=CSS.label}
 });
