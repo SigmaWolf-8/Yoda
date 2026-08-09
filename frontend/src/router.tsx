@@ -26,6 +26,7 @@ import { ForgePage } from './pages/ForgePage';
 import { AgentsPage } from './pages/AgentsPage';
 import { AboutPage } from './pages/AboutPage';
 import { SovereignLedgerPage } from './pages/capomastro/SovereignLedgerPage';
+import { StatementsPage } from './pages/capomastro/StatementsPage';
 import { CodexPage } from './pages/capomastro/CodexPage';
 import { SealPage } from './pages/capomastro/SealPage';
 
@@ -64,6 +65,7 @@ export const router = createBrowserRouter([
       { path: 'monitoring', element: <MonitoringPage /> },
       // ── Capomastro sovereign record — a published record, so no auth gate ──
       { path: 'capomastro/ledger', element: <SovereignLedgerPage /> },
+      { path: 'capomastro/statements', element: <StatementsPage /> },
       { path: 'capomastro/codex',  element: <CodexPage /> },
       { path: 'capomastro/seal',   element: <SealPage /> },
     ],

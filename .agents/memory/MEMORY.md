@@ -14,5 +14,6 @@
 - [CI dying in under a minute](ci-dies-in-under-a-minute.md) — a whole matrix failing fast = `-D warnings` promoting lints, not broken logic; also why `no_std` never turns `std` off.
 - [GitHub connector limits](github-connector-limits.md) — token can't write `.github/workflows` (bare 404, no `workflow` scope) and can't read Actions logs (403); `base_tree` wants a tree sha, not a commit sha.
 - [Money as decimal strings](capomastro-money-as-decimal-strings.md) — Capomastro figures are exact decimal strings end to end; no layer below the extractor may do money arithmetic or touch a float.
+- [Capomastro live statements](capomastro-live-statements.md) — no fallback rates (withhold the total instead); accrual divides last; principal comes from the balance sheet; gold surplus is a memo, never posted.
 - [Frontend apiClient base URL](frontend-api-base-url.md) — axios baseURL is already `/api`; a doubled prefix hits the SPA fallback (200 text/html), so JSON pages crash in render, not at the fetch.
 - [Treatise plaintext cleaning](treatise-plaintext-cleaning.md) — Capomastro "Edified Treatise" attachments: unify duplicate drafts to one clean copy each; strip markdown but keep # | in KaTeX and convert multiplication * to ×.

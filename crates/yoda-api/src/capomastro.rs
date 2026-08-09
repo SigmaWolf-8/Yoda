@@ -24,6 +24,13 @@ use std::sync::OnceLock;
 use crate::error::AppError;
 use crate::state::AppState;
 
+/// Exact base-10 decimal arithmetic. Money never touches a float.
+pub mod dec;
+/// Live reference rates (SOFR, Treasury averages, gold spot).
+pub mod rates;
+/// Statements computed at request time from the workbook plus live rates.
+pub mod statements;
+
 /// Root of the on-disk Capomastro data set. Overridable so a packaged desktop
 /// build can point at its own bundle directory.
 fn data_root() -> PathBuf {

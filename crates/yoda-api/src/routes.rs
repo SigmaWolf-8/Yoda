@@ -73,6 +73,12 @@ pub fn build_router(state: AppState) -> Router {
         // measurements, and the ISO 20022 parse endpoint.
         .route("/api/capomastro/ledger", get(capomastro::get_ledger))
         .route("/api/capomastro/revenue", get(capomastro::get_revenue))
+        // Statements are computed per request from the workbook plus live
+        // reference rates — see capomastro::statements.
+        .route(
+            "/api/capomastro/statements",
+            get(capomastro::statements::get_statements),
+        )
         .route("/api/capomastro/measurements", get(capomastro::get_measurements))
         // The parse endpoint is public and buffers its whole body, so it gets a
         // tight limit of its own — a pacs.008 message is kilobytes, not

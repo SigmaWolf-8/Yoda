@@ -1,0 +1,91 @@
+{
+  "version": "1.2",
+  "basisDate": "2026-04-01",
+  "note": "Terms of the estate's interest-bearing positions, as declared. This file states only TERMS — reference index, spread, day-count convention and call conditions. Principal is never taken from here: it is read from the corresponding Balance Sheet line in gaap-ledger.json so the schedules cannot drift from the audited statement. Both sides accrue: obligations produce interest expense, interestEarningAssets produce interest income, and the income statement presents them gross with a net interest line. A balance-sheet line that appears in no list is reported as unmodelled or non-earning — never silently assumed to be either.",
+  "dayCountConventions": {
+    "ACT/360": "Actual days elapsed over a 360-day year — money-market convention for overnight-indexed positions.",
+    "ACT/365": "Actual days elapsed over a 365-day year — bond-basis convention for term provisions."
+  },
+  "obligations": [
+    {
+      "id": "OBL-STABLECOIN-BACKING",
+      "ledgerLine": "Stablecoin Backing Obligations",
+      "creditor": "Stablecoin holders (bearer, undifferentiated)",
+      "instrument": "1:1 escrow-matched demand obligation",
+      "authority": "12 U.S.C. § 5904 — segregated regulated reserve account",
+      "rateIndex": "SOFR",
+      "spreadBps": "0",
+      "dayCount": "ACT/360",
+      "callBasis": "demand",
+      "callNoticeDays": 0,
+      "maturity": null,
+      "basis": "Redeemable at par on demand; funded 1:1, so priced flat to the secured overnight rate. Offset by Stablecoin Reserve Liquidity on the asset side, which earns the same index.",
+      "fundedBy": "Stablecoin Reserve Liquidity"
+    },
+    {
+      "id": "OBL-FIAT-MATCHING",
+      "ledgerLine": "Fiat Matching Deposit Reserves",
+      "creditor": "Regulated deposit counterparties",
+      "instrument": "Matched fiat deposit reserve",
+      "authority": "1:1 escrow match, segregated regulated account",
+      "rateIndex": "SOFR",
+      "spreadBps": "-25",
+      "dayCount": "ACT/360",
+      "callBasis": "demand",
+      "callNoticeDays": 0,
+      "maturity": null,
+      "basis": "Deposit reserves are payable at the overnight rate less a 25 bp administration spread. Offset by Cash & Cash Equivalents on the asset side, which earns the index flat — the spread is the estate's margin.",
+      "fundedBy": "Cash & Cash Equivalents"
+    },
+    {
+      "id": "OBL-DAMAGE-OFFSET",
+      "ledgerLine": "Active Damage Offset & Restorative Provision",
+      "creditor": "Restorative claimants (provisioned, unassigned)",
+      "instrument": "Long-term restorative provision",
+      "authority": "ASC 450 / IAS 37 — provision for present obligation of uncertain timing",
+      "rateIndex": "UST_NOTES",
+      "spreadBps": "0",
+      "dayCount": "ACT/365",
+      "callBasis": "notice",
+      "callNoticeDays": 90,
+      "maturity": null,
+      "basis": "Unwound at the Treasury note average coupon; callable only on 90 days' written notice, so excluded from the immediate call figure.",
+      "fundedBy": null
+    }
+  ],
+  "interestEarningAssets": [
+    {
+      "id": "AST-CASH",
+      "ledgerLine": "Cash & Cash Equivalents",
+      "obligor": "Regulated deposit institutions",
+      "instrument": "Overnight deposit balance",
+      "authority": "Segregated regulated account, swept overnight",
+      "rateIndex": "SOFR",
+      "spreadBps": "0",
+      "dayCount": "ACT/360",
+      "basis": "Swept overnight at the secured overnight financing rate. Funds the Fiat Matching Deposit Reserves, which are payable at the same index less 25 bp."
+    },
+    {
+      "id": "AST-STABLECOIN-RESERVE",
+      "ledgerLine": "Stablecoin Reserve Liquidity",
+      "obligor": "Reserve custodian",
+      "instrument": "Segregated reserve balance, 1:1 escrow-matched",
+      "authority": "12 U.S.C. § 5904 — segregated regulated reserve account",
+      "rateIndex": "SOFR",
+      "spreadBps": "0",
+      "dayCount": "ACT/360",
+      "basis": "The reserve backing the stablecoin obligations, earning the secured overnight rate on the same day-count as the obligation it funds."
+    },
+    {
+      "id": "AST-SHORT-TERM-COMMERCIAL",
+      "ledgerLine": "Short-Term Commercial Instruments",
+      "obligor": "Commercial issuers (short-dated)",
+      "instrument": "Short-dated discount instruments",
+      "authority": "Held to maturity at amortised cost",
+      "rateIndex": "UST_BILLS",
+      "spreadBps": "0",
+      "dayCount": "ACT/360",
+      "basis": "Short-dated paper accrued at the Treasury bill average rate on a money-market basis."
+    }
+  ]
+}

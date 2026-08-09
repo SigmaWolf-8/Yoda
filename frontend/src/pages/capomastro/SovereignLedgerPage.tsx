@@ -24,15 +24,24 @@ import {
 import { usePageHeader } from '../../context/PageHeader';
 import { BevelBox } from '../../components/ui/BevelBox';
 import apiClient from '../../api/client';
+import { Kpi, Panel } from './ui';
+import {
+  type Dec,
+  exact,
+  exactTo,
+  forGeometry,
+  group,
+  percent,
+  splitDec,
+  usd,
+} from './money';
 
 // ── Types mirroring GET /api/capomastro/revenue ──
-
-/// Money and every derived quantity arrive as canonical decimal *strings*,
-/// computed once in exact decimal by `scripts/extract-gaap-ledger.py`. They are
-/// never parsed into a JS `number` for display — a double cannot hold
-/// `1600053031036.44653193` without altering it. `Dec` marks those fields so
-/// the distinction from a genuine count is visible at the type level.
-type Dec = string;
+//
+// Money and every derived quantity arrive as canonical decimal *strings* and
+// are formatted by `./money` without ever becoming a JS `number`. `Dec` marks
+// those fields so the distinction from a genuine count is visible at the type
+// level.
 
 interface Segment {
   label: string;
@@ -143,144 +152,6 @@ function isRevenueResponse(value: unknown): value is RevenueResponse {
 
 const GOLD = '#E4C97A';
 const SLICE_COLORS = ['#E4C97A', '#C9A227', '#4A9EF5', '#8C6F2E', '#6FA8DC', '#B08D57'];
-
-/** Split a canonical decimal string into sign, integer digits and fraction. */
-function splitDec(value: Dec): { sign: string; int: string; frac: string } | null {
-  if (typeof value !== 'string' || !/^-?\d+(\.\d+)?$/.test(value.trim())) return null;
-  const raw = value.trim();
-  const sign = raw.startsWith('-') ? '-' : '';
-  const [int, frac = ''] = (sign ? raw.slice(1) : raw).split('.');
-  return { sign, int, frac };
-}
-
-function group(digits: string): string {
-  return digits.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-}
-
-/**
- * Exact rendering: every digit the ledger published, thousands-separated.
- * Pure string work — the value never becomes a `number`, so nothing is
- * rounded or perturbed.
- */
-function exact(value: Dec): string {
-  const parts = splitDec(value);
-  if (!parts) return '—';
-  return `${parts.sign}${group(parts.int)}${parts.frac ? `.${parts.frac}` : ''}`;
-}
-
-/**
- * Exact rendering at a fixed scale of `dp` decimal places — truncated, never
- * rounded up, and zero-padded so ratios line up in a column.
- */
-function exactTo(value: Dec, dp: number): string {
-  const parts = splitDec(value);
-  if (!parts) return '—';
-  const frac = parts.frac.slice(0, dp).padEnd(dp, '0');
-  return `${parts.sign}${group(parts.int)}${dp > 0 ? `.${frac}` : ''}`;
-}
-
-/**
- * Abbreviated headline ($2.153T). Scaling is done by moving the decimal point
- * within the string, so even the short form is derived from the exact digits
- * rather than from a divided float. Deliberately approximate in the sense that
- * it shows fewer digits — but the digits it shows are the real ones.
- */
-function usd(value: Dec, digits = 2): string {
-  const parts = splitDec(value);
-  if (!parts) return '—';
-  const { sign, int, frac } = parts;
-
-  const units: Array<[number, string]> = [
-    [12, 'T'],
-    [9, 'B'],
-    [6, 'M'],
-  ];
-  for (const [power, suffix] of units) {
-    if (int.length > power) {
-      const head = int.slice(0, int.length - power);
-      const tail = (int.slice(int.length - power) + frac).slice(0, digits);
-      return `$${sign}${group(head)}${tail ? `.${tail}` : ''}${suffix}`;
-    }
-  }
-  return `$${sign}${group(int)}${frac ? `.${frac.slice(0, digits)}` : ''}`;
-}
-
-/** A decimal string as a percentage, to `dp` places. */
-function percent(value: Dec, dp = 2): string {
-  const parts = splitDec(value);
-  if (!parts) return '—';
-  // Shift the decimal point two places right, then trim — no multiplication.
-  const shifted = parts.frac.padEnd(dp + 2, '0');
-  const whole = `${parts.int}${shifted.slice(0, 2)}`.replace(/^0+(?=\d)/, '');
-  const rest = shifted.slice(2, 2 + dp);
-  return `${parts.sign}${group(whole)}${dp > 0 ? `.${rest.padEnd(dp, '0')}` : ''}`;
-}
-
-/**
- * Charts need pixel geometry, and geometry is inherently floating point.
- * This is the ONLY place a published figure becomes a `number`, and its result
- * is never displayed as a value — labels are formatted from the exact string.
- */
-function forGeometry(value: Dec): number {
-  const n = Number(value);
-  return Number.isFinite(n) ? n : 0;
-}
-
-// ── Small building blocks ──
-
-function Panel({
-  title,
-  icon: Icon,
-  children,
-  className = '',
-}: {
-  title: string;
-  icon?: React.ElementType;
-  children: React.ReactNode;
-  className?: string;
-}) {
-  return (
-    <BevelBox className={`bg-[var(--color-surface-primary)] p-5 ${className}`}>
-      <div className="flex items-center gap-2.5 mb-4">
-        {Icon && <Icon className="w-4 h-4 text-[var(--color-gold-400)] flex-shrink-0" />}
-        <h2 className="text-sm font-bold tracking-wide text-[var(--color-text-primary)] uppercase">
-          {title}
-        </h2>
-      </div>
-      {children}
-    </BevelBox>
-  );
-}
-
-function Kpi({
-  label,
-  value,
-  sub,
-  tone = 'default',
-}: {
-  label: string;
-  value: string;
-  sub?: string;
-  tone?: 'default' | 'gold' | 'good' | 'warn';
-}) {
-  const toneClass =
-    tone === 'gold'
-      ? 'text-[var(--color-gold-400)]'
-      : tone === 'good'
-        ? 'text-emerald-400'
-        : tone === 'warn'
-          ? 'text-amber-400'
-          : 'text-[var(--color-text-primary)]';
-  return (
-    <BevelBox className="bg-[var(--color-surface-primary)] p-4">
-      <div className="text-[11px] uppercase tracking-wider text-[var(--color-text-muted)] mb-1.5">
-        {label}
-      </div>
-      <div className={`text-2xl font-bold tabular-nums ${toneClass}`}>{value}</div>
-      {sub && <div className="text-xs text-[var(--color-text-muted)] mt-1">{sub}</div>}
-    </BevelBox>
-  );
-}
 
 // ── Page ──
 

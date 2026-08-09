@@ -17,6 +17,7 @@ import {
   Scale,
   BookOpen,
   Stamp,
+  FileSpreadsheet,
 } from 'lucide-react';
 import { UserProfile } from '../auth/UserProfile';
 import { usePageHeaderCtx } from '../../context/PageHeader';
@@ -47,7 +48,8 @@ const NAV_GROUPS: ReadonlyArray<{
   {
     label: 'Capomastro',
     items: [
-      { to: '/capomastro/ledger', icon: Scale,    label: 'Ledger' },
+      { to: '/capomastro/ledger',     icon: Scale,           label: 'Ledger'     },
+      { to: '/capomastro/statements', icon: FileSpreadsheet, label: 'Statements' },
       { to: '/capomastro/codex',  icon: BookOpen, label: 'Codex'  },
       { to: '/capomastro/seal',   icon: Stamp,    label: 'Seal'   },
     ],
