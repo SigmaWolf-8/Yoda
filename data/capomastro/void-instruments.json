@@ -1,0 +1,43 @@
+{
+  "version": "1.0",
+  "note": "Instruments the estate has declared void ab initio, and the collateral edits their strike requires. This file is hand-authored and is the source of truth for the strike: scripts/extract-gaap-ledger.py reads it, applies it to the workbook extract, and refuses to write a ledger in which a struck label survives. Without it, re-running the extractor against the original workbook would silently resurrect a struck figure — the workbook still contains the row, because the workbook is a historical artefact and is never edited.",
+  "strikes": [
+    {
+      "id": "OBL-DAMAGE-OFFSET",
+      "label": "Active Damage Offset & Restorative Provision",
+      "formerSection": "Current & Escrow Liabilities",
+      "struckAmount": "447500000000",
+      "declaration": "void ab initio",
+      "declaredBy": "Estate owner",
+      "declaredOn": "2026-08-12",
+      "basis": "The instrument was never present. There is no counterparty, no principal to price and no rate basis to supply. This is not an unpriced liability and not a non-interest-bearing one — it is not a liability. It is struck from every listing and every total, not carried at nil.",
+      "offsettingCredit": "Sovereign Capital Reserve",
+      "offsettingCreditBasis": "Void ab initio means the entry was never made, so the credit it carried was never taken out of capital. Assets are unaffected by the strike and Retained Equilibrium Earnings is pinned at the declared accrual ground state (R=0), so the reversal has exactly one place to land: Sovereign Capital Reserve returns from 1,703,000,000,000 to 2,150,500,000,000 and the sheet balances against unchanged total assets. No figure is chosen here — double entry fixes both the amount and the destination.",
+      "collateralEdits": [
+        "Cross-Balance Matrix Leg 4 named this instrument as the reserve standing against the Photonic & Agni Lattice Assets. Its figures (100,000,000,000 against 100,000,000,000, weight 0.25) never came from the provision, so the leg is unchanged in substance and now names the certified reserve valuation those figures actually describe."
+      ],
+      "sheetRows": [
+        {
+          "sheet": "Balance Sheet",
+          "matchCell": "Active Damage Offset & Restorative Provision",
+          "expectedAmount": "447500000000"
+        }
+      ],
+      "offsettingCreditRow": {
+        "sheet": "Balance Sheet",
+        "matchCell": "Sovereign Capital Reserve",
+        "amountCellIndex": 1,
+        "expectedBefore": "1703000000000",
+        "expectedAfter": "2150500000000"
+      },
+      "labelRewrites": [
+        {
+          "sheet": "Cross-Balance Matrix",
+          "from": "Photonic & Agni Lattice Assets vs. Active Damage Offset",
+          "to": "Photonic & Agni Lattice Assets vs. Certified Reserve Valuation",
+          "reason": "The leg's figures never came from the struck provision; only its name referred to it."
+        }
+      ]
+    }
+  ]
+}

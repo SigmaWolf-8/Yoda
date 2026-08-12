@@ -26,6 +26,8 @@ use crate::state::AppState;
 
 /// Exact base-10 decimal arithmetic. Money never touches a float.
 pub mod dec;
+/// Auditor-formatted exports of the ledger and the live statements.
+pub mod export;
 /// Live reference rates (SOFR, Treasury averages, gold spot).
 pub mod rates;
 /// Statements computed at request time from the workbook plus live rates.

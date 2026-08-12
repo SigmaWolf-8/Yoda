@@ -24,6 +24,7 @@ import {
 import { usePageHeader } from '../../context/PageHeader';
 import { BevelBox } from '../../components/ui/BevelBox';
 import apiClient from '../../api/client';
+import { ExportPanel } from './ExportPanel';
 import { Kpi, Panel } from './ui';
 import {
   type Dec,
@@ -596,6 +597,9 @@ export function SovereignLedgerPage() {
           </div>
         )}
       </Panel>
+
+      {/* ── Auditor copies ── */}
+      <ExportPanel asOfDate={new Date().toISOString().slice(0, 10)} />
     </div>
   );
 }

@@ -7,9 +7,8 @@
 // and renders it. Equation lines written as $...$ are typeset with KaTeX.
 // ─────────────────────────────────────────────────────────────────────────────
 import { useMemo } from 'react';
-import katex from 'katex';
-// @ts-ignore side-effect stylesheet import handled by Vite
-import 'katex/dist/katex.min.css';
+import type { CSSProperties } from 'react';
+import { renderTexToSafeHtml } from '../lib/katex-render';
 import canonRaw from '../data/liibrelibraii-canon.txt?raw';
 
 const C = {
@@ -71,16 +70,10 @@ function parseCanon(raw: string): Block[] {
   return blocks;
 }
 
-function renderEquation(tex: string): string {
-  try {
-    return katex.renderToString(tex, {
-      throwOnError: false,
-      displayMode: true,
-      output: 'html',
-    });
-  } catch {
-    return tex;
-  }
+// Sanitised at the source. If KaTeX cannot produce anything at all the caller
+// falls back to a text node — never to injecting the raw TeX as HTML.
+function renderEquation(tex: string): string | null {
+  return renderTexToSafeHtml(tex, { displayMode: true });
 }
 
 interface CanonCodexProps {
@@ -169,12 +162,12 @@ export function CanonCodex({ open, onClose }: CanonCodexProps) {
             );
           }
           if (b.kind === 'eq') {
-            return (
-              <div
-                key={i}
-                style={{ color: C.brassLight, margin: '0.5rem 0', overflowX: 'auto', fontSize: '1.02rem' }}
-                dangerouslySetInnerHTML={{ __html: renderEquation(b.tex) }}
-              />
+            const html = renderEquation(b.tex);
+            const eqStyle: CSSProperties = { color: C.brassLight, margin: '0.5rem 0', overflowX: 'auto', fontSize: '1.02rem' };
+            return html === null ? (
+              <div key={i} style={{ ...eqStyle, fontFamily: 'ui-monospace, Menlo, monospace' }}>{b.tex}</div>
+            ) : (
+              <div key={i} style={eqStyle} dangerouslySetInnerHTML={{ __html: html }} />
             );
           }
           if (b.kind === 'glyph') {

@@ -277,7 +277,7 @@ mod tests {
 
     #[test]
     fn parses_and_renders_round_trip() {
-        for s in ["0", "1250000000.05", "-447500000000", "0.000000000001", "2153000000000"] {
+        for s in ["0", "1250000000.05", "-450000000000", "0.000000000001", "2153000000000"] {
             assert_eq!(Dec::parse(s).unwrap().to_string(), s);
         }
     }
@@ -308,10 +308,10 @@ mod tests {
 
     #[test]
     fn day_count_interest_divides_last() {
-        // 447,500,000,000 at 3.309% for 130 days on a 365-day basis.
-        // 447.5e9 * 0.03309 = 14,807,775,000; * 130 = 1,925,010,750,000;
-        // / 365 = 5,274,002,054.7945…  → 5,274,002,054.79.
-        let principal = Dec::parse("447500000000").unwrap();
+        // 450,000,000,000 at 3.309% for 130 days on a 365-day basis.
+        // 450e9 * 0.03309 = 14,890,500,000; * 130 = 1,935,765,000,000;
+        // / 365 = 5,303,465,753.4246…  → 5,303,465,753.42.
+        let principal = Dec::parse("450000000000").unwrap();
         let rate = Dec::parse("3.309").unwrap().div(&Dec::from_int(100), 12).unwrap();
         let interest = principal
             .mul(&rate)
@@ -320,7 +320,7 @@ mod tests {
             .unwrap()
             .div(&Dec::from_int(365), 2)
             .unwrap();
-        assert_eq!(interest.to_string(), "5274002054.79");
+        assert_eq!(interest.to_string(), "5303465753.42");
     }
 
     #[test]
@@ -328,11 +328,11 @@ mod tests {
         // Why the accrual divides last: pre-rounding 130/365 to twelve places
         // and multiplying pushes the result a cent high. On one obligation
         // that is a cent; across a schedule it is an audit finding.
-        let principal = Dec::parse("447500000000").unwrap();
+        let principal = Dec::parse("450000000000").unwrap();
         let rate = Dec::parse("3.309").unwrap().div(&Dec::from_int(100), 12).unwrap();
         let frac = Dec::from_int(130).div(&Dec::from_int(365), 12).unwrap();
         let early = principal.mul(&rate).unwrap().mul(&frac).unwrap().to_fixed(2).unwrap();
-        assert_eq!(early, "5274002054.80");
+        assert_eq!(early, "5303465753.43");
     }
 
     #[test]

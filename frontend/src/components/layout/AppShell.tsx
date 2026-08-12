@@ -23,6 +23,7 @@ import { UserProfile } from '../auth/UserProfile';
 import { usePageHeaderCtx } from '../../context/PageHeader';
 import { VideoPlayProvider, useVideoPlay } from '../../context/VideoPlay';
 import { SystemStatusBanner } from '../common/SystemStatusBanner';
+import { ErrorBoundary } from '../common/ErrorBoundary';
 
 /* ── Nav config ──
  * Grouped into 3 sections. Footer keeps Settings + collapse toggle. */
@@ -475,7 +476,17 @@ export function AppShell() {
         <main id="main-content" className="flex-1 overflow-y-auto cube-flip-stage" aria-label="Page content">
           {/* `key` forces remount on path change → cube-flip animation plays */}
           <div key={location.pathname} className="cube-flip-face">
-            <Outlet />
+            {/*
+              A page that throws must not take the whole application with it.
+              Without a boundary here the only one is at the app root, so a
+              single failing page — a WebGL context the device refuses, a bad
+              response — replaces the sidebar and header too, leaving no way to
+              navigate anywhere else and nothing on screen but an error. Keyed by
+              path so moving to another page clears the failure.
+            */}
+            <ErrorBoundary key={location.pathname}>
+              <Outlet />
+            </ErrorBoundary>
           </div>
         </main>
       </div>

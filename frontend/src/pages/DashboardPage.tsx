@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { LayoutDashboard } from 'lucide-react';
 import { usePageHeader } from '../context/PageHeader';
 import { useVideoPlay } from '../context/VideoPlay';
@@ -7,6 +8,7 @@ const SIDEBAR_PLAY_OFFSET_MS = 800;
 
 export function DashboardPage() {
   const { heroRef, playHero, playSidebarAfterDelay } = useVideoPlay();
+  const [videoFailed, setVideoFailed] = useState(false);
 
   usePageHeader({
     icon: LayoutDashboard,
@@ -46,22 +48,48 @@ export function DashboardPage() {
           cursor: 'pointer',
         }}
       >
-        <video
-          ref={heroRef}
-          autoPlay
-          muted
-          playsInline
-          style={{ display: 'block', width: '100%', height: '100%', objectFit: 'cover' }}
-          onEnded={() => {
-            if (heroRef.current) {
-              heroRef.current.currentTime = 0;
-              heroRef.current.pause();
-            }
-            playSidebarAfterDelay(SIDEBAR_PLAY_OFFSET_MS);
-          }}
-        >
-          <source src={`${import.meta.env.BASE_URL}hero.mp4`} type="video/mp4" />
-        </video>
+        {videoFailed ? (
+          // The hero fills the page, so a video that cannot load leaves the
+          // Dashboard looking like the app failed to open. Say what happened
+          // instead of showing an empty black frame.
+          <div
+            role="status"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              height: '100%',
+              padding: 24,
+              textAlign: 'center',
+              fontSize: 13,
+              lineHeight: 1.5,
+              color: 'rgba(255,255,255,0.55)',
+            }}
+          >
+            Intro video unavailable on this connection. The rest of the dashboard is unaffected.
+          </div>
+        ) : (
+          <video
+            ref={heroRef}
+            autoPlay
+            muted
+            playsInline
+            // Without this the browser pulls the whole file before painting
+            // anything, which on a phone connection is a long black rectangle.
+            preload="metadata"
+            style={{ display: 'block', width: '100%', height: '100%', objectFit: 'cover' }}
+            onError={() => setVideoFailed(true)}
+            onEnded={() => {
+              if (heroRef.current) {
+                heroRef.current.currentTime = 0;
+                heroRef.current.pause();
+              }
+              playSidebarAfterDelay(SIDEBAR_PLAY_OFFSET_MS);
+            }}
+          >
+            <source src={`${import.meta.env.BASE_URL}hero.mp4`} type="video/mp4" />
+          </video>
+        )}
       </div>
 
     </div>

@@ -1,0 +1,321 @@
+# setup.sh - Shell Installation Script (No JSON required)
+#!/usr/bin/env bash
+set -e
+
+npm install katex@0.16.11 dompurify@3.1.6
+npm install --save-dev \
+  webpack@5.93.0 \
+  webpack-cli@5.1.4 \
+  typescript@5.5.4 \
+  ts-loader@9.5.1 \
+  css-loader@7.1.2 \
+  mini-css-extract-plugin@2.9.0 \
+  terser-webpack-plugin@5.3.10 \
+  jest@29.7.0 \
+  jest-environment-jsdom@29.7.0 \
+  ts-jest@29.2.5 \
+  identity-obj-proxy@3.0.0 \
+  @types/dompurify@3.0.5 \
+  @types/katex@0.16.7 \
+  @types/jest@29.5.12 \
+  @types/node@20.14.10
+// pipeline.js - Programmatic Build & Task Execution Interface (Replaces package.json scripts)
+const { execSync } = require('child_process');
+
+const run = (cmd) => {
+  console.log(`\n[PIPELINE] Executing: ${cmd}`);
+  execSync(cmd, { stdio: 'inherit' });
+};
+
+const action = process.argv[2] || 'ci';
+
+switch (action) {
+  case 'typecheck':
+    run('npx tsc --noEmit');
+    break;
+  case 'test':
+    run('npx jest --runInBand');
+    break;
+  case 'test:coverage':
+    run('npx jest --coverage');
+    break;
+  case 'build':
+    run('npx webpack --mode production');
+    break;
+  case 'ci':
+    run('npx tsc --noEmit');
+    run('npx jest --coverage');
+    run('npx webpack --mode production');
+    break;
+  default:
+    console.error(`Unknown action: ${action}`);
+    process.exit(1);
+}
+// jest.config.js - JS-Native Test Configuration
+module.exports = {
+  preset: 'ts-jest',
+  testEnvironment: 'jsdom',
+  roots: ['<rootDir>/src'],
+  testMatch: ['**/__tests__/**/*.test.ts'],
+  moduleNameMapper: {
+    '\\.(css|scss|less)$': 'identity-obj-proxy',
+  },
+  transform: {
+    '^.+\\.tsx?$': [
+      'ts-jest',
+      {
+        tsconfig: {
+          target: 'ES2020',
+          module: 'CommonJS',
+          strict: true,
+          esModuleInterop: true,
+          skipLibCheck: true,
+        },
+      },
+    ],
+  },
+  coverageThreshold: {
+    global: {
+      branches: 90,
+      functions: 90,
+      lines: 90,
+      statements: 90,
+    },
+  },
+};
+// src/entry.ts - Core TypeScript Entry Point
+import katex from 'katex';
+import DOMPurify from 'dompurify';
+import 'katex/dist/katex.min.css';
+
+const RENDERED_FLAG = 'data-katex-rendered';
+const DEBOUNCE_MS = 50;
+
+export function renderMath(
+  root: Element | Document | ShadowRoot = document,
+  selector: string = `[data-math]:not([${RENDERED_FLAG}]), .math:not([${RENDERED_FLAG}])`
+): void {
+  const elements = root.querySelectorAll(selector);
+  const len = elements.length;
+
+  if (len === 0) return;
+
+  for (let i = 0; i < len; i++) {
+    const el = elements[i] as HTMLElement;
+
+    if (el.hasAttribute(RENDERED_FLAG)) continue;
+
+    const raw = el.textContent || '';
+    const display = el.hasAttribute('data-display') || el.classList.contains('display-math');
+    const container = document.createElement('span');
+
+    try {
+      katex.render(raw, container, {
+        displayMode: display,
+        throwOnError: false,
+        strict: 'ignore',
+        trust: false,
+        macros: {},
+      });
+
+      const sanitizedHTML = DOMPurify.sanitize(container.innerHTML, {
+        USE_PROFILES: { html: true, mathMl: true, svg: true },
+        KEEP_CONTENT: false,
+      });
+
+      el.innerHTML = sanitizedHTML;
+      el.setAttribute(RENDERED_FLAG, 'true');
+    } catch (_) {
+      el.setAttribute(RENDERED_FLAG, 'error');
+    }
+  }
+}
+
+let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+let observedRoot: Element | Document = document.body;
+
+const observer = new MutationObserver((mutations: MutationRecord[]) => {
+  let needsUpdate = false;
+  const mLen = mutations.length;
+
+  for (let i = 0; i < mLen; i++) {
+    const m = mutations[i];
+
+    if (m.type === 'childList') {
+      const addedLen = m.addedNodes.length;
+      for (let j = 0; j < addedLen; j++) {
+        const node = m.addedNodes[j];
+        if (node.nodeType === Node.ELEMENT_NODE) {
+          needsUpdate = true;
+          break;
+        }
+      }
+    } else if (m.type === 'attributes' && m.attributeName !== RENDERED_FLAG) {
+      needsUpdate = true;
+    }
+
+    if (needsUpdate) break;
+  }
+
+  if (!needsUpdate) return;
+
+  if (debounceTimer !== null) clearTimeout(debounceTimer);
+
+  debounceTimer = setTimeout(() => {
+    renderMath(observedRoot);
+    debounceTimer = null;
+  }, DEBOUNCE_MS);
+});
+
+export function startObserver(target: Document | Element = document): void {
+  observedRoot = target instanceof Document ? target.body : target;
+  renderMath(observedRoot);
+  observer.observe(observedRoot, {
+    childList: true,
+    subtree: true,
+    attributes: true,
+    attributeFilter: ['data-math', 'class', 'data-display'],
+  });
+}
+
+export function stopObserver(): void {
+  observer.disconnect();
+  if (debounceTimer !== null) {
+    clearTimeout(debounceTimer);
+    debounceTimer = null;
+  }
+}
+
+export { renderMath as forceRender };
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', () => startObserver(), { once: true });
+} else {
+  startObserver();
+}
+// src/__tests__/entry.test.ts - Test Suite
+import { renderMath, forceRender, stopObserver } from '../entry';
+
+describe('KaTeX Pipeline - DOM Rendering & Security Verification', () => {
+  beforeEach(() => {
+    jest.useFakeTimers();
+    document.body.innerHTML = '';
+    stopObserver();
+  });
+
+  afterEach(() => {
+    jest.runOnlyPendingTimers();
+    jest.useRealTimers();
+  });
+
+  test('should render valid LaTeX into HTML and apply data-katex-rendered flag', () => {
+    document.body.innerHTML = `
+      <div id="target" data-math="true">\\frac{1}{2}</div>
+      <span class="math">E = mc^2</span>
+    `;
+
+    renderMath();
+
+    const mathEl = document.getElementById('target')!;
+    const classEl = document.querySelector('.math')!;
+
+    expect(mathEl.getAttribute('data-katex-rendered')).toBe('true');
+    expect(classEl.getAttribute('data-katex-rendered')).toBe('true');
+    expect(mathEl.querySelector('.katex')).not.toBeNull();
+    expect(classEl.querySelector('.katex')).not.toBeNull();
+  });
+
+  test('should sanitize malicious script tags injected into raw LaTeX string', () => {
+    document.body.innerHTML = `
+      <div id="xss-target" data-math="true">
+        \\text{<script>alert("xss")</script><img src="x" onerror="alert(1)">}
+      </div>
+    `;
+
+    renderMath();
+
+    const target = document.getElementById('xss-target')!;
+    expect(target.getAttribute('data-katex-rendered')).toBe('true');
+    expect(target.querySelectorAll('script').length).toBe(0);
+    expect(target.querySelector('img')?.hasAttribute('onerror')).toBe(false);
+  });
+
+  test('should handle invalid LaTeX gracefully without breaking DOM execution', () => {
+    document.body.innerHTML = `
+      <div id="invalid-math" data-math="true">\\invalidCommand{abc}</div>
+    `;
+
+    renderMath();
+
+    const target = document.getElementById('invalid-math')!;
+    expect(target.getAttribute('data-katex-rendered')).toBe('true');
+  });
+
+  test('should debounce MutationObserver on dynamic node insertion', () => {
+    document.body.innerHTML = `<div id="container"></div>`;
+    forceRender();
+
+    const container = document.getElementById('container')!;
+    
+    const newMath = document.createElement('div');
+    newMath.setAttribute('data-math', 'true');
+    newMath.id = 'dynamic-node';
+    newMath.textContent = '\\sqrt{x}';
+    container.appendChild(newMath);
+
+    jest.advanceTimersByTime(20);
+    expect(newMath.getAttribute('data-katex-rendered')).toBeNull();
+
+    jest.advanceTimersByTime(35);
+    expect(newMath.getAttribute('data-katex-rendered')).toBe('true');
+    expect(newMath.querySelector('.katex')).not.toBeNull();
+  });
+
+  test('should halt observation when stopObserver is invoked', () => {
+    stopObserver();
+
+    const newMath = document.createElement('div');
+    newMath.setAttribute('data-math', 'true');
+    newMath.id = 'detached-node';
+    newMath.textContent = '\\alpha';
+    document.body.appendChild(newMath);
+
+    jest.advanceTimersByTime(100);
+    expect(newMath.getAttribute('data-katex-rendered')).toBeNull();
+  });
+});
+# .github/workflows/ci.yml - YAML CI/CD Automation
+name: Build & Security Verification Pipeline
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  verify-and-build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js Environment
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install Dependencies
+        run: |
+          chmod +x setup.sh
+          ./setup.sh
+
+      - name: Run Test Suite and Build Pipeline
+        run: node pipeline.js ci
+
+      - name: Validate Output Artifacts
+        run: |
+          test -f dist/katex-render.min.js || exit 1
+          test -f dist/katex-render.css || exit 1
+          test -d dist/fonts || exit 1

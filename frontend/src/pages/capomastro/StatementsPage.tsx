@@ -32,6 +32,7 @@ import {
 import { usePageHeader } from '../../context/PageHeader';
 import { BevelBox } from '../../components/ui/BevelBox';
 import apiClient from '../../api/client';
+import { ExportPanel } from './ExportPanel';
 import { Kpi, Panel } from './ui';
 import { type Dec, exactTo, money, percent, rate, usd } from './money';
 
@@ -228,8 +229,29 @@ interface Statements {
     status: 'live' | 'unavailable';
     error: string | null;
   };
+  voidInstruments?: VoidInstrument[];
   checks: Check[];
   methodology: string[];
+}
+
+/**
+ * A line the estate has declared void ab initio. It is disclosed, never
+ * presented: it appears in no statement, no schedule and no total. The struck
+ * amount is shown only so a reader can see what was removed and satisfy
+ * themselves it is gone.
+ */
+interface VoidInstrument {
+  id: string;
+  label: string;
+  formerSection: string;
+  struckAmount: Dec;
+  declaration: string;
+  declaredBy: string;
+  declaredOn: string;
+  basis: string;
+  offsettingCredit: string;
+  offsettingCreditBasis: string;
+  collateralEdits: string[];
 }
 
 /**
@@ -1322,6 +1344,65 @@ export function StatementsPage() {
         )}
       </Panel>
 
+      {/* Struck instruments — disclosure only, nothing here is posted */}
+      {data.voidInstruments && data.voidInstruments.length > 0 && (
+        <Panel title="Instruments struck — void ab initio" icon={CircleSlash}>
+          <p className="text-[12px] text-[var(--color-text-secondary)] leading-relaxed mb-4">
+            The following were declared never to have existed. They are removed from the workbook,
+            the terms file and every listing and total above — not carried at nil, and not carried
+            unpriced. Nothing in this panel is posted; it is here so the removal is on the record
+            rather than silent.
+          </p>
+          <div className="space-y-4">
+            {data.voidInstruments.map((v) => (
+              <div
+                key={v.id}
+                className="border border-[var(--color-border-subtle)] rounded p-3 bg-black/20"
+              >
+                <div className="flex flex-wrap items-baseline justify-between gap-2">
+                  <div>
+                    <span className="text-[var(--color-text-primary)] font-semibold">
+                      {v.label}
+                    </span>
+                    <span className="ml-2 font-mono text-[10px] text-[var(--color-text-muted)]">
+                      {v.id}
+                    </span>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-[11px] text-[var(--color-text-muted)] mr-2">
+                      struck from {v.formerSection}
+                    </span>
+                    <span className="font-mono text-[13px] text-red-400 line-through">
+                      {money(v.struckAmount)}
+                    </span>
+                  </div>
+                </div>
+                <p className="mt-2 text-[12px] text-[var(--color-text-secondary)] leading-relaxed">
+                  {v.basis}
+                </p>
+                <p className="mt-2 text-[11px] text-[var(--color-text-muted)] leading-relaxed">
+                  <span className="text-[var(--color-gold-400)]">
+                    Offsetting credit → {v.offsettingCredit}.
+                  </span>{' '}
+                  {v.offsettingCreditBasis}
+                </p>
+                {v.collateralEdits.map((e) => (
+                  <p
+                    key={e}
+                    className="mt-2 text-[11px] text-[var(--color-text-muted)] leading-relaxed"
+                  >
+                    {e}
+                  </p>
+                ))}
+                <div className="mt-2 text-[10px] text-[var(--color-text-muted)] uppercase tracking-wider">
+                  {v.declaration} · declared by {v.declaredBy} · {v.declaredOn}
+                </div>
+              </div>
+            ))}
+          </div>
+        </Panel>
+      )}
+
       {/* Reconciliation detail */}
       <Panel title="Reconciliations" icon={BadgeCheck}>
         <table className="w-full text-sm">
@@ -1367,6 +1448,9 @@ export function StatementsPage() {
           </tbody>
         </table>
       </Panel>
+
+      {/* Auditor copies */}
+      <ExportPanel asOfDate={data.asOfDate} />
 
       {/* Methodology */}
       <Panel title="Basis of preparation" icon={FileSpreadsheet}>

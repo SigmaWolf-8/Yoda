@@ -79,6 +79,24 @@ pub fn build_router(state: AppState) -> Router {
             "/api/capomastro/statements",
             get(capomastro::statements::get_statements),
         )
+        // One-click auditor copies. Same computation as the statements route —
+        // these render it for paper and for Excel, they do not recompute it.
+        .route(
+            "/api/capomastro/export/statements.html",
+            get(capomastro::export::export_statements_html),
+        )
+        .route(
+            "/api/capomastro/export/statements.csv",
+            get(capomastro::export::export_statements_csv),
+        )
+        .route(
+            "/api/capomastro/export/trial-balance.csv",
+            get(capomastro::export::export_trial_balance_csv),
+        )
+        .route(
+            "/api/capomastro/export/ledger.csv",
+            get(capomastro::export::export_ledger_csv),
+        )
         .route("/api/capomastro/measurements", get(capomastro::get_measurements))
         // The parse endpoint is public and buffers its whole body, so it gets a
         // tight limit of its own — a pacs.008 message is kilobytes, not

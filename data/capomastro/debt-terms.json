@@ -1,8 +1,8 @@
 {
-  "version": "1.3",
+  "version": "1.4",
   "basisDate": "2026-04-01",
   "note": "Terms of the estate's interest-bearing positions, as declared. This file states only TERMS — reference index, spread, day-count convention and call conditions. Principal is never taken from here: it is read from the corresponding Balance Sheet line in gaap-ledger.json so the schedules cannot drift from the audited statement. Both sides accrue: obligations produce interest expense, interestEarningAssets produce interest income, and the income statement presents them gross with a net interest line. A balance-sheet line that appears in no list is reported as unmodelled or non-earning — never silently assumed to be either.",
-  "attestation": "A null `rateIndex` means the estate has not supplied a rate basis for that position. No index is imputed in its place and no accrual is posted: the line is carried unpriced and reported as such, and every total that would depend on it is withheld. This is the same treatment a published rate receives when the source fails to answer. Do not fill a null in to make the statement foot.",
+  "attestation": "A null `rateIndex` means the estate has not supplied a rate basis for that position. No index is imputed in its place and no accrual is posted: the line is carried unpriced and reported as such, and every total that would depend on it is withheld. This is the same treatment a published rate receives when the source fails to answer. Do not fill a null in to make the statement foot. The rate basis is all-or-nothing — rateIndex, spreadBps and dayCount together, or the position is unpriced; a missing spread must never be read as zero.",
   "dayCountConventions": {
     "ACT/360": "Actual days elapsed over a 360-day year — money-market convention for overnight-indexed positions.",
     "ACT/365": "Actual days elapsed over a 365-day year — bond-basis convention for term provisions."
@@ -37,21 +37,6 @@
       "maturity": null,
       "basis": "Deposit reserves are payable at the overnight rate less a 25 bp administration spread. Offset by Cash & Cash Equivalents on the asset side, which earns the index flat — the spread is the estate's margin.",
       "fundedBy": "Cash & Cash Equivalents"
-    },
-    {
-      "id": "OBL-DAMAGE-OFFSET",
-      "ledgerLine": "Active Damage Offset & Restorative Provision",
-      "creditor": "Restorative claimants (provisioned, unassigned)",
-      "instrument": "Long-term restorative provision",
-      "authority": "ASC 450 / IAS 37 — provision for present obligation of uncertain timing",
-      "rateIndex": null,
-      "spreadBps": null,
-      "dayCount": null,
-      "callBasis": "notice",
-      "callNoticeDays": 90,
-      "maturity": null,
-      "basis": "Interest-bearing, per the estate. The rate basis has not been supplied and none is imputed: this line is carried unpriced, its accrual is withheld, and net income and the trial-balance foot are withheld with it. Supplying rateIndex, spreadBps and dayCount is the only thing that will price it.",
-      "fundedBy": null
     }
   ],
   "interestEarningAssets": [
@@ -88,5 +73,6 @@
       "dayCount": "ACT/360",
       "basis": "Short-dated paper accrued at the Treasury bill average rate on a money-market basis."
     }
-  ]
+  ],
+  "struckInstruments": "The Active Damage Offset & Restorative Provision (OBL-DAMAGE-OFFSET) was removed from this file on 2026-08-12. It was not unpriced debt awaiting a rate — the estate declared the instrument void ab initio: never present, no counterparty, no principal. It is struck from the ledger, not carried at nil, and it must not be reinstated here. The strike is recorded in gaap-ledger.json under summary.voidInstruments."
 }

@@ -277,6 +277,73 @@ pub struct GoldRevaluation {
     pub error: Option<String>,
 }
 
+/// An instrument the estate has declared void ab initio.
+///
+/// This is not a liability carried at nil and it is not an unpriced position
+/// awaiting a rate — it is a line that was never a line. It appears nowhere in
+/// the trial balance, the balance sheet or the debt schedule. It is disclosed
+/// here, and only here, because an auditor reading a statement that no longer
+/// carries a figure of this size is entitled to know it was struck, by whom,
+/// on what date and where the offsetting credit went.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct VoidInstrument {
+    pub id: String,
+    pub label: String,
+    pub former_section: String,
+    /// The figure that was carried before the strike. Disclosed, never posted.
+    pub struck_amount: Dec,
+    pub declaration: String,
+    pub declared_by: String,
+    pub declared_on: String,
+    pub basis: String,
+    pub offsetting_credit: String,
+    pub offsetting_credit_basis: String,
+    pub collateral_edits: Vec<String>,
+}
+
+impl VoidInstrument {
+    /// Read a strike from the ledger. Every field is required: a strike with a
+    /// missing declarant, date or basis is an unexplained deletion of a figure,
+    /// which is worse than the figure. The amount goes through `Dec` like every
+    /// other money value on this page — it is disclosed, never posted.
+    fn from_json(v: &Value) -> Result<Self, AppError> {
+        let field = |name: &str| -> Result<String, AppError> {
+            v.get(name)
+                .and_then(Value::as_str)
+                .map(str::to_owned)
+                .ok_or_else(|| {
+                    AppError::Internal(format!("void instrument is missing `{name}`"))
+                })
+        };
+        Ok(VoidInstrument {
+            id: field("id")?,
+            label: field("label")?,
+            former_section: field("formerSection")?,
+            struck_amount: dec_of(
+                v.get("struckAmount").unwrap_or(&Value::Null),
+                "void instrument struckAmount",
+            )?,
+            declaration: field("declaration")?,
+            declared_by: field("declaredBy")?,
+            declared_on: field("declaredOn")?,
+            basis: field("basis")?,
+            offsetting_credit: field("offsettingCredit")?,
+            offsetting_credit_basis: field("offsettingCreditBasis")?,
+            collateral_edits: v
+                .get("collateralEdits")
+                .and_then(Value::as_array)
+                .map(|a| {
+                    a.iter()
+                        .filter_map(Value::as_str)
+                        .map(str::to_owned)
+                        .collect()
+                })
+                .unwrap_or_default(),
+        })
+    }
+}
+
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Check {
@@ -304,6 +371,8 @@ pub struct Statements {
     pub debt_schedule: DebtSchedule,
     pub income_schedule: IncomeSchedule,
     pub gold_revaluation: GoldRevaluation,
+    /// Instruments struck from the books entirely. Disclosure, not a section.
+    pub void_instruments: Vec<VoidInstrument>,
     pub checks: Vec<Check>,
     pub methodology: Vec<&'static str>,
 }
@@ -334,10 +403,6 @@ fn dec_of(node: &Value, ctx: &str) -> Result<Dec, AppError> {
         }
     };
     Dec::parse(&raw).map_err(|e| bad(&format!("ledger field `{ctx}` = `{raw}`"), e))
-}
-
-fn str_at<'a>(v: &'a Value, ptr: &str) -> Option<&'a str> {
-    v.pointer(ptr).and_then(Value::as_str)
 }
 
 /// Build a label → authority map from a workbook sheet, where each data row is
@@ -529,9 +594,16 @@ pub async fn get_statements(
     State(_state): State<AppState>,
     Query(q): Query<StatementsQuery>,
 ) -> Result<Json<Statements>, AppError> {
+    let force = matches!(q.refresh.as_deref(), Some("1") | Some("true"));
+    Ok(Json(build_statements(force).await?))
+}
+
+/// The whole computation, exposed so the export surfaces render exactly the
+/// figures the page shows. There is one statement builder and one set of
+/// numbers; an export that recomputed its own would be a second set of books.
+pub async fn build_statements(force: bool) -> Result<Statements, AppError> {
     let ledger = super::load_ledger()?;
     let terms = load_terms()?;
-    let force = matches!(q.refresh.as_deref(), Some("1") | Some("true"));
     let rate_snapshot = rates::snapshot(force).await;
 
     let bs_authority = authority_map(ledger, "Balance Sheet");
@@ -929,7 +1001,7 @@ pub async fn get_statements(
     // ── Trial balance ────────────────────────────────────────────────
     let mut accounts: Vec<Account> = Vec::new();
 
-    let mut push_section = |accounts: &mut Vec<Account>,
+    let push_section = |accounts: &mut Vec<Account>,
                             ptr: &str,
                             base: u32,
                             classification: &'static str,
@@ -1314,6 +1386,57 @@ pub async fn get_statements(
         error: gold_q.error.clone(),
     };
 
+    // ── Struck instruments ───────────────────────────────────────────
+    // Declared void ab initio: never present, so never carried. Loaded only to
+    // disclose the strike and to police it — nothing here reaches a total.
+    let void_instruments: Vec<VoidInstrument> = ledger
+        .pointer("/summary/voidInstruments")
+        .and_then(Value::as_array)
+        .map(|a| a.iter().map(VoidInstrument::from_json).collect())
+        .transpose()?
+        .unwrap_or_default();
+
+    // A void instrument that reappears anywhere in the statements is the exact
+    // failure the declaration exists to prevent, so it is checked rather than
+    // assumed: every label the reader can see is swept for a struck one.
+    let presented_labels: Vec<&str> = trial_balance
+        .accounts
+        .iter()
+        .map(|a| a.account.as_str())
+        .chain(
+            balance_sheet
+                .current_assets
+                .iter()
+                .chain(&balance_sheet.non_current_assets)
+                .chain(&balance_sheet.liabilities)
+                .chain(&balance_sheet.equity)
+                .map(|l| l.label.as_str()),
+        )
+        .chain(
+            debt_schedule
+                .obligations
+                .iter()
+                .map(|o| o.ledger_line.as_str()),
+        )
+        .chain(
+            debt_schedule
+                .non_interest_bearing
+                .iter()
+                .map(|n| n.ledger_line.as_str()),
+        )
+        .chain(debt_schedule.unmodelled_liabilities.iter().map(String::as_str))
+        .chain(debt_schedule.orphan_terms.iter().map(String::as_str))
+        .collect();
+    let resurrected: Vec<&str> = void_instruments
+        .iter()
+        .filter(|v| {
+            presented_labels
+                .iter()
+                .any(|label| label.contains(v.label.as_str()))
+        })
+        .map(|v| v.label.as_str())
+        .collect();
+
     // ── Reconciliation checks ────────────────────────────────────────
     let mut checks = vec![
         check_money_opt(
@@ -1393,6 +1516,22 @@ pub async fn get_statements(
         8,
     )?);
 
+    if !void_instruments.is_empty() {
+        checks.push(check(
+            "VOID-STRUCK",
+            format!(
+                "Instruments declared void ab initio appear in no statement, schedule or total ({} struck)",
+                void_instruments.len()
+            ),
+            "0 carried".to_string(),
+            if resurrected.is_empty() {
+                "0 carried".to_string()
+            } else {
+                format!("carried: {}", resurrected.join(", "))
+            },
+        ));
+    }
+
     checks.push(check(
         "RATES-LIVE",
         "All reference rates answered".into(),
@@ -1400,7 +1539,7 @@ pub async fn get_statements(
         rate_snapshot.status.to_string(),
     ));
 
-    Ok(Json(Statements {
+    Ok(Statements {
         entity: ledger.get("entity").cloned().unwrap_or(Value::Null),
         version: ledger.get("version").cloned().unwrap_or(Value::Null),
         source: ledger.get("source").cloned().unwrap_or(Value::Null),
@@ -1415,6 +1554,7 @@ pub async fn get_statements(
         debt_schedule,
         income_schedule,
         gold_revaluation,
+        void_instruments,
         checks,
         methodology: vec![
             "Principals are read from the workbook Balance Sheet. debt-terms.json declares only terms — index, spread, day count and call conditions.",
@@ -1423,10 +1563,11 @@ pub async fn get_statements(
             "Interest is presented gross on the income statement with a separate net interest line, so the cost of the obligations and the return on the assets funding them are both visible.",
             "If a reference rate cannot be fetched, the dependent figures are withheld as null with the transport error attached. No fallback or assumed rate is ever substituted.",
             "If the estate has not supplied a rate basis for a position, no index is imputed for it. The position is reported as interest-bearing but unpriced, its accrual is withheld, and every total that would depend on that accrual is withheld with it — the statement does not foot rather than foot on an invented rate.",
+            "An instrument the estate declares void ab initio is struck, not zeroed: it is removed from the workbook, from the terms file and from every listing and total, and the strike is disclosed separately with the destination of its offsetting credit. A void instrument is not an unpriced one — there is no rate to supply, because there is no instrument.",
             "All arithmetic is exact base-10 decimal. No IEEE floating point is used anywhere in this computation.",
             "Gold appreciation is disclosed as an unrecorded memo, not posted, because the estate is carried on a historical-cost basis.",
         ],
-    }))
+    })
 }
 
 #[cfg(test)]

@@ -3691,7 +3691,30 @@ function TorusMount({ majorRadius, minorRadius, anchorU, anchorV }) {
     };
     updateCamera();
 
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    // Creating a WebGL context is the one step here that legitimately fails on
+    // a working device: mobile Safari caps live contexts, some browsers refuse
+    // it entirely, and a throw from inside this effect propagates up as a hard
+    // render failure. The torus is an illustration, so the page states it is
+    // unavailable and carries on rather than taking anything down with it.
+    let renderer: THREE.WebGLRenderer;
+    try {
+      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    } catch (err) {
+      const notice = document.createElement('div');
+      notice.setAttribute('role', 'status');
+      notice.style.cssText =
+        'display:flex;align-items:center;justify-content:center;height:100%;' +
+        'padding:24px;text-align:center;font-size:13px;line-height:1.5;' +
+        'color:rgba(255,255,255,0.55)';
+      notice.textContent =
+        '3D view unavailable — this browser or device would not provide a WebGL context. ' +
+        'Everything else on this page works normally.';
+      container.appendChild(notice);
+      console.warn('Forge torus: WebGL unavailable, continuing without it', err);
+      return () => {
+        notice.remove();
+      };
+    }
     renderer.setSize(width, height);
     renderer.setPixelRatio(window.devicePixelRatio || 1);
     renderer.setClearColor(0x000000, 0);

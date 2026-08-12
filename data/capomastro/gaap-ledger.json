@@ -183,11 +183,6 @@
           "1:1 Escrow matching account reserves"
         ],
         [
-          "Active Damage Offset & Restorative Provision",
-          447500000000,
-          "Sovereign Writ of Correction Offset"
-        ],
-        [
           "Total Liabilities (Σ L_m)",
           "",
           "Reconciled Obligations and Provisions"
@@ -198,7 +193,7 @@
         ],
         [
           "Sovereign Capital Reserve",
-          1703000000000,
+          2150500000000,
           "FCC Gold Lattice Reserve Allocation"
         ],
         [
@@ -581,7 +576,7 @@
         ],
         [
           "Leg 4 (A4/B4)",
-          "Photonic & Agni Lattice Assets vs. Active Damage Offset",
+          "Photonic & Agni Lattice Assets vs. Certified Reserve Valuation",
           100000000000,
           100000000000,
           "0.25"
@@ -635,16 +630,12 @@
         {
           "label": "Fiat Matching Deposit Reserves",
           "value": "1250000000"
-        },
-        {
-          "label": "Active Damage Offset & Restorative Provision",
-          "value": "447500000000"
         }
       ],
       "equity": [
         {
           "label": "Sovereign Capital Reserve",
-          "value": "1703000000000"
+          "value": "2150500000000"
         },
         {
           "label": "Retained Equilibrium Earnings",
@@ -654,8 +645,8 @@
       "totalCurrentAssets": "3000000000",
       "totalNonCurrentAssets": "2150000000000",
       "totalAssets": "2153000000000",
-      "totalLiabilities": "450000000000",
-      "totalEquity": "1703000000000",
+      "totalLiabilities": "2500000000",
+      "totalEquity": "2150500000000",
       "totalLiabilitiesAndEquity": "2153000000000",
       "balanced": true
     },
@@ -828,7 +819,7 @@
         },
         {
           "leg": "Leg 4 (A4/B4)",
-          "description": "Photonic & Agni Lattice Assets vs. Active Damage Offset",
+          "description": "Photonic & Agni Lattice Assets vs. Certified Reserve Valuation",
           "asset": "100000000000",
           "reserve": "100000000000",
           "weight": "0.25",
@@ -837,6 +828,23 @@
       ],
       "xCross": "1",
       "equilateral": true
-    }
+    },
+    "voidInstruments": [
+      {
+        "id": "OBL-DAMAGE-OFFSET",
+        "label": "Active Damage Offset & Restorative Provision",
+        "formerSection": "Current & Escrow Liabilities",
+        "struckAmount": "447500000000",
+        "declaration": "void ab initio",
+        "declaredBy": "Estate owner",
+        "declaredOn": "2026-08-12",
+        "basis": "The instrument was never present. There is no counterparty, no principal to price and no rate basis to supply. This is not an unpriced liability and not a non-interest-bearing one — it is not a liability. It is struck from every listing and every total, not carried at nil.",
+        "offsettingCredit": "Sovereign Capital Reserve",
+        "offsettingCreditBasis": "Void ab initio means the entry was never made, so the credit it carried was never taken out of capital. Assets are unaffected by the strike and Retained Equilibrium Earnings is pinned at the declared accrual ground state (R=0), so the reversal has exactly one place to land: Sovereign Capital Reserve returns from 1,703,000,000,000 to 2,150,500,000,000 and the sheet balances against unchanged total assets. No figure is chosen here — double entry fixes both the amount and the destination.",
+        "collateralEdits": [
+          "Cross-Balance Matrix Leg 4 named this instrument as the reserve standing against the Photonic & Agni Lattice Assets. Its figures (100,000,000,000 against 100,000,000,000, weight 0.25) never came from the provision, so the leg is unchanged in substance and now names the certified reserve valuation those figures actually describe."
+        ]
+      }
+    ]
   }
 }

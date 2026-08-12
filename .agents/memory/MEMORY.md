@@ -16,4 +16,7 @@
 - [Money as decimal strings](capomastro-money-as-decimal-strings.md) — Capomastro figures are exact decimal strings end to end; no layer below the extractor may do money arithmetic or touch a float.
 - [Capomastro live statements](capomastro-live-statements.md) — no fallback rates (withhold the total instead); accrual divides last; principal comes from the balance sheet; gold surplus is a memo, never posted.
 - [Frontend apiClient base URL](frontend-api-base-url.md) — axios baseURL is already `/api`; a doubled prefix hits the SPA fallback (200 text/html), so JSON pages crash in render, not at the fetch.
+- [KaTeX output sanitization](katex-sanitization.md) — DOMPurify's SVG profile is load-bearing (dropping it deletes √ bars and accents, not rendering); hostile TeX doesn't exercise the sanitizer.
+- [Sealed Codex non-alteration](codex-non-alteration.md) — the treatise HTML in public/capomastro/docs is served verbatim under a stated clause; fix rendering in app code, never by editing those files.
+- [Generated data vs declarations](generated-data-and-declarations.md) — hand-editing an extracted data file is not a correction; put the declaration in its own input file the extractor applies, then diff a re-run to prove it.
 - [Treatise plaintext cleaning](treatise-plaintext-cleaning.md) — Capomastro "Edified Treatise" attachments: unify duplicate drafts to one clean copy each; strip markdown but keep # | in KaTeX and convert multiplication * to ×.
