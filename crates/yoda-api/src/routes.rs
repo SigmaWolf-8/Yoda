@@ -3439,14 +3439,135 @@ async fn system_status(State(state): State<AppState>) -> Json<serde_json::Value>
 
     let mut issues: Vec<serde_json::Value> = Vec::new();
 
-    if !llm_enabled {
-        issues.push(serde_json::json!({
-            "id": "llm_gateway_disabled",
-            "severity": "critical",
-            "title": "AI agents are offline",
-            "detail": "ANTHROPIC_API_KEY, OPENAI_API_KEY, and TOGETHER_API_KEY must all be set as environment variables before Alpha, Beta, and Gamma can process queries.",
-            "action": "Add the three API keys in Settings → API Keys, then restart the server."
-        }));
+    // ── Can a query actually be answered? ─────────────────────────────────
+    // This is the only question that decides whether the platform works, so
+    // it is the only one allowed to raise a critical banner.
+    //
+    // `submit_query` has two routes to a model, and either one is enough:
+    //
+    //   Cloud   — one engine row with hosting_mode commercial/free_tier,
+    //             health_status 'online' and not disabled, called directly
+    //             from this server.
+    //   Relay   — one enabled self_hosted row with an endpoint, dispatched
+    //             through the PlenumLAN relay to a live cube peer (or a CRS
+    //             registration that has heartbeated inside five minutes).
+    //             This server cannot dial a self-hosted address itself, which
+    //             is why the relay, not the endpoint, decides viability.
+    //
+    // Only when BOTH are dead is the platform actually unable to answer.
+    //
+    // The three gateway keys deliberately do NOT appear below. They only
+    // construct `state.llm_gateway`, which is read by /api/llm/health and
+    // nothing else; blaming them for a dead query path sent operators to
+    // Settings → API Keys to fix something that was never the cause.
+    let engines_read = sqlx::query_as::<_, (String, String, String, String, bool)>(
+        "SELECT slot, hosting_mode, COALESCE(endpoint_url, ''), health_status, is_disabled \
+         FROM engine_configs \
+         WHERE org_id = (SELECT om.org_id FROM users u \
+                         JOIN org_members om ON om.user_id = u.id \
+                         ORDER BY u.created_at LIMIT 1) \
+         ORDER BY slot",
+    )
+    .fetch_all(&state.db)
+    .await;
+
+    // A database failure is not an engine outage. Say which one it is, or the
+    // banner sends the operator to re-key engines that were never the problem.
+    let engines = match engines_read {
+        Ok(rows) => Some(rows),
+        Err(e) => {
+            tracing::error!(error = %e, "system_status could not read engine_configs");
+            issues.push(serde_json::json!({
+                "id": "engine_status_unreadable",
+                "severity": "critical",
+                "title": "Cannot read the engine configuration",
+                "detail": "The database did not answer when this page asked which engines are configured, so the state below is unknown rather than empty. The server log has the error.",
+                "action": "Check that the database is reachable, then refresh."
+            }));
+            None
+        }
+    };
+
+    let mut usable_cloud = 0usize;
+    let mut relay_ready = false;
+
+    if let Some(engines) = engines.as_ref() {
+        usable_cloud = engines
+            .iter()
+            .filter(|(_, mode, _, health, disabled)| {
+                matches!(mode.as_str(), "commercial" | "free_tier")
+                    && health.as_str() == "online"
+                    && !*disabled
+            })
+            .count();
+
+        let has_relay_engine = engines.iter().any(|(_, mode, endpoint, _, disabled)| {
+            mode.as_str() == "self_hosted" && !endpoint.is_empty() && !*disabled
+        });
+
+        // Mirrors submit_query: a live peer, or failing that a CRS
+        // registration whose heartbeat is still inside the window.
+        let recent_crs: i64 = if has_relay_engine && relay_armed && live_peers.is_empty() {
+            sqlx::query_scalar(
+                "SELECT COUNT(*) FROM crs_registrations \
+                 WHERE last_heartbeat > NOW() - INTERVAL '5 minutes'",
+            )
+            .fetch_one(&state.db)
+            .await
+            .unwrap_or(0)
+        } else {
+            0
+        };
+
+        relay_ready =
+            has_relay_engine && relay_armed && (!live_peers.is_empty() || recent_crs > 0);
+
+        if usable_cloud == 0 && !relay_ready {
+            let mut reasons: Vec<String> = engines
+                .iter()
+                .map(|(slot, mode, _, health, disabled)| {
+                    let why = if *disabled {
+                        "switched off".to_string()
+                    } else if mode.as_str() == "self_hosted" {
+                        "self-hosted, so it can only be reached through the relay".to_string()
+                    } else {
+                        match health.as_str() {
+                            "suspect" => {
+                                "reachable, but the provider rejected its API key".to_string()
+                            }
+                            "online" => "online".to_string(),
+                            other => format!("not answering ({other})"),
+                        }
+                    };
+                    format!("{}: {}", slot.to_uppercase(), why)
+                })
+                .collect();
+
+            if !relay_armed {
+                reasons.push("relay: not armed".to_string());
+            } else if live_peers.is_empty() {
+                reasons.push("relay: armed, but no cube peer is live".to_string());
+            }
+
+            let detail = if reasons.is_empty() {
+                "No engine slots are configured, so there is nowhere to send a query.".to_string()
+            } else {
+                format!(
+                    "A query needs either a cloud engine that is switched on and responding, \
+                     or a self-hosted engine reachable through a live relay peer. Neither is \
+                     available — {}.",
+                    reasons.join("; ")
+                )
+            };
+
+            issues.push(serde_json::json!({
+                "id": "no_usable_engine",
+                "severity": "critical",
+                "title": "No AI engine can answer queries",
+                "detail": detail,
+                "action": "Settings → Engines: give one slot a provider key that works (xAI, OpenAI, Anthropic or Together) and press Ping until it reports online — or start a cube daemon so a self-hosted slot can be reached."
+            }));
+        }
     }
 
     if live_peers.is_empty() {
@@ -3463,6 +3584,15 @@ async fn system_status(State(state): State<AppState>) -> Json<serde_json::Value>
         "ok": issues.iter().all(|i| i["severity"] != "critical"),
         "llm_gateway": {
             "enabled": llm_enabled,
+            // Kept for /api/llm/health only. It does not gate query execution,
+            // so it is reported here without raising an issue.
+            "note": "Alpha/Beta/Gamma cloud gateway (ANTHROPIC_API_KEY + OPENAI_API_KEY + TOGETHER_API_KEY). Read by /api/llm/health; does not affect whether a query can run.",
+        },
+        "engines": {
+            "readable": engines.is_some(),
+            "configured": engines.as_ref().map(|e| e.len()),
+            "usable_cloud": usable_cloud,
+            "relay_ready": relay_ready,
         },
         "relay": {
             "armed": relay_armed,
