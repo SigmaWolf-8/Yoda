@@ -18,5 +18,6 @@
 - [Frontend apiClient base URL](frontend-api-base-url.md) — axios baseURL is already `/api`; a doubled prefix hits the SPA fallback (200 text/html), so JSON pages crash in render, not at the fetch.
 - [KaTeX output sanitization](katex-sanitization.md) — DOMPurify's SVG profile is load-bearing (dropping it deletes √ bars and accents, not rendering); hostile TeX doesn't exercise the sanitizer.
 - [Sealed Codex non-alteration](codex-non-alteration.md) — the treatise HTML in public/capomastro/docs is served verbatim under a stated clause; fix rendering in app code, never by editing those files.
+- [Startup must keep the port open](startup-script-must-keep-the-port-open.md) — `set -e` silently killed the run script's own build-failure fallback; a compile error closed port 3000 and the proxy showed "couldn't reach this app".
 - [Generated data vs declarations](generated-data-and-declarations.md) — hand-editing an extracted data file is not a correction; put the declaration in its own input file the extractor applies, then diff a re-run to prove it.
 - [Treatise plaintext cleaning](treatise-plaintext-cleaning.md) — Capomastro "Edified Treatise" attachments: unify duplicate drafts to one clean copy each; strip markdown but keep # | in KaTeX and convert multiplication * to ×.
