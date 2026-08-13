@@ -22,8 +22,9 @@ AGENTS_COMPILED_PATH = "./agents/compiled"
 MODEL_LINEAGES_PATH = "./model_lineages.json"
 
 [deployment]
-run = ["bash", "scripts/replit-run.sh"]
-deploymentTarget = "cloudrun"
+run = ["bash", "scripts/replit-serve.sh"]
+deploymentTarget = "autoscale"
+build = ["bash", "scripts/replit-build.sh"]
 
 [[ports]]
 localPort = 3000

@@ -1,7 +1,10 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { BookOpen, ExternalLink, ShieldCheck, Download } from 'lucide-react';
 import { usePageHeader } from '../../context/PageHeader';
 import { BevelBox } from '../../components/ui/BevelBox';
+import { CopyDispatchButton } from '../../components/ui/CopyDispatchButton';
+import type { Dispatch } from '../../lib/clipboard';
+import { buildCodexDispatch, extractDocument } from './dispatch';
 
 /**
  * The Codex renders each sovereign document in an isolated frame that loads the
@@ -50,12 +53,51 @@ const DOCS: CodexDoc[] = [
 
 export function CodexPage() {
   const [active, setActive] = useState<CodexDoc>(DOCS[0]);
+  const [sendable, setSendable] = useState<Dispatch | null>(null);
+  const [sendableError, setSendableError] = useState<string | null>(null);
 
   usePageHeader({
     icon: BookOpen,
     title: 'Sovereign Codex',
     subtitle: 'Governing documents, reproduced verbatim under the Non-Alteration Clause',
   });
+
+  /*
+   * Prepare the sendable copy as soon as a document is chosen, rather than when
+   * the button is pressed. Safari only allows a clipboard write inside the click
+   * that asked for it, so a fetch in the handler would arrive too late — and a
+   * 90 KB treatise takes a moment to re-tag either way.
+   */
+  useEffect(() => {
+    let cancelled = false;
+    setSendable(null);
+    setSendableError(null);
+
+    fetch(active.file)
+      .then((res) => {
+        if (!res.ok) throw new Error(`the file returned ${res.status}`);
+        return res.text();
+      })
+      .then((raw) => {
+        if (cancelled) return;
+        // Unknown paths are answered with the app shell, so a missing document
+        // would otherwise be "extracted" into an empty page rather than reported.
+        if (raw.includes('<div id="root">')) {
+          throw new Error('the document is not present on the server');
+        }
+        const extracted = extractDocument(raw);
+        if (!extracted) throw new Error('the document could not be read');
+        setSendable(buildCodexDispatch(active, extracted, window.location.origin, new Date()));
+      })
+      .catch((err: unknown) => {
+        if (cancelled) return;
+        setSendableError(err instanceof Error ? err.message : 'the document could not be read');
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [active]);
 
   return (
     <div className="p-6 lg:p-8 max-w-7xl mx-auto animate-fade-in space-y-6">
@@ -114,7 +156,17 @@ export function CodexPage() {
               {active.version}
             </div>
           </div>
-          <div className="flex items-center gap-2 flex-shrink-0">
+          <div className="flex flex-wrap items-center gap-2 flex-shrink-0">
+            <CopyDispatchButton
+              build={() => sendable}
+              label="Copy to send"
+              preparingLabel={sendableError ? 'Copy unavailable' : 'Preparing copy…'}
+              title={
+                sendableError
+                  ? `This document cannot be prepared for sending: ${sendableError}`
+                  : 'Copies the whole document, formatted, ready to paste into an email or a message'
+              }
+            />
             <a
               href={active.file}
               target="_blank"

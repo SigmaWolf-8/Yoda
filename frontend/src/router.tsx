@@ -25,6 +25,7 @@ import { KyokushinPage } from './pages/KyokushinPage';
 import { ForgePage } from './pages/ForgePage';
 import { AgentsPage } from './pages/AgentsPage';
 import { AboutPage } from './pages/AboutPage';
+import { StatementOfClaimPage } from './pages/StatementOfClaimPage';
 import { SovereignLedgerPage } from './pages/capomastro/SovereignLedgerPage';
 import { StatementsPage } from './pages/capomastro/StatementsPage';
 import { CodexPage } from './pages/capomastro/CodexPage';
@@ -53,6 +54,11 @@ export const router = createBrowserRouter([
       { path: '/login', element: <TorusGatePage /> },
       { path: '/register', element: <RegisterPage /> },
       { path: '/crystal', element: <CrystalAuthPage /> },
+      // Private working document. Rendered standalone rather than inside
+      // AppShell: the shell's sidebar is also shown on the public Capomastro
+      // routes, so a nav entry there would advertise this page to anyone who
+      // lands on the published record. Reachable by URL only.
+      { path: '/statement', element: <StatementOfClaimPage /> },
     ],
   },
 

@@ -1,5 +1,30 @@
 # The format of this file is identical to `.dockerignore`.
 # It is used to reduce the size of deployed images to make the process of publishing faster.
+#
+# This list is load-bearing. A publish failed while uploading the repl layer with
+# `io: read/write on closed pipe` on a file inside target/debug/deps — the
+# workspace is roughly 20 GB and the Rust build cache alone is 15 GB of it.
+# Everything excluded below is either rebuilt by scripts/replit-build.sh or was
+# never needed to serve the app.
 
-# No need to store the pnpm store twice.
+# ── Build caches: rebuilt during the publish build ──
+# The release binary is copied to deploy-bin/, which is deliberately NOT ignored;
+# nothing that must reach the image may be left inside target/.
+target
+node_modules
+frontend/node_modules
+.cache
+.upm
+
+# ── History and agent scratch space ──
+.git
 .local
+.agents
+.config
+
+# ── Archives, captures and working material, not part of the running app ──
+**/*.zip
+**/*.tar.gz
+attached_assets
+downloads
+screenshots

@@ -18,6 +18,9 @@
 - [Frontend apiClient base URL](frontend-api-base-url.md) — axios baseURL is already `/api`; a doubled prefix hits the SPA fallback (200 text/html), so JSON pages crash in render, not at the fetch.
 - [KaTeX output sanitization](katex-sanitization.md) — DOMPurify's SVG profile is load-bearing (dropping it deletes √ bars and accents, not rendering); hostile TeX doesn't exercise the sanitizer.
 - [Sealed Codex non-alteration](codex-non-alteration.md) — the treatise HTML in public/capomastro/docs is served verbatim under a stated clause; fix rendering in app code, never by editing those files.
+- [SPA fallback 404 on reload](spa-fallback-404-on-reload.md) — ServeDir stamps 404 over its not_found_service; ServeFile skips the body on a conditional GET, so refresh 404'd every route but /.
 - [Startup must keep the port open](startup-script-must-keep-the-port-open.md) — `set -e` silently killed the run script's own build-failure fallback; a compile error closed port 3000 and the proxy showed "couldn't reach this app".
 - [Generated data vs declarations](generated-data-and-declarations.md) — hand-editing an extracted data file is not a correction; put the declaration in its own input file the extractor applies, then diff a re-run to prove it.
+- [Publishing & workspace size](publish-image-size.md) — publish uploads the WHOLE workspace; a 15 GB target/ kills the push ("closed pipe"), and artefacts must be copied outside every .replitignore'd dir.
+- [Copy-to-send clipboard](clipboard-dispatch.md) — write text/html + text/plain together, build the payload before the click (Safari), budget inlined images, and never re-case or pad a sealed document.
 - [Treatise plaintext cleaning](treatise-plaintext-cleaning.md) — Capomastro "Edified Treatise" attachments: unify duplicate drafts to one clean copy each; strip markdown but keep # | in KaTeX and convert multiplication * to ×.

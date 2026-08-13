@@ -9,10 +9,10 @@
 //! Copyright (c) 2026 Capomastro Holdings Ltd. — Applied Physics Division
 
 use axum::{
-    http::header::{CACHE_CONTROL, CONTENT_TYPE},
+    http::header::{HeaderName, CACHE_CONTROL, CONTENT_TYPE},
     http::HeaderValue,
     middleware,
-    response::Response,
+    response::{IntoResponse, Response},
     routing::get,
     Json,
     Router,
@@ -22,7 +22,7 @@ use sqlx::postgres::PgPoolOptions;
 use std::net::SocketAddr;
 use std::path::PathBuf;
 use tower_http::cors::{Any, CorsLayer};
-use tower_http::services::{ServeDir, ServeFile};
+use tower_http::services::ServeDir;
 use tower_http::trace::TraceLayer;
 use tracing_subscriber::EnvFilter;
 
@@ -54,7 +54,61 @@ pub mod websocket;
 #[cfg(test)]
 mod security_tests;
 
+/// SPA shell for any path that is not a real file on disk.
+///
+/// This deliberately does *not* use `ServeFile`. `ServeFile` honours conditional
+/// requests, and a browser reload sends `If-Modified-Since` for the URL it is
+/// reloading. On a client-side route such as `/about`, `ServeDir` finds no file,
+/// hands off to the not-found service, and the conditional match produces a
+/// response carrying neither a body nor a `Content-Type` — which arrives at the
+/// client as a bare 404. The effect was that every route except `/` broke on
+/// refresh while working perfectly on first navigation, and the 404-to-200
+/// rewrite below could not save it, because that rewrite keys off a
+/// `text/html` content type the response did not have.
+///
+/// The SPA shell is tiny and must never be cached anyway, so it is always
+/// returned whole, with an unconditional 200.
+async fn spa_index(dist: PathBuf) -> Response {
+    match tokio::fs::read(dist.join("index.html")).await {
+        Ok(body) => (
+            axum::http::StatusCode::OK,
+            [
+                (CONTENT_TYPE, "text/html; charset=utf-8"),
+                (CACHE_CONTROL, "no-cache, must-revalidate"),
+                // `ServeDir` overwrites this handler's status with 404 on its way
+                // out, whatever we set here, so the 200 has to be restored by the
+                // response middleware. This header is how it recognises the shell:
+                // keying off the marker rather than off "any HTML 404" means a
+                // genuine not-found elsewhere is still reported as not-found.
+                (SPA_SHELL_MARKER, "1"),
+            ],
+            body,
+        )
+            .into_response(),
+        Err(e) => {
+            tracing::error!(error = %e, path = %dist.join("index.html").display(),
+                "SPA shell missing — the frontend has not been built");
+            (
+                axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+                "Frontend build not found. Run `npm run build` in frontend/.",
+            )
+                .into_response()
+        }
+    }
+}
+
+/// Internal marker set by [`spa_index`] and stripped before the response leaves.
+const SPA_SHELL_MARKER: HeaderName = HeaderName::from_static("x-spa-shell");
+
 async fn no_cache_static(resp: Response) -> Response {
+    let mut resp = resp;
+    // Restore the status `ServeDir` clobbered, then remove the marker so it is
+    // never visible to a client.
+    if resp.headers_mut().remove(SPA_SHELL_MARKER).is_some() {
+        *resp.status_mut() = axum::http::StatusCode::OK;
+    }
+    let resp = resp;
+
     let ct = resp
         .headers()
         .get(CONTENT_TYPE)
@@ -67,13 +121,11 @@ async fn no_cache_static(resp: Response) -> Response {
     if !is_revalidatable {
         return resp;
     }
+    // A 404-to-200 rewrite for HTML used to live here, to undo the 404 that
+    // ServeDir's not_found_service produced for client-side routes. `spa_index`
+    // now returns 200 directly, so the rewrite is dead and has been removed —
+    // a genuine HTML 404 should stay a 404 rather than be silently laundered.
     let mut resp = resp;
-    // ServeDir returns 404 when serving the SPA index.html fallback.
-    // Replit's proxy blocks 404 responses — rewrite to 200 for HTML so
-    // React Router can handle client-side paths like /kyokushin.
-    if is_html && resp.status() == axum::http::StatusCode::NOT_FOUND {
-        *resp.status_mut() = axum::http::StatusCode::OK;
-    }
     resp.headers_mut().insert(
         CACHE_CONTROL,
         HeaderValue::from_static("no-cache, must-revalidate"),
@@ -167,8 +219,9 @@ async fn main() -> anyhow::Result<()> {
     // Any path not matched by an API route falls through to the SPA's index.html.
     let frontend_dist = std::env::var("FRONTEND_DIST_PATH")
         .unwrap_or_else(|_| "./frontend/dist".to_string());
+    let dist_path = PathBuf::from(&frontend_dist);
     let serve_dir = ServeDir::new(&frontend_dist)
-        .not_found_service(ServeFile::new(format!("{}/index.html", frontend_dist)));
+        .not_found_service(get(move || spa_index(dist_path.clone())));
 
     let app = Router::new()
         .route("/health", get(health))

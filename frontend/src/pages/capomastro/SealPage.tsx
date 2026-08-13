@@ -1,7 +1,20 @@
-import { useState } from 'react';
-import { Stamp, Github, Twitter, Mail, Link2, ExternalLink, X } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import {
+  Stamp,
+  Github,
+  Twitter,
+  Mail,
+  Link2,
+  ExternalLink,
+  X,
+  ImageDown,
+  Check,
+} from 'lucide-react';
 import { usePageHeader } from '../../context/PageHeader';
 import { BevelBox } from '../../components/ui/BevelBox';
+import { CopyDispatchButton } from '../../components/ui/CopyDispatchButton';
+import { copyImage, inlineImage } from '../../lib/clipboard';
+import { buildSealDispatch } from './dispatch';
 
 /**
  * Visual identity and public presence: the heraldic marks, the archival
@@ -116,6 +129,8 @@ function Plate({ mark, onOpen }: { mark: Mark; onOpen: (m: Mark) => void }) {
 
 export function SealPage() {
   const [lightbox, setLightbox] = useState<Mark | null>(null);
+  const [inlined, setInlined] = useState<Record<string, string> | null>(null);
+  const [plateCopied, setPlateCopied] = useState(false);
 
   usePageHeader({
     icon: Stamp,
@@ -123,8 +138,81 @@ export function SealPage() {
     subtitle: 'Heraldic identity, archival receipts, and the public record',
   });
 
+  /*
+   * Re-encode the plates small, once, in the background.
+   *
+   * A pasted `<img>` pointing back at this server only renders for as long as
+   * the recipient can reach it, which for most recipients is never — so the
+   * marks travel inside the message instead. They are shrunk on the way in: the
+   * originals total several megabytes, and a clipboard payload that size is
+   * quietly dropped by some mail clients.
+   */
+  useEffect(() => {
+    let cancelled = false;
+    const plates = [...MARKS, ...RECEIPTS];
+
+    Promise.all(plates.map((m) => inlineImage(m.src).then((uri) => [m.id, uri] as const)))
+      .then((pairs) => {
+        if (cancelled) return;
+        const map: Record<string, string> = {};
+        for (const [id, uri] of pairs) if (uri) map[id] = uri;
+        setInlined(map);
+      })
+      // A plate that will not re-encode is named in the copy but not pictured,
+      // which is better than withholding the whole record.
+      .catch(() => {
+        if (!cancelled) setInlined({});
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const sendable = useMemo(() => {
+    if (!inlined) return null;
+    return buildSealDispatch(
+      [
+        { heading: 'Heraldry & canon', marks: MARKS },
+        { heading: 'Archival receipts', marks: RECEIPTS },
+      ],
+      LINKS,
+      window.location.origin,
+      inlined,
+      new Date(),
+    );
+  }, [inlined]);
+
+  async function onCopyPlate(mark: Mark) {
+    const ok = await copyImage(mark.src);
+    if (!ok) {
+      window.open(mark.src, '_blank', 'noopener');
+      return;
+    }
+    setPlateCopied(true);
+    window.setTimeout(() => setPlateCopied(false), 3000);
+  }
+
   return (
     <div className="p-6 lg:p-8 max-w-7xl mx-auto animate-fade-in space-y-8">
+      {/* ── Send the record ── */}
+      <BevelBox className="bg-[var(--color-surface-primary)] p-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <p className="text-xs text-[var(--color-text-muted)] leading-relaxed max-w-2xl">
+            Copy the whole seal record — the marks, the receipts and the public links — formatted
+            and ready to paste into an email or a message. The plates travel inside the copy, so
+            they still show for someone who cannot reach this server. To send a single plate on its
+            own, open it and use <span className="text-[var(--color-text-primary)]">Copy image</span>.
+          </p>
+          <CopyDispatchButton
+            build={() => sendable}
+            label="Copy the seal record"
+            preparingLabel="Preparing plates…"
+            title="Copies the heraldry, receipts and links, with the marks embedded"
+          />
+        </div>
+      </BevelBox>
+
       {/* ── Heraldry ── */}
       <section>
         <h2 className="text-sm font-bold uppercase tracking-wide text-[var(--color-text-primary)] mb-4">
@@ -232,14 +320,28 @@ export function SealPage() {
           aria-modal="true"
           aria-label={lightbox.title}
         >
-          <button
-            type="button"
-            onClick={() => setLightbox(null)}
-            aria-label="Close"
-            className="absolute top-5 right-5 p-2 text-white/70 hover:text-white"
+          <div
+            className="absolute top-5 right-5 flex items-center gap-2"
+            onClick={(e) => e.stopPropagation()}
           >
-            <X className="w-6 h-6" />
-          </button>
+            <button
+              type="button"
+              onClick={() => onCopyPlate(lightbox)}
+              className="inline-flex items-center gap-1.5 text-[11px] font-semibold px-3 py-1.5 bg-white/10 text-white hover:bg-white/20 transition-colors"
+              title="Put this plate on the clipboard so it can be pasted into a message"
+            >
+              {plateCopied ? <Check className="w-3.5 h-3.5" /> : <ImageDown className="w-3.5 h-3.5" />}
+              {plateCopied ? 'Copied' : 'Copy image'}
+            </button>
+            <button
+              type="button"
+              onClick={() => setLightbox(null)}
+              aria-label="Close"
+              className="p-2 text-white/70 hover:text-white"
+            >
+              <X className="w-6 h-6" />
+            </button>
+          </div>
           <figure className="max-w-5xl max-h-full" onClick={(e) => e.stopPropagation()}>
             <img
               src={lightbox.src}

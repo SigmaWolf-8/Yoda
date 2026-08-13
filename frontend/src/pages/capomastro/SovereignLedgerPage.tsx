@@ -23,101 +23,20 @@ import {
 } from 'recharts';
 import { usePageHeader } from '../../context/PageHeader';
 import { BevelBox } from '../../components/ui/BevelBox';
+import { CopyDispatchButton } from '../../components/ui/CopyDispatchButton';
 import apiClient from '../../api/client';
 import { ExportPanel } from './ExportPanel';
 import { Kpi, Panel } from './ui';
 import {
-  type Dec,
-  exact,
-  exactTo,
-  forGeometry,
-  group,
-  percent,
-  splitDec,
-  usd,
-} from './money';
+  buildLedgerDispatch,
+  type RevenueResponse,
+  type SealedMeasurement,
+} from './dispatch';
+import { exact, exactTo, forGeometry, percent, usd } from './money';
 
-// ── Types mirroring GET /api/capomastro/revenue ──
-//
-// Money and every derived quantity arrive as canonical decimal *strings* and
-// are formatted by `./money` without ever becoming a JS `number`. `Dec` marks
-// those fields so the distinction from a genuine count is visible at the type
-// level.
-
-interface Segment {
-  label: string;
-  value: Dec;
-  share: Dec;
-}
-
-interface CrossLeg {
-  leg: string;
-  description: string;
-  asset: Dec;
-  reserve: Dec;
-  weight: Dec;
-  weightedRatio: Dec;
-}
-
-interface Generation {
-  generation: string;
-  epoch: string;
-  offspring: number;
-  nodeId: string;
-}
-
-interface RevenueResponse {
-  entity: string;
-  version: string;
-  accrualGroundState: { grossRevenue: Dec; costOfGoodsSold: Dec; note: string };
-  kpis: {
-    totalAssets: Dec;
-    totalLiabilities: Dec;
-    totalEquity: Dec;
-    balanced: boolean;
-    goldFairMarketValue: Dec;
-    goldCarryingValue: Dec;
-    unrecordedReserveBuffer: Dec;
-    xCross: Dec;
-  };
-  segmentMix: Segment[];
-  crossBalance: { legs: CrossLeg[]; xCross: Dec; equilateral: boolean };
-  goldAssay: {
-    barsCounted: Dec;
-    nominalMassPerBarKg: Dec;
-    netGoldMassKg: Dec;
-    finePurity: Dec;
-    fineGoldMassKg: Dec;
-    troyOunceFactor: Dec;
-    fineGoldOunces: Dec;
-    lbmaSpotUsdPerOz: Dec;
-    fairMarketValueUsd: Dec;
-    carryingValueUsd: Dec;
-    unrecordedReserveBufferUsd: Dec;
-  };
-  descendantRegister: {
-    generations: Generation[];
-    totalActiveNodes: number;
-    totalRegisteredDescendants: number;
-    digitalRoot: number;
-    harmonic: boolean;
-  };
-}
-
-interface MeasurementField {
-  key: string;
-  value: string;
-  unit: string;
-}
-
-interface SealedMeasurement {
-  file: string;
-  record: string;
-  version: string;
-  schema: string;
-  fields: MeasurementField[];
-  pif127: string | null;
-}
+// The payload shapes live in `./dispatch`, which also formats them for sending.
+// Keeping one declaration means a sent copy and the screen can never drift
+// apart over a field one of them knows about and the other does not.
 
 // ── Response validation ──
 //
@@ -223,6 +142,13 @@ export function SovereignLedgerPage() {
     [data],
   );
 
+  // Built ahead of the click, not during it: Safari discards a clipboard write
+  // that is not part of the gesture that asked for it.
+  const sendable = useMemo(
+    () => (data ? buildLedgerDispatch(data, measurements, new Date()) : null),
+    [data, measurements],
+  );
+
   const lineageChart = useMemo(
     () =>
       (data?.descendantRegister.generations ?? []).map((g) => ({
@@ -278,15 +204,22 @@ export function SovereignLedgerPage() {
             <div className="text-sm font-bold text-[var(--color-text-primary)]">{data.entity}</div>
             <div className="text-xs text-[var(--color-text-muted)]">{data.version}</div>
           </div>
-          <div className="flex items-center gap-2 text-xs">
-            <ShieldCheck
-              className={`w-4 h-4 ${kpis.balanced ? 'text-emerald-400' : 'text-amber-400'}`}
-            />
-            <span className={kpis.balanced ? 'text-emerald-400' : 'text-amber-400'}>
-              {kpis.balanced
-                ? 'Balance sheet integrity check: ΣA = ΣL + ΣE'
-                : 'Balance sheet does not reconcile'}
+          <div className="flex flex-wrap items-center gap-3 text-xs">
+            <span className="flex items-center gap-2">
+              <ShieldCheck
+                className={`w-4 h-4 ${kpis.balanced ? 'text-emerald-400' : 'text-amber-400'}`}
+              />
+              <span className={kpis.balanced ? 'text-emerald-400' : 'text-amber-400'}>
+                {kpis.balanced
+                  ? 'Balance sheet integrity check: ΣA = ΣL + ΣE'
+                  : 'Balance sheet does not reconcile'}
+              </span>
             </span>
+            <CopyDispatchButton
+              build={() => sendable}
+              label="Copy the ledger"
+              title="Copies the position, composition, assay, cross-balance and register, formatted for email or a message"
+            />
           </div>
         </div>
       </BevelBox>
