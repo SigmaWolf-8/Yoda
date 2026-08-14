@@ -44,6 +44,7 @@ pub mod llm_agent_gateway;
 pub mod modes;
 pub mod query;
 pub mod routes;
+pub mod salvi_engine_routes;
 pub mod security;
 pub mod settings;
 pub mod state;

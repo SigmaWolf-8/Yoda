@@ -25,3 +25,7 @@
 - [Publishing & workspace size](publish-image-size.md) — publish uploads the WHOLE workspace; a 15 GB target/ kills the push ("closed pipe"), and artefacts must be copied outside every .replitignore'd dir.
 - [Copy-to-send clipboard](clipboard-dispatch.md) — write text/html + text/plain together, build the payload before the click (Safari), budget inlined images, and never re-case or pad a sealed document.
 - [Treatise plaintext cleaning](treatise-plaintext-cleaning.md) — Capomastro "Edified Treatise" attachments: unify duplicate drafts to one clean copy each; strip markdown but keep # | in KaTeX and convert multiplication * to ×.
+- [Salvi engine spec traps](salvi-engine-invariants.md) — 21 bijective digits (not 20), f(x) binds no hash, "zero balance" discharges at residue 1; don't "fix" these by intuition.
+- [MutationObserver under fake timers](jest-jsdom-observer-timers.md) — jsdom delivers records on a microtask; await a flush after each mutation or advanceTimersByTime fires nothing.
+- [npm lockfiles pin the local proxy](npm-lockfile-replit-firewall.md) — package-lock.json records package-firewall.replit.local; rewrite to registry.npmjs.org before any external CI uses it.
+

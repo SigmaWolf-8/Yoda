@@ -35,6 +35,7 @@ use crate::install;
 use crate::kb;
 use crate::modes;
 use crate::query;
+use crate::salvi_engine_routes;
 use crate::settings;
 use crate::state::AppState;
 use crate::theta;
@@ -67,6 +68,10 @@ pub fn build_router(state: AppState) -> Router {
         .route("/api/yoda/crs/session/{token}", get(crs_session))
         .route("/api/relay/status", get(relay_status))
         .route("/api/system/status", get(system_status))
+        // ── Salvi fixed-precision engine (public — pure computation, no state) ──
+        // Carries its own tight body limit, so it is merged as a group rather
+        // than listed here route by route.
+        .merge(salvi_engine_routes::router())
         // Local-install download endpoints (public — needed by install script)
         // ── Capomastro sovereign ledger (public read surfaces) ──
         // Published record of the estate: the workbook, the sealed token

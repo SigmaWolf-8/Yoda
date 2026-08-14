@@ -1,0 +1,24 @@
+[package]
+name = "salvi-engine"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Fixed-precision, zero-float, no_std checked-integer kernel for the Salvi Framework (Bijective Base-9, exact rational 2x2 projections, Z = 0 discharge)."
+
+[features]
+default = []
+# Deductive verification with Prusti (Viper). Enabling this feature turns on the
+# `requires` / `ensures` contract attributes; it requires the Prusti toolchain
+# (`cargo prusti`) and a nightly compiler for `register_tool`.
+prusti = ["dep:prusti-contracts"]
+
+[dependencies]
+prusti-contracts = { version = "0.2", optional = true }
+
+[lints.rust]
+unsafe_code = "forbid"
+# `cargo kani` sets --cfg kani itself; without this declaration every ordinary
+# build warns that the proof module's cfg is unknown.
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(kani)'] }

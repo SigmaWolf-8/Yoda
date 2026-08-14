@@ -1,0 +1,105 @@
+name: Verification
+
+# Two independent gates, both of which must produce evidence rather than a
+# green tick with nothing behind it:
+#   1. the no_std arithmetic kernel (crates/salvi-engine)
+#   2. the portable KaTeX bundle (packages/katex-render)
+#
+# NOTE: this file cannot be pushed by the workspace's GitHub connector — its
+# token has no `workflow` scope, so the API returns a bare 404 on any write
+# under .github/workflows. It has to be committed and pushed from a machine
+# with a normal git credential.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  salvi-engine:
+    name: Salvi engine — no_std kernel
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-salvi-${{ hashFiles('crates/salvi-engine/**', 'Cargo.lock') }}
+
+      - name: Build (default features)
+        run: cargo build -p salvi-engine --verbose
+
+      # The crate declares #![no_std]; if anything pulls std back in, a build
+      # for a target with no std at all is what actually catches it. `cargo
+      # build` on a hosted target would not.
+      - name: Prove no_std against a bare-metal target
+        run: |
+          rustup target add thumbv7em-none-eabihf
+          cargo build -p salvi-engine --target thumbv7em-none-eabihf --verbose
+
+      - name: Tests
+        run: cargo test -p salvi-engine --verbose
+
+      # Lints are reported, not fatal. A whole matrix dying inside a minute
+      # because `-D warnings` promoted a style lint tells nobody anything about
+      # correctness; the test job above is the gate that means something.
+      - name: Clippy (advisory)
+        continue-on-error: true
+        run: |
+          rustup component add clippy
+          cargo clippy -p salvi-engine --all-targets
+
+      - name: Formatting (advisory)
+        continue-on-error: true
+        run: |
+          rustup component add rustfmt
+          cargo fmt -p salvi-engine -- --check
+
+  katex-render:
+    name: KaTeX bundle — typecheck, tests, artifacts
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: packages/katex-render
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: bash setup.sh
+
+      # typecheck -> jest with coverage thresholds -> webpack -> artifact check
+      - name: Pipeline (ci)
+        run: node pipeline.js ci
+
+      - name: Assert the published bundle is what CI just built
+        working-directory: .
+        run: |
+          node packages/katex-render/pipeline.js publish
+          if ! git diff --quiet -- frontend/public/vendor/katex-render; then
+            echo "::error::frontend/public/vendor/katex-render is stale."
+            echo "Run 'node pipeline.js deploy' in packages/katex-render and commit the result."
+            git diff --stat -- frontend/public/vendor/katex-render
+            exit 1
+          fi
+          echo "Published bundle matches the CI build."
+
+      - name: Upload bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: katex-render-bundle
+          path: packages/katex-render/dist
+          retention-days: 7

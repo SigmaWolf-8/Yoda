@@ -13,6 +13,10 @@
 target
 node_modules
 frontend/node_modules
+# Nested installs (packages/katex-render): a bare `node_modules` rule only
+# matches the top level, so the build tooling would otherwise ship in the image.
+**/node_modules
+packages/katex-render/dist
 .cache
 .upm
 

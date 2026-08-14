@@ -10,6 +10,7 @@ members = [
     "crates/yoda-memory",
     "crates/ninja-exec",
     "crates/capomastro-pacs008",
+    "crates/salvi-engine",
     "tools/yoda-agent-compiler",
 ]
 # The Tauri desktop shell is its own workspace (tauri/Cargo.toml). Excluding it

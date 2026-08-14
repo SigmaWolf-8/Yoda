@@ -11,6 +11,7 @@ yoda-inference-router = { path = "../yoda-inference-router" }
 yoda-knowledge-base = { path = "../yoda-knowledge-base" }
 yoda-task-bible = { path = "../yoda-task-bible" }
 yoda-plenumnet-bridge = { path = "../yoda-plenumnet-bridge" }
+salvi-engine = { path = "../salvi-engine" }
 
 # Web framework
 axum.workspace = true

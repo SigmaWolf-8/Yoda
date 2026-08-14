@@ -1,0 +1,33 @@
+{
+  "name": "katex-render",
+  "version": "1.0.0",
+  "description": "",
+  "main": "jest.config.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "dompurify": "^3.1.6",
+    "katex": "^0.16.11"
+  },
+  "devDependencies": {
+    "@types/dompurify": "^3.0.5",
+    "@types/jest": "^29.5.12",
+    "@types/katex": "^0.16.7",
+    "@types/node": "^20.14.10",
+    "css-loader": "^7.1.2",
+    "identity-obj-proxy": "^3.0.0",
+    "jest": "^29.7.0",
+    "jest-environment-jsdom": "^29.7.0",
+    "mini-css-extract-plugin": "^2.9.0",
+    "terser-webpack-plugin": "^5.3.10",
+    "ts-jest": "^29.2.5",
+    "ts-loader": "^9.5.1",
+    "typescript": "^5.5.4",
+    "webpack": "^5.93.0",
+    "webpack-cli": "^5.1.4"
+  }
+}
