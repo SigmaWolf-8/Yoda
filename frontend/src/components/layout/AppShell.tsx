@@ -18,6 +18,7 @@ import {
   BookOpen,
   Stamp,
   FileSpreadsheet,
+  ScrollText,
 } from 'lucide-react';
 import { UserProfile } from '../auth/UserProfile';
 import { usePageHeaderCtx } from '../../context/PageHeader';
@@ -26,10 +27,12 @@ import { SystemStatusBanner } from '../common/SystemStatusBanner';
 import { ErrorBoundary } from '../common/ErrorBoundary';
 
 /* ── Nav config ──
- * Grouped into 3 sections. Footer keeps Settings + collapse toggle. */
+ * Grouped into 3 sections. Footer keeps Settings + collapse toggle.
+ * Items with `href` render as plain <a> (for static pages); items with `to`
+ * use React Router NavLink. */
 const NAV_GROUPS: ReadonlyArray<{
   label: string;
-  items: ReadonlyArray<{ to: string; icon: any; label: string }>;
+  items: ReadonlyArray<{ to?: string; href?: string; icon: any; label: string }>;
 }> = [
   {
     label: 'Workspace',
@@ -51,8 +54,9 @@ const NAV_GROUPS: ReadonlyArray<{
     items: [
       { to: '/capomastro/ledger',     icon: Scale,           label: 'Ledger'     },
       { to: '/capomastro/statements', icon: FileSpreadsheet, label: 'Statements' },
-      { to: '/capomastro/codex',  icon: BookOpen, label: 'Codex'  },
-      { to: '/capomastro/seal',   icon: Stamp,    label: 'Seal'   },
+      { to: '/capomastro/codex',      icon: BookOpen,        label: 'Codex'      },
+      { to: '/capomastro/seal',       icon: Stamp,           label: 'Seal'       },
+      { href: '/capomastro/assayer.html', icon: ScrollText,  label: 'Compendium' },
     ],
   },
   {
@@ -244,19 +248,43 @@ export function AppShell() {
                 <div className="mx-2 mb-1 border-t border-[hsl(220,15%,86%)]" aria-hidden="true" />
               )}
               <div className="space-y-1">
-                {group.items.map(({ to, icon: Icon, label }) => (
-                  <NavLink
-                    key={to}
-                    to={to}
-                    end={to === '/'}
-                    onClick={() => setSidebarOpen(false)}
-                    className={navCls}
-                    title={collapsed ? label : undefined}
-                  >
-                    <Icon className="w-[18px] h-[18px] flex-shrink-0" />
-                    {!collapsed && label}
-                  </NavLink>
-                ))}
+                {group.items.map((item) => {
+                  const { icon: Icon, label } = item;
+                  if (item.href) {
+                    const plainCls = [
+                      'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors duration-150',
+                      collapsed && 'justify-center',
+                      'text-[hsl(220,12%,38%)] hover:text-[hsl(220,15%,10%)] hover:bg-[hsl(220,15%,90%)]',
+                    ].filter(Boolean).join(' ');
+                    return (
+                      <a
+                        key={item.href}
+                        href={item.href}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={() => setSidebarOpen(false)}
+                        className={plainCls}
+                        title={collapsed ? label : undefined}
+                      >
+                        <Icon className="w-[18px] h-[18px] flex-shrink-0" />
+                        {!collapsed && label}
+                      </a>
+                    );
+                  }
+                  return (
+                    <NavLink
+                      key={item.to}
+                      to={item.to!}
+                      end={item.to === '/'}
+                      onClick={() => setSidebarOpen(false)}
+                      className={navCls}
+                      title={collapsed ? label : undefined}
+                    >
+                      <Icon className="w-[18px] h-[18px] flex-shrink-0" />
+                      {!collapsed && label}
+                    </NavLink>
+                  );
+                })}
               </div>
             </div>
           ))}
