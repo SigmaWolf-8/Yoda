@@ -1288,9 +1288,9 @@ pub async fn export_trial_balance_csv(
 }
 
 pub async fn export_ledger_csv(State(_state): State<AppState>) -> Result<Response, AppError> {
-    let ledger = super::load_ledger()?;
+    let ledger = super::ledger_live()?;
     Ok(attachment(
-        ledger_csv(ledger),
+        ledger_csv(&ledger),
         "text/csv; charset=utf-8",
         "capomastro-gaap-ledger.csv".to_string(),
     ))

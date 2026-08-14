@@ -139,6 +139,87 @@ impl Dec {
         Ok(Dec { units: q + bump, scale: to })
     }
 
+    /// Rescale rounding **half to even** — banker's rounding.
+    ///
+    /// [`Dec::rescale`] rounds half away from zero, which is what a money
+    /// figure wants: a half-cent belongs to whoever the sign says it belongs
+    /// to. A published *ratio* is a different animal. The extraction script
+    /// states ratios under Python's default `ROUND_HALF_EVEN`, so a ratio
+    /// rounded half away from zero here would disagree with the sealed figure
+    /// in the last published digit the first time a tie occurred — a real
+    /// divergence, reported as such, over nothing but a rounding convention.
+    /// Ratios therefore round the way the other implementation rounds.
+    pub fn rescale_half_even(&self, to: u32) -> Result<Self, DecError> {
+        if to >= self.scale {
+            return self.rescale(to);
+        }
+        let factor = Self::pow10(self.scale - to)?;
+        let q = self.units / factor;
+        let r = (self.units % factor).abs();
+        let half = factor / 2;
+        let away = if self.units < 0 { -1 } else { 1 };
+        let bump = if r > half {
+            away
+        } else if r == half && factor % 2 == 0 {
+            // An exact tie: keep the even neighbour.
+            if q % 2 == 0 { 0 } else { away }
+        } else if r == half {
+            away
+        } else {
+            0
+        };
+        Ok(Dec { units: q + bump, scale: to })
+    }
+
+    /// Quotient at an explicit scale, rounded half to even. See
+    /// [`Dec::rescale_half_even`] for why ratios round differently to money.
+    pub fn div_half_even(&self, other: &Dec, scale: u32) -> Result<Dec, DecError> {
+        if other.units == 0 {
+            return Err(DecError("division by zero".into()));
+        }
+        let shift = i64::from(scale) + i64::from(other.scale) - i64::from(self.scale) + 1;
+        let (num, den) = if shift >= 0 {
+            let factor = Self::pow10(
+                u32::try_from(shift).map_err(|_| DecError("division scale out of range".into()))?,
+            )?;
+            (
+                self.units
+                    .checked_mul(factor)
+                    .ok_or_else(|| DecError("overflow scaling dividend".into()))?,
+                other.units,
+            )
+        } else {
+            let factor = Self::pow10(
+                u32::try_from(-shift).map_err(|_| DecError("division scale out of range".into()))?,
+            )?;
+            (
+                self.units,
+                other
+                    .units
+                    .checked_mul(factor)
+                    .ok_or_else(|| DecError("overflow scaling divisor".into()))?,
+            )
+        };
+        let q = num / den;
+        // The quotient is truncated, so a trailing 5 in the guard digit is only
+        // an *exact* half when nothing was discarded. Without this the rounding
+        // would treat "slightly more than a half" as a tie and, half the time,
+        // round it the wrong way.
+        let exact = num % den == 0;
+        let ten = 10i128;
+        let unit = q / ten;
+        let guard = (q % ten).abs();
+        let away = if q < 0 { -1 } else { 1 };
+        let bump = if guard > 5 || (guard == 5 && !exact) {
+            away
+        } else if guard == 5 {
+            if unit % 2 == 0 { 0 } else { away }
+        } else {
+            0
+        };
+        Ok(Dec { units: unit + bump, scale })
+    }
+
     fn align(a: &Dec, b: &Dec) -> Result<(i128, i128, u32), DecError> {
         let scale = a.scale.max(b.scale);
         Ok((a.rescale(scale)?.units, b.rescale(scale)?.units, scale))
@@ -177,6 +258,27 @@ impl Dec {
         } else {
             Ok(raw)
         }
+    }
+
+    /// Product with **no** rescaling: the result carries the full sum of both
+    /// scales, so a chain of multiplications is exact rather than trimmed.
+    ///
+    /// [`Dec::mul`] exists for accrual arithmetic, where scale would otherwise
+    /// creep upward across a schedule until it overflows. The ledger's derived
+    /// quantities are a short, fixed chain (bars × mass × purity × troy factor
+    /// × spot, five terms, ~16 digits of scale against `i128`'s 38), and there
+    /// the published figure is the exact product — trimming it at twelve places
+    /// would disagree with the workbook's own extraction in the last digits.
+    pub fn mul_exact(&self, other: &Dec) -> Result<Dec, DecError> {
+        let units = self
+            .units
+            .checked_mul(other.units)
+            .ok_or_else(|| DecError("overflow multiplying decimals".into()))?;
+        let scale = self
+            .scale
+            .checked_add(other.scale)
+            .ok_or_else(|| DecError("decimal scale overflow in exact product".into()))?;
+        Ok(Dec { units, scale })
     }
 
     /// Quotient at an explicit scale, rounded half away from zero. The caller
@@ -241,6 +343,24 @@ impl Dec {
     /// debit and credit columns of a trial balance.
     pub fn abs(&self) -> Dec {
         Dec { units: self.units.abs(), scale: self.scale }
+    }
+
+    /// Canonical plain-decimal rendering: trailing fractional zeros removed,
+    /// never scientific notation, `0` for zero at any scale.
+    ///
+    /// This is the exact form the extraction script publishes, so the live
+    /// computation and the sealed extraction render identical bytes for
+    /// identical values instead of differing only in how many zeros they carry.
+    pub fn to_canonical(&self) -> String {
+        if self.units == 0 {
+            return "0".to_string();
+        }
+        let rendered = self.to_string();
+        if !rendered.contains('.') {
+            return rendered;
+        }
+        let trimmed = rendered.trim_end_matches('0');
+        trimmed.trim_end_matches('.').to_string()
     }
 }
 
@@ -338,6 +458,81 @@ mod tests {
     #[test]
     fn division_by_zero_is_refused() {
         assert!(Dec::parse("1").unwrap().div(&Dec::zero(), 2).is_err());
+    }
+
+    #[test]
+    fn exact_product_keeps_every_digit() {
+        // The gold chain: bars × kg/bar × purity × troy oz/kg × USD/oz. The
+        // trimmed `mul` would round this at twelve places; the published figure
+        // carries fourteen, and the two must not be confused.
+        let bars = Dec::parse("1827760").unwrap();
+        let per_bar = Dec::parse("12.5").unwrap();
+        let purity = Dec::parse("0.9999").unwrap();
+        let troy = Dec::parse("32.1507466").unwrap();
+        let spot = Dec::parse("2178.5").unwrap();
+        let ounces = bars
+            .mul_exact(&per_bar)
+            .unwrap()
+            .mul_exact(&purity)
+            .unwrap()
+            .mul_exact(&troy)
+            .unwrap();
+        assert_eq!(ounces.to_canonical(), "734474652.75944298");
+        let fmv = ounces.mul_exact(&spot).unwrap();
+        assert_eq!(fmv.to_canonical(), "1600053031036.44653193");
+    }
+
+    #[test]
+    fn ratios_round_half_to_even_where_money_rounds_away() {
+        // The tie cases the parity check would otherwise report as a
+        // divergence between two correct implementations.
+        for (input, half_even, half_away) in [
+            ("0.1250", "0.125", "0.125"),
+            ("0.125", "0.12", "0.13"),
+            ("0.135", "0.14", "0.14"),
+            ("-0.125", "-0.12", "-0.13"),
+            ("-0.135", "-0.14", "-0.14"),
+            ("0.1251", "0.13", "0.13"),
+        ] {
+            let d = Dec::parse(input).unwrap();
+            let places = if input.contains("1250") { 3 } else { 2 };
+            assert_eq!(d.rescale_half_even(places).unwrap().to_canonical(), half_even, "{input}");
+            assert_eq!(d.rescale(places).unwrap().to_canonical(), half_away, "{input}");
+        }
+    }
+
+    #[test]
+    fn half_even_division_distinguishes_a_tie_from_nearly_one() {
+        // 1/8 = 0.125 exactly: a true tie, so it keeps the even neighbour.
+        let eighth = Dec::from_int(1).div_half_even(&Dec::from_int(8), 2).unwrap();
+        assert_eq!(eighth.to_canonical(), "0.12");
+        // 3/8 = 0.375 exactly: the even neighbour is upward here.
+        let three_eighths = Dec::from_int(3).div_half_even(&Dec::from_int(8), 2).unwrap();
+        assert_eq!(three_eighths.to_canonical(), "0.38");
+        // 0.1251 is *past* the tie and must round up regardless of parity —
+        // the case a naive guard digit gets wrong half the time.
+        let past_tie = Dec::parse("0.1251")
+            .unwrap()
+            .div_half_even(&Dec::from_int(1), 2)
+            .unwrap();
+        assert_eq!(past_tie.to_canonical(), "0.13");
+        // A repeating quotient is rounded, not truncated.
+        let third = Dec::from_int(2).div_half_even(&Dec::from_int(3), 4).unwrap();
+        assert_eq!(third.to_canonical(), "0.6667");
+    }
+
+    #[test]
+    fn canonical_form_drops_only_trailing_zeros() {
+        for (input, canonical) in [
+            ("2153000000000", "2153000000000"),
+            ("0.250000000000", "0.25"),
+            ("1.000000000000", "1"),
+            ("0.000000000000", "0"),
+            ("-450000000000.00", "-450000000000"),
+            ("0.9999", "0.9999"),
+        ] {
+            assert_eq!(Dec::parse(input).unwrap().to_canonical(), canonical, "{input}");
+        }
     }
 
     #[test]

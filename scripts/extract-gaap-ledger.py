@@ -125,6 +125,30 @@ def read_sheet(zf: zipfile.ZipFile, path: str) -> list[list]:
     return rows
 
 
+def numeric_cells(rows: list[list]) -> list[list[int]]:
+    """Positions of the cells the workbook holds as numbers, not as text.
+
+    JSON has one number type and no way to say "this string is a text cell that
+    happens to read like a figure". Written naively, a text cell reading `2026`
+    and a Decimal of 2026 come out of this script identical, and a consumer
+    recomputing from these cells cannot tell a year, an audit reference or a
+    footnote from money. This index carries the distinction the spreadsheet
+    itself makes, so the recomputation can refuse a text cell instead of
+    spending it.
+
+    Computed after the strike pass, so the positions describe the rows as
+    written, not as read.
+    """
+    out: list[list[int]] = []
+    for r, row in enumerate(rows):
+        for c, cell in enumerate(row):
+            if isinstance(cell, bool):
+                continue
+            if isinstance(cell, (Decimal, int)):
+                out.append([r, c])
+    return out
+
+
 def find_row(rows: list[list], needle: str) -> list | None:
     needle = needle.lower()
     for row in rows:
@@ -565,7 +589,7 @@ def main() -> int:
         "version": header[2] if len(header) > 2 else "",
         "sheetOrder": [name for name, _ in ordered],
         "sheets": {
-            name: {"rows": rows}
+            name: {"rows": rows, "numericCells": numeric_cells(rows)}
             for name, rows in sheets.items()
         },
         "summary": build_summary(sheets, strikes),

@@ -1,0 +1,16 @@
+[package]
+name = "capomastro-ledger"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Exact decimal arithmetic and the live recomputation of the Capomastro sovereign ledger summary from workbook cells."
+
+[dependencies]
+salvi-engine = { path = "../salvi-engine" }
+serde.workspace = true
+serde_json.workspace = true
+
+[lints.rust]
+unsafe_code = "forbid"

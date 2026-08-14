@@ -602,7 +602,10 @@ pub async fn get_statements(
 /// figures the page shows. There is one statement builder and one set of
 /// numbers; an export that recomputed its own would be a second set of books.
 pub async fn build_statements(force: bool) -> Result<Statements, AppError> {
-    let ledger = super::load_ledger()?;
+    // The live recomputation, not the stored summary: the statements foot on
+    // the same figures the ledger page renders.
+    let ledger_live = super::ledger_live()?;
+    let ledger = &ledger_live;
     let terms = load_terms()?;
     let rate_snapshot = rates::snapshot(force).await;
 
@@ -1557,6 +1560,7 @@ pub async fn build_statements(force: bool) -> Result<Statements, AppError> {
         void_instruments,
         checks,
         methodology: vec![
+            "Every ledger figure these statements are built on is recomputed from the workbook cells on each request, in exact decimal, and cross-checked field by field against the sealed extraction before it is used. Nothing is read back from a stored total.",
             "Principals are read from the workbook Balance Sheet. debt-terms.json declares only terms — index, spread, day count and call conditions.",
             "Interest accrues from the basis date to the request date using the stated day-count convention against live published reference rates.",
             "Interest accrues on both sides. Obligations post debit Interest Expense (5900) / credit Accrued Interest Payable (2900); interest-earning assets post debit Accrued Interest Receivable (1900) / credit Interest Income (4900).",

@@ -3,8 +3,9 @@
 //! Three read paths and one parse path, all backed by real artefacts on disk —
 //! nothing here synthesises figures:
 //!
-//! * `GET  /api/capomastro/ledger`        — the Unified GAAP Ledger workbook,
-//!   extracted losslessly to JSON by `scripts/extract-gaap-ledger.py`.
+//! * `GET  /api/capomastro/ledger`        — the Unified GAAP Ledger workbook
+//!   cells, extracted losslessly to JSON by `scripts/extract-gaap-ledger.py`,
+//!   with every derived figure recomputed live from those cells.
 //! * `GET  /api/capomastro/measurements`  — sealed `.fcx` token-measurement
 //!   records, parsed from their pipe-delimited line format.
 //! * `GET  /api/capomastro/revenue`       — the revenue-analytics shaping of
@@ -12,8 +13,13 @@
 //! * `POST /api/capomastro/pacs008/parse` — ISO 20022 `pacs.008.001.10` XML in,
 //!   typed JSON out, via the `capomastro-pacs008` crate.
 //!
-//! The ledger JSON is read once and cached; the `.fcx` directory is re-read per
-//! request so newly sealed measurements appear without a restart.
+//! The workbook cells are read once and cached — they are a fixed historical
+//! artefact — but nothing derived from them is cached: totals, reserve
+//! composition, the gold valuation, the descendant invariants and the
+//! cross-balance are recomputed on every request by `capomastro-ledger`, in
+//! exact decimal, and checked against the extraction script's sealed summary
+//! before they are served. The `.fcx` directory is likewise re-read per request
+//! so newly sealed measurements appear without a restart.
 
 use axum::{extract::State, Json};
 use serde::Serialize;
@@ -21,11 +27,15 @@ use serde_json::{json, Value};
 use std::path::PathBuf;
 use std::sync::OnceLock;
 
+use capomastro_ledger::live;
+
 use crate::error::AppError;
 use crate::state::AppState;
 
-/// Exact base-10 decimal arithmetic. Money never touches a float.
-pub mod dec;
+/// Exact base-10 decimal arithmetic. Money never touches a float. Lives in
+/// `capomastro-ledger` so the arithmetic and its tests can be exercised
+/// without standing up the API.
+pub use capomastro_ledger::dec;
 /// Auditor-formatted exports of the ledger and the live statements.
 pub mod export;
 /// Live reference rates (SOFR, Treasury averages, gold spot).
@@ -44,6 +54,7 @@ fn data_root() -> PathBuf {
 // ── GAAP ledger ──────────────────────────────────────────────────────────
 
 static LEDGER: OnceLock<Value> = OnceLock::new();
+static VOIDS: OnceLock<Value> = OnceLock::new();
 
 fn load_ledger() -> Result<&'static Value, AppError> {
     if let Some(cached) = LEDGER.get() {
@@ -61,10 +72,70 @@ fn load_ledger() -> Result<&'static Value, AppError> {
     Ok(LEDGER.get_or_init(|| parsed))
 }
 
-/// `GET /api/capomastro/ledger` — the full workbook, every sheet, plus the
-/// recomputed summary block.
+/// The void declarations. Absent or malformed is fatal, not empty: a strike
+/// that goes missing silently reinstates the instrument it struck.
+fn load_voids() -> Result<&'static Value, AppError> {
+    if let Some(cached) = VOIDS.get() {
+        return Ok(cached);
+    }
+    let path = data_root().join("void-instruments.json");
+    let raw = std::fs::read_to_string(&path).map_err(|e| {
+        AppError::Internal(format!(
+            "void declarations not readable at {}: {e}. Serving the ledger without them \
+             would resurrect every struck instrument.",
+            path.display()
+        ))
+    })?;
+    let parsed: Value = serde_json::from_str(&raw).map_err(|e| {
+        AppError::Internal(format!("void declarations at {} are not valid JSON: {e}", path.display()))
+    })?;
+    if !parsed.get("strikes").map(Value::is_array).unwrap_or(false) {
+        return Err(AppError::Internal(format!(
+            "{} has no `strikes` array; refusing to compute the ledger on a guess",
+            path.display()
+        )));
+    }
+    Ok(VOIDS.get_or_init(|| parsed))
+}
+
+/// Recompute the summary from the workbook cells. Every request; no cache.
+fn live_summary() -> Result<live::Computed, AppError> {
+    live::compute(load_ledger()?, load_voids()?)
+        .map_err(|e| AppError::Internal(format!("live ledger computation refused: {e}")))
+}
+
+/// The workbook with its derived figures replaced by the live computation, for
+/// the surfaces that read the summary by JSON pointer (the statements builder
+/// and the exports). They must see the same numbers the ledger page does; a
+/// statement footed on a stored total while the page shows a recomputed one is
+/// two sets of books.
+pub(crate) fn ledger_live() -> Result<Value, AppError> {
+    let computed = live_summary()?;
+    let mut out = load_ledger()?.clone();
+    if let Some(obj) = out.as_object_mut() {
+        obj.insert("summary".into(), computed.summary);
+        obj.insert("computation".into(), live::computation_block(&computed.parity));
+    }
+    Ok(out)
+}
+
+/// `GET /api/capomastro/ledger` — the full workbook, every sheet, with the
+/// summary recomputed live from those sheets.
+///
+/// The extraction script's own summary travels alongside as `sealedSummary`,
+/// together with a field-by-field parity verdict. It is a second opinion, not
+/// the source: if the two ever disagree, the response says so in the open
+/// rather than quietly preferring one.
 pub async fn get_ledger(State(_state): State<AppState>) -> Result<Json<Value>, AppError> {
-    Ok(Json(load_ledger()?.clone()))
+    let computed = live_summary()?;
+    let mut out = load_ledger()?.clone();
+    let sealed = out.get("summary").cloned().unwrap_or(Value::Null);
+    if let Some(obj) = out.as_object_mut() {
+        obj.insert("summary".into(), computed.summary);
+        obj.insert("sealedSummary".into(), sealed);
+        obj.insert("computation".into(), live::computation_block(&computed.parity));
+    }
+    Ok(Json(out))
 }
 
 // ── Revenue analytics ────────────────────────────────────────────────────
@@ -76,47 +147,17 @@ pub async fn get_ledger(State(_state): State<AppState>) -> Result<Json<Value>, A
 /// reserve-asset composition that backs the estate, not invented sales. Every
 /// figure traces to a workbook cell.
 ///
-/// This handler performs **no arithmetic**. Money and ratios are computed once,
-/// in exact decimal, by `scripts/extract-gaap-ledger.py`, and are carried
-/// through as decimal strings. Re-deriving them here in `f64` would silently
-/// perturb published figures, so values are only ever selected and forwarded.
+/// This handler performs **no arithmetic of its own**. Every money figure and
+/// every ratio is computed by `capomastro-ledger` in exact decimal from the
+/// workbook cells and forwarded as a decimal string. Re-deriving any of them
+/// here in `f64` would silently perturb a published figure.
 pub async fn get_revenue(State(_state): State<AppState>) -> Result<Json<Value>, AppError> {
-    let ledger = load_ledger()?;
-    let summary = ledger
-        .get("summary")
-        .ok_or_else(|| AppError::Internal("ledger JSON has no summary block".into()))?;
-    let bs = summary
-        .get("balanceSheet")
-        .ok_or_else(|| AppError::Internal("ledger summary has no balanceSheet".into()))?;
-
-    let segments = summary
-        .get("segmentMix")
-        .cloned()
-        .unwrap_or_else(|| Value::Array(Vec::new()));
-
-    Ok(Json(json!({
-        "entity": ledger.get("entity").cloned().unwrap_or(Value::Null),
-        "version": ledger.get("version").cloned().unwrap_or(Value::Null),
-        "accrualGroundState": {
-            "grossRevenue": summary.pointer("/incomeStatement/grossRevenue").cloned().unwrap_or(json!(0)),
-            "costOfGoodsSold": summary.pointer("/incomeStatement/costOfGoodsSold").cloned().unwrap_or(json!(0)),
-            "note": "ASC 606 / IFRS 15 / CAS 14: No Performance Obligations Satisfied",
-        },
-        "kpis": {
-            "totalAssets": bs.get("totalAssets").cloned().unwrap_or(json!(0)),
-            "totalLiabilities": bs.get("totalLiabilities").cloned().unwrap_or(json!(0)),
-            "totalEquity": bs.get("totalEquity").cloned().unwrap_or(json!(0)),
-            "balanced": bs.get("balanced").cloned().unwrap_or(json!(false)),
-            "goldFairMarketValue": summary.pointer("/goldAssay/fairMarketValueUsd").cloned().unwrap_or(json!(0)),
-            "goldCarryingValue": summary.pointer("/goldAssay/carryingValueUsd").cloned().unwrap_or(json!(0)),
-            "unrecordedReserveBuffer": summary.pointer("/goldAssay/unrecordedReserveBufferUsd").cloned().unwrap_or(json!(0)),
-            "xCross": summary.pointer("/crossBalance/xCross").cloned().unwrap_or(json!(0)),
-        },
-        "segmentMix": segments,
-        "crossBalance": summary.get("crossBalance").cloned().unwrap_or(Value::Null),
-        "goldAssay": summary.get("goldAssay").cloned().unwrap_or(Value::Null),
-        "descendantRegister": summary.get("descendantRegister").cloned().unwrap_or(Value::Null),
-    })))
+    let computed = live_summary()?;
+    Ok(Json(live::revenue_view(
+        load_ledger()?,
+        &computed.summary,
+        &computed.parity,
+    )))
 }
 
 // ── Sealed .fcx measurements ─────────────────────────────────────────────

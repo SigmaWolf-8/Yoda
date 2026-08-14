@@ -12,6 +12,7 @@ yoda-knowledge-base = { path = "../yoda-knowledge-base" }
 yoda-task-bible = { path = "../yoda-task-bible" }
 yoda-plenumnet-bridge = { path = "../yoda-plenumnet-bridge" }
 salvi-engine = { path = "../salvi-engine" }
+capomastro-ledger = { path = "../capomastro-ledger" }
 
 # Web framework
 axum.workspace = true

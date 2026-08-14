@@ -45,9 +45,33 @@ export interface Generation {
   nodeId: string;
 }
 
+/**
+ * How the figures on this page came to exist.
+ *
+ * The backend recomputes every derived figure from the workbook cells on each
+ * request and checks the result against the summary the extraction script
+ * sealed. `parity` is that check: two independent implementations agreeing
+ * field by field, or the exact fields where they do not.
+ */
+export interface Computation {
+  mode: string;
+  source: string;
+  arithmetic: string;
+  integerInvariants: string;
+  ratioScaleDecimalPlaces: number;
+  parity: {
+    sealedSummaryPresent: boolean;
+    fieldsCompared: number;
+    agrees: boolean;
+    divergences: { path: string; live: string; sealed: string }[];
+  };
+}
+
 export interface RevenueResponse {
   entity: string;
   version: string;
+  /** Optional so a backend mid-restart renders the page instead of failing it. */
+  computation?: Computation;
   accrualGroundState: { grossRevenue: Dec; costOfGoodsSold: Dec; note: string };
   kpis: {
     totalAssets: Dec;

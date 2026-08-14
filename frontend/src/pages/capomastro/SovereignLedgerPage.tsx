@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
+  Activity,
   Scale,
   TrendingUp,
   Coins,
@@ -29,6 +30,7 @@ import { ExportPanel } from './ExportPanel';
 import { Kpi, Panel } from './ui';
 import {
   buildLedgerDispatch,
+  type Computation,
   type RevenueResponse,
   type SealedMeasurement,
 } from './dispatch';
@@ -72,6 +74,62 @@ function isRevenueResponse(value: unknown): value is RevenueResponse {
 
 const GOLD = '#E4C97A';
 const SLICE_COLORS = ['#E4C97A', '#C9A227', '#4A9EF5', '#8C6F2E', '#6FA8DC', '#B08D57'];
+
+// ── Provenance ──
+
+/**
+ * States, on the page itself, that these figures were computed rather than
+ * recalled — and whether the live computation and the sealed extraction agree.
+ *
+ * A divergence is not hidden behind a console warning or resolved by preferring
+ * one side. It is named, field by field, with both values, because a ledger
+ * whose two derivations disagree is exactly the situation a reader needs to be
+ * told about before they rely on a number.
+ */
+function ComputationLine({ computation }: { computation?: Computation }) {
+  if (!computation) return null;
+  const { parity } = computation;
+  const disagrees = parity.sealedSummaryPresent && !parity.agrees;
+
+  return (
+    <div className="mt-3 pt-3 border-t border-[var(--color-border-subtle)] text-[11px] leading-relaxed">
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+        <span
+          className={`inline-flex items-center gap-1.5 font-semibold uppercase tracking-wider ${
+            disagrees ? 'text-amber-400' : 'text-emerald-400'
+          }`}
+        >
+          <Activity className="w-3.5 h-3.5" />
+          Computed live
+        </span>
+        <span className="text-[var(--color-text-muted)]">
+          from the workbook cells on this request, in exact decimal — no figure on this page
+          passed through a floating-point number. Integer invariants discharged by the
+          verified Salvi kernel.
+        </span>
+      </div>
+      <div className={`mt-1 ${disagrees ? 'text-amber-400' : 'text-[var(--color-text-muted)]'}`}>
+        {!parity.sealedSummaryPresent
+          ? 'No sealed extraction was available to cross-check against.'
+          : parity.agrees
+            ? `Cross-checked against the sealed extraction: ${parity.fieldsCompared} figures, no divergence.`
+            : `Diverges from the sealed extraction in ${parity.divergences.length} of ${parity.fieldsCompared} figures.`}
+      </div>
+      {disagrees && (
+        <ul className="mt-1.5 space-y-0.5 font-mono text-[10px] text-amber-300/90">
+          {parity.divergences.slice(0, 8).map((d) => (
+            <li key={d.path}>
+              {d.path}: live {d.live} · sealed {d.sealed}
+            </li>
+          ))}
+          {parity.divergences.length > 8 && (
+            <li>…and {parity.divergences.length - 8} more.</li>
+          )}
+        </ul>
+      )}
+    </div>
+  );
+}
 
 // ── Page ──
 
@@ -215,6 +273,15 @@ export function SovereignLedgerPage() {
                   : 'Balance sheet does not reconcile'}
               </span>
             </span>
+            <button
+              type="button"
+              onClick={() => setReloadKey((k) => k + 1)}
+              className="inline-flex items-center gap-2 font-semibold px-3 py-1.5 bg-[var(--color-gold-400)]/10 text-[var(--color-gold-400)] hover:bg-[var(--color-gold-400)]/25 transition-colors"
+              title="Recomputes every figure on this page from the workbook cells"
+            >
+              <RefreshCw className="w-3.5 h-3.5" />
+              Recompute
+            </button>
             <CopyDispatchButton
               build={() => sendable}
               label="Copy the ledger"
@@ -222,6 +289,7 @@ export function SovereignLedgerPage() {
             />
           </div>
         </div>
+        <ComputationLine computation={data.computation} />
       </BevelBox>
 
       {/* ── KPI row ── */}
