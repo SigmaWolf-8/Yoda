@@ -2,11 +2,11 @@
 //!
 //! Two things are deliberate here.
 //!
-//! **The secret key is never held.** It is fetched from the Replit connection
-//! API on each call and dropped when the call returns. Connector credentials
-//! rotate; a key cached at boot is a key that works until it silently doesn't,
-//! and the failure would land in the middle of issuing a demand. The fetch is
-//! cheap and local.
+//! **The secret key is never held.** It is read — from this environment's own
+//! secret if one is set, otherwise from the Replit connection API — on each
+//! call, and dropped when the call returns. Credentials rotate; a key cached at
+//! boot is a key that works until it silently doesn't, and the failure would
+//! land in the middle of issuing a demand. The read is cheap and local.
 //!
 //! **Stripe's answer is never guessed at.** Every call either returns Stripe's
 //! JSON or an error carrying Stripe's own message. Nothing in this module
@@ -30,10 +30,40 @@ const STRIPE_TIMEOUT: Duration = Duration::from_secs(20);
 /// an amount this rail cannot carry.
 pub const MAX_CHARGE_CENTS: i64 = 99_999_999;
 
-/// Fetch the estate's Stripe secret key from the Replit connection API.
+/// The estate's own live key, held as a secret in this environment.
 ///
-/// Deliberately uncached — see the module note.
+/// This takes precedence over the connector. The Integrations connection is
+/// convenient but it is whatever account was authorised there — for real
+/// collection the key is supplied directly and deliberately, and it must not be
+/// silently overridden by a connector that happens to be in test mode.
+const LIVE_KEY_VAR: &str = "STRIPE_SECRET_KEY";
+
+/// Fetch the estate's Stripe secret key.
+///
+/// The directly-held secret wins; the Replit connection is the fallback.
+/// Deliberately uncached either way — see the module note.
 async fn secret_key(client: &reqwest::Client) -> Result<String, AppError> {
+    if let Ok(key) = std::env::var(LIVE_KEY_VAR) {
+        let key = key.trim().to_string();
+        if !key.is_empty() {
+            // A wrong-shaped value here would fail at Stripe with an opaque 401
+            // several calls later. Say so now.
+            if !(key.starts_with("sk_") || key.starts_with("rk_")) {
+                return Err(AppError::Unavailable(format!(
+                    "{LIVE_KEY_VAR} is set but does not look like a Stripe secret key (it should \
+                     begin with sk_ or rk_). Stripe publishable keys, beginning pk_, cannot raise \
+                     invoices."
+                )));
+            }
+            return Ok(key);
+        }
+    }
+
+    connector_key(client).await
+}
+
+/// Fetch the Stripe secret key from the Replit connection API.
+async fn connector_key(client: &reqwest::Client) -> Result<String, AppError> {
     let hostname = std::env::var("REPLIT_CONNECTORS_HOSTNAME").map_err(|_| {
         AppError::Unavailable(
             "the connection service address is not set in this environment, so the Stripe \
@@ -87,11 +117,10 @@ async fn secret_key(client: &reqwest::Client) -> Result<String, AppError> {
         .and_then(Value::as_str)
         .map(str::to_string)
         .ok_or_else(|| {
-            AppError::Unavailable(
-                "Stripe is not connected to this environment, or the connection carries no secret \
-                 key. Connect Stripe from the Integrations pane."
-                    .into(),
-            )
+            AppError::Unavailable(format!(
+                "no Stripe secret key is available: {LIVE_KEY_VAR} is not set, and the Stripe \
+                 connection carries no secret key."
+            ))
         })
 }
 
