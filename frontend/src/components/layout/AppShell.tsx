@@ -16,6 +16,7 @@ import {
   ArrowLeft,
   Scale,
   BookOpen,
+  Gavel,
   Stamp,
   FileSpreadsheet,
   ScrollText,
@@ -54,6 +55,7 @@ const NAV_GROUPS: ReadonlyArray<{
     items: [
       { to: '/capomastro/ledger',     icon: Scale,           label: 'Ledger'     },
       { to: '/capomastro/statements', icon: FileSpreadsheet, label: 'Statements' },
+      { to: '/capomastro/collections', icon: Gavel,        label: 'Collections' },
       { to: '/capomastro/codex',      icon: BookOpen,        label: 'Codex'      },
       { to: '/capomastro/seal',       icon: Stamp,           label: 'Seal'       },
       { href: '/capomastro/assayer.html', icon: ScrollText,  label: 'Compendium' },

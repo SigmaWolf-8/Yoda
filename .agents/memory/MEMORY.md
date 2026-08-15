@@ -30,3 +30,4 @@
 - [MutationObserver under fake timers](jest-jsdom-observer-timers.md) — jsdom delivers records on a microtask; await a flush after each mutation or advanceTimersByTime fires nothing.
 - [npm lockfiles pin the local proxy](npm-lockfile-replit-firewall.md) — package-lock.json records package-firewall.replit.local; rewrite to registry.npmjs.org before any external CI uses it.
 
+- [Demanding money on a card rail](collections-demands.md) — pending rows reserve the balance under a per-position lock; a silent processor is never treated as a refusal; truncate defaults, refuse sub-cent input.

@@ -37,11 +37,13 @@ use crate::state::AppState;
 /// without standing up the API.
 pub use capomastro_ledger::dec;
 /// Auditor-formatted exports of the ledger and the live statements.
+pub mod collections;
 pub mod export;
 /// Live reference rates (SOFR, Treasury averages, gold spot).
 pub mod rates;
 /// Statements computed at request time from the workbook plus live rates.
 pub mod statements;
+pub mod stripe;
 
 /// Root of the on-disk Capomastro data set. Overridable so a packaged desktop
 /// build can point at its own bundle directory.

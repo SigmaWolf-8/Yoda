@@ -117,6 +117,23 @@ pub fn build_router(state: AppState) -> Router {
 
     // ── Protected routes (JWT or API key) ────────────────────────────
     let protected = Router::new()
+        // ── Collections (Capomastro) ──
+        // Money leaves the estate's control here: these routes raise real
+        // invoices against real debtors, so they sit behind credentials even
+        // though the ledger they read from is a public record.
+        .route(
+            "/api/capomastro/collections",
+            get(capomastro::collections::get_register),
+        )
+        .route(
+            "/api/capomastro/collections/{position_id}/demand",
+            post(capomastro::collections::issue_demand),
+        )
+        .route(
+            "/api/capomastro/collections/demands/{id}/void",
+            post(capomastro::collections::void_demand),
+        )
+
         // Organizations (B-AUTH.5, B-AUTH.6)
         .route("/api/orgs", post(auth::create_org))
         .route("/api/orgs", get(auth::list_orgs))

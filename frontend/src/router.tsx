@@ -29,6 +29,7 @@ import { StatementOfClaimPage } from './pages/StatementOfClaimPage';
 import { SovereignLedgerPage } from './pages/capomastro/SovereignLedgerPage';
 import { StatementsPage } from './pages/capomastro/StatementsPage';
 import { CodexPage } from './pages/capomastro/CodexPage';
+import { CollectionsPage } from './pages/capomastro/CollectionsPage';
 import { SealPage } from './pages/capomastro/SealPage';
 
 // ── Route wrappers ──
@@ -73,6 +74,7 @@ export const router = createBrowserRouter([
       { path: 'capomastro/ledger', element: <SovereignLedgerPage /> },
       { path: 'capomastro/statements', element: <StatementsPage /> },
       { path: 'capomastro/codex',  element: <CodexPage /> },
+      { path: 'capomastro/collections', element: <CollectionsPage /> },
       { path: 'capomastro/seal',   element: <SealPage /> },
     ],
   },
