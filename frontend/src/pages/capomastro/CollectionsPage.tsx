@@ -200,9 +200,9 @@ export function CollectionsPage() {
               </>
             ) : (
               <>
-                Stripe is connected in <strong>test</strong> mode. Invoices raised here are not
-                real demands and cannot be paid — add live keys in the Publish pane to collect for
-                real.
+                Stripe is answering in <strong>test</strong> mode. Invoices raised here are not
+                real demands and cannot be paid — the live secret key must be set in this
+                environment's secrets to collect for real.
               </>
             )}
           </div>

@@ -58,6 +58,31 @@ Finalising makes an invoice payable; emailing it is a second call with its own
 outcome. Record and display them separately — "issued" must never render as
 "served" unless the processor confirmed the send.
 
+## A directly-held key outranks the connector
+
+The processor credential is read fresh on every call, preferring the
+environment's own secret and falling back to the platform connector. The
+connector is whatever account was authorised in the Integrations pane — often a
+sandbox — so it must never override a key the owner supplied deliberately.
+
+**Why:** money that silently routes to a sandbox account looks collected and
+isn't. Mode is derived from the key prefix and shown on the page, so nobody
+mistakes one account for the other.
+
+**How to apply:** validate the key's shape at read time (a publishable key fails
+several calls later with an opaque 401), and never cache it — rotation after an
+exposure must take effect on the next call, not the next deploy.
+
+## Never test a secret's presence by expanding it
+
+Check presence with `[ -n "$VAR" ]` and shape with a `cut`-truncated prefix.
+Never interpolate a credential into a shell test, a log line, or an error
+message — `${VAR:+yes}${VAR:-no}` prints the *value*, because `:-` substitutes
+only when the variable is unset.
+
+**Why:** an exposed payment key is a rotation and a window in which someone else
+could have charged the account.
+
 ## Fail closed on an unpriced position
 
 If the accrual cannot be computed (rate source down), the position is not
