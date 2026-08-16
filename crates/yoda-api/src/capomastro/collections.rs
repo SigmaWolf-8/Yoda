@@ -87,6 +87,18 @@ pub struct Register {
     pub max_demand_usd: String,
     pub positions: Vec<Position>,
     pub totals: Totals,
+    /// Invoices standing on the estate's Stripe account that this register did
+    /// not raise — earlier demands, dashboard invoices, other tooling.
+    pub external_demands: Vec<ExternalDemand>,
+    /// What those invoices come to, per currency. Never folded into `totals`,
+    /// which is USD and drawn from the ledger's own positions.
+    pub external_totals: Vec<CurrencyTotal>,
+    /// Set when the account could not be read. The absence of external demands
+    /// is then unknown, not zero, and the page says so.
+    pub external_error: Option<String>,
+    /// False when the account holds more invoices than this read walked, so the
+    /// list above is a prefix rather than the whole account.
+    pub external_complete: bool,
     pub notes: Vec<&'static str>,
 }
 
@@ -181,6 +193,23 @@ pub async fn get_register(State(state): State<AppState>) -> Result<Json<Register
     .await
     .map_err(|e| AppError::Internal(format!("reading the demand register: {e}")))?;
 
+    // Invoices this register raised are shown against their position; the rest
+    // of the account is reported separately, so "demanded to date" counts what
+    // the estate has actually served, not merely what this page issued.
+    let ours: std::collections::HashSet<String> = rows
+        .iter()
+        .filter_map(|r| r.get::<Option<String>, _>("stripe_invoice_id"))
+        .collect();
+    let our_demand_ids: std::collections::HashSet<String> = rows
+        .iter()
+        .map(|r| r.get::<Uuid, _>("id").to_string())
+        .collect();
+    let (external, external_totals, external_error, external_complete) =
+        match external_demands(&state, &ours, &our_demand_ids).await {
+            Ok((d, t, truncated)) => (d, t, None, !truncated),
+            Err(e) => (Vec::new(), Vec::new(), Some(reason(&e)), false),
+        };
+
     let mut positions = Vec::new();
     let mut principal_total = Dec::parse("0").map_err(arith)?;
     let mut outstanding_total = Some(Dec::parse("0").map_err(arith)?);
@@ -265,7 +294,14 @@ pub async fn get_register(State(state): State<AppState>) -> Result<Json<Register
             demanded: demanded_total_all.to_canonical(),
             paid: paid_total_all.to_canonical(),
         },
+        external_demands: external,
+        external_totals,
+        external_error,
+        external_complete,
         notes: vec![
+            "Demands raised outside this register — from the Stripe dashboard or earlier tooling \
+             — are read back from the account and listed in their own currency. They are never \
+             folded into the USD totals above, which belong to the ledger's own positions.",
             "Principal is read from the Balance Sheet and interest is accrued live against the \
              published reference rate — the same computation the statements foot on.",
             "A demand is an invoice raised in Stripe against a named debtor, payable on receipt. \
@@ -276,6 +312,240 @@ pub async fn get_register(State(state): State<AppState>) -> Result<Json<Register
              stated index until it is settled.",
         ],
     }))
+}
+
+// ── Demands raised outside this register ─────────────────────────────────
+//
+// This page is not the only way an invoice reaches the estate's Stripe
+// account: demands are also raised from the Stripe dashboard, by earlier
+// tooling, or by hand. Counting only what this module created would report
+// "nothing demanded" while real, payable invoices sit open against a debtor —
+// the one lie a collections register must never tell.
+//
+// So the account itself is read. Every invoice Stripe holds is listed; those
+// this register issued are recognised by id and shown against their position,
+// and the rest are reported here as what they are: demands standing outside
+// the ledger's own accounting.
+
+/// Currencies Stripe carries with no minor unit at all — an amount of 1000 is
+/// ¥1000, not ¥10.00. Dividing these by 100 would understate a demand
+/// hundredfold.
+const ZERO_DECIMAL: [&str; 16] = [
+    "bif", "clp", "djf", "gnf", "jpy", "kmf", "krw", "mga", "pyg", "rwf", "ugx", "vnd", "vuv",
+    "xaf", "xof", "xpf",
+];
+
+/// Stripe's minor units for a currency, as an exact decimal string.
+fn minor_to_dec(amount: i64, currency: &str) -> Result<Dec, AppError> {
+    if ZERO_DECIMAL.contains(&currency) {
+        return Dec::parse(&amount.to_string()).map_err(arith);
+    }
+    cents_to_dec(amount)
+}
+
+/// An invoice on the account that this register did not raise.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ExternalDemand {
+    pub invoice_id: String,
+    pub number: Option<String>,
+    /// Stripe's own state: `open` | `paid` | `void` | `uncollectible` | `draft`.
+    pub status: String,
+    /// ISO 4217, upper case. Never mixed with another currency in a total.
+    pub currency: String,
+    pub amount: String,
+    pub amount_paid: String,
+    pub amount_due: String,
+    pub created: String,
+    pub due_date: Option<String>,
+    pub debtor: Option<String>,
+    pub description: Option<String>,
+    pub hosted_invoice_url: Option<String>,
+    pub invoice_pdf: Option<String>,
+}
+
+/// What has been demanded in one currency. Currencies are never summed
+/// together: a CAD demand and a USD position are different claims, and adding
+/// them would invent an exchange rate nobody agreed to.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CurrencyTotal {
+    pub currency: String,
+    /// Issued and still standing — `open`, `paid` and `uncollectible`. A void
+    /// invoice was withdrawn and is not a demand; a draft was never served.
+    pub demanded: String,
+    pub paid: String,
+    pub outstanding: String,
+    pub voided: String,
+    pub count: usize,
+}
+
+/// Read every invoice on the account, skipping the ones this register issued.
+///
+/// Bounded to five pages: the register is a working surface, not an archive,
+/// and an unbounded walk would make the page slower the longer the estate
+/// collects.
+async fn external_demands(
+    state: &AppState,
+    ours: &std::collections::HashSet<String>,
+    our_demand_ids: &std::collections::HashSet<String>,
+) -> Result<(Vec<ExternalDemand>, Vec<CurrencyTotal>, bool), AppError> {
+    let mut found: Vec<ExternalDemand> = Vec::new();
+    let mut starting_after: Option<String> = None;
+    // Set when the page cap is reached while Stripe still has more: the list
+    // is then a prefix of the account, and saying otherwise would make an
+    // unread invoice look like an absent one.
+    let mut truncated = false;
+
+    for page_no in 0..5 {
+        let mut query = vec![("limit".to_string(), "100".to_string())];
+        if let Some(cursor) = &starting_after {
+            query.push(("starting_after".to_string(), cursor.clone()));
+        }
+        let page = stripe::get(&state.http_client, "invoices", &query).await?;
+        let data = page
+            .get("data")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+        if data.is_empty() {
+            break;
+        }
+        let last = data
+            .last()
+            .and_then(|i| i.get("id"))
+            .and_then(Value::as_str)
+            .map(str::to_string);
+
+        for inv in data {
+            let Some(id) = inv.get("id").and_then(Value::as_str) else {
+                continue;
+            };
+            // Ours already appears against its position, with its own audit
+            // row. Recognition is by invoice id, or by a demand id this
+            // database actually holds — a bare `demandId` in metadata proves
+            // nothing, and trusting it would let any dashboard invoice hide
+            // itself from the register by copying the key.
+            let is_ours = ours.contains(id)
+                || inv
+                    .pointer("/metadata/demandId")
+                    .and_then(Value::as_str)
+                    .is_some_and(|d| our_demand_ids.contains(d));
+            if is_ours {
+                continue;
+            }
+            let currency = inv
+                .get("currency")
+                .and_then(Value::as_str)
+                .unwrap_or("usd")
+                .to_string();
+            let minor = |field: &str| -> Result<String, AppError> {
+                Ok(
+                    minor_to_dec(inv.get(field).and_then(Value::as_i64).unwrap_or(0), &currency)?
+                        .to_canonical(),
+                )
+            };
+
+            found.push(ExternalDemand {
+                invoice_id: id.to_string(),
+                number: inv
+                    .get("number")
+                    .and_then(Value::as_str)
+                    .map(str::to_string),
+                status: inv
+                    .get("status")
+                    .and_then(Value::as_str)
+                    .unwrap_or("unknown")
+                    .to_string(),
+                currency: currency.to_uppercase(),
+                amount: minor("total")?,
+                amount_paid: minor("amount_paid")?,
+                amount_due: minor("amount_due")?,
+                created: stamp(inv.get("created").and_then(Value::as_i64)),
+                due_date: inv
+                    .get("due_date")
+                    .and_then(Value::as_i64)
+                    .map(|t| stamp(Some(t))),
+                debtor: inv
+                    .get("customer_email")
+                    .and_then(Value::as_str)
+                    .or_else(|| inv.get("customer_name").and_then(Value::as_str))
+                    .map(str::to_string),
+                description: inv
+                    .pointer("/lines/data/0/description")
+                    .and_then(Value::as_str)
+                    .map(str::to_string),
+                hosted_invoice_url: inv
+                    .get("hosted_invoice_url")
+                    .and_then(Value::as_str)
+                    .map(str::to_string),
+                invoice_pdf: inv
+                    .get("invoice_pdf")
+                    .and_then(Value::as_str)
+                    .map(str::to_string),
+            });
+        }
+
+        if !page.get("has_more").and_then(Value::as_bool).unwrap_or(false) {
+            break;
+        }
+        if page_no == 4 {
+            truncated = true;
+            break;
+        }
+        match last {
+            Some(cursor) => starting_after = Some(cursor),
+            None => break,
+        }
+    }
+
+    // Per-currency totals, in the order the currencies first appear.
+    let mut totals: Vec<CurrencyTotal> = Vec::new();
+    for d in &found {
+        let slot = match totals.iter_mut().find(|t| t.currency == d.currency) {
+            Some(existing) => existing,
+            None => {
+                totals.push(CurrencyTotal {
+                    currency: d.currency.clone(),
+                    demanded: "0.00".into(),
+                    paid: "0.00".into(),
+                    outstanding: "0.00".into(),
+                    voided: "0.00".into(),
+                    count: 0,
+                });
+                totals.last_mut().expect("just pushed")
+            }
+        };
+        let add = |running: &str, addend: &str| -> Result<String, AppError> {
+            Ok(Dec::parse(running)
+                .map_err(arith)?
+                .add(&Dec::parse(addend).map_err(arith)?)
+                .map_err(arith)?
+                .to_canonical())
+        };
+        match d.status.as_str() {
+            "open" | "paid" | "uncollectible" => {
+                slot.count += 1;
+                slot.demanded = add(&slot.demanded, &d.amount)?;
+                slot.paid = add(&slot.paid, &d.amount_paid)?;
+                slot.outstanding = add(&slot.outstanding, &d.amount_due)?;
+            }
+            "void" => {
+                slot.voided = add(&slot.voided, &d.amount)?;
+            }
+            // A draft was never served on anyone. It is listed, not counted.
+            _ => {}
+        }
+    }
+
+    Ok((found, totals, truncated))
+}
+
+/// A Stripe unix timestamp as an RFC 3339 string.
+fn stamp(secs: Option<i64>) -> String {
+    secs.and_then(|s| chrono::DateTime::from_timestamp(s, 0))
+        .map(|t| t.to_rfc3339())
+        .unwrap_or_default()
 }
 
 /// Marry a stored demand row to the invoice's live state in Stripe.

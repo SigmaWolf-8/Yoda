@@ -83,6 +83,21 @@ only when the variable is unset.
 **Why:** an exposed payment key is a rotation and a window in which someone else
 could have charged the account.
 
+## The register must read the account, not just its own table
+
+Demands also get raised outside the app — from the processor's dashboard, from
+earlier tooling. A page that counts only rows it created will report "nothing
+demanded" while real payable invoices stand against a debtor.
+
+**Why:** that is the single most damaging thing a collections surface can say;
+it invites a second demand for money already called.
+
+**How to apply:** list the processor's invoices, recognise the app's own by id
+or metadata, and report the remainder as served-but-unattributed. Never sum two
+currencies into one figure — a foreign-currency demand and a domestic position
+are different claims, and adding them invents a rate nobody agreed. Currencies
+with no minor unit (JPY, KRW, …) must not be divided by 100.
+
 ## Fail closed on an unpriced position
 
 If the accrual cannot be computed (rate source down), the position is not

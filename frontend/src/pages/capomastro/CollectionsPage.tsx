@@ -33,7 +33,21 @@ import { usePageHeader } from '../../context/PageHeader';
 import { BevelBox } from '../../components/ui/BevelBox';
 import apiClient from '../../api/client';
 import { Kpi, Panel } from './ui';
-import { type Dec, money, rate, usd } from './money';
+import { type Dec, exact, exactTo, money, rate, usd } from './money';
+
+/**
+ * Currencies Stripe carries with no minor unit — showing `¥1000.00` would
+ * imply a precision the currency does not have. Mirrors the backend list.
+ */
+const ZERO_DECIMAL = new Set([
+  'BIF', 'CLP', 'DJF', 'GNF', 'JPY', 'KMF', 'KRW', 'MGA', 'PYG', 'RWF', 'UGX', 'VND', 'VUV',
+  'XAF', 'XOF', 'XPF',
+]);
+
+/** A figure in a named currency, at that currency's own precision. */
+function amt(currency: string, value: Dec): string {
+  return ZERO_DECIMAL.has(currency) ? exact(value) : exactTo(value, 2);
+}
 
 // ── Types mirroring GET /api/capomastro/collections ──
 
@@ -81,6 +95,32 @@ interface Position {
   paidTotal: Dec;
 }
 
+/** An invoice standing on the Stripe account that this register did not raise. */
+interface ExternalDemand {
+  invoiceId: string;
+  number: string | null;
+  status: string;
+  currency: string;
+  amount: Dec;
+  amountPaid: Dec;
+  amountDue: Dec;
+  created: string;
+  dueDate: string | null;
+  debtor: string | null;
+  description: string | null;
+  hostedInvoiceUrl: string | null;
+  invoicePdf: string | null;
+}
+
+interface CurrencyTotal {
+  currency: string;
+  demanded: Dec;
+  paid: Dec;
+  outstanding: Dec;
+  voided: Dec;
+  count: number;
+}
+
 interface Register {
   asOf: string;
   basisDate: string;
@@ -95,6 +135,10 @@ interface Register {
     demanded: Dec;
     paid: Dec;
   };
+  externalDemands: ExternalDemand[];
+  externalTotals: CurrencyTotal[];
+  externalError: string | null;
+  externalComplete: boolean;
   notes: string[];
 }
 
@@ -229,7 +273,20 @@ export function CollectionsPage() {
           }
           tone={data.totals.outstanding ? 'default' : 'warn'}
         />
-        <Kpi label="Demanded to date" value={usd(data.totals.demanded)} />
+        <Kpi
+          label="Demanded to date"
+          value={usd(data.totals.demanded)}
+          sub={
+            data.externalError
+              ? 'from this register — the wider account could not be read'
+              : data.externalTotals.length > 0
+                ? `from this register · ${data.externalTotals
+                    .map((t) => `${t.currency} ${amt(t.currency, t.demanded)}`)
+                    .join(' · ')} raised outside it`
+                : 'from this register'
+          }
+          tone={data.externalTotals.length > 0 ? 'warn' : 'default'}
+        />
         <Kpi
           label="Paid to date"
           value={usd(data.totals.paid)}
@@ -237,6 +294,140 @@ export function CollectionsPage() {
           sub={data.totals.paid === '0' ? 'nothing has been settled' : undefined}
         />
       </div>
+
+      {/* ── Demands the estate served outside this register ── */}
+      {(data.externalDemands.length > 0 || data.externalError) && (
+        <Panel title="Standing on the account, raised elsewhere" icon={ExternalLink}>
+          {data.externalError ? (
+            <p className="text-xs text-amber-400 leading-relaxed">
+              The Stripe account could not be read: {data.externalError}. Demands raised outside
+              this page are therefore <strong>unknown</strong>, not zero.
+            </p>
+          ) : (
+            <>
+              <p className="text-xs text-[var(--color-text-muted)] leading-relaxed mb-4">
+                Invoices on the estate's Stripe account that this page did not issue — served from
+                the dashboard or by earlier tooling. They are real demands and count as served, but
+                they are not attributed to a ledger position, so they stay out of the USD totals
+                above. Each currency is totalled on its own; nothing is converted.
+              </p>
+
+              {!data.externalComplete && (
+                <p className="text-xs text-amber-400 leading-relaxed mb-4">
+                  The account holds more invoices than this read walked. What follows is the most
+                  recent 500 — the totals are a floor, not the whole account.
+                </p>
+              )}
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
+                {data.externalTotals.map((t) => (
+                  <BevelBox key={t.currency} className="bg-[var(--color-surface-secondary)] p-3">
+                    <div className="text-[10px] uppercase tracking-wider text-[var(--color-text-muted)]">
+                      {t.currency} demanded · {t.count} invoice{t.count === 1 ? '' : 's'}
+                    </div>
+                    <div className="text-lg font-bold tabular-nums text-[var(--color-text-primary)]">
+                      {amt(t.currency, t.demanded)}
+                    </div>
+                    <div className="text-[11px] text-[var(--color-text-muted)] mt-1 tabular-nums">
+                      unpaid {amt(t.currency, t.outstanding)} · settled {amt(t.currency, t.paid)}
+                    </div>
+                    {cmpDec(t.voided, '0') > 0 && (
+                      <div className="text-[11px] text-[var(--color-text-muted)] tabular-nums">
+                        withdrawn {amt(t.currency, t.voided)}
+                      </div>
+                    )}
+                  </BevelBox>
+                ))}
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="text-[10px] uppercase tracking-wider text-[var(--color-text-muted)] border-b border-[var(--color-border-default)]">
+                      <th className="text-left font-medium py-2 pr-3">Invoice</th>
+                      <th className="text-left font-medium py-2 pr-3">Debtor</th>
+                      <th className="text-right font-medium py-2 pr-3">Amount</th>
+                      <th className="text-right font-medium py-2 pr-3">Unpaid</th>
+                      <th className="text-left font-medium py-2 pr-3">Status</th>
+                      <th className="text-left font-medium py-2 pr-3">Served</th>
+                      <th className="text-left font-medium py-2">Open</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {data.externalDemands.map((d) => (
+                      <tr
+                        key={d.invoiceId}
+                        className="border-b border-[var(--color-border-default)]/40 align-top"
+                      >
+                        <td className="py-2 pr-3 font-mono text-[11px] text-[var(--color-text-primary)]">
+                          {d.number ?? d.invoiceId}
+                          {d.description && (
+                            <div className="text-[10px] text-[var(--color-text-muted)] font-sans max-w-md leading-snug mt-0.5">
+                              {d.description}
+                            </div>
+                          )}
+                        </td>
+                        <td className="py-2 pr-3 text-[var(--color-text-muted)]">
+                          {d.debtor ?? '—'}
+                        </td>
+                        <td className="py-2 pr-3 text-right tabular-nums text-[var(--color-text-primary)]">
+                          {d.currency} {amt(d.currency, d.amount)}
+                        </td>
+                        <td className="py-2 pr-3 text-right tabular-nums text-[var(--color-text-muted)]">
+                          {amt(d.currency, d.amountDue)}
+                        </td>
+                        <td className="py-2 pr-3">
+                          <span
+                            className={
+                              d.status === 'paid'
+                                ? 'text-emerald-400'
+                                : d.status === 'open'
+                                  ? 'text-amber-400'
+                                  : d.status === 'void'
+                                    ? 'text-[var(--color-text-muted)] line-through'
+                                    : 'text-[var(--color-text-muted)]'
+                            }
+                          >
+                            {d.status}
+                          </span>
+                        </td>
+                        <td className="py-2 pr-3 text-[var(--color-text-muted)] whitespace-nowrap">
+                          {d.created ? d.created.slice(0, 10) : '—'}
+                          {d.dueDate && (
+                            <div className="text-[10px]">due {d.dueDate.slice(0, 10)}</div>
+                          )}
+                        </td>
+                        <td className="py-2 whitespace-nowrap">
+                          {d.hostedInvoiceUrl && (
+                            <a
+                              href={d.hostedInvoiceUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-[var(--color-gold-400)] hover:underline mr-2"
+                            >
+                              page
+                            </a>
+                          )}
+                          {d.invoicePdf && (
+                            <a
+                              href={d.invoicePdf}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-[var(--color-gold-400)] hover:underline"
+                            >
+                              pdf
+                            </a>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          )}
+        </Panel>
+      )}
 
       {/* ── Positions ── */}
       {data.positions.map((p) => (
