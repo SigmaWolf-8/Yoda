@@ -265,6 +265,11 @@ async fn health() -> Json<serde_json::Value> {
         "status": "ok",
         "service": "yoda-api",
         "version": env!("CARGO_PKG_VERSION"),
+        // The startup script compares this against the child it launched. A
+        // port that answers is not proof that *this* build answered it: an
+        // orphaned instance from an earlier run will happily reply while the
+        // new binary is dying on EADDRINUSE.
+        "pid": std::process::id(),
     }))
 }
 

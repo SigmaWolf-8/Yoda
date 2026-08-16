@@ -58,10 +58,51 @@ stop_api() {
 api_ready() {
     kill -0 "$1" 2>/dev/null || return 1
     if command -v curl >/dev/null 2>&1; then
-        curl -fsS -m 2 -o /dev/null "http://127.0.0.1:${BIND_PORT}/api/health" 2>/dev/null
+        # /api/health reports the responder's own pid. Accepting any 200 here
+        # would let an orphaned instance from an earlier run vouch for a child
+        # that never bound the port — the app then looks healthy while serving
+        # a different, older binary.
+        local body
+        body=$(curl -fsS -m 2 "http://127.0.0.1:${BIND_PORT}/api/health" 2>/dev/null) || return 1
+        case "$body" in
+            *'"pid":'*) echo "$body" | grep -q "\"pid\":$1[,}]" ;;
+            # Older builds predate the pid field; fall back to liveness alone.
+            *) return 0 ;;
+        esac
     else
         (exec 3<>"/dev/tcp/127.0.0.1/${BIND_PORT}") 2>/dev/null
     fi
+}
+
+# A workflow restart does not always give the previous script time to run its
+# EXIT trap, so its API child can survive and keep holding ${BIND_PORT}. Every
+# start after that dies with EADDRINUSE while curl still answers — from the
+# stale process — so the workflow reports failure while quietly serving old
+# code. Reclaim the port before launching anything.
+release_port() {
+    local waited=0
+    while (exec 3<>"/dev/tcp/127.0.0.1/${BIND_PORT}") 2>/dev/null; do
+        exec 3>&- 2>/dev/null
+        case "$waited" in
+            0)
+                echo "Port ${BIND_PORT} is held by an earlier instance — reclaiming it."
+                pkill -x yoda-api 2>/dev/null
+                ;;
+            8)
+                echo "  Still held after 4s — escalating."
+                pkill -9 -x yoda-api 2>/dev/null
+                fuser -k "${BIND_PORT}/tcp" 2>/dev/null
+                ;;
+            16)
+                echo "⚠ Port ${BIND_PORT} is still held by something this script cannot stop."
+                return 1
+                ;;
+        esac
+        sleep 0.5
+        waited=$(( waited + 1 ))
+    done
+    [ "$waited" -gt 0 ] && echo "Port ${BIND_PORT} released."
+    return 0
 }
 
 # Wait up to $2 seconds for pid $1 to serve. Fails early if the process dies.
@@ -151,6 +192,8 @@ else
 fi
 
 # ── 3. Hot-start the cached binary so the port opens immediately ──────
+release_port
+
 if [ -f "$BIN" ]; then
     echo "Hot-starting cached binary so port ${BIND_PORT} opens immediately..."
     start_api "$BIN"
