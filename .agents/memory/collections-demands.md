@@ -58,6 +58,19 @@ Finalising makes an invoice payable; emailing it is a second call with its own
 outcome. Record and display them separately — "issued" must never render as
 "served" unless the processor confirmed the send.
 
+
+## Settlement arrives by webhook, and the connection carries no signing secret
+
+The Replit Stripe connection settings expose `secret`/`publishable` but **no
+`webhook_secret`**. To receive events, register the endpoint yourself over
+`POST /v1/webhook_endpoints` (secret is returned exactly once, at creation) and
+hold the secret in the database, one row per public URL (dev vs published
+domains differ). Verify `Stripe-Signature` manually: HMAC-SHA256 over
+`{t}.{raw body bytes}`, ±300 s tolerance — the body must be taken raw, never
+re-serialized. Idempotency = insert Stripe's event id with `ON CONFLICT DO
+NOTHING` in the same transaction as the posting; unmatched/unknown events are
+logged and acked 200 or Stripe redelivers forever.
+
 ## A directly-held key outranks the connector
 
 The processor credential is read fresh on every call, preferring the
@@ -103,3 +116,5 @@ with no minor unit (JPY, KRW, …) must not be divided by 100.
 If the accrual cannot be computed (rate source down), the position is not
 demandable at all. Invoicing the principal alone understates the claim on paper
 the debtor keeps, and that paper outlives the outage.
+
+**Credential sealing:** the project's Phase-Encryption credential path panics at runtime (serialization unimplemented pending PlenumNET) — don't route stored credentials through it. Seal them with a standard AEAD keyed from SESSION_SECRET, and fail closed when unsealing fails.

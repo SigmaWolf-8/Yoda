@@ -170,6 +170,14 @@ pub struct DemandRecord {
     /// point of delivery.
     pub delivery: Option<String>,
     pub delivery_error: Option<String>,
+    /// What the estate's own records say about settlement, posted by the
+    /// Stripe webhook the moment the event landed: `paid` | `payment_failed`
+    /// | `voided` | `uncollectible`, or `None` when no event has arrived.
+    /// This is the register's answer when Stripe cannot be asked live.
+    pub settlement_state: Option<String>,
+    /// When the settling event says it happened — Stripe's clock, not ours.
+    pub settled_at: Option<String>,
+    pub settled_amount: Option<String>,
 }
 
 /// GET /api/capomastro/collections
@@ -185,7 +193,8 @@ pub async fn get_register(State(state): State<AppState>) -> Result<Json<Register
     let rows = sqlx::query(
         "SELECT id, position_id, ledger_line, obligor, outstanding_usd, demanded_cents, \
                 debtor_email, debtor_name, memo, stripe_invoice_id, hosted_invoice_url, \
-                state, failure_reason, delivery_state, delivery_error, created_at \
+                state, failure_reason, delivery_state, delivery_error, created_at, \
+                settlement_state, settled_at, settled_amount_cents \
            FROM collections_demands \
           ORDER BY created_at DESC",
     )
@@ -240,7 +249,10 @@ pub async fn get_register(State(state): State<AppState>) -> Result<Json<Register
             if record.state == "issued" || record.state == "pending" {
                 demanded = demanded.add(&amount).map_err(arith)?;
             }
-            if let Some(p) = &record.amount_paid {
+            // Stripe's live figure when it answered; the webhook-posted
+            // settlement when it did not. The register can state that a
+            // payment arrived without asking the processor.
+            if let Some(p) = record.amount_paid.as_ref().or(record.settled_amount.as_ref()) {
                 paid = paid.add(&Dec::parse(p).map_err(arith)?).map_err(arith)?;
             }
             demands.push(record);
@@ -579,6 +591,14 @@ async fn hydrate(state: &AppState, row: &sqlx::postgres::PgRow) -> DemandRecord 
         invoice_error: None,
         delivery: row.get("delivery_state"),
         delivery_error: row.get("delivery_error"),
+        settlement_state: row.get("settlement_state"),
+        settled_at: row
+            .get::<Option<chrono::DateTime<chrono::Utc>>, _>("settled_at")
+            .map(|t| t.to_rfc3339()),
+        settled_amount: row
+            .get::<Option<i64>, _>("settled_amount_cents")
+            .and_then(|c| cents_to_dec(c).ok())
+            .map(|d| d.to_canonical()),
     };
 
     // A pending row with no invoice id is the one genuinely ambiguous state: the

@@ -38,6 +38,8 @@ use crate::state::AppState;
 pub use capomastro_ledger::dec;
 /// Auditor-formatted exports of the ledger and the live statements.
 pub mod collections;
+/// Stripe webhook: settlement events pushed into the collections register.
+pub mod webhook;
 pub mod export;
 /// Live reference rates (SOFR, Treasury averages, gold spot).
 pub mod rates;

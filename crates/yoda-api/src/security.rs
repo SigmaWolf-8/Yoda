@@ -175,7 +175,10 @@ pub async fn get_active_signing_key(
 /// Encrypt a credential string for storage (engine API keys, GitHub PAT).
 /// Uses Phase Encryption high_security mode.
 pub fn encrypt_credential(plaintext: &str, context: &str) -> Result<String, SecurityError> {
-    let enc_key = key_derivation::derive_key(
+    // Phase Encryption takes a 32-byte key; `derive_credential_key` is the
+    // purpose-built derivation for credentials at rest. (The general
+    // `derive_key` yields 48 bytes and can never feed this cipher.)
+    let enc_key = key_derivation::derive_credential_key(
         format!("credential-{}", context).as_bytes(),
     );
 
@@ -210,7 +213,7 @@ pub fn decrypt_credential(stored: &str, context: &str) -> Result<String, Securit
         });
     }
 
-    let enc_key = key_derivation::derive_key(
+    let enc_key = key_derivation::derive_credential_key(
         format!("credential-{}", context).as_bytes(),
     );
 

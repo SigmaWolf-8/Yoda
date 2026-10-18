@@ -50,6 +50,7 @@ rand = "0.8"
 
 # Capomastro sovereign ledger — ISO 20022 pacs.008 parsing
 capomastro-pacs008 = { path = "../capomastro-pacs008" }
+chacha20poly1305 = "0.11.0"
 
 [dev-dependencies]
 wiremock.workspace = true

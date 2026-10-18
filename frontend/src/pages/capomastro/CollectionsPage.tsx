@@ -71,6 +71,13 @@ interface DemandRecord {
   invoiceError: string | null;
   delivery: string | null;
   deliveryError: string | null;
+  /** Posted by the Stripe webhook the moment the event landed:
+   * `paid` | `payment_failed` | `voided` | `uncollectible`, or null when no
+   * settlement event has arrived. This is the estate's own record — it answers
+   * even when Stripe cannot be asked live. */
+  settlementState: string | null;
+  settledAt: string | null;
+  settledAmount: Dec | null;
 }
 
 interface Position {
@@ -167,21 +174,34 @@ export function CollectionsPage() {
     subtitle: 'Receivables past due, and the demands standing against them',
   });
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError(null);
+  const load = useCallback(async (background = false) => {
+    if (!background) {
+      setLoading(true);
+      setError(null);
+    }
     try {
       const res = await apiClient.get<Register>('/capomastro/collections');
       setData(res.data);
+      if (background) setError(null);
     } catch (err) {
-      setError(readError(err));
+      // A failed background poll must not blank a page that is already
+      // showing good figures — the next tick will try again.
+      if (!background) setError(readError(err));
     } finally {
-      setLoading(false);
+      if (!background) setLoading(false);
     }
   }, []);
 
   useEffect(() => {
     void load();
+    // A payment can land at any moment — Stripe's webhook posts it to the
+    // register server-side, and this poll brings it onto an open page without
+    // anyone reloading. Fifteen seconds is a UI heartbeat, not a money path:
+    // the settlement itself was already recorded the instant the event landed.
+    const tick = window.setInterval(() => {
+      if (!document.hidden) void load(true);
+    }, 15_000);
+    return () => window.clearInterval(tick);
   }, [load]);
 
   if (loading && !data) {
@@ -744,8 +764,18 @@ function DemandTable({ demands, onChanged }: { demands: DemandRecord[]; onChange
                 {usd(d.amount)}
               </td>
               <td className="py-2 pr-3 text-right tabular-nums">
-                {d.amountPaid ? (
-                  <span className="text-emerald-400">{usd(d.amountPaid)}</span>
+                {d.amountPaid ?? d.settledAmount ? (
+                  <span className="text-emerald-400">
+                    {usd((d.amountPaid ?? d.settledAmount) as Dec)}
+                    {d.settlementState === 'paid' && d.settledAt && (
+                      <div
+                        className="text-[10px] text-[var(--color-text-muted)] font-normal"
+                        title="Recorded by the estate the moment Stripe reported settlement"
+                      >
+                        settled {d.settledAt.slice(0, 16).replace('T', ' ')} UTC
+                      </div>
+                    )}
+                  </span>
                 ) : (
                   <span className="text-[var(--color-text-muted)]">—</span>
                 )}
@@ -823,13 +853,25 @@ function StatusChip({ demand }: { demand: DemandRecord }) {
     );
   }
   if (demand.invoiceError) {
+    // Stripe cannot be asked live — but a settlement the webhook already
+    // posted is the estate's own record, and it still answers.
+    if (demand.settlementState) {
+      return (
+        <span
+          className={demand.settlementState === 'paid' ? 'text-emerald-400' : 'text-[var(--color-text-muted)]'}
+          title={`Stripe is unreachable right now (${demand.invoiceError}) — showing the settlement the webhook recorded.`}
+        >
+          {settlementLabel(demand.settlementState)}
+        </span>
+      );
+    }
     return (
       <span className="text-amber-400" title={demand.invoiceError}>
         Stripe unreachable
       </span>
     );
   }
-  const status = demand.invoiceStatus ?? demand.state;
+  const status = demand.invoiceStatus ?? settlementLabel(demand.settlementState) ?? demand.state;
   const tone =
     status === 'paid'
       ? 'text-emerald-400'
@@ -839,6 +881,22 @@ function StatusChip({ demand }: { demand: DemandRecord }) {
           ? 'text-[var(--color-text-muted)]'
           : 'text-[var(--color-text-primary)]';
   return <span className={tone}>{status}</span>;
+}
+
+/** The webhook's settlement vocabulary, rendered for an operator. */
+function settlementLabel(state: string | null): string | null {
+  switch (state) {
+    case 'paid':
+      return 'paid';
+    case 'payment_failed':
+      return 'payment failed';
+    case 'voided':
+      return 'void';
+    case 'uncollectible':
+      return 'uncollectible';
+    default:
+      return null;
+  }
 }
 
 function Figure({

@@ -207,6 +207,11 @@ async fn main() -> anyhow::Result<()> {
     // in), so without this the UI shows "offline" for everything on boot.
     routes::spawn_startup_engine_probes(state.clone());
 
+    // ── Register the Stripe collections webhook for this environment ─
+    // Best-effort and non-fatal: without it payments are still read live from
+    // Stripe on page load; with it they post the moment they land.
+    capomastro::webhook::spawn_webhook_registration(state.clone());
+
     // ── Initialize Kyokushin Brothers (Alpha/Beta/Gamma orchestrator) ─
     let kyokushin = kyokushin_brothers::init_kyokushin_brothers().await;
 

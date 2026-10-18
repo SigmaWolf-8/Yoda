@@ -112,6 +112,16 @@ pub fn build_router(state: AppState) -> Router {
             post(capomastro::parse_pacs008)
                 .layer(DefaultBodyLimit::max(capomastro::MAX_PACS008_BYTES)),
         )
+        // ── Collections settlement webhook (public by necessity — Stripe is
+        // the caller; authenticated by signature, not by session). The body is
+        // read raw because the signature covers the exact bytes sent, and a
+        // Stripe event is kilobytes — the tight limit stops an anonymous
+        // caller forcing unbounded buffering.
+        .route(
+            capomastro::webhook::WEBHOOK_PATH,
+            post(capomastro::webhook::stripe_webhook)
+                .layer(DefaultBodyLimit::max(256 * 1024)),
+        )
         .route("/api/install/source.tar.gz", get(install::download_source))
         .route("/api/install/install.ps1", get(install::windows_installer));
 

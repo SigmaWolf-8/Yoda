@@ -30,40 +30,9 @@ const STRIPE_TIMEOUT: Duration = Duration::from_secs(20);
 /// an amount this rail cannot carry.
 pub const MAX_CHARGE_CENTS: i64 = 99_999_999;
 
-/// The estate's own live key, held as a secret in this environment.
-///
-/// This takes precedence over the connector. The Integrations connection is
-/// convenient but it is whatever account was authorised there — for real
-/// collection the key is supplied directly and deliberately, and it must not be
-/// silently overridden by a connector that happens to be in test mode.
-const LIVE_KEY_VAR: &str = "STRIPE_SECRET_KEY";
-
-/// Fetch the estate's Stripe secret key.
-///
-/// The directly-held secret wins; the Replit connection is the fallback.
-/// Deliberately uncached either way — see the module note.
-async fn secret_key(client: &reqwest::Client) -> Result<String, AppError> {
-    if let Ok(key) = std::env::var(LIVE_KEY_VAR) {
-        let key = key.trim().to_string();
-        if !key.is_empty() {
-            // A wrong-shaped value here would fail at Stripe with an opaque 401
-            // several calls later. Say so now.
-            if !(key.starts_with("sk_") || key.starts_with("rk_")) {
-                return Err(AppError::Unavailable(format!(
-                    "{LIVE_KEY_VAR} is set but does not look like a Stripe secret key (it should \
-                     begin with sk_ or rk_). Stripe publishable keys, beginning pk_, cannot raise \
-                     invoices."
-                )));
-            }
-            return Ok(key);
-        }
-    }
-
-    connector_key(client).await
-}
-
-/// Fetch the Stripe secret key from the Replit connection API.
-async fn connector_key(client: &reqwest::Client) -> Result<String, AppError> {
+/// Fetch the Stripe connection's settings object from the Replit connection
+/// API. Deliberately uncached — see the module note.
+async fn connection_settings(client: &reqwest::Client) -> Result<Value, AppError> {
     let hostname = std::env::var("REPLIT_CONNECTORS_HOSTNAME").map_err(|_| {
         AppError::Unavailable(
             "the connection service address is not set in this environment, so the Stripe \
@@ -109,11 +78,70 @@ async fn connector_key(client: &reqwest::Client) -> Result<String, AppError> {
         )));
     }
 
+    Ok(body
+        .pointer("/items/0/settings")
+        .cloned()
+        .unwrap_or(Value::Null))
+}
+
+/// The estate's own live key, held as a secret in this environment.
+///
+/// This takes precedence over the connector. The Integrations connection is
+/// convenient but it is whatever account was authorised there — for real
+/// collection the key is supplied directly and deliberately, and it must not be
+/// silently overridden by a connector that happens to be in test mode.
+const LIVE_KEY_VAR: &str = "STRIPE_SECRET_KEY";
+
+/// Fetch the estate's Stripe secret key.
+///
+/// The directly-held secret wins; the Replit connection is the fallback.
+/// Deliberately uncached either way — see the module note.
+async fn secret_key(client: &reqwest::Client) -> Result<String, AppError> {
+    if let Ok(key) = std::env::var(LIVE_KEY_VAR) {
+        let key = key.trim().to_string();
+        if !key.is_empty() {
+            // A wrong-shaped value here would fail at Stripe with an opaque 401
+            // several calls later. Say so now.
+            if !(key.starts_with("sk_") || key.starts_with("rk_")) {
+                return Err(AppError::Unavailable(format!(
+                    "{LIVE_KEY_VAR} is set but does not look like a Stripe secret key (it should \
+                     begin with sk_ or rk_). Stripe publishable keys, beginning pk_, cannot raise \
+                     invoices."
+                )));
+            }
+            return Ok(key);
+        }
+    }
+
+    connector_key(client).await
+}
+
+/// The webhook signing secret the connection carries, when it carries one.
+///
+/// Some connection versions provision a managed webhook and expose its secret
+/// here; the current one does not, in which case the endpoint this service
+/// registered itself (and the secret Stripe issued for it, held in the
+/// database) is the authority instead.
+pub async fn connection_webhook_secret(
+    client: &reqwest::Client,
+) -> Result<Option<String>, AppError> {
+    let settings = connection_settings(client).await?;
+    Ok(settings
+        .get("webhook_secret")
+        .and_then(Value::as_str)
+        .filter(|s| !s.is_empty())
+        .map(str::to_string))
+}
+
+/// Fetch the Stripe secret key from the Replit connection API.
+async fn connector_key(client: &reqwest::Client) -> Result<String, AppError> {
+    let settings = connection_settings(client).await?;
     // The connection service has carried this field under both names; accept
     // either rather than failing on a rename that is not ours to control.
-    body.pointer("/items/0/settings/secret")
-        .or_else(|| body.pointer("/items/0/settings/secret_key"))
-        .or_else(|| body.pointer("/items/0/settings/api_key"))
+    settings
+        .get("secret")
+        .or_else(|| settings.get("secret_key"))
+        .or_else(|| settings.get("api_key"))
         .and_then(Value::as_str)
         .map(str::to_string)
         .ok_or_else(|| {
@@ -175,6 +203,18 @@ pub async fn get(
         .get(format!("{STRIPE_API}/{path}"))
         .bearer_auth(&key)
         .query(query)
+        .timeout(STRIPE_TIMEOUT)
+        .send()
+        .await
+        .map_err(|e| AppError::Unavailable(format!("Stripe did not answer: {e}")))?;
+    read(res, path).await
+}
+
+pub async fn delete(client: &reqwest::Client, path: &str) -> Result<Value, AppError> {
+    let key = secret_key(client).await?;
+    let res = client
+        .delete(format!("{STRIPE_API}/{path}"))
+        .bearer_auth(&key)
         .timeout(STRIPE_TIMEOUT)
         .send()
         .await
