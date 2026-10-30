@@ -130,6 +130,46 @@
     Checking finitely many subvolumes does not, by itself, prove pointwise divergence-freedom.</strong></p>
   <p>A finite numerical check must be reported as such, with its numerical tolerance.
     It must not be presented as an exact proof of the universal local condition.</p>
+  <h2>7. Application in the ledger</h2>
+  <p>The <a href="/capomastro/conservation" target="_blank" rel="noopener">Conservation Gate workspace</a>
+    implements discrete boundary reconciliations, NMT/XRP valuation checks, reserve-cell observations,
+    and balanced write-off journals. The application displays their shared status on the Ledger,
+    Statements, Collections, Codex, Seal, and Compendium pages.</p>
+  <p>These are accounting checks with declared quantities, units, boundaries, periods, and evidence.
+    They are not a proved isomorphism between accounting, entropy, fluid flow, and law.
+    For a conserved physical quantity, accumulation and any internal source terms must also be
+    included in the continuity equation. Zero divergence alone does not prove zero entropy production.</p>
+  <div class="formula">Net inward flow = inflows − outflows<br>
+    Outward flow = outflows − inflows<br>
+    Residual = closing − opening − net inward flow − declared non-flow adjustments</div>
+  <p>A zero residual reconciles the declared period and inputs only. It neither locates a leak nor
+    verifies every internal account. The sealed workbook has no complete opening/closing external-flow
+    event history for GL-9-0001 through GL-9-0008; absent evidence remains unknown, not zero.</p>
+  <h2>8. Energy-bridge valuation corrections</h2>
+  <p>Under the supplied model, 1 NMT represents 1 kWh, with an electricity assumption of
+    0.10 USD/NMT and hardware assumption of 0.02 USD/NMT. Cost basis is NMT × 0.12 USD.
+    Recorded settlement value is XRP quantity × recorded USD/XRP price.</p>
+  <div class="formula">Valuation gap = NMT × 0.12 − XRP × price (USD)<br>
+    Reference price = 200000 × 0.12 = 24000 USD/XRP</div>
+  <p>For 200000 NMT and 1 XRP, a price of 23999.50 USD/XRP gives a 0.50 USD valuation gap.
+    A price of 0.50 USD/XRP gives a 23999.50 USD gap. Those are different scenarios.
+    Comparing a USD/XRP price to 0.12 USD/NMT is dimensionally invalid; the percentage price
+    deviation uses 24000 USD/XRP as its reference denominator.</p>
+  <p>Zero valuation gap means valuation parity under the declared assumptions, not physical
+    losslessness. No XRP is mined, minted, transferred, or repriced by this audit. Positive gaps
+    produce a debit in the supplemental journal; gains produce a positive credit, not a negative debit.</p>
+  <h2>9. Evidence and sealing limits</h2>
+  <p>Saved observations retain their inputs, computed results, evidence reference, timestamp, and
+    SHA-256 predecessor chain. Every append validates the inputs, recomputes the result, verifies
+    the existing chain, and checks any generated journal for exact debit-credit equality.
+    Failed observations are retained as failures; they are not suppressed or converted to a passing seal.</p>
+  <p>The database rejects updates and deletions of audit entries. Keep an independently retained
+    chain head to detect later replacement. Hash chaining is not an external signature, evidence of
+    ownership, or proof that an operator’s declaration is true. Write-offs retain the evidence:
+    no asset or historical journal is silently removed.</p>
+  <p>Reserve coverage is an inequality (reserves ≥ liabilities), not an assertion that every flux is zero.
+    Finite reserve observations, balanced journals, and mod-9 residues do not certify continuous
+    backing or compliance with GAAP, OSHA, the UCC, or the GENIUS Act.</p>
 </main>
 </body>
 </html>

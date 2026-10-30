@@ -77,6 +77,9 @@ pub fn build_router(state: AppState) -> Router {
         // Published record of the estate: the workbook, the sealed token
         // measurements, and the ISO 20022 parse endpoint.
         .route("/api/capomastro/ledger", get(capomastro::get_ledger))
+        .route("/api/capomastro/conservation", get(capomastro::conservation::get))
+        .route("/api/capomastro/conservation/evaluate", post(capomastro::conservation::evaluate))
+        .route("/api/capomastro/conservation/verify", post(capomastro::conservation::verify))
         .route("/api/capomastro/revenue", get(capomastro::get_revenue))
         // Statements are computed per request from the workbook plus live
         // reference rates — see capomastro::statements.
@@ -127,6 +130,8 @@ pub fn build_router(state: AppState) -> Router {
 
     // ── Protected routes (JWT or API key) ────────────────────────────
     let protected = Router::new()
+        .route("/api/agents/runtime", get(crate::agent_worker::status).put(crate::agent_worker::control))
+        .route("/api/capomastro/conservation/records", post(capomastro::conservation::append))
         // ── Collections (Capomastro) ──
         // Money leaves the estate's control here: these routes raise real
         // invoices against real debtors, so they sit behind credentials even
@@ -1946,8 +1951,22 @@ async fn add_task_message(
     Ok(Json(serde_json::json!({ "task_id": task_id, "ok": true })))
 }
 
-async fn retry_task(State(_state): State<AppState>, Path(_task_id): Path<Uuid>) -> Result<Json<serde_json::Value>, AppError> {
-    Err(AppError::Internal("Task retry — full implementation in B-8 DAG engine".into()))
+async fn retry_task(State(state): State<AppState>, user: axum::Extension<auth::AuthenticatedUser>, Path(task_id): Path<Uuid>) -> Result<Json<serde_json::Value>, AppError> {
+    let mut tx = state.db.begin().await?;
+    let status: Option<String> = sqlx::query_scalar(
+        "SELECT t.status FROM tasks t JOIN projects p ON p.id=t.project_id WHERE t.id=$1 AND p.org_id=$2 FOR UPDATE OF t")
+        .bind(task_id).bind(user.org_id).fetch_optional(&mut *tx).await?;
+    match status.as_deref() {
+        None => return Err(AppError::NotFound("Task not found".into())),
+        Some("ESCALATED") => {},
+        _ => return Err(AppError::Validation("Only an escalated task can be retried".into())),
+    }
+    sqlx::query("UPDATE agent_worker_attempts SET attempts=0,next_attempt_at=NOW(),last_error=NULL WHERE task_id=$1")
+        .bind(task_id).execute(&mut *tx).await?;
+    sqlx::query("UPDATE tasks SET status='QUEUED',error_message=NULL,updated_at=NOW() WHERE id=$1")
+        .bind(task_id).execute(&mut *tx).await?;
+    tx.commit().await?;
+    get_task(State(state),Path(task_id)).await
 }
 
 async fn escalate_task(State(state): State<AppState>, Path(task_id): Path<Uuid>) -> Result<Json<serde_json::Value>, AppError> {
@@ -3607,7 +3626,7 @@ async fn system_status(State(state): State<AppState>) -> Json<serde_json::Value>
             "id": "no_cube_peers",
             "severity": "warning",
             "title": "No Array3 cube daemons reachable",
-            "detail": "The PlenumLAN relay is armed but no cube peers have connected. Queries will fall back to cloud LLM only.",
+            "detail": if relay_armed { "The relay is armed but has no connected cube peers. Only an independently usable cloud engine can answer." } else { "The relay is not armed and no cube peers are connected. Local inference is unavailable." },
             "action": "Start at least one Array3 daemon and ensure it can reach this server's CRS address."
         }));
     }

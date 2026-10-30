@@ -1,0 +1,32 @@
+.conservation {
+  --gate-accent: var(--color-gold-400);
+  color: var(--color-text-primary);
+}
+.conservation .gate-button {
+  display: inline-flex; align-items: center; justify-content: center; gap: .5rem;
+  padding: .55rem .8rem; font-size: .75rem; font-weight: 650;
+  border: 1px solid var(--color-border-default); color: var(--gate-accent);
+  background: var(--color-surface-primary); cursor: pointer;
+}
+.conservation .gate-button:disabled { opacity: .45; cursor: not-allowed; }
+.conservation .gate-button:hover:not(:disabled) { border-color: var(--gate-accent); }
+.conservation .gate-primary { background: color-mix(in srgb, var(--gate-accent) 15%, transparent); }
+.conservation .gate-field { display: flex; flex-direction: column; gap: .4rem; min-width: 0; font-size: .75rem; color: var(--color-text-muted); }
+.conservation .gate-input {
+  width: 100%; min-width: 0; padding: .65rem .75rem;
+  border: 1px solid var(--color-border-default);
+  background: var(--color-surface-primary); color: var(--color-text-primary);
+  border-radius: 0; font: inherit;
+}
+.conservation :is(input,select,textarea,button,a,summary):focus-visible { outline: 2px solid var(--gate-accent); outline-offset: 3px; }
+.conservation .gate-error { border-left: 2px solid #ef997c; padding: .75rem 1rem; color: #efb4a0; background: #9a413015; font-size: .75rem; overflow-wrap: anywhere; }
+.conservation .gate-status { font-size: .65rem; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; }
+.conservation .gate-pass { color: #83c7ad; }
+.conservation .gate-fail { color: #ef997c; }
+.conservation .gate-unknown, .conservation .gate-unverified { color: var(--color-text-muted); }
+.conservation .gate-table { width: 100%; text-align: left; font-size: .75rem; }
+.conservation .gate-table :is(th,td) { padding: .65rem .6rem; border-bottom: 1px solid var(--color-border-subtle); }
+.conservation .gate-table th { color: var(--color-text-muted); font-size: .65rem; text-transform: uppercase; letter-spacing: .05em; }
+.conservation .gate-table td:not(:first-child) { font-family: monospace; overflow-wrap: anywhere; }
+.conservation .gate-raw { white-space: pre-wrap; overflow-wrap: anywhere; font-size: .7rem; line-height: 1.7; }
+@media (prefers-reduced-motion: reduce) { .conservation .animate-pulse { animation: none; } }

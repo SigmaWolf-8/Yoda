@@ -3,13 +3,13 @@ name: Capomastro money as decimal strings
 description: Published financial figures are exact decimal strings end to end; no layer may re-derive them in a float.
 ---
 
-Every monetary figure and every derived ratio in the Capomastro sovereign
-record is computed **once**, in exact decimal, by the ledger extraction script,
-and travels as a canonical decimal **string** through the API and into the UI.
+Every monetary figure and every derived ratio must use authoritative
+exact-decimal computation and travel as a decimal **string** through the API
+and into the UI. Runtime recomputation is intentional (see the live-ledger
+decision); the old extraction-only restriction is superseded.
 
-The rule: **no layer downstream of extraction may do money arithmetic.**
-- The API handler selects and forwards values. It does not add, divide, or
-  convert to `f64`.
+The rule: **financial arithmetic must never use binary floating point.**
+- Server-side derivations use the shared exact-decimal arithmetic; no `f64`.
 - The frontend formats values by string manipulation — grouping digits,
   shifting the decimal point for abbreviated forms. Parsing to a JS `number` is
   confined to chart pixel geometry, and its result is never displayed as a
@@ -25,11 +25,9 @@ plausible. Because each layer's rounding is invisible on its own, this class of
 error is not caught by reading any single file; it only shows up when the exact
 value is computed independently and compared.
 
-**How to apply:** when adding a figure to this record, add it to the extraction
-script (Decimal in, canonical string out) and pass it through untouched. If a
-new display needs a derived quantity, derive it in the extractor, not in the
-handler or the component. Treat any `as_f64`, `Number(...)`, `parseFloat`, or
-arithmetic operator applied to one of these values as a defect.
+**How to apply:** derive new quantities in the authoritative exact-decimal
+computation, not separately in display components. Treat `as_f64`, `Number(...)`,
+or `parseFloat` applied to financial values as a defect.
 
 The same applies to amounts parsed out of ISO 20022 messages: keep them as the
 string the message carried, so a decimal never passes through a float on its

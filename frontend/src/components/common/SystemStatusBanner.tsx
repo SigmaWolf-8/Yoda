@@ -187,7 +187,7 @@ export function SystemStatusBanner() {
         borderTop: `1px solid ${hasCritical ? 'rgba(200,40,40,0.10)' : 'rgba(200,140,0,0.08)'}`,
       }}>
         <span style={{ fontSize: 10, color: '#4A4540', fontFamily: "'JetBrains Mono', monospace" }}>
-          {status.agents.loaded} agents · {status.relay.live_peer_count} cube peers
+          {status.agents.loaded} agent definitions · {status.relay.live_peer_count} cube peers
           {lastFetch && ` · checked ${lastFetch.toLocaleTimeString()}`}
         </span>
         <button

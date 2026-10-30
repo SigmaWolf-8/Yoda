@@ -27,6 +27,7 @@ use tower_http::trace::TraceLayer;
 use tracing_subscriber::EnvFilter;
 
 pub mod agents;
+pub mod agent_worker;
 pub mod array3_installation_engine;
 pub mod audit;
 pub mod auth;
@@ -206,6 +207,7 @@ async fn main() -> anyhow::Result<()> {
     // The background monitors only write a status on their first tick (30–60 s
     // in), so without this the UI shows "offline" for everything on boot.
     routes::spawn_startup_engine_probes(state.clone());
+    agent_worker::spawn(state.clone());
 
     // ── Register the Stripe collections webhook for this environment ─
     // Best-effort and non-fatal: without it payments are still read live from

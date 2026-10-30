@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { BookOpen, ExternalLink, ShieldCheck, Download } from 'lucide-react';
 import { usePageHeader } from '../../context/PageHeader';
 import { BevelBox } from '../../components/ui/BevelBox';
@@ -88,9 +89,19 @@ const DOCS: CodexDoc[] = [
 ];
 
 export function CodexPage() {
-  const [active, setActive] = useState<CodexDoc>(DOCS[0]);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const active = DOCS.find(doc => doc.id === searchParams.get('doc')) || DOCS[0];
   const [sendable, setSendable] = useState<Dispatch | null>(null);
   const [sendableError, setSendableError] = useState<string | null>(null);
+  const reader = useRef<HTMLDivElement>(null);
+  const requestedDoc = searchParams.get('doc');
+  useEffect(() => {
+    if (requestedDoc) reader.current?.scrollIntoView({ block: 'start' });
+  }, [requestedDoc]);
+  function selectDocument(id: string) {
+    setSearchParams({ doc: id });
+    reader.current?.scrollIntoView({ block: 'start' });
+  }
 
   usePageHeader({
     icon: BookOpen,
@@ -152,6 +163,13 @@ export function CodexPage() {
             from its file.
           </p>
         </div>
+        <button
+          type="button"
+          onClick={() => selectDocument('divergence-flux-gate')}
+          className="mt-3 inline-flex items-center gap-2 px-3 py-2 text-xs font-bold text-[var(--color-gold-400)] bg-[var(--color-gold-400)]/10 border border-[var(--color-border-default)]"
+        >
+          Read Divergence–Flux Gate — Corrections
+        </button>
       </BevelBox>
 
       {/* ── Document selector ── */}
@@ -161,7 +179,7 @@ export function CodexPage() {
           return (
             <BevelBox
               key={doc.id}
-              onClick={() => setActive(doc)}
+              onClick={() => selectDocument(doc.id)}
               className={`p-4 h-full transition-colors ${
                 selected
                   ? 'bg-[var(--color-gold-400)]/10'
@@ -187,6 +205,7 @@ export function CodexPage() {
       </div>
 
       {/* ── Reader ── */}
+      <div id="codex-reader" ref={reader} className="scroll-mt-4">
       <BevelBox className="bg-[var(--color-surface-primary)] p-4">
         <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
           <div className="min-w-0">
@@ -252,6 +271,7 @@ export function CodexPage() {
           {...(active.kind === 'pdf' ? {} : { sandbox: 'allow-scripts' as const })}
         />
       </BevelBox>
+      </div>
     </div>
   );
 }

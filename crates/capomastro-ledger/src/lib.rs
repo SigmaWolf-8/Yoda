@@ -20,5 +20,6 @@
 
 /// Exact base-10 decimal arithmetic. Money never touches a float.
 pub mod dec;
+pub mod conservation;
 /// Recomputation of the ledger summary from workbook cells.
 pub mod live;

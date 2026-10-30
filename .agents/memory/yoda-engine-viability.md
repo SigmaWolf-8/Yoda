@@ -39,3 +39,16 @@ A credentialed probe treats `401/403` as **`suspect`**, not `offline`: the endpo
 the key is bad. Only `5xx` or a connection failure is `offline`. Query selection requires
 `online`, so a `suspect` slot is correctly skipped — but any UI reading "reachable" alone
 will show a dead engine as healthy.
+
+## Autonomous execution scope
+
+Autonomy means executing existing approved queued work for an organization that
+has explicitly enabled it. It does not authorize inventing recurring goals,
+activating other organizations, or silently reducing independent review coverage
+to fit whichever engines happen to be available.
+
+**Why:** A roster and a polling heartbeat do not establish that inference works.
+Automatic activation across tenants could also trigger unrequested model charges.
+
+**How to apply:** Keep control organization-scoped; report engine and review
+blockers truthfully. Prove real model execution separately from worker liveness.

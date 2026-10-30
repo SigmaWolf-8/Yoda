@@ -172,6 +172,10 @@ pub async fn execute_four_step(
         )
         .await?;
 
+        // The transport can return a partial batch. It must not become a
+        // smaller consensus or shift a successful response onto another role.
+        require_complete_reviews(reviewer_count, review_responses.len())?;
+
         // Parse review assessments
         let assessments: Vec<ReviewAssessment> = review_responses
             .into_iter()
@@ -380,9 +384,25 @@ fn parse_review_verdict(content: &str) -> (bool, f64) {
     (approved, confidence)
 }
 
+fn require_complete_reviews(required: usize, received: usize) -> Result<(), ProtocolError> {
+    if received == required { Ok(()) }
+    else { Err(ProtocolError::InsufficientEngines(required, received)) }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::Mode;
+
+    #[test]
+    fn incomplete_reviews_cannot_be_consensus() {
+        for required in 1..=3 {
+            assert!(require_complete_reviews(required, required).is_ok());
+            for received in 0..required {
+                assert!(require_complete_reviews(required, received).is_err());
+            }
+        }
+    }
 
     #[test]
     fn test_parse_verdict_json() {

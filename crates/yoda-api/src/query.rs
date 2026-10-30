@@ -458,12 +458,17 @@ pub async fn submit_query(
             }
 
             if !cube_peers.is_empty() {
-                let _ = sqlx::query(
-                    "UPDATE tasks SET status = 'STEP_1', updated_at = NOW() WHERE id = $1"
+                let claimed = sqlx::query(
+                    "UPDATE tasks SET status = 'STEP_1', updated_at = NOW() WHERE id = $1 AND status='QUEUED'"
                 )
                 .bind(task_id)
                 .execute(&state.db)
-                .await;
+                .await?;
+                if claimed.rows_affected() == 0 {
+                    return Ok((StatusCode::CREATED, Json(QueryResponse {
+                        decomposition: None, task_id: Some(task_id), needs_approval: false, relay_endpoint: None,
+                    })));
+                }
 
                 // Use the agent matched at task creation (R2-4)
                 let bg_messages = serde_json::json!([
@@ -602,7 +607,7 @@ pub fn infer_competencies_pub(query: &str) -> Vec<String> {
 }
 
 /// Helper: build an EngineConfig from a DB row tuple.
-fn build_engine_config(
+pub(crate) fn build_engine_config(
     row: &(String, String, String, Option<String>, String, String),
 ) -> yoda_inference_router::EngineConfig {
     use yoda_inference_router::*;

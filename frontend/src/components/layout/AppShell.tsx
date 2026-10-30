@@ -19,13 +19,14 @@ import {
   Gavel,
   Stamp,
   FileSpreadsheet,
-  ScrollText,
 } from 'lucide-react';
 import { UserProfile } from '../auth/UserProfile';
 import { usePageHeaderCtx } from '../../context/PageHeader';
 import { VideoPlayProvider, useVideoPlay } from '../../context/VideoPlay';
 import { SystemStatusBanner } from '../common/SystemStatusBanner';
+import { AgentRuntimePanel } from '../agents/AgentRuntimePanel';
 import { ErrorBoundary } from '../common/ErrorBoundary';
+import { conservationNavigation, compendiumNavigation } from '../../pages/capomastro/routes';
 
 /* ── Nav config ──
  * Grouped into 3 sections. Footer keeps Settings + collapse toggle.
@@ -58,7 +59,8 @@ const NAV_GROUPS: ReadonlyArray<{
       { to: '/capomastro/collections', icon: Gavel,        label: 'Collections' },
       { to: '/capomastro/codex',      icon: BookOpen,        label: 'Codex'      },
       { to: '/capomastro/seal',       icon: Stamp,           label: 'Seal'       },
-      { href: '/capomastro/assayer.html', icon: ScrollText,  label: 'Compendium' },
+      conservationNavigation,
+      compendiumNavigation,
     ],
   },
   {
@@ -503,6 +505,7 @@ export function AppShell() {
         </header>
 
         <SystemStatusBanner />
+        <AgentRuntimePanel />
         <main id="main-content" className="flex-1 overflow-y-auto cube-flip-stage" aria-label="Page content">
           {/* `key` forces remount on path change → cube-flip animation plays */}
           <div key={location.pathname} className="cube-flip-face">

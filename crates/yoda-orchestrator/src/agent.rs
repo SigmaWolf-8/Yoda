@@ -201,6 +201,7 @@ mod tests {
 
     fn make_agent(id: &str, competencies: &[&str], reviewers: &[&str]) -> AgentConfig {
         AgentConfig {
+            description: String::new(),
             agent_id: id.into(),
             display_name: id.into(),
             division: "test".into(),
