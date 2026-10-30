@@ -33,6 +33,15 @@ interface CodexDoc {
 
 const DOCS: CodexDoc[] = [
   {
+    id: 'divergence-flux-gate',
+    title: 'Divergence–Flux Gate — Corrections',
+    version: 'Mathematical correction supplement',
+    summary:
+      'Regularity assumptions, global versus local balance, a cancellation counterexample, orientation, and the limits of finite computational checks.',
+    file: '/capomastro/docs/divergence-flux-gate-corrections.html',
+    kind: 'html',
+  },
+  {
     id: 'folded-recursive',
     title: 'Unified Folded Recursive Re-Output',
     version: 'v3.7 — Render-Clean Fold',
@@ -86,7 +95,7 @@ export function CodexPage() {
   usePageHeader({
     icon: BookOpen,
     title: 'Sovereign Codex',
-    subtitle: 'Governing documents, reproduced verbatim under the Non-Alteration Clause',
+    subtitle: 'Original documents and explicitly labeled correction supplements',
   });
 
   /*
@@ -138,9 +147,9 @@ export function CodexPage() {
         <div className="flex items-start gap-3">
           <ShieldCheck className="w-5 h-5 text-[var(--color-gold-400)] flex-shrink-0 mt-0.5" />
           <p className="text-xs text-[var(--color-text-muted)] leading-relaxed">
-            Each document below is loaded as its original file. Nothing on this page paraphrases,
-            summarises, reformats or rewords the source text — the frame renders exactly what was
-            sealed.
+            Original sealed documents remain unchanged. Corrections are published as explicitly
+            labeled supplements alongside them. Each frame loads the selected document directly
+            from its file.
           </p>
         </div>
       </BevelBox>

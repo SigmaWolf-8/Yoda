@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Divergence–Flux Gate — Corrections | Sovereign Codex</title>
+  <style>
+    :root { color-scheme: light; }
+    body { margin: 0; background: #faf8f2; color: #222; font: 17px/1.7 Georgia, serif; }
+    main { max-width: 860px; margin: auto; padding: 36px 24px 64px; }
+    h1 { font-size: 2rem; line-height: 1.2; }
+    h2 { margin-top: 32px; font-size: 1.25rem; }
+    .label { font: 12px/1.5 system-ui, sans-serif; letter-spacing: .1em; text-transform: uppercase; color: #665321; }
+    .notice { border-left: 3px solid #947637; padding: 12px 18px; background: #f0ebdf; }
+    .formula { overflow-x: auto; padding: 18px 12px; background: #fff; border: 1px solid #ded8ca; font-size: 1.1rem; }
+    math { font-size: 1.05em; }
+    a { color: #665321; }
+    @media (max-width: 480px) { main { padding: 24px 16px 40px; } h1 { font-size: 1.6rem; } }
+    @media print { body { background: #fff; } main { padding: 0; } .formula { break-inside: avoid; } }
+  </style>
+</head>
+<body>
+<main>
+  <p class="label">Sovereign Codex · Mathematical correction supplement</p>
+  <h1>Divergence–Flux Gate — Corrections</h1>
+  <p class="notice">This supplement states the precise global and local implications of the divergence theorem.
+    It accompanies the divergence identity in
+    <a href="/capomastro/docs/unified-sovereign-compendium.html#geometry">Section XIX of the Unified Sovereign Compendium</a>.
+    The original sealed documents are unchanged.</p>
+
+  <h2>1. Assumptions and orientation</h2>
+  <p>Let V be a bounded open regular volume in ℝ³ with piecewise-smooth boundary ∂V.
+    Require <strong>F ∈ C¹(U; ℝ³)</strong> on an open neighborhood U of the closure of V.
+    Let n be the <strong>outward unit normal</strong> on ∂V, and let dS⃗ = n dS.</p>
+  <p>The divergence theorem gives:</p>
+  <div class="formula">
+    <math display="block" aria-label="The volume integral of divergence equals outward boundary flux">
+      <mrow>
+        <msub><mo>∭</mo><mi>V</mi></msub>
+        <mo>∇</mo><mo>⋅</mo><mi mathvariant="bold">F</mi><mi>dV</mi>
+        <mo>=</mo>
+        <msub><mo>∯</mo><mrow><mo>∂</mo><mi>V</mi></mrow></msub>
+        <mi mathvariant="bold">F</mi><mo>⋅</mo><mi mathvariant="bold">n</mi><mi>dS</mi>
+        <mo>=</mo>
+        <msub><mo>∯</mo><mrow><mo>∂</mo><mi>V</mi></mrow></msub>
+        <mi mathvariant="bold">F</mi><mo>⋅</mo><mi>d</mi><mover><mi>S</mi><mo>→</mo></mover>
+      </mrow>
+    </math>
+  </div>
+  <p>Reversing orientation changes the flux’s sign, but <strong>does not change whether it is zero</strong>.
+    The displayed equality with the divergence integral uses outward orientation.</p>
+
+  <h2>2. Global gate — one volume</h2>
+  <div class="formula">
+    <math display="block" aria-label="Zero boundary flux implies zero integrated divergence">
+      <mrow>
+        <msub><mo>∯</mo><mrow><mo>∂</mo><mi>V</mi></mrow></msub>
+        <mi mathvariant="bold">F</mi><mo>⋅</mo><mi mathvariant="bold">n</mi><mi>dS</mi>
+        <mo>=</mo><mn>0</mn><mo>⇒</mo>
+        <msub><mo>∭</mo><mi>V</mi></msub>
+        <mo>∇</mo><mo>⋅</mo><mi mathvariant="bold">F</mi><mi>dV</mi><mo>=</mo><mn>0</mn>
+      </mrow>
+    </math>
+  </div>
+  <p>For a particular volume V, this says only that the <strong>total integral</strong> of the divergence is zero.
+    It <strong>does not imply</strong> that ∇ · F = 0 pointwise inside V.
+    Positive and negative divergence can cancel.</p>
+
+  <h2>3. Counterexample — cancellation without pointwise vanishing</h2>
+  <p>Take F(x, y, z) = (x², 0, 0) on the unit ball V = B₁(0). Then:</p>
+  <div class="formula">
+    <math display="block" aria-label="Divergence of F is 2x, not identically zero">
+      <mrow><mo>∇</mo><mo>⋅</mo><mi mathvariant="bold">F</mi><mo>=</mo>
+        <mn>2</mn><mi>x</mi><mo>≢</mo><mn>0</mn></mrow>
+    </math>
+  </div>
+  <div class="formula">
+    <math display="block" aria-label="Boundary flux equals the integral of 2x over V, which is zero">
+      <mrow>
+        <msub><mo>∯</mo><mrow><mo>∂</mo><mi>V</mi></mrow></msub>
+        <mi mathvariant="bold">F</mi><mo>⋅</mo><mi mathvariant="bold">n</mi><mi>dS</mi>
+        <mo>=</mo><msub><mo>∭</mo><mi>V</mi></msub>
+        <mn>2</mn><mi>x</mi><mi>dV</mi><mo>=</mo><mn>0</mn>
+      </mrow>
+    </math>
+  </div>
+  <p>The integrand 2x is odd in x and the ball is symmetric under x ↦ −x, so its integral vanishes.
+    The divergence itself is nonzero wherever x ≠ 0.</p>
+
+  <h2>4. Local gate — every interior ball</h2>
+  <p>Under the assumptions above, the precise local statement is:</p>
+  <div class="formula">
+    <math display="block" aria-label="Divergence identically zero in V if and only if every interior ball has zero outward flux">
+      <mrow>
+        <mo>∇</mo><mo>⋅</mo><mi mathvariant="bold">F</mi><mo>≡</mo><mn>0</mn>
+        <mtext> in V</mtext><mo>⇔</mo>
+        <msub><mo>∯</mo><mrow><mo>∂</mo><msub><mi>B</mi><mi>r</mi></msub><mo>(</mo><mi>p</mi><mo>)</mo></mrow></msub>
+        <mi mathvariant="bold">F</mi><mo>⋅</mo><mi mathvariant="bold">n</mi><mi>dS</mi>
+        <mo>=</mo><mn>0</mn>
+      </mrow>
+    </math>
+  </div>
+  <p><strong>The flux condition must hold for every ball of positive radius whose closure lies inside V.</strong>
+    Equivalently, it may be required for every admissible subvolume W contained in V.
+    A single volume does not suffice.</p>
+  <p>Continuity of ∇ · F supplies the pointwise conclusion at every p ∈ V:</p>
+  <div class="formula">
+    <math display="block" aria-label="Divergence at p is the limit of outward flux per unit ball volume as the radius tends to zero">
+      <mrow>
+        <mo>∇</mo><mo>⋅</mo><mi mathvariant="bold">F</mi><mo>(</mo><mi>p</mi><mo>)</mo><mo>=</mo>
+        <munder><mo>lim</mo><mrow><mi>r</mi><mo>↓</mo><mn>0</mn></mrow></munder>
+        <mfrac><mn>1</mn><mrow><mo>|</mo><msub><mi>B</mi><mi>r</mi></msub><mo>(</mo><mi>p</mi><mo>)</mo><mo>|</mo></mrow></mfrac>
+        <msub><mo>∯</mo><mrow><mo>∂</mo><msub><mi>B</mi><mi>r</mi></msub><mo>(</mo><mi>p</mi><mo>)</mo></mrow></msub>
+        <mi mathvariant="bold">F</mi><mo>⋅</mo><mi mathvariant="bold">n</mi><mi>dS</mi>
+      </mrow>
+    </math>
+  </div>
+  <p>Here |Bᵣ(p)| is the ball’s volume. By the divergence theorem, flux divided by volume is the
+    average divergence over the ball. As the ball shrinks to p, that average tends to ∇ · F(p).
+    If every such flux is zero, the limit is zero. Conversely, identically zero divergence yields
+    zero flux through every such ball by the same theorem.</p>
+
+  <h2>5. Terminology</h2>
+  <p>A vector field with ∇ · F = 0 is <strong>divergence-free</strong> or <strong>solenoidal</strong>.
+    “Incompressible” applies when F is a <strong>velocity field</strong>, expressing the
+    local volume-preserving condition; it is not a general physical interpretation of an arbitrary vector field.</p>
+
+  <h2>6. Computational gate — scope of the conclusion</h2>
+  <p class="notice"><strong>Zero net flux on one domain verifies only the global balance.
+    Checking finitely many subvolumes does not, by itself, prove pointwise divergence-freedom.</strong></p>
+  <p>A finite numerical check must be reported as such, with its numerical tolerance.
+    It must not be presented as an exact proof of the universal local condition.</p>
+</main>
+</body>
+</html>
