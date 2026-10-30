@@ -12,7 +12,7 @@ use crate::{AgentConfig, Task, TaskStatus};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use uuid::Uuid;
-use yoda_inference_router::dispatch::{call_engine, dispatch_reviews, select_reviewer_count};
+use yoda_inference_router::dispatch::{dispatch_reviews_via, select_reviewer_count, HttpTransport, InferenceTransport};
 use yoda_inference_router::{EngineConfig, EngineSlot, InferenceResponse, ReviewIntensity};
 
 #[derive(Debug, Error)]
@@ -85,12 +85,28 @@ pub async fn execute_four_step(
     reviewer_engines: &[&EngineConfig],
     intensity: ReviewIntensity,
 ) -> Result<ProtocolResult, ProtocolError> {
+    execute_four_step_via(&HttpTransport(client), task, primary_agent, reviewer_agents,
+        primary_engine, reviewer_engines, intensity).await
+}
+
+pub async fn execute_four_step_via(
+    transport: &dyn InferenceTransport,
+    task: &Task,
+    primary_agent: &AgentConfig,
+    reviewer_agents: &[&AgentConfig],
+    primary_engine: &EngineConfig,
+    reviewer_engines: &[&EngineConfig],
+    intensity: ReviewIntensity,
+) -> Result<ProtocolResult, ProtocolError> {
     let reviewer_count = select_reviewer_count(intensity);
     if reviewer_engines.len() < reviewer_count {
         return Err(ProtocolError::InsufficientEngines(
             reviewer_count,
             reviewer_engines.len(),
         ));
+    }
+    if reviewer_agents.len() < reviewer_count {
+        return Err(ProtocolError::AgentNotFound(task.competencies.clone()));
     }
 
     let mut all_results: Vec<StepResult> = Vec::new();
@@ -126,12 +142,10 @@ pub async fn execute_four_step(
 
         // Call primary engine
         tracing::info!(task_id = %task.id, step, "Step {} production", step);
-        let production_response = call_engine(
-            client,
+        let production_response = transport.infer(
             primary_engine,
             &primary_agent.system_prompt,
             &user_content,
-            None,
         )
         .await?;
 
@@ -164,8 +178,8 @@ pub async fn execute_four_step(
         );
 
         tracing::info!(task_id = %task.id, step, reviewers = reviewer_count, "Step {} review dispatch", step);
-        let review_responses = dispatch_reviews(
-            client,
+        let review_responses = dispatch_reviews_via(
+            transport,
             &reviewer_engines[..reviewer_count],
             &review_prompt_refs,
             &review_content,
@@ -243,12 +257,10 @@ pub async fn execute_four_step(
 
     let final_prompt = build_production_prompt(task, &accumulated_feedback, 4);
     tracing::info!(task_id = %task.id, "Step 4 final production");
-    let final_response = call_engine(
-        client,
+    let final_response = transport.infer(
         primary_engine,
         &primary_agent.system_prompt,
         &final_prompt,
-        None,
     )
     .await?;
 

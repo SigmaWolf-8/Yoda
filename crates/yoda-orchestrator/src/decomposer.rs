@@ -319,12 +319,28 @@ pub fn infer_competencies(query: &str) -> Vec<String> {
         ("decompos", "decomposition"),
     ];
     for (kw, tag) in checks {
-        if lower.contains(kw) && !comps.contains(&tag.to_string()) {
+        // Short labels such as "ux" must not match "flux", nor "ui" match
+        // "distinguish". Otherwise mathematical queries select design agents.
+        let matches = if kw.len() <= 3 {
+            lower.split(|c: char| !c.is_alphanumeric()).any(|word| word == *kw)
+        } else { lower.contains(kw) };
+        if matches && !comps.contains(&tag.to_string()) {
             comps.push(tag.to_string());
         }
     }
     if comps.is_empty() { comps.push("general".into()); }
     comps
+}
+
+#[cfg(test)]
+mod short_keyword_regression {
+    #[test]
+    fn mathematical_flux_does_not_assign_ux_design() {
+        let tags = super::infer_competencies("Explain flux and distinguish global from local divergence.");
+        assert!(!tags.iter().any(|t| t=="ux-design"));
+        let design = super::infer_competencies("Review the UX and UI design.");
+        assert!(design.iter().any(|t| t=="ux-design"));
+    }
 }
 
 #[cfg(test)]

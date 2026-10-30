@@ -459,7 +459,7 @@ pub async fn submit_query(
 
             if !cube_peers.is_empty() {
                 let claimed = sqlx::query(
-                    "UPDATE tasks SET status = 'STEP_1', updated_at = NOW() WHERE id = $1 AND status='QUEUED'"
+                    "UPDATE tasks SET status = 'STEP_1_PRODUCTION', updated_at = NOW() WHERE id = $1 AND status='QUEUED'"
                 )
                 .bind(task_id)
                 .execute(&state.db)

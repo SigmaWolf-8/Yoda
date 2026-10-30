@@ -34,6 +34,38 @@ const MAX_RETRIES_COMMERCIAL: u32 = 3;
 /// Default max_tokens for initial request.
 const DEFAULT_MAX_TOKENS: u32 = 4096;
 
+/// Same protocol, different authenticated transports. The API owns relay
+/// state; this crate must not assume every model has an HTTP endpoint here.
+pub trait InferenceTransport: Send + Sync {
+    fn infer<'a>(&'a self, config: &'a EngineConfig, system: &'a str, user: &'a str)
+        -> std::pin::Pin<Box<dyn std::future::Future<Output=Result<InferenceResponse, DispatchError>> + Send + 'a>>;
+}
+
+pub struct HttpTransport<'a>(pub &'a reqwest::Client);
+
+impl InferenceTransport for HttpTransport<'_> {
+    fn infer<'a>(&'a self, config: &'a EngineConfig, system: &'a str, user: &'a str)
+        -> std::pin::Pin<Box<dyn std::future::Future<Output=Result<InferenceResponse, DispatchError>> + Send + 'a>> {
+        Box::pin(call_engine(self.0, config, system, user, None))
+    }
+}
+
+/// Preserve ordering and require every requested review. A missing reply
+/// cannot be silently paired with a different reviewer role.
+pub async fn dispatch_reviews_via(
+    transport: &dyn InferenceTransport,
+    engines: &[&EngineConfig],
+    prompts: &[&str],
+    content: &str,
+) -> Result<Vec<InferenceResponse>, DispatchError> {
+    if engines.is_empty() || engines.len() != prompts.len() {
+        return Err(DispatchError::AllReviewsFailed);
+    }
+    let replies = futures::future::join_all(engines.iter().zip(prompts)
+        .map(|(engine, prompt)| transport.infer(engine, prompt, content))).await;
+    replies.into_iter().collect()
+}
+
 /// Call a single engine with a system prompt and user content.
 ///
 /// Handles auth type abstraction, TIS-27 hashing on receipt,

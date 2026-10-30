@@ -281,9 +281,9 @@
   <div class="tsub">Array3 · 3-Node Encrypted Cluster</div>
   <div class="pills">
     <span id="top-cnp" style="font-family:var(--mono);font-size:13px;font-weight:700;color:var(--accent-blue);">C_NP: 0.851</span>
-    <div class="pill dm">81 tunnels</div>
+    <div class="pill dm" title="Configured capacity, not a live connection count">81 tunnel slots</div>
     <div class="pill dm" id="p-occ">—</div>
-    <div class="pill on">N1</div><div class="pill on">N2</div><div class="pill on">N3</div>
+    <div class="pill dm" id="node-status-0">N1 unknown</div><div class="pill dm" id="node-status-1">N2 unknown</div><div class="pill dm" id="node-status-2">N3 unknown</div>
     <span id="top-prot" class="prot-badge nominal" style="margin-left:8px;">NOMINAL</span>
     <span id="top-clock" style="font-family:var(--mono);font-size:14px;font-weight:600;color:var(--text-heading);margin-left:12px;letter-spacing:0.04em;">--:--:--</span>
     <button id="tfa-open" title="Three-Factor Auth · Knowledge → Possession → Codepoint" style="margin-left:12px;font-family:var(--mono);font-size:11px;font-weight:700;letter-spacing:0.04em;padding:5px 12px;border-radius:8px;background:rgba(139,166,51,0.12);color:var(--accent-lime);border:1px solid rgba(139,166,51,0.4);cursor:pointer;transition:all 0.15s;">🔐 3-Factor Auth</button>
@@ -1073,7 +1073,8 @@ function transformNode(nodeData,ni){
 // case and route ALL monitor + 3FA traffic same-origin; yoda-api proxies to the
 // local CRS/daemons server-side. _isLocal (file://, localhost, 127.0.0.1) is
 // defined above, so file:// and localhost operators are unaffected.
-const _isServed=(location.protocol==='http:'||location.protocol==='https:')&&!_isLocal;
+const _isServed=(location.protocol==='http:'||location.protocol==='https:')&&
+  (!_isLocal||new URLSearchParams(location.search).get('gateway')==='1');
 const CRS_RELAY_BASE=(()=>{
   try{const q=new URLSearchParams(location.search).get('relay');if(q)return q.replace(/\/$/,'');}catch{}
   // Served remotely → the same-origin gateway. Ignore any stale localStorage
@@ -1225,9 +1226,9 @@ async function fetchFromRelay(){
     console.log('[monitor] Relay proxy returned '+data.cluster.responding_nodes+'/'+data.cluster.total_nodes+' node(s)');
 
     return data.cluster.nodes.map((n,i)=>{
-      if(n.status==='timeout'){
-        const nodeIdx=i;
-        return{slots:null,health:{status:'timeout'},port:0,alive:false,nodeIndex:nodeIdx,errorType:'timeout'};
+      if(n.status==='timeout'||n.status==='telemetry_unavailable'){
+        const nodeIdx=n.node_id_num?n.node_id_num-1:i;
+        return{slots:null,health:{status:n.status},port:0,alive:false,connected:n.connected===true,nodeIndex:nodeIdx,errorType:n.status};
       }
 
       let slotsObj=n.slots;
@@ -1321,6 +1322,14 @@ async function fetchAllNodes(){
       }
     }
     const upCount=results.filter(r=>r.alive).length;
+    window.hasObservedArrayInventory=results.some(r=>r.alive&&r.slots);
+    window.arrayInventoryCoverage=results.filter(r=>r.alive&&r.slots).length;
+    for(let n=0;n<3;n++){
+      const pill=document.getElementById('node-status-'+n);
+      const node=results.find((r,i)=>(r.nodeIndex??i)===n);
+      pill.textContent='N'+(n+1)+' '+(node?.alive?'reporting':node?.connected?'relay only':node?'unreachable':'unknown');
+      pill.className='pill '+(node?.alive?'on':'dm');
+    }
     // [HOST-FIX] Record diagnostic so the Daemon Config save handler can show
     // a precise failure reason instead of the generic "check token/ports".
     lastFetchDiagnostic={
@@ -1371,6 +1380,7 @@ async function fetchAllNodes(){
       const lastOkStr=lastOk?' (last ok '+Math.round((Date.now()-lastOk.getTime())/1000)+'s ago)':'';
       if(!r.alive){
         const et=r.errorType||'unreachable';
+        if(et==='telemetry_unavailable')return `N${i+1}:${r.connected?'relay-connected; ':''}inventory unknown`;
         if(et==='auth')return `N${i+1}:auth-rejected${lastOkStr}`;
         if(et==='timeout')return `N${i+1}:timeout${lastOkStr}`;
         if(et==='server')return `N${i+1}:server-error${lastOkStr}`;
@@ -1416,7 +1426,9 @@ function refreshScene(){
   allSlots.forEach(s=>{if(s.occ&&s.svc){if(!discovered.has(s.svc))discovered.set(s.svc,{count:0});discovered.get(s.svc).count++}});
   discovered.forEach((_,k)=>{if(!activeFilters.has(k))activeFilters.add(k)});
   rebuildSvcDropdown();
-  document.getElementById('p-occ').textContent=allSlots.filter(s=>s.occ).length+' occupied';
+  document.getElementById('p-occ').textContent=window.hasObservedArrayInventory
+    ?allSlots.filter(s=>s.occ).length+' observed occupied · '+window.arrayInventoryCoverage+'/3 reporting'
+    :'occupancy unknown';
   buildAll();
 }
 
@@ -1624,12 +1636,22 @@ const scene=new THREE.Scene();
 scene.background=new THREE.Color(BRAND.bgPage);
 const camera=new THREE.PerspectiveCamera(48,innerWidth/innerHeight,0.1,600);
 camera.position.set(8,7,14);
-const renderer=new THREE.WebGLRenderer({antialias:true});
+let renderer=null;
+try{renderer=new THREE.WebGLRenderer({antialias:true});}
+catch(error){
+  const notice=document.createElement('div');
+  notice.setAttribute('role','status');
+  notice.textContent='3D rendering is unavailable in this browser. Live telemetry and node status remain active.';
+  Object.assign(notice.style,{position:'fixed',left:'calc(var(--vx, 306px) + 24px)',right:'24px',top:'110px',padding:'16px',zIndex:'20',color:'#f1f5f9',background:'#18202d',border:'1px solid #475569',font:'13px system-ui'});
+  document.body.appendChild(notice);
+}
+if(renderer){
 renderer.setSize(innerWidth,innerHeight);renderer.setPixelRatio(Math.min(devicePixelRatio,2));
 renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.4;
 renderer.localClippingEnabled=true;
 document.body.appendChild(renderer.domElement);
 renderer.domElement.style.position='fixed';renderer.domElement.style.top='0';renderer.domElement.style.transition='left 0.25s ease';
+}
 hudCanvas.style.transition='left 0.25s ease';
 
 // Resize the scene + HUD to the visible content area and shift them right when
@@ -1637,8 +1659,8 @@ hudCanvas.style.transition='left 0.25s ease';
 function updateViewport(){
   VX = (typeof panelVis!=='undefined' && panelVis) ? PANEL_W : 0;
   VW = Math.max(200, innerWidth - VX);
-  renderer.setSize(VW, innerHeight);
-  renderer.domElement.style.left=VX+'px';
+  renderer?.setSize(VW, innerHeight);
+  if(renderer)renderer.domElement.style.left=VX+'px';
   camera.aspect=VW/innerHeight; camera.updateProjectionMatrix();
   hudCanvas.style.left=VX+'px';
   resizeHud();
@@ -1695,7 +1717,7 @@ const pivot=new THREE.Vector3(0,0,0),pivotTgt=new THREE.Vector3(0,0,0);
 const _navRay=new THREE.Raycaster();
 
 // ── Left-drag: orbit — Right-drag: pan ──
-renderer.domElement.addEventListener('mousedown',e=>{
+renderer?.domElement.addEventListener('mousedown',e=>{
   isDrag=false;isPan=false; // clear any state left stuck by a lost release
   prevM={x:e.clientX,y:e.clientY};clickStart={x:e.clientX,y:e.clientY};noteInteract();
   // Standard controls: LEFT-drag ROTATES (orbit). RIGHT / MIDDLE / Shift+Left PAN.
@@ -1710,7 +1732,7 @@ function _endDrag(){isDrag=false;isPan=false;document.body.classList.remove('dra
 // Suppress the menu only — do NOT clear drag state here, or it kills an
 // in-progress right-button (pan) drag mid-gesture. Stuck state is instead
 // cleared on the next mousedown and on blur/pointercancel.
-renderer.domElement.addEventListener('contextmenu',e=>e.preventDefault());
+renderer?.domElement.addEventListener('contextmenu',e=>e.preventDefault());
 window.addEventListener('blur',_endDrag);
 window.addEventListener('pointercancel',_endDrag);
 addEventListener('mousemove',e=>{
@@ -1737,7 +1759,7 @@ addEventListener('mousemove',e=>{
 addEventListener('mouseup',_endDrag);
 
 // ── Scroll: zoom; recenter ONLY when the cursor is over a real cube ──
-renderer.domElement.addEventListener('wheel',e=>{
+renderer?.domElement.addEventListener('wheel',e=>{
   e.preventDefault();noteInteract();
   const zoomIn=e.deltaY<0;
   const factor=zoomIn?0.9:1.11;
@@ -1747,7 +1769,8 @@ renderer.domElement.addEventListener('wheel',e=>{
   orbTgt.r=Math.max(2.5,Math.min(maxR,orbTgt.r*factor));
 
   if(zoomIn){
-    const rect=renderer.domElement.getBoundingClientRect();
+    const rect=renderer?.domElement.getBoundingClientRect();
+    if(!rect)return;
     const mx=((e.clientX-rect.left)/rect.width)*2-1;
     const my=-((e.clientY-rect.top)/rect.height)*2+1;
     _navRay.setFromCamera(new THREE.Vector2(mx,my),camera);
@@ -1761,9 +1784,9 @@ renderer.domElement.addEventListener('wheel',e=>{
 
 // ── Touch ──
 let tch=null;
-renderer.domElement.addEventListener('touchstart',e=>{if(e.touches.length===1)tch={x:e.touches[0].clientX,y:e.touches[0].clientY}},{passive:false});
+renderer?.domElement.addEventListener('touchstart',e=>{if(e.touches.length===1)tch={x:e.touches[0].clientX,y:e.touches[0].clientY}},{passive:false});
 renderer.domElement.addEventListener('touchmove',e=>{e.preventDefault();if(tch&&e.touches.length===1){orbTgt.th-=(e.touches[0].clientX-tch.x)*0.005;orbTgt.ph=Math.max(0.1,Math.min(Math.PI-0.1,orbTgt.ph-(e.touches[0].clientY-tch.y)*0.005));tch={x:e.touches[0].clientX,y:e.touches[0].clientY}}},{passive:false});
-renderer.domElement.addEventListener('touchend',()=>{tch=null});
+renderer?.domElement.addEventListener('touchend',()=>{tch=null});
 
 // ── Bounding half-extents of the stacked arrangement (X across columns,
 //    Y down the stack, Z the pyramid depth). vGap is cube-height-based, so a
@@ -2504,7 +2527,7 @@ const tip=document.getElementById('tip'),detail=document.getElementById('detail'
 
 function targets(){const a=[];nds.forEach(nd=>{if(nd.face.visible)a.push(nd.face);if(nd.inner&&nd.inner.visible)a.push(nd.inner)});return a}
 
-renderer.domElement.addEventListener('mousemove',e=>{
+renderer?.domElement.addEventListener('mousemove',e=>{
   mouse.x=((e.clientX-VX)/VW)*2-1;mouse.y=-(e.clientY/innerHeight)*2+1;
   ray.setFromCamera(mouse,camera);const hits=ray.intersectObjects(targets());
   if(hits.length){
@@ -2520,7 +2543,7 @@ renderer.domElement.addEventListener('mousemove',e=>{
 });
 
 let lastClickTime=0,lastClickIdx=-1;
-renderer.domElement.addEventListener('click',()=>{
+renderer?.domElement.addEventListener('click',()=>{
   if(wasDrag)return;
   ray.setFromCamera(mouse,camera);
   const hits=ray.intersectObjects(targets());
@@ -2947,7 +2970,7 @@ function animate(){
   });
   connLines.forEach(l=>{if(l.userData.slotIdx===selected)l.material.opacity=0.3+Math.sin(t*4)*0.1});
   relayTubes.forEach((tube,i)=>{if(tube.material.emissiveIntensity!==undefined)tube.material.emissiveIntensity=(0.25+Math.sin(t*2+i)*0.12)*GLOW;});
-  renderer.render(scene,camera);
+  renderer?.render(scene,camera);
   drawHud();
   drawLeaderLines(clock.getElapsedTime());
 }

@@ -77,12 +77,17 @@ async fn run_one(state: &AppState, org: Uuid, owner: Uuid) -> Result<(), AppErro
 
     let engines = sqlx::query_as::<_, (String,String,String,Option<String>,String,String)>(
         "SELECT slot,hosting_mode,endpoint_url,credentials_encrypted,model_name,auth_type FROM engine_configs \
-         WHERE org_id=$1 AND health_status='online' AND NOT is_disabled \
-         AND hosting_mode IN ('commercial','free_tier') ORDER BY slot")
+         WHERE org_id=$1 AND NOT is_disabled \
+         AND ((health_status='online' AND hosting_mode IN ('commercial','free_tier')) \
+           OR hosting_mode='self_hosted') ORDER BY slot")
         .bind(org).fetch_all(&state.db).await?;
+    let relay_armed = state.relay_tx.read().await.is_some();
+    let live_peers = state.live_cube_peer.read().await.clone();
+    let engines: Vec<_> = engines.into_iter().filter(|e| e.1 != "self_hosted" ||
+        (relay_armed && live_peers.contains(crate::cube_relay::slot_to_cube_address(&e.0)))).collect();
     if engines.is_empty() {
         return message(state, org, owner,
-            "Waiting for a usable cloud engine. Local relay chat retries are separate; autonomous four-step review requires server-reachable engines. No model calls are being made.").await;
+            "Waiting for usable engines: local slots need their own authenticated cube peers; cloud slots need a working provider credential. No model calls are being made.").await;
     }
     let mut configs: Vec<_> = engines.iter().map(crate::query::build_engine_config).collect();
     let families: Vec<(String,String)> = sqlx::query_as(
@@ -171,13 +176,32 @@ async fn run_one(state: &AppState, org: Uuid, owner: Uuid) -> Result<(), AppErro
 
     let reviewer_refs: Vec<_> = reviewers.iter().collect();
     let engine_refs: Vec<_> = configs.iter().collect();
-    let work = protocol::execute_four_step(&state.http_client,&task,&agent,&reviewer_refs,&configs[0],&engine_refs,intensity);
+    let transport = crate::agent_transport::MixedTransport {state:state.clone(),task_id:id};
+    let work = protocol::execute_four_step_via(&transport,&task,&agent,&reviewer_refs,&configs[0],&engine_refs,intensity);
     tokio::pin!(work);
     let timeout = tokio::time::sleep(Duration::from_secs(600));
     tokio::pin!(timeout);
+    let mut failure = "Inference timed out or was paused; no successful output is claimed".to_string();
     let outcome = loop {
         tokio::select! {
-            result = &mut work => break result.ok(),
+            result = &mut work => {
+                match result {
+                    Ok(result) => break Some(result),
+                    Err(error) => {
+                        use yoda_inference_router::dispatch::DispatchError;
+                        failure = match error {
+                            protocol::ProtocolError::Dispatch(DispatchError::EngineOffline(slot)) => format!("Engine {slot:?} lost its authenticated relay peer"),
+                            protocol::ProtocolError::Dispatch(DispatchError::ValidationFailed(slot,_,message)) => format!("Engine {slot:?} response failed validation: {message}"),
+                            protocol::ProtocolError::Dispatch(DispatchError::HttpError(slot,message)) if message.contains("LLM server unreachable") =>
+                                format!("Engine {slot:?}: the daemon cannot reach its local model server. Start the configured llama-server process on the daemon host."),
+                            protocol::ProtocolError::Dispatch(_) => "Engine request failed; check provider authentication, model process and relay connectivity".into(),
+                            _ => "Four-step protocol could not complete; no consensus or final answer is claimed".into(),
+                        };
+                        tracing::warn!(task_id=%id,reason=%failure,"Autonomous inference attempt failed");
+                        break None;
+                    }
+                }
+            },
             _ = &mut timeout => break None,
             _ = tokio::time::sleep(Duration::from_secs(10)) => {
                 let alive: bool = sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM agent_workers w JOIN tasks t ON t.id=w.active_task WHERE w.org_id=$1 AND w.lease_owner=$2 AND w.enabled AND t.status='ASSIGNED')")
@@ -234,10 +258,10 @@ async fn run_one(state: &AppState, org: Uuid, owner: Uuid) -> Result<(), AppErro
                 .bind(id).bind(serde_json::to_value(result).map_err(|_| AppError::Internal("Protocol serialization failed".into()))?)
                 .execute(&mut *tx).await?;
         } else {
-            sqlx::query("UPDATE agent_worker_attempts SET next_attempt_at=NOW()+attempts*INTERVAL '60 seconds',last_error='Inference failed, timed out, or was paused; no successful output claimed' WHERE task_id=$1")
-                .bind(id).execute(&mut *tx).await?;
-            sqlx::query("UPDATE tasks SET status=CASE WHEN (SELECT attempts FROM agent_worker_attempts WHERE task_id=$1)>=3 THEN 'ESCALATED' ELSE 'QUEUED' END,error_message='Autonomous attempt interrupted or failed; bounded retry pending',updated_at=NOW() WHERE id=$1")
-                .bind(id).execute(&mut *tx).await?;
+            sqlx::query("UPDATE agent_worker_attempts SET next_attempt_at=NOW()+attempts*INTERVAL '60 seconds',last_error=$2 WHERE task_id=$1")
+                .bind(id).bind(&failure).execute(&mut *tx).await?;
+            sqlx::query("UPDATE tasks SET status=CASE WHEN (SELECT attempts FROM agent_worker_attempts WHERE task_id=$1)>=3 THEN 'ESCALATED' ELSE 'QUEUED' END,error_message=$2,updated_at=NOW() WHERE id=$1")
+                .bind(id).bind(&failure).execute(&mut *tx).await?;
         }
     }
     sqlx::query("UPDATE agent_workers SET active_task=NULL,message='Cycle finished; checking queue',heartbeat_at=NOW() WHERE org_id=$1 AND lease_owner=$2")

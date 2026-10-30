@@ -13,7 +13,6 @@
 //! Falls back to browser relay when disconnected or on 30 s timeout.
 
 use futures_util::{SinkExt, StreamExt};
-use rand::RngCore;
 use serde::Deserialize;
 use std::{collections::{HashMap, HashSet}, sync::{Arc, atomic::{AtomicUsize, Ordering}}, time::Duration};
 use tokio::sync::{mpsc, oneshot, RwLock};
@@ -42,6 +41,8 @@ pub struct RelayInferResult {
     pub content: String,
     pub model: String,
     pub tokens: u64,
+    pub from: String,
+    pub finish_reason: Option<String>,
 }
 
 /// Sender half: held in AppState.relay_tx, set to Some when relay is live.
@@ -137,22 +138,14 @@ const CRS_WS: &str   = "wss://plenumnet.replit.app/ws/relay";
 /// Spawn the relay background task.  Call once after AppState is created.
 pub fn spawn_relay_task(state: AppState) {
     tokio::spawn(async move {
-        // Load or generate YODA's relay public key.
-        // SECURITY: DEVELOPMENT-ONLY — This uses a throwaway random key when
-        // PLENUMLAN_PUBLIC_KEY is not set. The challenge-response echoes the
-        // nonce instead of producing a TL-DSA signature, violating INVARIANT 7.
-        // Phase 3 MUST replace this with TL-DSA signing via the Rust kernel
-        // bridge using the node's actual PT26-DSA keypair. See R1-A3-1.
-        let public_key = std::env::var("PLENUMLAN_PUBLIC_KEY").unwrap_or_else(|_| {
-            tracing::warn!(
-                "PLENUMLAN_PUBLIC_KEY not set — using throwaway key. \
-                 This is acceptable for development but MUST be replaced with \
-                 a real PT26-DSA keypair for production (INVARIANT 7)."
-            );
-            let mut bytes = [0u8; 32];
-            rand::rngs::OsRng.fill_bytes(&mut bytes);
-            hex::encode(bytes)
-        });
+        let identity = match crate::relay_identity::RelayIdentity::load_or_create(&state.db).await {
+            Ok(identity) => identity,
+            Err(error) => {
+                tracing::error!(error=%error,"Relay signing identity unavailable; relay remains disarmed");
+                return;
+            }
+        };
+        let public_key = &identity.public_hex;
 
         let mut backoff_secs: u64 = 2;
 
@@ -177,10 +170,11 @@ pub fn spawn_relay_task(state: AppState) {
                 }
             };
 
-            let session_result = run_relay_session(&state, &address, &public_key, neighbors, state.http_client.clone()).await;
+            let session_result = run_relay_session(&state, &address, &identity, neighbors, state.http_client.clone()).await;
 
             // Disarm relay_tx so query.rs falls back to browser relay
             *state.relay_tx.write().await = None;
+            state.live_cube_peer.write().await.clear();
 
             match session_result {
                 Ok(()) => {
@@ -208,11 +202,10 @@ async fn register_with_crs(
     client: &reqwest::Client,
     public_key: &str,
 ) -> Result<(String, Vec<String>), anyhow::Error> {
-    let url = format!(
-        "{}/api/salvi/inter-cube/relay/register?publicKey={}&endpoint=0.0.0.0:3000",
-        CRS_BASE, public_key
-    );
-    let resp = client.get(&url).send().await?.error_for_status()?;
+    let url = format!("{}/api/salvi/inter-cube/relay/register",CRS_BASE);
+    let resp = client.post(&url).json(&serde_json::json!({
+        "publicKey":public_key,"tlDsaPk":public_key,"endpoint":"yoda-service"
+    })).send().await?.error_for_status()?;
     let body: serde_json::Value = resp.json().await?;
     let address = body["address"]
         .as_str()
@@ -257,7 +250,7 @@ async fn register_with_crs(
 async fn run_relay_session(
     state: &AppState,
     address: &str,
-    public_key: &str,
+    identity: &crate::relay_identity::RelayIdentity,
     neighbors: Vec<String>,
     // _http_client: reserved for future authenticated probe requests.
     _http_client: reqwest::Client,
@@ -265,17 +258,13 @@ async fn run_relay_session(
     let (ws_stream, _) = connect_async(CRS_WS).await?;
     let (mut sink, mut stream) = ws_stream.split();
 
-    // ── Auth handshake (must complete within 10 s) ─────────────────────────
-    let auth = serde_json::json!({
-        "type": "auth",
-        "address": address,
-        "publicKey": public_key,
-    });
-    sink.send(Message::Text(auth.to_string().into())).await?;
+    let public_key = &identity.public_hex;
+    let mut signed_challenge = false;
 
     // ── Auth loop: handle optional challenge before auth_ok ────────────────
     // The relay may send {"type":"challenge","nonce":"..."} before auth_ok.
-    // We echo the nonce back as a challenge_response (throwaway-key mode).
+    // Wait for the server challenge, then send a signed `auth` frame. Sending
+    // an unsigned auth first races the challenge and is rejected by the CRS.
     // The loop runs until auth_ok or auth_fail, with a 15s overall deadline.
     let deadline = tokio::time::Instant::now() + Duration::from_secs(15);
     loop {
@@ -289,16 +278,15 @@ async fn run_relay_session(
                     .unwrap_or(serde_json::Value::Null);
                 match v["type"].as_str() {
                     Some("challenge") => {
-                        let nonce = v["nonce"].as_str().unwrap_or("");
-                        tracing::info!(nonce = %&nonce[..nonce.len().min(16)], "Relay challenge received — responding");
-                        let resp = serde_json::json!({
-                            "type": "challenge_response",
-                            "nonce": nonce,
-                            "signature": nonce,
-                        });
+                        if signed_challenge { anyhow::bail!("Duplicate relay challenge in one handshake"); }
+                        let nonce = v["nonce"].as_str().ok_or_else(|| anyhow::anyhow!("Relay challenge missing nonce"))?;
+                        let resp = identity.authenticate(nonce,address)?;
                         sink.send(Message::Text(resp.to_string().into())).await?;
+                        signed_challenge = true;
                     }
                     Some("auth_ok") => {
+                        if !signed_challenge { anyhow::bail!("Relay authenticated without a signed challenge"); }
+                        if v["address"].as_str() != Some(address) { anyhow::bail!("Relay authenticated a different address"); }
                         tracing::info!(address = %address, "PlenumLAN relay authenticated");
                         // Capture all peers already online — all 3 daemons may be connected.
                         let peers = v["connectedPeers"].as_array()
@@ -552,6 +540,9 @@ async fn run_relay_session(
                 if let Err(e) = sink.send(Message::Text(r#"{"type":"ping"}"#.into())).await {
                     break Err(e.into());
                 }
+                if let Err(e) = sink.send(Message::Text(r#"{"type":"peers"}"#.into())).await {
+                    break Err(e.into());
+                }
                 // HTTP heartbeat keeps YODA's CRS registration alive (5-min TTL).
                 let hb_url = format!(
                     "{}/api/salvi/inter-cube/relay/heartbeat?address={}&publicKey={}",
@@ -602,6 +593,7 @@ struct InferenceResponsePayload {
     model: Option<String>,
     tokens: Option<u64>,
     usage: Option<serde_json::Value>,
+    finish_reason: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -622,25 +614,27 @@ async fn handle_inbound(state: &AppState, text: &str, own_address: &str, probe_i
 
     match env.kind.as_str() {
         // Peer joined/left notifications — update live_cube_peer set
-        "peer_joined" | "peer_online" | "peer_connected" => {
+        "peer_joined" | "peer_online" | "peer_connected" | "peer-online" => {
             let v: serde_json::Value = serde_json::from_str(text).unwrap_or_default();
             let addr = v["address"].as_str()
                 .or_else(|| v["peer"].as_str())
                 .or_else(|| env.from.as_deref());
             if let Some(addr) = addr {
+                let addr = addr.replace(['.',','],"");
                 if addr != own_address {
                     tracing::info!(peer = %addr, "Live cube peer joined relay");
                     state.live_cube_peer.write().await.insert(addr.to_string());
                 }
             }
         }
-        "peer_left" | "peer_offline" | "peer_disconnected" => {
+        "peer_left" | "peer_offline" | "peer_disconnected" | "peer-offline" => {
             let v: serde_json::Value = serde_json::from_str(text).unwrap_or_default();
             let addr = v["address"].as_str()
                 .or_else(|| v["peer"].as_str())
                 .or_else(|| env.from.as_deref());
             if let Some(addr) = addr {
-                let removed = state.live_cube_peer.write().await.remove(addr);
+                let addr = addr.replace(['.',','],"");
+                let removed = state.live_cube_peer.write().await.remove(&addr);
                 if removed {
                     tracing::info!(peer = %addr, "Live cube peer left relay");
                 }
@@ -650,12 +644,15 @@ async fn handle_inbound(state: &AppState, text: &str, own_address: &str, probe_i
         "peer_list" | "peers" | "online_peers" => {
             let v: serde_json::Value = serde_json::from_str(text).unwrap_or_default();
             let list = v["peers"].as_array()
+                .or_else(|| v["connected"].as_array())
                 .or_else(|| v["addresses"].as_array())
                 .or_else(|| v["online"].as_array());
             if let Some(list) = list {
                 let mut live = state.live_cube_peer.write().await;
+                live.clear();
                 for peer in list {
                     if let Some(addr) = peer.as_str() {
+                        let addr = addr.replace(['.',','],"");
                         if addr != own_address {
                             live.insert(addr.to_string());
                         }
@@ -684,6 +681,8 @@ async fn handle_inbound(state: &AppState, text: &str, own_address: &str, probe_i
                         }
                     }
                     let result = RelayInferResult {
+                        from: env.from.clone().unwrap_or_default(),
+                        finish_reason: payload.finish_reason,
                         content: payload.content,
                         model: payload.model.unwrap_or_else(|| "local".into()),
                         tokens: payload.tokens
@@ -892,8 +891,10 @@ pub fn spawn_relay_health_monitor(state: crate::state::AppState) {
             interval.tick().await;
 
             let relay_armed = state.relay_tx.read().await.is_some();
-            let peer_count  = state.live_cube_peer.read().await.len();
-            let relay_live  = relay_armed && peer_count > 0;
+            let peers = state.live_cube_peer.read().await.clone();
+            let peer_count = peers.len();
+            for slot in ["a","b","c"] {
+            let relay_live = relay_armed && peers.contains(slot_to_cube_address(slot));
 
             // State machine for self-hosted engine health:
             //   relay_live  + current is 'offline'      → 'tunnel_open'  (relay just connected)
@@ -907,8 +908,9 @@ pub fn spawn_relay_health_monitor(state: crate::state::AppState) {
                 match sqlx::query(
                     "UPDATE engine_configs \
                      SET health_status='tunnel_open' \
-                     WHERE hosting_mode='self_hosted' AND health_status='offline'",
+                     WHERE hosting_mode='self_hosted' AND health_status='offline' AND slot=$1",
                 )
+                .bind(slot)
                 .execute(&state.db)
                 .await
                 {
@@ -928,8 +930,9 @@ pub fn spawn_relay_health_monitor(state: crate::state::AppState) {
                     "UPDATE engine_configs \
                      SET health_status='offline' \
                      WHERE hosting_mode='self_hosted' \
-                     AND health_status IN ('tunnel_open', 'online')",
+                     AND health_status IN ('tunnel_open', 'online') AND slot=$1",
                 )
+                .bind(slot)
                 .execute(&state.db)
                 .await
                 {
@@ -942,6 +945,7 @@ pub fn spawn_relay_health_monitor(state: crate::state::AppState) {
                     Ok(_) => {}
                     Err(e) => tracing::warn!(error = %e, "Relay health monitor: demote failed"),
                 }
+            }
             }
         }
     });

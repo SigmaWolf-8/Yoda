@@ -42,6 +42,11 @@ will show a dead engine as healthy.
 
 ## Autonomous execution scope
 
+Keep the mixed setup: A and B local, C on xAI.
+**Why:** The user explicitly chose to keep the mixed engine setup.
+**How to apply:** Repair transports and credentials without replacing those
+engine choices or silently lowering review intensity.
+
 Autonomy means executing existing approved queued work for an organization that
 has explicitly enabled it. It does not authorize inventing recurring goals,
 activating other organizations, or silently reducing independent review coverage
@@ -52,3 +57,19 @@ Automatic activation across tenants could also trigger unrequested model charges
 
 **How to apply:** Keep control organization-scoped; report engine and review
 blockers truthfully. Prove real model execution separately from worker liveness.
+
+## Upstream relay compatibility
+
+The deployed CRS expects a server-first challenge, followed by an `auth` frame
+with a genuine TL-DSA-87 signature over the exact UTF-8 string
+`nonce||address||publicKey`. A separate `challenge_response` frame is not supported.
+Its service-identity derivation can return legacy identifiers containing zero.
+Keep those wire identifiers opaque; never silently translate them to Rep C.
+
+**Why:** Enforcing the daemon's Rep C digit constraint on the CRS-assigned
+service identifier rejected an otherwise valid signed handshake. The client's
+service identity must remain separate from the fixed Array3 daemon identities.
+
+**How to apply:** Validate the signed binding and preserve its bytes. Peer events
+may use hyphenated names and dotted addresses. Use authoritative upstream peer
+lists and fresh, provenance-labelled slot reports, not this app's empty CRS cache.

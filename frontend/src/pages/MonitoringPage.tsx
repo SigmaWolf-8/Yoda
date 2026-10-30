@@ -12,7 +12,7 @@ export function MonitoringPage() {
       }}
     >
       <iframe
-        src="/array3-cubes-flush.html"
+        src="/array3-cubes-flush.html?gateway=1"
         title="Array3 Monitor"
         style={{
           position: 'absolute',

@@ -61,9 +61,10 @@ pub fn build_router(state: AppState) -> Router {
         // Same-origin gateway views for the Array3 monitor + 3FA widget. A remote
         // browser (Replit preview or published domain) can only reach port 3000,
         // so it fetches these instead of the unreachable daemon ports directly.
-        .route("/api/salvi/inter-cube/relay/status", get(inter_cube_relay_status))
+        .route("/api/salvi/inter-cube/relay/status", get(crate::relay_monitor::status))
         .route("/api/salvi/inter-cube/slots", get(inter_cube_slots))
-        .route("/api/salvi/inter-cube/monitor/slots", get(inter_cube_slots))
+        .route("/api/salvi/inter-cube/monitor/slots", get(crate::relay_monitor::slots))
+        .route("/api/salvi/inter-cube/relay/slot-inventory", get(crate::relay_monitor::inventory))
         .route("/api/monitoring/registered-nodes", get(monitoring_registered_nodes))
         .route("/api/yoda/crs/session/{token}", get(crs_session))
         .route("/api/relay/status", get(relay_status))
@@ -1916,7 +1917,7 @@ async fn add_task_message(
 
             if !cube_peers.is_empty() {
                 let _ = sqlx::query(
-                    "UPDATE tasks SET status='STEP_1', updated_at=NOW() WHERE id=$1"
+                    "UPDATE tasks SET status='STEP_1_PRODUCTION', updated_at=NOW() WHERE id=$1"
                 )
                 .bind(task_id)
                 .execute(&state.db)
