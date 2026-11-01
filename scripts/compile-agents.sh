@@ -23,6 +23,13 @@ COMPILER="$REPO_ROOT/tools/yoda-agent-compiler"
 
 cd "$REPO_ROOT"
 
+# Workflow restarts and post-merge checks may compile concurrently. Serialize
+# publication, and never share a staging directory with another invocation.
+exec 9>"$REPO_ROOT/agents/.compile.lock"
+flock -x 9
+STAGING=$(mktemp -d "$REPO_ROOT/agents/.compiled-stage.XXXXXX")
+trap 'rm -rf -- "$STAGING"' EXIT
+
 echo "=== YODA Agent Compiler ==="
 
 # Check if the compiler binary exists, build if not
@@ -30,9 +37,6 @@ if ! cargo metadata --manifest-path "$COMPILER/Cargo.toml" &>/dev/null 2>&1; the
     echo "ERROR: Cannot find agent compiler at $COMPILER"
     exit 1
 fi
-
-# Create output directory (compile to temp, then atomic swap)
-mkdir -p agents/compiled.new
 
 # Check for .agent-skip file (agents excluded during review)
 SKIP_FLAG=""
@@ -44,7 +48,6 @@ fi
 echo "Building agent compiler..."
 cargo build --release --manifest-path "$COMPILER/Cargo.toml" 2> agents/compile-warnings.log || {
     echo "ERROR: Agent compiler build failed. See agents/compile-warnings.log"
-    rm -rf agents/compiled.new
     exit 1
 }
 
@@ -52,7 +55,6 @@ BINARY="$REPO_ROOT/target/release/yoda-agent-compiler"
 
 if [ ! -x "$BINARY" ]; then
     echo "ERROR: Compiler binary not found or not executable at $BINARY"
-    rm -rf agents/compiled.new
     exit 1
 fi
 
@@ -61,25 +63,29 @@ echo "Compiling agents..."
 "$BINARY" \
     --upstream agents/upstream \
     --custom agents/capomastro \
-    --output agents/compiled.new
+    --output "$STAGING"
 
 # Count results
-COMPILED=$(find agents/compiled.new -name '*.json' | wc -l)
+COMPILED=$(find "$STAGING" -name '*.json' | wc -l)
 UPSTREAM=$(find agents/upstream -name '*.md' 2>/dev/null | wc -l)
 CAPOMASTRO=$(find agents/capomastro -name '*.md' ! -name '.gitkeep' 2>/dev/null | wc -l)
 
 if [ "$COMPILED" -eq 0 ]; then
     echo "ERROR: No agents compiled. Aborting — existing roster preserved."
-    rm -rf agents/compiled.new
     exit 1
 fi
 
-# Atomic swap: backup old, move new into place
+# Publish only a complete roster; restore the previous one if publication fails.
+BACKUP=$(mktemp -d "$REPO_ROOT/agents/.compiled-backup.XXXXXX")
+rmdir "$BACKUP"
 if [ -d agents/compiled ]; then
-    mv agents/compiled agents/compiled.bak
+    mv agents/compiled "$BACKUP"
 fi
-mv agents/compiled.new agents/compiled
-rm -rf agents/compiled.bak
+if ! mv "$STAGING" agents/compiled; then
+    if [ -d "$BACKUP" ]; then mv "$BACKUP" agents/compiled; fi
+    exit 1
+fi
+rm -rf -- "$BACKUP"
 
 echo ""
 echo "=== Results ==="

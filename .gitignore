@@ -5,6 +5,9 @@ Cargo.lock
 
 # Agent compiler output (build artifact, regenerated)
 agents/compiled/
+agents/.compile.lock
+agents/.compiled-stage.*/
+agents/.compiled-backup.*/
 
 # Local cargo config (path dependency overrides)
 .cargo/config.toml

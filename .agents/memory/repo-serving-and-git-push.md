@@ -13,16 +13,25 @@ the existing static-page convention instead.
 **Why:** the default assumption "new visible output ⇒ create a registered
 artifact" is wrong for this repo and produces dead config.
 
-# Git push is sandbox-blocked
-Write git commands (`git push`, `commit`, etc.) via the **bash tool** are blocked
-by the sandbox; read-only git (`status`, `log`, `diff`, `rev-list`) works.
+# Git publication and the legacy connector
+Authorized Git writes require the tool's `DANGEROUSLY_ALLOW_GIT=1` opt-in.
+The default GitHub URL is rewritten to an internal proxy whose legacy REST
+connection cannot authenticate Git transport. It returns HTTP 400 even when the
+user-managed `Github_Key` can successfully authenticate GitHub API requests.
 
-- Push instead from the **code_execution** sandbox: `child_process` git with the
-  GitHub connection token at `settings.oauth.credentials.access_token`
-  (`listConnections('github')`). Never print the token — scrub it from output.
-- A registered **validation check** enforces `origin/main...main` parity == `0 0`.
-  The platform auto-commits locally on task completion but does **not** push to
-  the external remote, so unpushed commits fail validation until you push.
+**Why:** changing the user's key does not change that proxy connection or URL
+rewrite. Retrying the rewritten URL will not test the updated key.
+
+**How to apply:** for explicitly authorized publication, use the official
+`https://github.com:443/` URL with an ephemeral ASKPASS helper that reads the key
+only inside the child process. Disable credential helpers for that invocation,
+never put credentials in URLs or arguments, and never log them. The explicit
+standard HTTPS port avoids the legacy URL rewrite without changing global Git
+configuration. Fetch first, push only fast-forward, and confirm remote/local
+parity. Do not extract connector credentials from connection objects.
+
+The platform checkpoints locally but does not automatically publish those
+commits to the external repository.
 
 **How to apply:** after finishing work, expect `mark_task_complete` validation to
 fail on parity; push HEAD to origin via the token path, confirm `0 0`, re-mark.
