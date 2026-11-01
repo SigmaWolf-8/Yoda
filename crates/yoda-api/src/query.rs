@@ -109,7 +109,7 @@ pub fn spawn_bg_inference(
                 task_id,
                 cube_address,
                 messages: messages.clone(),
-                model: "local".to_string(),
+                model: model.clone(),
                 max_tokens: 4096,  // R3-2: match browser relay + dispatch.rs DEFAULT_MAX_TOKENS
                 temperature: 0.7,
             };
@@ -409,31 +409,28 @@ pub async fn submit_query(
     .await;
 
     // ── Try PlenumLAN relay first ─────────────────────────────────────────────
-    let engine_info: Option<(String, String, String)> = sqlx::query_as(
+    let engine_info: Vec<(String, String, String)> = sqlx::query_as(
         "SELECT slot, COALESCE(model_name, ''), endpoint_url FROM engine_configs \
          WHERE org_id = $1 AND endpoint_url IS NOT NULL AND endpoint_url <> '' \
          AND hosting_mode = 'self_hosted' AND is_disabled = false \
-         ORDER BY slot ASC LIMIT 1"
+         ORDER BY slot ASC"
     )
     .bind(user.org_id)
-    .fetch_optional(&state.db)
-    .await
-    .unwrap_or(None);
-    let (engine_slot, engine_model_name, engine_endpoint) = match engine_info {
-        Some((s, m, e)) => (Some(s), m, e),
-        None => (None, String::new(), String::new()),
-    };
-
-    if let Some(ref slot) = engine_slot {
-        if let Some(relay_tx) = state.relay_tx.read().await.clone() {
-            let preferred_addr = crate::engine_verification::resolve_peer(&state,&engine_endpoint).await.ok();
-            let live_peers_set = state.live_cube_peer.read().await.clone();
-
-            // Never substitute another daemon's model when this route is unavailable.
-            let cube_peers: Vec<String> = preferred_addr.into_iter()
-                .filter(|peer|live_peers_set.contains(peer)).collect();
-
-            if !cube_peers.is_empty() {
+    .fetch_all(&state.db)
+    .await?;
+    let relay_tx = state.relay_tx.read().await.clone();
+    if let Some(relay_tx) = relay_tx {
+        let live_peers = state.live_cube_peer.read().await.clone();
+        let state_ref = &state;
+        let selected = crate::query_relay_selection::select_configured_route(
+            engine_info, &live_peers, |endpoint| async move {
+                crate::engine_verification::resolve_peer(state_ref, &endpoint).await.ok()
+            },
+        ).await;
+        if let Some((slot, engine_model_name, peer)) = selected {
+                // Move to another configured slot, never an arbitrary peer carrying
+                // the unavailable slot's model identity.
+                let cube_peers = vec![peer];
                 let claimed = sqlx::query(
                     "UPDATE tasks SET status = 'STEP_1_PRODUCTION', updated_at = NOW() WHERE id = $1 AND status='QUEUED'"
                 )
@@ -484,7 +481,6 @@ pub async fn submit_query(
                     needs_approval: false,
                     relay_endpoint: None,
                 })));
-            }
         }
     }
 

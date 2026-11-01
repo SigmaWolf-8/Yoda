@@ -4,6 +4,7 @@ import { BookOpen, ExternalLink, ShieldCheck, Download } from 'lucide-react';
 import { usePageHeader } from '../../context/PageHeader';
 import { BevelBox } from '../../components/ui/BevelBox';
 import { CopyDispatchButton } from '../../components/ui/CopyDispatchButton';
+import { FormulaEvidence } from '../../components/FormulaEvidence';
 import type { Dispatch } from '../../lib/clipboard';
 import { buildCodexDispatch, extractDocument } from './dispatch';
 import { FormulaEvidencePanel } from '../../components/formula-evidence/FormulaEvidencePanel';
@@ -179,7 +180,7 @@ export function CodexPage() {
         <Link to="/capomastro/earth-engine" className="earth-instrument-action mt-3">Open Earth & Isopsephy instruments <ExternalLink size={14} /></Link>
         <a href="#codex-formula-evidence" className="earth-instrument-action mt-3 ml-2">Inspect formula evidence</a>
       </BevelBox>
-
+      <FormulaEvidence />
       {/* ── Document selector ── */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
         {DOCS.map((doc) => {

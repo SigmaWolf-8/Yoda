@@ -74,9 +74,8 @@ against advertised gateways and the responding peer.
 Generation verification must run independently of the initiating HTTP request,
 with persisted pending/final evidence and an interrupted-state deadline.
 
-**Why:** A synchronous verification request returned a preview-gateway error
-without retaining any result. A browser or proxy disconnect must not erase
-evidence or be reported as proof that a model failed.
+**Why:** Verification must survive request disconnects. A browser or proxy
+disconnect must not erase evidence or be reported as proof that a model failed.
 
 **How to apply:** Acknowledge the run promptly, poll its persisted record, and
 never treat the acknowledgement as a passed test.

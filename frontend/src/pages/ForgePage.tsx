@@ -4,6 +4,7 @@ import * as THREE from "three";
 import { SharedExecutionPanel } from "../components/kyokushin/SharedExecutionPanel";
 import { FormulaEvidencePanel } from "../components/formula-evidence/FormulaEvidencePanel";
 import { Link, useLocation } from "react-router-dom";
+import { FormulaEvidence } from "../components/FormulaEvidence";
 
 // PlenumNET brand palette | exact, no deviation
 const P = {
@@ -3967,6 +3968,7 @@ export default function KyokushinTripleExpressionV11131() {
             }}>Shared agent execution</button>
           </div>
         </div>
+        <FormulaEvidence />
         <TabBar tabs={TABS} active={active} onSelect={setActive} />
         <PageSubtitle latin={activeTab.latin} index={activeIndex} total={TABS.length} />
         <PageContent active={active} />

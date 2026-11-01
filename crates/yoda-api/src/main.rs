@@ -34,6 +34,7 @@ pub mod execution;
 pub mod formula_math;
 pub mod formula_evidence;
 mod engine_verification_rules;
+mod query_relay_selection;
 pub mod relay_identity;
 pub mod relay_monitor;
 pub mod array3_installation_engine;
