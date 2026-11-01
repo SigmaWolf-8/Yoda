@@ -206,7 +206,7 @@ try {
         $Rules = (Get-Acl -LiteralPath $Path).GetAccessRules($true, $true, [System.Security.Principal.SecurityIdentifier])
         Assert ($Rules.Count -gt 0) 'Missing current-user ACL'
         foreach ($Rule in $Rules) {
-            Assert ($Rule.IdentityReference.Value -eq $IdentityBefore) 'Private files accessible to another principal'
+            Assert ($Rule.IdentityReference.Value -eq $IdentityBefore) "Unexpected private ACL principal: $($Rule.IdentityReference.Value); inherited=$($Rule.IsInherited); file=$(Split-Path $Path -Leaf)"
             Assert ($Rule.AccessControlType -eq 'Allow') 'Unexpected ACL'
             Assert (($Rule.FileSystemRights -band [System.Security.AccessControl.FileSystemRights]::FullControl) -eq [System.Security.AccessControl.FileSystemRights]::FullControl) 'Owner lacks full control'
         }

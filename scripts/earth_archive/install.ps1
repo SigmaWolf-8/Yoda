@@ -27,8 +27,14 @@ New-Item -ItemType Directory -Force -Path $Target | Out-Null
 $Private = Join-Path $Target '.yoda-earth'
 New-Item -ItemType Directory -Force -Path $Private | Out-Null
 $Sid = [System.Security.Principal.WindowsIdentity]::GetCurrent().User.Value
-& icacls.exe $Private /inheritance:r /grant:r "*${Sid}:(OI)(CI)F" | Out-Null
-if ($LASTEXITCODE -ne 0) { throw 'Could not restrict access to the reporting configuration.' }
+# Removing inheritance does not remove pre-existing explicit grants. Replace
+# the complete DACL rather than merely granting this user another permission.
+$PrivateAcl = New-Object System.Security.AccessControl.DirectorySecurity
+$PrivateAcl.SetAccessRuleProtection($true, $false)
+$OwnerSid = New-Object System.Security.Principal.SecurityIdentifier($Sid)
+$PrivateAcl.AddAccessRule((New-Object System.Security.AccessControl.FileSystemAccessRule(
+    $OwnerSid, 'FullControl', 'ContainerInherit,ObjectInherit', 'None', 'Allow')))
+Set-Acl -LiteralPath $Private -AclObject $PrivateAcl
 $Python = $null
 $PythonCommand = Get-Command python -CommandType Application -ErrorAction SilentlyContinue |
     Where-Object { $_.Source -notlike '*\Microsoft\WindowsApps\*' } | Select-Object -First 1
@@ -41,7 +47,7 @@ if ($Launcher) {
 } elseif ($PythonCommand -and $PythonCommand.Source -notlike '*\Microsoft\WindowsApps\*') {
     $Python = (& $PythonCommand.Source -c 'import sys; print(sys.executable) if sys.version_info >= (3,11) else None' 2>$null)
 }
-$ProbeExit = $LASTEXITCODE
+$ProbeExit = if ($Python) { $LASTEXITCODE } else { 1 }
 $ErrorActionPreference = $ProbePreference
 if (-not $Python -or $ProbeExit -ne 0) {
     if (-not [Environment]::Is64BitOperatingSystem) { throw 'This setup requires 64-bit Windows.' }
