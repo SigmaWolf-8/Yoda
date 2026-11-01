@@ -42,6 +42,31 @@ will show a dead engine as healthy.
 
 ## Autonomous execution scope
 
+Forge, Kyokushin, and native agent queries must operate together as interfaces
+to one execution system, not independent engine configurations. The user
+requires WYSIWYG: displayed execution and verification claims must correspond
+to actual work and inspectable evidence.
+
+**Why:** The user explicitly rejected the disconnect between these interfaces
+and requested reliable engine-operability certification across all UI surfaces.
+
+**How to apply:** Distinguish transport connection, successful nonempty model
+generation, independent model identity, and mathematical correctness. Never
+substitute an AI explanation or a hard-coded pass for an executed formula test.
+Treat generation evidence as time-limited and invalidate it on configuration
+changes. Relay registration order is not engine-slot identity; confirm routing
+against advertised gateways and the responding peer.
+
+Generation verification must run independently of the initiating HTTP request,
+with persisted pending/final evidence and an interrupted-state deadline.
+
+**Why:** A synchronous verification request returned a preview-gateway error
+without retaining any result. A browser or proxy disconnect must not erase
+evidence or be reported as proof that a model failed.
+
+**How to apply:** Acknowledge the run promptly, poll its persisted record, and
+never treat the acknowledgement as a passed test.
+
 Keep the mixed setup: A and B local, C on xAI.
 **Why:** The user explicitly chose to keep the mixed engine setup.
 **How to apply:** Repair transports and credentials without replacing those

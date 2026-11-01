@@ -24,6 +24,7 @@ import {
   ClipboardCopy,
 } from 'lucide-react';
 import { ModelInstallModal } from './ModelInstallModal';
+import { EngineVerificationEvidence } from '../monitoring/EngineVerificationEvidence';
 import {
   detectOS,
   makeBashInstallScript,
@@ -999,10 +1000,10 @@ export function EngineSlotCard({
         : 'bg-[var(--color-text-primary)]/30';
 
   const healthLabel: Record<string, string> = {
-    online:      'online',
+    online:      'generation verified',
     offline:     'offline',
     tunnel_open: 'tunnel open',
-    suspect:     'reachable — verify key',
+    suspect:     'not verified — check evidence',
     unknown:     'unknown',
   };
 
@@ -1024,12 +1025,13 @@ export function EngineSlotCard({
     setPingResult(null);
     pingEngine.mutate(slot, {
       onSuccess: (data) => setPingResult(data),
-      onError:   () => setPingResult({
+      onError:   (error: unknown) => setPingResult({
         slot,
         status: 'offline',
         reachable: false,
         latency_ms: 0,
-        error: 'Could not reach the YODA server',
+        error: (error as { response?: { data?: { error?: string } } })?.response?.data?.error ??
+          'Verification request failed or timed out. No new certification was issued.',
       }),
     });
   }
@@ -1078,7 +1080,7 @@ export function EngineSlotCard({
                   ? <Loader2 className="w-3 h-3 animate-spin" />
                   : <Radio className="w-3 h-3" />
                 }
-                {pingEngine.isPending ? 'Testing…' : 'Test Connection'}
+                {pingEngine.isPending ? 'Verifying…' : 'Verify Generation'}
               </button>
               <button
                 onClick={handleToggleDisabled}
@@ -1107,7 +1109,7 @@ export function EngineSlotCard({
           className={`flex items-center gap-1.5 text-sm px-2.5 py-1.5 rounded-md mb-2.5 ${
             pingEngine.isPending
               ? 'bg-[var(--color-surface-tertiary)] text-[var(--color-text-muted)]'
-              : pingResult?.reachable
+              : pingResult?.verified
                 ? pingResult?.note
                   ? 'bg-[var(--color-gold-500)]/10 text-[var(--color-gold-400)]'
                   : 'bg-[var(--color-plex-500)]/10 text-[var(--color-plex-400)]'
@@ -1115,18 +1117,18 @@ export function EngineSlotCard({
           }`}
         >
           {pingEngine.isPending ? (
-            <><Loader2 className="w-3 h-3 animate-spin flex-shrink-0" /> Testing connection…</>
-          ) : pingResult?.reachable ? (
+            <><Loader2 className="w-3 h-3 animate-spin flex-shrink-0" /> Waiting for a model answer (up to 135 seconds)…</>
+          ) : pingResult?.verified ? (
             <>
               <CheckCircle2 className="w-3 h-3 flex-shrink-0" />
               {pingResult.note
                 ? `${pingResult.note} · ${pingResult.latency_ms} ms`
-                : `Connected — ${pingResult.status} · ${pingResult.latency_ms} ms`}
+                : `Generation verified · ${pingResult.latency_ms} ms`}
             </>
           ) : (
             <>
               <XCircle className="w-3 h-3 flex-shrink-0" />
-              {`No connection — ${pingResult?.status ?? 'offline'}`}
+              {`Generation not verified — ${pingResult?.status ?? 'unknown'}`}
               {pingResult?.error ? ` · ${pingResult.error}` : ''}
               {pingResult?.note ? ` · ${pingResult.note}` : ''}
             </>
@@ -1135,6 +1137,7 @@ export function EngineSlotCard({
       )}
 
       {/* Mode selector */}
+      <EngineVerificationEvidence engine={config} />
       <div className="flex gap-1.5 mb-2.5">
         {([
           { m: 'self_hosted' as const, icon: Server, label: 'Self-Hosted' },
@@ -1393,7 +1396,7 @@ export function EngineSlotCard({
                   {installPhase === 'connected' && (
                     <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-sky-400/8 border border-sky-400/25 text-xs text-sky-300">
                       <Wifi className="w-3 h-3 flex-shrink-0" />
-                      <span>Connected{installAddress ? ` — ${installAddress}` : ''}</span>
+                      <span>Daemon connected{installAddress ? ` — ${installAddress}` : ''}. Verify generation above before treating this engine as operational.</span>
                     </div>
                   )}
                   {installPhase === 'timeout' && (

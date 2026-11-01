@@ -203,8 +203,8 @@ pub fn build_router(state: AppState) -> Router {
         .route("/api/settings/engines/{slot}", delete(clear_engine))
         .route("/api/settings/engines/{slot}/probe", get(probe_engine))
         // On-demand engine ping — synchronous health check for one slot
-        .route("/api/yoda/engines/{slot}/ping", post(ping_engine))
-        .route("/api/settings/engines/{slot}/mark-online", post(mark_engine_online))
+        .route("/api/yoda/engines/{slot}/ping", post(crate::engine_verification::verify))
+        .route("/api/settings/engines/{slot}/mark-online", post(crate::engine_verification::verify))
         .route("/api/settings/engines/{slot}/mark-offline", post(mark_engine_offline))
         .route("/api/settings/engines/{slot}/disable", post(disable_engine))
         .route("/api/settings/engines/{slot}/enable", post(enable_engine))
@@ -2114,14 +2114,27 @@ async fn get_engines(
     State(state): State<AppState>,
     user: axum::Extension<auth::AuthenticatedUser>,
 ) -> Result<Json<serde_json::Value>, AppError> {
+    // Expired evidence must not keep any status surface or scheduler green.
+    sqlx::query("UPDATE engine_configs SET health_status='offline' WHERE org_id=$1 AND health_status='online' AND COALESCE((verification->>'expires_at')::timestamptz,'-infinity') <= now()")
+        .bind(user.org_id).execute(&state.db).await.map_err(AppError::Database)?;
+    sqlx::query("UPDATE engine_configs SET health_status='suspect',verification=verification || '{\"status\":\"suspect\",\"verified\":false,\"error\":\"Verification interrupted or could not persist its result; no certification issued.\"}'::jsonb WHERE org_id=$1 AND verification->>'status'='verifying' AND (verification->>'expires_at')::timestamptz <= now()")
+        .bind(user.org_id).execute(&state.db).await.map_err(AppError::Database)?;
     let rows = sqlx::query_as::<_, (Uuid,String,String,String,String,String,String,Option<String>,String,Option<i32>,Option<String>,bool)>(
         "SELECT id,slot,hosting_mode,endpoint_url,auth_type,model_name,model_family,family_override,health_status,avg_latency_ms,cube_endpoint_url,is_disabled FROM engine_configs WHERE org_id=$1 ORDER BY slot"
     ).bind(user.org_id).fetch_all(&state.db).await.map_err(AppError::Database)?;
-    let engines: Vec<serde_json::Value> = rows.into_iter().map(|(id,slot,hm,eu,at,mn,mf,fo,hs,al,ce,dis)| serde_json::json!({
+    let mut engines: Vec<serde_json::Value> = rows.into_iter().map(|(id,slot,hm,eu,at,mn,mf,fo,hs,al,ce,dis)| serde_json::json!({
         "id":id,"slot":slot,"hosting_mode":hm,"endpoint_url":eu,"auth_type":at,
         "model_name":mn,"model_family":mf,"family_override":fo,"health_status":hs,"avg_latency_ms":al,
         "cube_endpoint_url":ce,"is_disabled":dis
     })).collect();
+    let proofs = sqlx::query_as::<_,(String,Option<serde_json::Value>)>(
+        "SELECT slot,verification FROM engine_configs WHERE org_id=$1")
+        .bind(user.org_id).fetch_all(&state.db).await.map_err(AppError::Database)?;
+    for engine in &mut engines {
+        engine["verification"] = proofs.iter().find(|(slot,_)| engine["slot"]==slot.as_str())
+            .and_then(|(_,proof)|proof.clone()).unwrap_or(serde_json::Value::Null);
+        engine["operational"] = serde_json::json!(engine["health_status"]=="online" && engine["is_disabled"]==false);
+    }
 
     let (host, ports) = load_daemons(&state.db).await.map_err(AppError::Database)?;
     Ok(Json(serde_json::json!({

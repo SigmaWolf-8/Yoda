@@ -889,12 +889,24 @@ pub fn spawn_relay_health_monitor(state: crate::state::AppState) {
         let mut interval = tokio::time::interval(Duration::from_secs(30));
         loop {
             interval.tick().await;
+            // A past answer is evidence with a deadline, not perpetual health.
+            if let Err(error) = sqlx::query(
+                "UPDATE engine_configs SET health_status='offline' WHERE health_status='online' AND COALESCE((verification->>'expires_at')::timestamptz,'-infinity') <= now()")
+                .execute(&state.db).await {
+                tracing::warn!(%error, "Could not expire engine verification");
+            }
 
             let relay_armed = state.relay_tx.read().await.is_some();
             let peers = state.live_cube_peer.read().await.clone();
             let peer_count = peers.len();
-            for slot in ["a","b","c"] {
-            let relay_live = relay_armed && peers.contains(slot_to_cube_address(slot));
+            let routes = match sqlx::query_as::<_,(Uuid,String,Option<String>)>(
+                "SELECT id,slot,verification->>'peer' FROM engine_configs WHERE hosting_mode='self_hosted'")
+                .fetch_all(&state.db).await {
+                    Ok(routes)=>routes,
+                    Err(error)=>{tracing::warn!(%error,"Cannot load engine relay routes");continue;}
+                };
+            for (id,slot,verified_peer) in routes {
+            let relay_live = relay_armed && peers.contains(verified_peer.as_deref().unwrap_or(slot_to_cube_address(&slot)));
 
             // State machine for self-hosted engine health:
             //   relay_live  + current is 'offline'      → 'tunnel_open'  (relay just connected)
@@ -908,9 +920,9 @@ pub fn spawn_relay_health_monitor(state: crate::state::AppState) {
                 match sqlx::query(
                     "UPDATE engine_configs \
                      SET health_status='tunnel_open' \
-                     WHERE hosting_mode='self_hosted' AND health_status='offline' AND slot=$1",
+                     WHERE hosting_mode='self_hosted' AND health_status='offline' AND id=$1",
                 )
-                .bind(slot)
+                .bind(id)
                 .execute(&state.db)
                 .await
                 {
@@ -930,9 +942,9 @@ pub fn spawn_relay_health_monitor(state: crate::state::AppState) {
                     "UPDATE engine_configs \
                      SET health_status='offline' \
                      WHERE hosting_mode='self_hosted' \
-                     AND health_status IN ('tunnel_open', 'online') AND slot=$1",
+                     AND health_status IN ('tunnel_open', 'online') AND id=$1",
                 )
-                .bind(slot)
+                .bind(id)
                 .execute(&state.db)
                 .await
                 {

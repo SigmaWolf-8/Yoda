@@ -7,7 +7,7 @@ use yoda_inference_router::{
     validation::{ValidationResult, Validator},
     EngineConfig, EngineSlot, HostingMode, InferenceResponse,
 };
-use crate::{cube_relay::{slot_to_cube_address, RelayInferRequest, PendingRelays}, state::AppState};
+use crate::{cube_relay::{RelayInferRequest, PendingRelays}, state::AppState};
 
 pub struct MixedTransport { pub state: AppState, pub task_id: Uuid }
 
@@ -32,10 +32,11 @@ impl InferenceTransport for MixedTransport {
             if engine.hosting_mode != HostingMode::SelfHosted {
                 return call_engine(&self.state.http_client,engine,system,user,None).await;
             }
-            let peer = slot_to_cube_address(slot_name(engine.slot));
+            let peer = crate::engine_verification::resolve_peer(&self.state,&engine.endpoint_url).await
+                .map_err(|error| DispatchError::HttpError(engine.slot,error))?;
             let tx = self.state.relay_tx.read().await.clone()
                 .ok_or(DispatchError::EngineOffline(engine.slot))?;
-            if !self.state.live_cube_peer.read().await.contains(peer) {
+            if !self.state.live_cube_peer.read().await.contains(&peer) {
                 return Err(DispatchError::EngineOffline(engine.slot));
             }
             let id = Uuid::new_v4();
@@ -44,7 +45,7 @@ impl InferenceTransport for MixedTransport {
             let _guard = PendingGuard {pending:self.state.pending_relays.clone(),id};
             let started = Instant::now();
             let request = RelayInferRequest {
-                request_id:id,task_id:self.task_id,cube_address:peer.into(),
+                request_id:id,task_id:self.task_id,cube_address:peer.clone(),
                 messages:serde_json::json!([
                     {"role":"system","content":system},
                     {"role":"user","content":user}

@@ -10,6 +10,8 @@ import {
 } from 'lucide-react';
 import type { EngineConfig } from '../../types';
 import { Link } from 'react-router-dom';
+import { EngineVerificationEvidence } from './EngineVerificationEvidence';
+import { usePingEngine } from '../../api/hooks/useEngines';
 
 interface Props {
   engines: EngineConfig[];
@@ -29,6 +31,7 @@ const HEALTH_STYLES: Record<string, { dot: string; bg: string; text: string }> =
 };
 
 export function EngineHealthDashboard({ engines }: Props) {
+  const verification = usePingEngine();
   const configured = engines.filter((e) => e.model_name?.trim());
 
   if (configured.length === 0) {
@@ -49,8 +52,9 @@ export function EngineHealthDashboard({ engines }: Props) {
   return (
     <div className="grid gap-4 sm:grid-cols-3">
       {configured.map((eng) => {
-        const style = HEALTH_STYLES[eng.health_status] ?? HEALTH_STYLES.offline;
-        const HealthIcon = eng.health_status === 'online' ? Wifi
+        const status = eng.is_disabled ? 'offline' : eng.health_status;
+        const style = HEALTH_STYLES[status] ?? HEALTH_STYLES.offline;
+        const HealthIcon = eng.operational ? Wifi
           : eng.health_status === 'tunnel_open' ? Gauge
           : eng.health_status === 'suspect' ? AlertCircle
           : WifiOff;
@@ -67,7 +71,7 @@ export function EngineHealthDashboard({ engines }: Props) {
                 Engine {eng.slot.toUpperCase()}
               </h3>
               <div className="flex items-center gap-1.5">
-                <span className={`w-2 h-2 rounded-full ${style.dot} ${eng.health_status === 'online' ? 'animate-pulse' : ''}`} />
+                <span className={`w-2 h-2 rounded-full ${style.dot} ${eng.operational ? 'animate-pulse' : ''}`} />
                 <HealthIcon className={`w-3.5 h-3.5 ${style.text}`} />
               </div>
             </div>
@@ -89,6 +93,13 @@ export function EngineHealthDashboard({ engines }: Props) {
             </div>
 
             {/* Metrics */}
+            <EngineVerificationEvidence engine={eng} />
+            <button type="button" disabled={verification.isPending || eng.is_disabled}
+              className="text-sm underline mb-3 disabled:opacity-50"
+              onClick={() => verification.mutate(eng.slot)}>
+              {verification.isPending && verification.variables === eng.slot ? 'Verifying generation (up to 135s)…' : 'Verify generation'}
+            </button>
+            {verification.isError && verification.variables === eng.slot && <p role="alert">Verification request failed. No new certification was issued.</p>}
             <div className="grid grid-cols-3 gap-2">
               <div className="rounded-lg bg-[var(--color-surface-tertiary)]/50 px-2.5 py-2">
                 <div className="flex items-center gap-1 text-[11px] text-[var(--color-text-muted)] mb-0.5">
@@ -119,7 +130,7 @@ export function EngineHealthDashboard({ engines }: Props) {
                   <Gauge className="w-2.5 h-2.5" /> Queue
                 </div>
                 <p className="text-sm font-semibold text-[var(--color-text-primary)]">
-                  {eng.queue_depth ?? 0}
+                  {eng.queue_depth ?? '—'}
                 </p>
               </div>
             </div>

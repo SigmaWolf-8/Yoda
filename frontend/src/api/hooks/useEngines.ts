@@ -28,9 +28,15 @@ export function useEngineConfigs(options: UseEngineConfigsOptions = {}) {
     queryKey: ['engines'],
     queryFn: async () => {
       const res = await apiClient.get<EnginesSettingsResponse>('/settings/engines');
-      return res.data.engines;
+      return res.data.engines.map(engine => {
+        const operational = !engine.is_disabled && engine.health_status === 'online' &&
+          engine.verification?.verified === true &&
+          Date.parse(engine.verification.expires_at) > Date.now();
+        return { ...engine, operational,
+          health_status: engine.health_status === 'online' && !operational ? 'offline' as const : engine.health_status };
+      });
     },
-    refetchInterval: options.refetchInterval,
+    refetchInterval: options.refetchInterval ?? 15_000,
   });
 }
 
@@ -91,6 +97,27 @@ export interface EnginePingResult {
   latency_ms: number;
   error?: string | null;
   note?: string | null;
+  verified?: boolean;
+  answer?: string;
+  peer?: string | null;
+  checked_at?: string;
+  request_id?: string;
+}
+
+async function verifyGeneration(slot: EngineSlot): Promise<EnginePingResult> {
+  const { data } = await apiClient.post<EnginePingResult>(`/yoda/engines/${slot}/ping`, {}, { timeout: 15_000 });
+  if (data.status !== 'verifying') return data;
+  const deadline = Date.now() + 155_000;
+  while (Date.now() < deadline) {
+    await new Promise(resolve => setTimeout(resolve, 1500));
+    const { data: current } = await apiClient.get<EnginesSettingsResponse>('/settings/engines');
+    const proof = current.engines.find(engine => engine.slot === slot)?.verification;
+    if (!proof || proof.request_id !== data.request_id) {
+      throw new Error('Engine settings or verification changed; this result is no longer current.');
+    }
+    if (proof.status !== 'verifying') return { ...proof, reachable: proof.verified };
+  }
+  throw new Error('Verification has not returned a final record. No new certification was issued.');
 }
 
 /**
@@ -102,10 +129,9 @@ export function usePingEngine() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (slot: EngineSlot) => {
-      const res = await apiClient.post<EnginePingResult>(`/yoda/engines/${slot}/ping`);
-      return res.data;
+      return verifyGeneration(slot);
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['engines'] }),
+    onSettled: () => qc.invalidateQueries({ queryKey: ['engines'] }),
   });
 }
 
@@ -113,9 +139,11 @@ export function useMarkEngineOnline() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (slot: EngineSlot) => {
-      await apiClient.post(`/settings/engines/${slot}/mark-online`);
+      const result = await verifyGeneration(slot);
+      if (!result.verified) throw new Error(result.error ?? 'Generation verification failed');
+      return result;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['engines'] }),
+    onSettled: () => qc.invalidateQueries({ queryKey: ['engines'] }),
   });
 }
 

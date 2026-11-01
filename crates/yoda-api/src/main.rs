@@ -29,6 +29,8 @@ use tracing_subscriber::EnvFilter;
 pub mod agents;
 pub mod agent_worker;
 pub mod agent_transport;
+pub mod engine_verification;
+mod engine_verification_rules;
 pub mod relay_identity;
 pub mod relay_monitor;
 pub mod array3_installation_engine;

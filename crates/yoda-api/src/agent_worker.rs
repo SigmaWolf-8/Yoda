@@ -78,16 +78,20 @@ async fn run_one(state: &AppState, org: Uuid, owner: Uuid) -> Result<(), AppErro
     let engines = sqlx::query_as::<_, (String,String,String,Option<String>,String,String)>(
         "SELECT slot,hosting_mode,endpoint_url,credentials_encrypted,model_name,auth_type FROM engine_configs \
          WHERE org_id=$1 AND NOT is_disabled \
-         AND ((health_status='online' AND hosting_mode IN ('commercial','free_tier')) \
-           OR hosting_mode='self_hosted') ORDER BY slot")
+         AND health_status='online' AND verification->>'verified'='true' \
+         AND (verification->>'expires_at')::timestamptz > now() ORDER BY slot")
         .bind(org).fetch_all(&state.db).await?;
     let relay_armed = state.relay_tx.read().await.is_some();
     let live_peers = state.live_cube_peer.read().await.clone();
+    let verified_routes: Vec<(String,Option<String>)> = sqlx::query_as(
+        "SELECT slot,verification->>'peer' FROM engine_configs WHERE org_id=$1")
+        .bind(org).fetch_all(&state.db).await?;
     let engines: Vec<_> = engines.into_iter().filter(|e| e.1 != "self_hosted" ||
-        (relay_armed && live_peers.contains(crate::cube_relay::slot_to_cube_address(&e.0)))).collect();
+        (relay_armed && verified_routes.iter().any(|(slot,peer)|slot==&e.0 &&
+            peer.as_ref().is_some_and(|p|live_peers.contains(p))))).collect();
     if engines.is_empty() {
         return message(state, org, owner,
-            "Waiting for usable engines: local slots need their own authenticated cube peers; cloud slots need a working provider credential. No model calls are being made.").await;
+            "Waiting for verified generation: verify engines in Settings or Monitoring. A connected relay or accepted provider key alone does not certify execution. No model calls are being made.").await;
     }
     let mut configs: Vec<_> = engines.iter().map(crate::query::build_engine_config).collect();
     let families: Vec<(String,String)> = sqlx::query_as(

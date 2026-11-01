@@ -10,7 +10,7 @@ use tokio::sync::oneshot;
 use uuid::Uuid;
 
 use crate::auth::AuthenticatedUser;
-use crate::cube_relay::{RelayInferRequest, slot_to_cube_address};
+use crate::cube_relay::RelayInferRequest;
 use crate::error::AppError;
 use crate::state::AppState;
 use tokio_util::sync::CancellationToken;
@@ -409,8 +409,8 @@ pub async fn submit_query(
     .await;
 
     // ── Try PlenumLAN relay first ─────────────────────────────────────────────
-    let engine_info: Option<(String, String)> = sqlx::query_as(
-        "SELECT slot, COALESCE(model_name, '') FROM engine_configs \
+    let engine_info: Option<(String, String, String)> = sqlx::query_as(
+        "SELECT slot, COALESCE(model_name, ''), endpoint_url FROM engine_configs \
          WHERE org_id = $1 AND endpoint_url IS NOT NULL AND endpoint_url <> '' \
          AND hosting_mode = 'self_hosted' AND is_disabled = false \
          ORDER BY slot ASC LIMIT 1"
@@ -419,43 +419,19 @@ pub async fn submit_query(
     .fetch_optional(&state.db)
     .await
     .unwrap_or(None);
-    let (engine_slot, engine_model_name) = match engine_info {
-        Some((s, m)) => (Some(s), m),
-        None => (None, String::new()),
+    let (engine_slot, engine_model_name, engine_endpoint) = match engine_info {
+        Some((s, m, e)) => (Some(s), m, e),
+        None => (None, String::new(), String::new()),
     };
-
-    let live_cube_address: Option<String> = sqlx::query_scalar(
-        "SELECT address_str FROM crs_registrations \
-         WHERE last_heartbeat > NOW() - INTERVAL '5 minutes' \
-         ORDER BY last_heartbeat DESC LIMIT 1"
-    )
-    .fetch_optional(&state.db)
-    .await
-    .unwrap_or(None);
 
     if let Some(ref slot) = engine_slot {
         if let Some(relay_tx) = state.relay_tx.read().await.clone() {
-            let preferred_addr = slot_to_cube_address(slot.as_str()).to_string();
+            let preferred_addr = crate::engine_verification::resolve_peer(&state,&engine_endpoint).await.ok();
             let live_peers_set = state.live_cube_peer.read().await.clone();
 
-            // Build ordered peer list: preferred engine first, then all other live peers.
-            // spawn_bg_inference will round-robin through this list so a dead llama-server
-            // on one node doesn't exhaust all retries before trying the others.
-            let mut cube_peers: Vec<String> = live_peers_set.into_iter().collect();
-            if let Some(pos) = cube_peers.iter().position(|p| p == &preferred_addr) {
-                cube_peers.swap(0, pos);
-            } else if !cube_peers.is_empty() {
-                tracing::warn!(
-                    slot = %slot, preferred = %preferred_addr,
-                    "Preferred daemon not live — will try other live peers"
-                );
-                // preferred not live; leave list as-is (any order is fine)
-            }
-            if cube_peers.is_empty() {
-                if let Some(addr) = live_cube_address.clone() {
-                    cube_peers.push(addr);
-                }
-            }
+            // Never substitute another daemon's model when this route is unavailable.
+            let cube_peers: Vec<String> = preferred_addr.into_iter()
+                .filter(|peer|live_peers_set.contains(peer)).collect();
 
             if !cube_peers.is_empty() {
                 let claimed = sqlx::query(

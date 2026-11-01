@@ -70,9 +70,9 @@ export function NodeHealthStrip({ engines, crsReachable, crsHasNode }: Props) {
       : 'down';
 
   const llmStatus = anyOnline
-    ? `${onlineCount} / ${configuredEngines.length} online`
+    ? `${onlineCount} / ${configuredEngines.length} generation verified`
     : anyTunnelOpen
-      ? `${tunnelCount} tunnel${tunnelCount !== 1 ? 's' : ''} open — run Step 2`
+      ? `${tunnelCount} tunnel${tunnelCount !== 1 ? 's' : ''} open — generation unverified`
       : configuredEngines.length > 0
         ? 'No engines responding'
         : 'Not configured';

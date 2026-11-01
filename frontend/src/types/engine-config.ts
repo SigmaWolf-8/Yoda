@@ -3,6 +3,23 @@ export type AuthType = 'bearer' | 'api_key' | 'none';
 export type EngineSlot = 'a' | 'b' | 'c';
 export type HealthStatus = 'online' | 'offline' | 'suspect' | 'tunnel_open';
 
+export interface EngineVerification {
+  status: string;
+  slot: EngineSlot;
+  verified: boolean;
+  checked_at: string;
+  expires_at: string;
+  request_id: string;
+  configured_model: string;
+  reported_model?: string;
+  model_identity?: string;
+  peer?: string | null;
+  route: string;
+  answer?: string;
+  error?: string;
+  latency_ms: number;
+}
+
 export interface EngineConfig {
   id: string;
   slot: EngineSlot;
@@ -22,6 +39,8 @@ export interface EngineConfig {
   daily_messages_used?: number;
   daily_messages_limit?: number;
   is_disabled: boolean;
+  operational?: boolean;
+  verification?: EngineVerification | null;
 }
 
 export interface EngineUpdatePayload {

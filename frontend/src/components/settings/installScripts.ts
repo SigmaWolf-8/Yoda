@@ -1132,9 +1132,12 @@ if ($ready -and $YODA_TOKEN -ne "" -and $YODA_URL -ne "") {
     $markUrl = "$YODA_URL/api/settings/engines/$SLOT/mark-online"
     $hdrs    = @{ Authorization = "Bearer $YODA_TOKEN"; "Content-Type" = "application/json" }
     $resp    = Invoke-WebRequest -Uri $markUrl -Method Post -Headers $hdrs -UseBasicParsing -TimeoutSec 10 -ErrorAction Stop
-    if ($resp.StatusCode -lt 300) {
-      Write-Host " OK" -ForegroundColor Green
+    $proof = $resp.Content | ConvertFrom-Json
+    if ($proof.verified -eq $true) {
+      Write-Host " Generation verified" -ForegroundColor Green
       $marked = $true
+    } elseif ($proof.status -eq "verifying") {
+      Write-Host " Verification started; check generation evidence in YODA. Not yet certified." -ForegroundColor Yellow
     } else {
       Write-Host " HTTP $($resp.StatusCode)" -ForegroundColor Yellow
     }

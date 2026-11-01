@@ -13,9 +13,9 @@ const DOT: Record<string, string> = {
 };
 
 const LABEL: Record<string, string> = {
-  online:      'online',
+  online:      'generation verified',
   tunnel_open: 'tunnel open',
-  suspect:     'suspect',
+  suspect:     'not verified',
   offline:     'offline',
 };
 
