@@ -2,6 +2,7 @@
 import importlib.util
 import json
 import os
+import re
 from pathlib import Path
 import tempfile
 import unittest
@@ -13,6 +14,17 @@ launch=importlib.util.module_from_spec(spec)
 spec.loader.exec_module(launch)
 
 class SetupTests(unittest.TestCase):
+    def test_windows_fixture_includes_every_distributed_worker(self):
+        api=(ROOT.parent.parent/"crates/yoda-api/src/earth_archive.rs").read_text()
+        workers=set(re.findall(r'\("([^"]+\.py)",include_str!',api))
+        self.assertTrue(workers)
+        fixture=(ROOT/"tests/windows-installer.ps1").read_text()
+        lists=[set(re.findall(r"'([^']+)'",group)) for group in
+               re.findall(r"foreach \(\$Name in @\(([^)]+)\)\)",fixture)]
+        self.assertTrue(any(workers.issubset(names) for names in lists),
+                        "Windows source-hash fixture is missing a distributed worker")
+        for name in workers:
+            self.assertTrue((ROOT/name).is_file())
     def test_cmd_payload_roundtrip_and_command_limits(self):
         source=(ROOT/"install.ps1").read_text().replace("@@TOKEN@@","isolated-test-value")
         encoded=source.encode().hex()

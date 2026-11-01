@@ -10,7 +10,7 @@ use crate::{auth::AuthenticatedUser,error::AppError,state::AppState};
 const INSTALL:&str=include_str!("../../../scripts/earth_archive/install.ps1");
 const LAUNCHER:&str=include_str!("../../../scripts/earth_archive/setup.cmd");
 const GUIDE:&str=include_str!("../../../scripts/earth_archive/GUIDE.txt");
-const FILES:[(&str,&str);6]=[
+const FILES:&[(&str,&str)]=&[
     ("launch.py",include_str!("../../../scripts/earth_archive/launch.py")),
     ("client.py",include_str!("../../../scripts/earth_archive/client.py")),
     ("acquire.py",include_str!("../../../scripts/earth_archive/acquire.py")),

@@ -30,6 +30,10 @@ standard HTTPS port avoids the legacy URL rewrite without changing global Git
 configuration. Fetch first, push only fast-forward, and confirm remote/local
 parity. Do not extract connector credentials from connection objects.
 
+Repository metadata's `permissions.push` describes the account's repository
+rights, not proof that a fine-grained token can write. Verify the actual write
+request; GitHub's `X-Accepted-GitHub-Permissions` identifies missing token access.
+
 The platform checkpoints locally but does not automatically publish those
 commits to the external repository.
 
