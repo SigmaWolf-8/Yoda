@@ -1,0 +1,37 @@
+name: Earth archive Windows installer
+
+# Independent of the Salvi/Rust build. No environment, secrets or real datasets.
+on:
+  pull_request:
+    paths:
+      - 'scripts/earth_archive/**'
+      - '.github/workflows/earth-archive-windows.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/earth_archive/**'
+      - '.github/workflows/earth-archive-windows.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  windows-installer:
+    name: Windows PowerShell 5.1 installer
+    runs-on: windows-2022
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      # Use a custom shell: Actions' built-in powershell shell adds
+      # -ExecutionPolicy Bypass. Neither this job nor the installer may do that.
+      - name: Exercise isolated installer and generated runner
+        shell: powershell.exe -NoLogo -NoProfile -NonInteractive -File {0}
+        run: |
+          & .\scripts\earth_archive\tests\windows-installer.ps1
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
