@@ -5,10 +5,12 @@ import {
   REGISTRY_SCOPE,
   evidenceConclusion,
   getEvidenceSnapshot,
-  runFormulaCheck,
   subscribeEvidence,
 } from '../lib/formula-evidence';
 import type { CheckStatus, EvidenceKind } from '../lib/formula-evidence';
+
+import { AttemptStorage, BrowserEvidenceHistory } from './formula-evidence/BrowserEvidenceHistory';
+import { useBrowserEvidenceHistory } from './formula-evidence/useBrowserEvidenceHistory';
 
 const kinds: Record<EvidenceKind, { label: string; description: string }> = {
   'displayed-formula': {
@@ -58,6 +60,7 @@ function JsonValue({ value }: { value: unknown }) {
 
 /** Application-side evidence only; never mutates or certifies sealed documents. */
 export function FormulaEvidence() {
+  const history = useBrowserEvidenceHistory();
   const records = useSyncExternalStore(subscribeEvidence, getEvidenceSnapshot, getEvidenceSnapshot);
   const headingId = useId();
   const [runningAll, setRunningAll] = useState(false);
@@ -69,8 +72,8 @@ export function FormulaEvidence() {
     setActionError(null);
     if (!id) setRunningAll(true);
     try {
-      if (id) await runFormulaCheck(id);
-      else await Promise.all(formulaRegistry.flatMap(claim => claim.checks.map(check => runFormulaCheck(check.id))));
+      if (id) await history.execute(id);
+      else await Promise.all(formulaRegistry.flatMap(claim => claim.checks.map(check => history.execute(check.id))));
     } catch (error) {
       setActionError(error instanceof Error ? error.message : 'Could not run checks. Please retry.');
     } finally {
@@ -83,7 +86,8 @@ export function FormulaEvidence() {
     try {
       const payload = {
         exportedAt: new Date().toISOString(),
-        persistence: 'Session-only, in-memory state in this browser tab; reload resets evidence.',
+        persistence: 'Current checks are in-memory. Each completed local attempt is submitted only with its execution-time credential. Unsaved and failed-save attempts are view-local, not durable; saved history is separate.',
+        attempts: history.getAttempts(),
         scope: REGISTRY_SCOPE,
         execution: 'Local browser JavaScript only; daemon adapter absent and unavailable.',
         interpretation: 'Passed means the recorded observation matched the expected result, not document certification. Displayed formulas, AI commentary, request hashes, model agreement and estimates are not mathematical proof or measured performance.',
@@ -116,7 +120,7 @@ export function FormulaEvidence() {
     >
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <p className={`text-[10px] uppercase tracking-widest mb-1 ${mutedClass}`}>Application supplement · session-only evidence</p>
+          <p className={`text-[10px] uppercase tracking-widest mb-1 ${mutedClass}`}>Application supplement · local evidence & private history</p>
           <h2 id={headingId} className="text-base font-bold">Formula evidence</h2>
           <p className={`mt-1 text-xs leading-relaxed ${mutedClass}`}>Claims and executed observations are separate. Sealed source documents remain unchanged.</p>
         </div>
@@ -133,7 +137,7 @@ export function FormulaEvidence() {
       <div className="border-l-2 border-[var(--color-gold-400)] pl-3 text-xs leading-relaxed space-y-1">
         <p><strong>Scope:</strong> {REGISTRY_SCOPE}</p>
         <p><strong>Execution:</strong> Local browser JavaScript in this tab. The daemon adapter is absent and unavailable; no remote execution is claimed.</p>
-        <p><strong>Persistence:</strong> Shared across these app pages in this tab only; reload resets the evidence. Export inputs, versions and observations for reproducibility.</p>
+        <p><strong>Persistence:</strong> Current checks are shared in memory in this tab; reload resets them. Completed runs auto-save with the account credential captured before execution. Storage success is separate from calculation success. Unsaved attempts are view-local; export before leaving. Saved history never populates current checks.</p>
         <p>Request hashes, model agreement and estimates are neither mathematical proof nor measured performance. A passed check is not certification of a document.</p>
       </div>
 
@@ -154,6 +158,7 @@ export function FormulaEvidence() {
       </p>
       <p className="text-xs leading-relaxed"><strong>Divergence–flux conclusion:</strong> {evidenceConclusion(records)}</p>
       {actionError && <p role="alert" className="border border-current p-3 text-xs">Action error: {actionError} Use the relevant action above to retry.</p>}
+      <AttemptStorage attempts={history.attempts} retry={history.retry} />
       {!records.length && <p className="border border-[var(--color-border-default)] p-4 text-xs">No checks registered. No executable evidence is available; document claims remain unverified.</p>}
 
       {formulaRegistry.map(claim => (
@@ -219,6 +224,7 @@ export function FormulaEvidence() {
           </div>
         </article>
       ))}
+      <BrowserEvidenceHistory key={history.session} runs={history.runs} signedIn={history.signedIn} loading={history.loading} error={history.error} nextCursor={history.nextCursor} refresh={history.refresh} loadMore={history.loadMore} retryLoad={history.retryLoad} />
     </section>
   );
 }

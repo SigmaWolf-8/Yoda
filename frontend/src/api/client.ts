@@ -36,6 +36,12 @@ export function storeTokens(
   persist: boolean = true
 ) {
   const storage = persist ? localStorage : sessionStorage;
+  const otherStorage = persist ? sessionStorage : localStorage;
+  // A successful sign-in replaces the previous identity, including when the
+  // remember-me setting changes. Never let an old persistent token win reads
+  // or let a stale refresh token revive a previous account.
+  otherStorage.removeItem(TOKEN_KEY);
+  otherStorage.removeItem(REFRESH_KEY);
   storage.setItem(TOKEN_KEY, token);
   if (refreshToken) {
     storage.setItem(REFRESH_KEY, refreshToken);
@@ -45,6 +51,7 @@ export function storeTokens(
     localStorage.removeItem(REFRESH_KEY);
     sessionStorage.removeItem(REFRESH_KEY);
   }
+  window.dispatchEvent(new Event('yoda-auth-changed'));
 }
 
 export function clearTokens() {
@@ -52,6 +59,7 @@ export function clearTokens() {
   localStorage.removeItem(REFRESH_KEY);
   sessionStorage.removeItem(TOKEN_KEY);
   sessionStorage.removeItem(REFRESH_KEY);
+  window.dispatchEvent(new Event('yoda-auth-changed'));
 }
 
 // ── Request interceptor: attach JWT ──

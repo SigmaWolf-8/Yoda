@@ -439,6 +439,42 @@ async fn resolve_gate_handle(db: &PgPool, token: &str) -> Result<AuthenticatedUs
 
 /// Middleware that extracts and validates JWT from Authorization header
 /// or API key from X-API-Key header.
+/// Restricted supplemental history must never inherit the anonymous owner fallback.
+pub async fn strict_auth_middleware(
+    State(state): State<AppState>,
+    mut request: Request,
+    next: Next,
+) -> Result<Response, AppError> {
+    let user = if let Some(header) = request.headers().get(http::header::AUTHORIZATION) {
+        let token = header.to_str().ok().and_then(|s| s.strip_prefix("Bearer "))
+            .filter(|s| !s.is_empty())
+            .ok_or_else(|| AppError::Unauthorized("A valid bearer credential is required".into()))?;
+        if GateHandle::looks_like(token) {
+            resolve_gate_handle(&state.db, token).await?
+        } else {
+            let claims = validate_access_token(token, &state.jwt_secret)?;
+            AuthenticatedUser { user_id: claims.sub, email: claims.email, org_id: claims.org_id }
+        }
+    } else if let Some(key) = request.headers().get("x-api-key") {
+        let key = key.to_str().map_err(|_| AppError::Unauthorized("Invalid API key".into()))?;
+        if !key.is_ascii() || key.is_empty() {
+            return Err(AppError::Unauthorized("Invalid API key".into()));
+        }
+        validate_api_key(&state.db, key).await?
+            .ok_or_else(|| AppError::Unauthorized("Invalid API key".into()))?
+    } else {
+        return Err(AppError::Unauthorized("Sign in to save or read private formula history".into()));
+    };
+    let member: bool = sqlx::query_scalar(
+        "SELECT EXISTS(SELECT 1 FROM org_members WHERE org_id=$1 AND user_id=$2)")
+        .bind(user.org_id).bind(user.user_id).fetch_one(&state.db).await?;
+    if !member {
+        return Err(AppError::Forbidden("Organization membership is no longer active".into()));
+    }
+    request.extensions_mut().insert(user);
+    Ok(next.run(request).await)
+}
+
 pub async fn auth_middleware(
     State(state): State<AppState>,
     mut request: Request,

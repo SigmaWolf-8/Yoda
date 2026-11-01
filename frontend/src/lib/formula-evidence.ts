@@ -243,23 +243,40 @@ export function evidenceConclusion(evidence: readonly EvidenceRecord[]): string 
 }
 
 let records: readonly EvidenceRecord[] = formulaRegistry.flatMap(claim => claim.checks.map(initialEvidence));
+let evidenceIdentity: string | null | undefined;
+let evidenceGeneration = 0;
 const listeners = new Set<() => void>();
 export const getEvidenceSnapshot = () => records;
 export const subscribeEvidence = (listener: () => void) => { listeners.add(listener); return () => { listeners.delete(listener); }; };
+/** Clear private tab results on account changes, not same-account navigation. */
+export function synchronizeEvidenceIdentity(credential: string | null) {
+  if (evidenceIdentity === credential) return;
+  const initialized = evidenceIdentity !== undefined;
+  evidenceIdentity = credential;
+  if (!initialized) return;
+  evidenceGeneration++;
+  records = formulaRegistry.flatMap(claim => claim.checks.map(initialEvidence));
+  listeners.forEach(listener => listener());
+}
 function update(record: EvidenceRecord) {
   records = records.map(old => old.id === record.id ? record : old);
   listeners.forEach(listener => listener());
 }
-export async function runFormulaCheck(id: string): Promise<void> {
+export async function runFormulaCheck(id: string): Promise<EvidenceRecord | undefined> {
   const check = formulaRegistry.flatMap(claim => claim.checks).find(item => item.id === id);
   if (!check) throw new Error(`Unknown formula check: ${id}`);
   if (records.find(record => record.id === id)?.status === 'running') return;
+  const generation = evidenceGeneration;
   // A fresh run never inherits a previous success.
   update({ ...initialEvidence(check), status: 'running' });
+  let result: EvidenceRecord;
   try {
     const traceId = crypto.randomUUID();
-    update(await executeCheck(check, executors[id], { traceId, executionLocation: 'Browser / JavaScript (this tab); no daemon' }));
+    result = await executeCheck(check, executors[id], { traceId, executionLocation: 'Browser / JavaScript (this tab); no daemon' });
   } catch (error) {
-    update({ ...initialEvidence(check), status: 'failed', error: error instanceof Error ? error.message : 'Could not start check' });
+    result = { ...initialEvidence(check), status: 'failed', error: error instanceof Error ? error.message : 'Could not start check' };
   }
+  if (generation !== evidenceGeneration) return;
+  update(result);
+  return result;
 }

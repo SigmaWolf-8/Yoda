@@ -9,17 +9,34 @@ source files remain unchanged.
 ## Reproduce
 
 In any of the three pages, open **Formula evidence** and run an individual check
-or all registered checks. Evidence is shared across navigation in the current
-tab only, resets on reload, and can be exported as JSON. Export before reloading
-if a record is needed. Trace IDs identify runs; they are not cryptographic
-attestations or proofs. A browser can be modified by its operator, so exports
-are not trusted remote execution receipts.
+or all registered checks. Current results remain local to the tab. Each completed
+attempt is also submitted to **private browser run history** when signed in.
+Saved history survives closing the browser and is loaded independently of the
+current registry: an old success is never assigned to a newly loaded check.
+Compare two saved runs to inspect their original inputs, implementation and test
+versions, results, assumptions, limitations and errors. More history is available
+through cursor pagination. History exports cover the loaded records only.
+
+Saving and calculation are separate operations. A passed calculation is not
+necessarily saved. Failed requests are shown as unconfirmed/unsaved, with a retry
+that reuses the same submission ID rather than rerunning the calculation. Export
+unsaved attempts before leaving the view or reloading. Checks and current JSON
+export remain available without signing in; private history does not use the
+app's anonymous sovereign-account fallback.
+
+Trace and submission IDs identify attempts, not cryptographic attestations or
+proofs. All browser records (including their version and location claims) are
+**client-submitted, unverified evidence**, never trusted daemon receipts. The
+server's receipt timestamp records when it stored a report, not when a computation
+ran. Source claim snapshots are supplemental reference metadata; no sealed source
+document is edited.
 
 Run the same implementations and their negative tests from the repository:
 
 ```sh
 cd frontend
 npm test -- src/lib/__tests__/formula-evidence.test.ts
+npm test -- src/lib/__tests__/browser-formula-history.test.ts src/components/formula-evidence/BrowserEvidenceHistory.test.tsx
 ```
 
 The source registry and divergence executors live in `src/lib/formula-evidence.ts`;
@@ -27,6 +44,42 @@ the XOR claim and executors live in `src/lib/formula-evidence-xor.ts`.
 Implementation and test contract versions are included in each record; bump them
 when changing algorithms, inputs, or acceptance criteria. No model, network
 service, daemon, timing estimate, or hash is used to compute these results.
+
+Backend storage tests use an isolated temporary PostgreSQL schema and remove it
+after the test. They require the development `DATABASE_URL` and verify owner
+isolation, immutable snapshots across version changes, failure/unavailable
+records, retry conflicts, database append-only enforcement and pagination:
+
+```sh
+cargo test -p yoda-api --test browser_formula_history
+```
+
+## Browser history API and storage
+
+`POST /api/formula-evidence/browser-runs` accepts a 64 KiB maximum JSON body:
+`{ submissionId, claim: { id, title, formula, sources }, record: EvidenceRecord }`.
+Only terminal statuses (`passed`, `failed`, `unavailable`) are accepted. Unknown
+top-level ownership/provenance fields are rejected. A browser cannot submit a
+passed daemon-execution, commentary or displayed-formula record. This structural
+validation does **not** verify the truth of an observation.
+
+`GET /api/formula-evidence/browser-runs?before=<cursor>` returns
+`{ runs, nextCursor }`, up to 50 records per page, ordered by server insertion
+sequence. Both routes require a validated bearer session/token or API key and
+current organization membership. Reads and writes are scoped to both user and
+organization, not merely organization; anonymous owner fallback is not allowed.
+Responses are private/no-store.
+
+The server wraps the unchanged submission in server-generated ID, receipt time,
+schema version, and `provenance: "client-submitted-unverified"`,
+`daemonReceipt: false`. The separate `browser_formula_runs` table prevents mixing
+these reports with the existing server-calculation history. The database rejects
+UPDATE, DELETE and TRUNCATE. Reposting identical content with the same submission
+ID is idempotent; changing content under that ID returns 409. New attempts use new
+IDs even when check IDs and inputs are identical.
+
+This change does not alter the existing server-generated `/formula-evidence/runs`
+flow or claim that its authentication/storage contract matches browser history.
 
 ## Divergence–flux mathematical scope
 
@@ -106,7 +159,8 @@ logical gates, the surrounding “net balance is strictly null” statement,
 ledger neutrality, physical conservation, entropy, legal status or the
 document as a whole. It does not affect the separate divergence–flux conclusion.
 These are local deterministic computations, not daemon or server executions.
-The session-only registry is separate from the server-backed formula panel.
+The browser registry and its unverified saved history remain separate from
+the server-calculated formula panel.
 
 ## Evidence boundaries
 

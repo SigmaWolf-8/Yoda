@@ -33,6 +33,8 @@ pub mod engine_verification;
 pub mod execution;
 pub mod formula_math;
 pub mod formula_evidence;
+mod browser_formula_history;
+mod browser_formula_store;
 pub mod folding_documents;
 pub mod earth_archive;
 mod engine_verification_rules;

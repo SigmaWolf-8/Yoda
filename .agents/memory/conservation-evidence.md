@@ -34,3 +34,15 @@ claim survey-grade accuracy.
 dataset and datum limitations. Keep server-side canonical assertions, browser
 instrument assertions, finite numerical checks and actual daemon executions
 distinct; success in one does not certify the others.
+
+Private browser evidence history is an explicit exception to the open,
+single-operator application access policy, not permission to reinstate a global
+login gate.
+
+**Why:** persistent reports require account isolation, but storing a browser's
+claims on the server cannot turn them into authenticated daemon receipts. The
+browser controls its inputs, version strings, timestamps and results.
+
+**How to apply:** preserve the distinction between authenticated submitter,
+server receipt time, and claimed execution provenance. Do not upgrade trust
+because a report survived reload or carries an ID, timestamp or digest.

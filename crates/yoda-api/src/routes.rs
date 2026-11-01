@@ -261,6 +261,13 @@ pub fn build_router(state: AppState) -> Router {
         // Auth middleware on all protected routes
         .layer(middleware::from_fn_with_state(state.clone(), auth::auth_middleware));
 
+    let browser_evidence = Router::new()
+        .route("/api/formula-evidence/browser-runs",
+            get(crate::browser_formula_history::history).post(crate::browser_formula_history::append))
+        .layer(DefaultBodyLimit::max(65536))
+        .layer(middleware::from_fn_with_state(state.clone(), auth::strict_auth_middleware))
+        .layer(middleware::from_fn(crate::browser_formula_history::no_cache));
+
     // ── WebSocket (B5.8) — outside auth middleware (uses query param or header auth) ──
     let ws_routes = Router::new()
         .route("/ws/pipeline/{project_id}", get(websocket::ws_pipeline_handler));
@@ -290,6 +297,7 @@ pub fn build_router(state: AppState) -> Router {
     Router::new()
         .merge(public)
         .merge(protected)
+        .merge(browser_evidence)
         .merge(three_factor)
         .merge(ws_routes)
         .with_state(state)
