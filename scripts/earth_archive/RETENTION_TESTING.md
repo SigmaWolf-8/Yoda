@@ -1,5 +1,26 @@
 # Retention verification (not installer verification)
 
+## Automate GitHub activation from Windows
+
+If the connector can upload source but cannot write `.github/workflows`, stage
+the workflow at `.github/earth-retention-windows.yml` on a `verify/` branch.
+Run `run_retention_github.py --branch <verification-branch>` with Python 3.10+.
+It locates or installs GitHub CLI through winget, opens browser authorization
+for `repo,workflow`, atomically moves the staged workflow into place, waits for
+the matching commit's Windows run and downloads its evidence under
+`~/Downloads/yoda-retention-*`. No local clone or working directory is required.
+Authorization is the only step that cannot be automated on the user's behalf.
+Existing environment-token authentication must already have the required
+permissions, or GitHub CLI will reject refreshing it; use CLI browser login
+instead. Never paste a token into the script or chat.
+
+The helper only accepts `verify/` branches, never force-pushes, merges or
+deploys, refuses a conflicting workflow, and exits nonzero for failed, skipped,
+missing, timed-out or mismatched-commit evidence. Rerunning it checks the same
+branch head's run if the workflow has already been activated.
+
+## Run native tests directly
+
 Run on native Windows with Python 3.12+ and an NTFS `%TEMP%` volume:
 
 ```powershell
