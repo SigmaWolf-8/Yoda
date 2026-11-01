@@ -1,0 +1,37 @@
+name: Earth retention on native Windows
+
+on:
+  push:
+    paths:
+      - 'scripts/earth_archive/**'
+      - '.github/workflows/earth-retention-windows.yml'
+  pull_request:
+    paths:
+      - 'scripts/earth_archive/**'
+      - '.github/workflows/earth-retention-windows.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  retention:
+    runs-on: windows-2022
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Native NTFS allocation and deletion safety (no skipped checks)
+        run: python scripts/earth_archive/verify_retention_windows.py --report generated-artifacts/retention-windows.json
+      - name: Portable retention regressions
+        run: python -m unittest discover -s scripts/earth_archive -p "test_retention.py" -v
+      - name: Retain native evidence even on failure
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: retention-windows-evidence
+          path: generated-artifacts/retention-windows.json
+          if-no-files-found: error
+          retention-days: 14
