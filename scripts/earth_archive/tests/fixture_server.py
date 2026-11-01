@@ -5,7 +5,8 @@ import sys
 
 root = Path(sys.argv[1]).resolve()
 assert (root / "EARTH_INSTALLER_TEST_ONLY").is_file()
-allowed = {"client.py", "acquire.py", "viewer.py", "retention.py", "retention_ui.py", "GUIDE.txt"}
+allowed = {"client.py", "acquire.py", "viewer.py", "retention.py", "retention_ui.py",
+           "retention_store.py", "launch.py", "GUIDE.txt"}
 
 
 class Handler(BaseHTTPRequestHandler):

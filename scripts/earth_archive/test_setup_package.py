@@ -1,5 +1,6 @@
 """Packaging/launcher regression checks; fixture workers never acquire Earth data."""
 import importlib.util
+import ast
 import json
 import os
 import re
@@ -23,6 +24,12 @@ class SetupTests(unittest.TestCase):
                re.findall(r"foreach \(\$Name in @\(([^)]+)\)\)",fixture)]
         self.assertTrue(any(workers.issubset(names) for names in lists),
                         "Windows source-hash fixture is missing a distributed worker")
+        server=ast.parse((ROOT/"tests/fixture_server.py").read_text())
+        allowed=next(node.value for node in server.body if isinstance(node,ast.Assign)
+                     and any(isinstance(target,ast.Name) and target.id=="allowed"
+                             for target in node.targets))
+        self.assertTrue(workers.issubset(ast.literal_eval(allowed)),
+                        "Windows HTTP fixture must serve every distributed worker")
         for name in workers:
             self.assertTrue((ROOT/name).is_file())
     def test_cmd_payload_roundtrip_and_command_limits(self):
