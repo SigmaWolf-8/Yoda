@@ -1,0 +1,64 @@
+YODA GLOBAL NATIVE ARCHIVE — WINDOWS ACQUISITION
+
+Scope: full Copernicus public bucket, latest GEBCO global release including its
+native formats, metadata, TID and licenses, and the official NGA EGM2008 ZIP.
+No regional substitution or resampling is performed. Source licensing and
+attribution documents are retained. GEBCO identifies some cells as estimated or
+interpolated; the grids must not be represented as entirely direct observations.
+
+ONE-TIME SETUP
+1. Install Python 3.11+ for Windows. Provide several terabytes of free space.
+2. In Yoda > Earth & Isopsephy, download the Windows installer.
+3. Run in PowerShell: powershell -NoProfile -File .\install-yoda-earth.ps1
+   To use another drive: add -Target 'D:\YodaEarth'.
+   This installer does not bypass your execution policy or elevate privileges.
+   If enterprise policy disallows it, have the script reviewed/approved normally.
+4. Delete the downloaded installer after use. It contains an expiring write-only
+   reporting credential, stored under your Windows account with DPAPI and ACLs.
+
+AUTOMATION
+The installer registers YodaEarthArchiveUpdate (daily at 03:00 and at logon)
+and YodaEarthArchiveViewer (at logon), under your signed-in Windows account.
+No service account/password is created. Jobs do not run while you are signed out.
+Source catalogues refresh after 24 hours. Transfers are sequential and resumable.
+Interrupted .part files are retained; mismatched source versions restart only
+their own partial file. Completed data are replaced only after verification.
+Old releases remain on disk; no automatic archive deletion is performed.
+
+Pause: Stop-ScheduledTask -TaskName YodaEarthArchiveUpdate
+Disable future runs: Disable-ScheduledTask -TaskName YodaEarthArchiveUpdate
+Resume: Enable-ScheduledTask -TaskName YodaEarthArchiveUpdate
+        Start-ScheduledTask -TaskName YodaEarthArchiveUpdate
+Stop the viewer: Stop-ScheduledTask -TaskName YodaEarthArchiveViewer
+
+The private .yoda-earth directory contains runner.log, inventory.sqlite, config,
+and a DPAPI-protected reporting credential. Never distribute this directory.
+To rehash all previously acquired files, run its run-earth.ps1 with -Verify.
+Run this only after pausing the update task; the runner enforces a single writer.
+The reporting credential expires after 90 days; reissue the installer to renew it.
+Reissuing revokes the earlier credential, not your downloaded data.
+The installer is tied to the app URL from which you downloaded it. Reissue it
+after changing to a published URL. If the app is offline, local acquisition can
+continue but remote status and engine updates cannot reach it.
+
+INTEGRITY AND DISTRIBUTION
+Inventory entries are not downloaded files. Each acquired object is length-
+checked, hashed with SHA-256, and checked against a published MD5 where available.
+S3 ETags are source validators, not always MD5 hashes. On ordinary subsequent
+runs, unchanged size/mtime reuses the previous verification; -Verify rehashes it.
+The Windows viewer, http://127.0.0.1:18482, exposes only verified local objects,
+the source/hash manifest, and the downloaded engine package. It never exposes
+credentials, private state, partial files, arbitrary filesystem paths or a LAN
+listener. Open it from the same Windows machine through the Yoda link.
+Remote Yoda stores only bounded client-reported status. It has not independently
+inspected Windows disk, and does not serve the Windows terabytes to other users.
+
+LIMITS / T5 STATUS
+This implements archive acquisition and local distribution, not the complete
+T5 engine. Native DEM/geoid containers are not yet decoded into the existing
+T1 renderer. A full-resolution global archive cannot fit in the proposed 25 MB
+single HTML file. GLOBAL has no asserted national legal datum or recognition.
+No survey certification, legal acceptance, mathematical closure or completed
+T5 recursion is claimed by any acquisition status.
+If NGA or another source fails, the source stays incomplete. Independent sources
+can proceed, but the archive cannot be marked complete.

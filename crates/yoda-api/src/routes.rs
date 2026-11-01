@@ -45,6 +45,9 @@ use crate::websocket;
 pub fn build_router(state: AppState) -> Router {
     // ── Public routes (no auth) ──────────────────────────────────────
     let public = Router::new()
+        .route("/api/earth-archive/report", post(crate::earth_archive::report).layer(DefaultBodyLimit::max(16*1024)))
+        .route("/api/earth-archive/files/{name}", get(crate::earth_archive::file))
+        .route("/api/earth-archive/guide", get(crate::earth_archive::guide))
         .route("/api/auth/register", post(auth::register))
         .route("/api/auth/login", post(auth::login))
         .route("/api/auth/refresh", post(auth::refresh_token))
@@ -165,6 +168,11 @@ pub fn build_router(state: AppState) -> Router {
         .route("/api/projects/{id}/query", post(crate::execution::submit_project))
         .route("/api/execution/runs", post(crate::execution::submit))
         .route("/api/formula-evidence/catalog", get(crate::formula_evidence::catalog))
+        .route("/api/capomastro/folding/extract", post(crate::folding_documents::extract)
+            .layer(DefaultBodyLimit::max(10*1024*1024))
+            .layer(middleware::from_fn(crate::folding_documents::limit)))
+        .route("/api/earth-archive/status", get(crate::earth_archive::status))
+        .route("/api/earth-archive/installer", post(crate::earth_archive::installer))
         .route("/api/formula-evidence/source", get(crate::formula_evidence::source))
         .route("/api/formula-evidence/runs", get(crate::formula_evidence::history).post(crate::formula_evidence::run))
         .route("/api/formula-evidence/runs/{id}/report", get(crate::formula_evidence::report))

@@ -1,5 +1,5 @@
-import { useRef, useState, type FormEvent } from 'react';
-import { Link } from 'react-router-dom';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { Link, useLocation } from 'react-router-dom';
 import { Download, FileCheck2, History, Scale, ShieldAlert } from 'lucide-react';
 import { usePageHeader } from '../../context/PageHeader';
 import { Panel } from './ui';
@@ -61,7 +61,7 @@ function ResultView({ result }: { result: GateResult }) {
   </div>;
 }
 function HistoryRecord({ record }: { record: GateRecord }) {
-  return <details className="border border-[var(--color-border-default)] p-4">
+  return <details id={`record-${record.id}`} className="border border-[var(--color-border-default)] p-4 scroll-mt-6">
     <summary className="cursor-pointer text-xs">
       <span className="ml-2"><GateBadge status={record.result.status} /> <span className="mx-2 font-semibold">{KINDS[record.input.kind]?.label || record.input.kind}</span><span className="text-[var(--color-text-muted)]">{record.createdAt}</span></span>
       <span className="block mt-2 break-words text-[var(--color-text-muted)]">{record.input.scope} · {record.input.unit}</span>
@@ -83,6 +83,20 @@ function HistoryRecord({ record }: { record: GateRecord }) {
 export function ConservationPage() {
   usePageHeader({ icon: Scale, title: 'Conservation Gate', subtitle: 'Exact finite checks, declared provenance and persistent supplemental audit records' });
   const { data, error, loading, refresh } = useGateContext();
+  const { hash } = useLocation();
+  const handledHash = useRef('');
+  useEffect(() => {
+    if (!hash) { handledHash.current = ''; return; }
+    if (handledHash.current === hash) return;
+    let id: string;
+    try { id = decodeURIComponent(hash.slice(1)); } catch { return; }
+    if (id !== 'audit-history' && !data?.records.some(record => `record-${record.id}` === id)) return;
+    const target = document.getElementById(id);
+    if (!target) return;
+    if (target instanceof HTMLDetailsElement) target.open = true;
+    target.scrollIntoView({ block: 'start' });
+    handledHash.current = hash;
+  }, [hash, data]);
   const [draft, setDraft] = useState<Draft>(blank);
   const [evaluation, setEvaluation] = useState<{ input: GateInput; result: GateResult } | null>(null);
   const [busy, setBusy] = useState<'evaluate' | 'save' | 'verify' | null>(null);
@@ -219,6 +233,7 @@ export function ConservationPage() {
       </div>
     </div>
 
+    <div id="audit-history" className="scroll-mt-6">
     <Panel title="04 / Persistent audit history" icon={History} action={<button className="gate-button" disabled={!!busy} onClick={() => void verify()}>{busy === 'verify' ? 'Verifying…' : 'Verify hash chain'}</button>}>
       <div className="text-xs text-[var(--color-text-muted)] space-y-2 mb-5">
         <p>Chain integrity: <GateBadge status={error || !data ? 'unknown' : !data.chain.valid ? 'fail' : data.records.length ? 'pass' : 'unverified'} /> · {data?.chain.count ?? 'Unknown'} saved records · Server order: oldest first.</p>
@@ -231,5 +246,6 @@ export function ConservationPage() {
       {data && <div className="mt-5 flex flex-wrap items-center gap-3"><button className="gate-button" onClick={() => exportJSON(data, 'capomastro-conservation-server-response.json')}><Download size={13} />Download full server response</button><span className="text-[10px] text-[var(--color-text-muted)]">{error ? 'Last received response · stale' : `Server snapshot: ${data.asOf}`}</span></div>}
       {!!data?.notes.length && <ul className="mt-4 list-disc pl-4 text-xs text-[var(--color-text-muted)] space-y-2">{data.notes.map((note, i) => <li key={i}>{note}</li>)}</ul>}
     </Panel>
+    </div>
   </div>;
 }

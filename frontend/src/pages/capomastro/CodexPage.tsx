@@ -9,6 +9,7 @@ import type { Dispatch } from '../../lib/clipboard';
 import { buildCodexDispatch, extractDocument } from './dispatch';
 import { FormulaEvidencePanel } from '../../components/formula-evidence/FormulaEvidencePanel';
 import { CodexPdfViewer } from '../../components/CodexPdfViewer';
+import { FoldingLabFrame } from '../../components/FoldingLabFrame';
 
 /**
  * The Codex loads original HTML documents in isolated frames and displays PDF
@@ -162,7 +163,8 @@ export function CodexPage() {
           <ShieldCheck className="w-5 h-5 text-[var(--color-gold-400)] flex-shrink-0 mt-0.5" />
           <p className="text-xs text-[var(--color-text-muted)] leading-relaxed">
             Original sealed documents remain unchanged. Corrections are published as explicitly
-            labeled supplements alongside them. HTML frames load the selected source file;
+             labeled supplements alongside them. HTML frames load the selected source file, except
+             the explicitly labeled SALVI functional derivative with document and text inputs;
             PDF pages use vector renderings from the original PDF.
           </p>
         </div>
@@ -270,7 +272,7 @@ export function CodexPage() {
             title={active.title}
             manifestUrl="/capomastro/rendered/golden-arc/manifest.json"
           />
-        ) : <iframe
+         ) : active.id === 'isopsephy-engine' ? <FoldingLabFrame key={active.id} title={active.title} /> : <iframe
           key={active.id}
           src={active.file}
           title={active.title}

@@ -33,6 +33,8 @@ pub mod engine_verification;
 pub mod execution;
 pub mod formula_math;
 pub mod formula_evidence;
+pub mod folding_documents;
+pub mod earth_archive;
 mod engine_verification_rules;
 mod query_relay_selection;
 pub mod relay_identity;

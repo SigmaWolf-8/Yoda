@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Download, ExternalLink, Globe2, RotateCcw } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { usePageHeader } from '../../context/PageHeader';
 import { BevelBox } from '../../components/ui/BevelBox';
 import { FormulaEvidencePanel } from '../../components/formula-evidence/FormulaEvidencePanel';
+import { EarthArchivePanel } from '../../components/earth-archive/EarthArchivePanel';
 
 const ROOT = '/capomastro/engines/arc182/';
 const INSTRUMENTS = [
@@ -87,6 +88,8 @@ function PackageEvidence() {
 }
 
 export function EarthEnginePage() {
+  const [searchParams] = useSearchParams();
+  const archiveView = searchParams.get('view') === 'archive';
   const [activeId, setActiveId] = useState<string>(INSTRUMENTS[0].id);
   const [view, setView] = useState<'globe' | 'document'>('globe');
   const [frameState, setFrameState] = useState<'loading' | 'loaded' | 'error'>('loading');
@@ -94,12 +97,18 @@ export function EarthEnginePage() {
   const active = INSTRUMENTS.find(instrument => instrument.id === activeId) ?? INSTRUMENTS[0];
   usePageHeader({
     icon: Globe2,
-    title: 'Earth & Isopsephy instruments',
-    subtitle: 'Original interactive instruments · package provenance · finite formula evidence',
+    title: archiveView ? 'Windows global archive' : 'Earth & Isopsephy instruments',
+    subtitle: archiveView ? 'GLOBAL native-resolution acquisition · client-reported status · explicit scope' : 'Original interactive instruments · package provenance · finite formula evidence',
   });
   function reload() {
     setFrameState('loading');
     setRevision(value => value + 1);
+  }
+  if (archiveView) {
+    return <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto space-y-6 text-[var(--color-text-primary)]">
+      <Link to="/capomastro/earth-engine" className="earth-instrument-action">Back to instruments</Link>
+      <EarthArchivePanel />
+    </div>;
   }
   return <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto space-y-6 text-[var(--color-text-primary)]">
     <BevelBox className="bg-[var(--color-surface-primary)] p-4 sm:p-6">
@@ -141,6 +150,7 @@ export function EarthEnginePage() {
         <div><h2 id="earth-instrument-title" className="text-base font-bold">{active.title}</h2><p className="text-xs text-[var(--color-text-muted)] mt-1">{active.description}</p></div>
         <div className="flex flex-wrap gap-2">
           <button type="button" onClick={reload} className="earth-instrument-action"><RotateCcw size={14} />Reload instrument</button>
+          <Link to="/capomastro/earth-engine?view=archive" className="earth-instrument-action">Windows archive setup</Link>
           <a className="earth-instrument-action" href={`${ROOT}${active.file}`} target="_blank" rel="noreferrer"><ExternalLink size={14} />Open original full document</a>
           <a className="earth-instrument-action" href={`${ROOT}${active.file}`} download><Download size={14} />HTML source</a>
         </div>

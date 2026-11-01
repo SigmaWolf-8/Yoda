@@ -1,0 +1,6 @@
+{
+  "source": "/capomastro/docs/salvi-isopsephy-engine-v0.0.20.html",
+  "source_sha256": "4387ab86863eb56b4124017a9f4bfecad5f563721e2d064444bb6493772224be",
+  "adapter_sha256": "62a675d365ccc07d8b40b6ac81ede49491690937d372a5fb96542e74529639d6",
+  "changes": "Document/text input, safe text rendering, bounded symbolic calculations; not a physical Unity proof."
+}

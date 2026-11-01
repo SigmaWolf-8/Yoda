@@ -4,6 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
+    "prebuild": "python3 ../scripts/build-folding-lab.py",
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
