@@ -30,8 +30,10 @@ $Sid = [System.Security.Principal.WindowsIdentity]::GetCurrent().User.Value
 & icacls.exe $Private /inheritance:r /grant:r "*${Sid}:(OI)(CI)F" | Out-Null
 if ($LASTEXITCODE -ne 0) { throw 'Could not restrict access to the reporting configuration.' }
 $Python = $null
-$PythonCommand = Get-Command python -ErrorAction SilentlyContinue
-$Launcher = Get-Command py -ErrorAction SilentlyContinue
+$PythonCommand = Get-Command python -CommandType Application -ErrorAction SilentlyContinue |
+    Where-Object { $_.Source -notlike '*\Microsoft\WindowsApps\*' } | Select-Object -First 1
+$Launcher = Get-Command py -CommandType Application -ErrorAction SilentlyContinue |
+    Where-Object { $_.Source -notlike '*\Microsoft\WindowsApps\*' } | Select-Object -First 1
 $ProbePreference = $ErrorActionPreference
 $ErrorActionPreference = 'Continue'
 if ($Launcher) {

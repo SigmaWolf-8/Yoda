@@ -84,7 +84,7 @@ try {
     foreach ($Name in @('client.py','acquire.py','viewer.py','retention.py','retention_ui.py','retention_store.py','launch.py','GUIDE.txt')) {
         $Hashes[$Name] = (Get-FileHash -Algorithm SHA256 -LiteralPath (Join-Path $Root "served\$Name")).Hash.ToLowerInvariant()
     }
-    $Python = (Get-Command python -CommandType Application).Source
+    $Python = (Get-Command python -CommandType Application | Select-Object -First 1).Source
     $ServerScript = Join-Path $PSScriptRoot 'fixture_server.py'
     $Server = Start-Process -FilePath $Python -ArgumentList "`"$ServerScript`" `"$Root`"" -PassThru -WindowStyle Hidden
     Wait-For { Test-Path -LiteralPath (Join-Path $Root 'port.txt') } 'loopback fixture server'
