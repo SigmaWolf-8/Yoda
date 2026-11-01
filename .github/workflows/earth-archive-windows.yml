@@ -28,10 +28,11 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      # Use a custom shell: Actions' built-in powershell shell adds
-      # -ExecutionPolicy Bypass. Neither this job nor the installer may do that.
+      # Invoke the real .ps1 from cmd. A custom powershell.exe shell receives an
+      # extensionless Actions temporary file, which Windows PowerShell rejects.
+      # The built-in powershell shell adds -ExecutionPolicy Bypass; avoid it.
       - name: Exercise isolated installer and generated runner
-        shell: powershell.exe -NoLogo -NoProfile -NonInteractive -File {0}
+        shell: cmd
         run: |
-          & .\scripts\earth_archive\tests\windows-installer.ps1
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          powershell.exe -NoLogo -NoProfile -NonInteractive -File .\scripts\earth_archive\tests\windows-installer.ps1
+          exit /b %ERRORLEVEL%

@@ -37,6 +37,21 @@ request; GitHub's `X-Accepted-GitHub-Permissions` identifies missing token acces
 The platform checkpoints locally but does not automatically publish those
 commits to the external repository.
 
+# Windows CI shells and log downloads
+For Windows PowerShell 5.1 CI, invoke the checked-in `.ps1` from a `cmd` step
+when execution-policy changes are prohibited.
+**Why:** a custom `powershell.exe ... -File {0}` Actions shell receives an
+extensionless temporary file, rejected before the script executes. The built-in
+PowerShell shell adds an execution-policy bypass flag.
+**How to apply:** run the real script path and propagate its exit code; do not
+weaken the test or execution policy to make the workflow green.
+
+GitHub job-log downloads redirect to a signed storage URL.
+**Why:** forwarding the GitHub Authorization header to that different host can
+cause storage authentication failures and unnecessarily discloses a credential.
+**How to apply:** authenticate only the GitHub API request, then follow its
+redirect without the GitHub header. Never print or retain signed URLs.
+
 **How to apply:** after finishing work, expect `mark_task_complete` validation to
 fail on parity; push HEAD to origin via the token path, confirm `0 0`, re-mark.
 
