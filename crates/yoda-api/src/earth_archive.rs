@@ -9,10 +9,12 @@ use crate::{auth::AuthenticatedUser,error::AppError,state::AppState};
 
 const INSTALL:&str=include_str!("../../../scripts/earth_archive/install.ps1");
 const GUIDE:&str=include_str!("../../../scripts/earth_archive/GUIDE.txt");
-const FILES:[(&str,&str);3]=[
+const FILES:[(&str,&str);5]=[
     ("client.py",include_str!("../../../scripts/earth_archive/client.py")),
     ("acquire.py",include_str!("../../../scripts/earth_archive/acquire.py")),
     ("viewer.py",include_str!("../../../scripts/earth_archive/viewer.py")),
+    ("retention.py",include_str!("../../../scripts/earth_archive/retention.py")),
+    ("retention_ui.py",include_str!("../../../scripts/earth_archive/retention_ui.py")),
 ];
 fn hash(s:&str)->String{format!("{:x}",Sha256::digest(s.as_bytes()))}
 

@@ -118,6 +118,13 @@ def sync_engine(root,db,base):
     engines.mkdir(exist_ok=True)
     archive_path=engines/(digest+".zip")
     folder=engines/digest
+    if folder.exists():
+        # A prior operator cleanup may have been only partially successful.
+        # Never select a leftover directory as if it were a complete engine.
+        for item in manifest["files"]:
+            member=folder/"isopsephy_package"/safe_key(item["path"])
+            if not member.is_file() or hashes(member)[0]!=item["sha256"]:
+                raise ValueError("Retained engine directory is incomplete; review retention before reinstalling")
     if not archive_path.exists() or hashes(archive_path)[0]!=digest or not folder.exists():
         with open_url(base+"/capomastro/engines/arc182/complete-package.zip") as response:
             data=response.read(20_000_001)
@@ -141,7 +148,9 @@ def sync_engine(root,db,base):
                 if hashes(source)[0]!=item["sha256"]:
                     raise ValueError("Engine member hash mismatch")
             if folder.exists():
-                shutil.rmtree(folder)  # Only this content-addressed, managed engine directory.
+                # Retention is operator-reviewed; an existing selected/retained
+                # directory must not be silently removed by daily acquisition.
+                raise ValueError("Engine directory already exists; retained without replacement")
             temporary.rename(folder)
     put(db,"engine",{"sha256":digest,"at":utc()})
 

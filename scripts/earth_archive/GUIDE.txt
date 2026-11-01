@@ -53,6 +53,50 @@ listener. Open it from the same Windows machine through the Yoda link.
 Remote Yoda stores only bounded client-reported status. It has not independently
 inspected Windows disk, and does not serve the Windows terabytes to other users.
 
+REVIEW RETENTION AND PREVIEW DISK SAVINGS
+Open http://127.0.0.1:18482/retention on the Windows archive computer, or choose
+"Review retained releases and disk savings" from the viewer home page.
+Existing installations must be updated with a newly issued installer to get
+this view. The installer verifies and installs the retention modules too.
+
+1. Pause the update task before reviewing retention. Scans and deletion share
+   its single-writer lock; if the runner is busy the viewer asks you to retry.
+2. Review active versus retired GEBCO releases, other source groups, and each
+   content-addressed engine version. Expand references to inspect source URLs,
+   hashes, local paths, missing files and protection/errors.
+3. Select retired groups and choose "Preview cleanup — no deletion". This is
+   a dry run. It lists the exact files and local byte measurements to remove.
+4. Review every proposed path. Cancel to keep everything, or type DELETE and
+   press "Permanently delete listed files". Deletion bypasses the Recycle Bin.
+   Proposals expire after ten minutes and can be used only once. Changing the
+   inventory, selected engine or measured files invalidates the proposal.
+5. Read the result, including any failed/skipped paths, then resume acquisition.
+
+An active reference protects the whole release. The selected engine is protected.
+Resumable .part downloads and metadata, hard-linked files, symlinks/junctions,
+private/configuration files and unknown native files are never cleanup targets.
+Unsafe or unreadable groups are excluded rather than guessed. Only known native
+objects and regular files in unselected SHA-256 engine packages are eligible.
+The private .yoda-earth directory is never traversed or deleted. Cleanup retains
+the inventory/source references and native directories. Empty managed engine
+directories are removed only when empty; directories containing partial files
+remain. If an engine cleanup only partly succeeds, the runner refuses to select
+that incomplete package. Resolve failed deletions through a fresh retention
+preview before reinstalling it. Deleted native entries
+are marked removed; acquisition can download them again if they become active.
+Daily acquisition never invokes cleanup or automatically removes old releases.
+
+"Local file bytes" is the sum of actual file lengths, including known partials.
+"Allocated on disk" measures filesystem allocation (including Windows sparse/
+compressed files). Neither is the catalogue's download estimate. Unknown native
+files and unnamed engine folders are not included in these inventory totals.
+The result counts only successful file deletions using their measured sizes
+immediately before unlinking, not the preview estimate. Allocated bytes reclaimed
+and the observed volume free-space change are reported separately: open handles,
+other programs, snapshots and filesystem overhead may affect available space.
+If allocation cannot be measured reliably, the group is excluded or explicitly
+shows unavailable; the viewer never substitutes a catalogue estimate.
+
 LIMITS / T5 STATUS
 This implements archive acquisition and local distribution, not the complete
 T5 engine. Native DEM/geoid containers are not yet decoded into the existing

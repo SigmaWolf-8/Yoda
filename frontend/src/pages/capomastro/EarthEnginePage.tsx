@@ -173,6 +173,7 @@ export function EarthEnginePage() {
       />
       <p className="text-[11px] text-[var(--color-text-muted)] leading-relaxed mt-2">Isolation: scripts and downloads are allowed; same-origin access is withheld. In-frame computations do not access the app’s credentials or become saved deterministic server evidence automatically. The new-tab link opens the unframed supplied file.</p>
     </section>
+    <EarthArchivePanel />
     <PackageEvidence />
     <FormulaEvidencePanel />
   </div>;
