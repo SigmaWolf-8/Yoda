@@ -69,8 +69,101 @@ describe('divergence-flux reproducible checks', () => {
       const result = await run(c.id);
       expect(result).toMatchObject({ inputs: c.inputs, assumptions: c.assumptions, expected: c.expected, ...context });
       expect(result.executedAt).toMatch(/^\d{4}-/);
-      expect(result.implementationVersion).toBe('divergence-flux-polynomial/1');
-      expect(result.testVersion).toBe('formula-evidence-contract/1');
+      expect(result.implementationVersion).toBe('formula-evidence/2');
+      expect(result.testVersion).toBe('formula-evidence-contract/2');
+    }
+  });
+});
+
+describe('Compendium XOR reproducible checks', () => {
+  const xorChecks = formulaRegistry.find(claim => claim.id === 'compendium-boolean-xor')!.checks;
+  const xorCheck = (id: string) => xorChecks.find(c => c.id === id)!;
+  const changedInput = (c: FormulaCheck, patch: FormulaCheck['inputs']) =>
+    executeCheck({ ...c, inputs: { ...c.inputs, ...patch } }, executors[c.id], context);
+
+  it('registers unique IDs and no pre-certified XOR evidence', () => {
+    const ids = formulaRegistry.flatMap(claim => claim.checks.map(c => c.id));
+    expect(new Set(ids).size).toBe(ids.length);
+    for (const c of xorChecks) {
+      expect(initialEvidence(c)).toMatchObject({ status: 'not-run', observed: null, executedAt: null, traceId: null });
+      expect(c.tolerance).toBeNull();
+    }
+  });
+
+  it('independently matches the Boolean definition on the complete finite domain', async () => {
+    // Oracle is Boolean inequality, not the polynomial or modular algorithm.
+    const pairs = [[false, false], [false, true], [true, false], [true, true]];
+    const oracle = pairs.map(([x, y]) => Number(x !== y));
+    for (const c of xorChecks) {
+      expect(c.expected.outputs).toEqual(oracle);
+      const result = await executeCheck(c, executors[c.id], context);
+      expect(result).toMatchObject({
+        status: 'passed', observed: { evaluatedPairs: 4, outputs: oracle },
+        inputs: c.inputs, assumptions: c.assumptions, expected: c.expected,
+        implementationVersion: 'formula-evidence/2', testVersion: 'formula-evidence-contract/2',
+        ...context,
+      });
+      expect(result.executedAt).toMatch(/^\d{4}-/);
+      expect(evidenceConclusion([result])).toContain('Not established');
+    }
+  });
+
+  it('executes supplied coefficients and fails a wrong sign or missing interaction term', async () => {
+    const c = xorCheck('xor-polynomial');
+    for (const coefficients of [[0, 1, 1, 2], [0, 1, 1, 0], [1, 1, 1, -2]]) {
+      const result = await changedInput(c, { coefficients });
+      expect(result.status).toBe('failed');
+      expect(result.observed).not.toBeNull();
+      expect(result.observed!.outputs).not.toEqual(c.expected.outputs);
+    }
+  });
+
+  it('rejects incomplete, duplicated, reordered and non-Boolean domains', async () => {
+    const patches: FormulaCheck['inputs'][] = [
+      { domain: 'R²' }, { xValues: [0, 0, 1] }, { yValues: [0, 1, 0, 1, 0] },
+      { xValues: [0, 0, 0, 0] }, { yValues: [1, 0, 0, 1] },
+      ...[-1, 2, 0.5, NaN, Infinity].map(value => ({ xValues: [0, 0, 1, value] })),
+      { xValues: ['0', 0, 1, 1] as unknown as number[] },
+      { yValues: [0, 1, 0, true] as unknown as number[] },
+      { xValues: '0,0,1,1' }, { yValues: Array(4) as number[] },
+    ];
+    for (const c of xorChecks) {
+      for (const patch of patches) {
+        expect(await changedInput(c, patch)).toMatchObject({ status: 'failed', observed: null });
+      }
+    }
+  });
+
+  it('rejects malformed polynomial coefficients and unsafe outputs', async () => {
+    const c = xorCheck('xor-polynomial');
+    for (const coefficients of [
+      [], [0, 1, -2], [0, 1, 1, -2, 0], [0, 1, 1, NaN],
+      [0, 1, 1, Infinity], [0, 1, 1, -1.5], [0, 1, 1, Number.MAX_SAFE_INTEGER + 1],
+      [Number.MAX_SAFE_INTEGER, 1, 1, -2], Array(4) as number[],
+    ]) {
+      expect(await changedInput(c, { coefficients })).toMatchObject({ status: 'failed', observed: null });
+    }
+    expect((await changedInput(c, { coefficientOrder: 'xy,y,x,1' })).status).toBe('failed');
+  });
+
+  it('rejects a different modulus rather than coercing it', async () => {
+    const c = xorCheck('xor-parity');
+    for (const modulus of [0, 1, 3, -2, 2.5, NaN, Infinity, '2']) {
+      expect(await changedInput(c, { modulus })).toMatchObject({ status: 'failed', observed: null });
+    }
+  });
+
+  it('does not read expected outputs as computation inputs or accept an incomplete observation', async () => {
+    for (const c of xorChecks) {
+      const corrupted = { ...c, expected: { evaluatedPairs: 4, outputs: [1, 1, 1, 1] } };
+      expect(await executeCheck(corrupted, executors[c.id], context)).toMatchObject({
+        status: 'failed', observed: { evaluatedPairs: 4, outputs: [0, 1, 1, 0] },
+      });
+      for (const outputs of [[0, 1, 1], [0, 1, 1, NaN], [0, 1, 1, 1e-15]]) {
+        expect((await executeCheck(c, () => ({ evaluatedPairs: 4, outputs }), context)).status).toBe('failed');
+      }
+      expect((await executeCheck(c, () => ({ outputs: [0, 1, 1, 0] }), context)).status).toBe('failed');
+      expect((await executeCheck(c, undefined, context)).status).toBe('unavailable');
     }
   });
 });

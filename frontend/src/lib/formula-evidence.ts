@@ -1,9 +1,12 @@
 /**
  * Executable evidence is intentionally separate from sealed source documents.
- * This is a small, auditable polynomial checker, not a general theorem prover.
+ * These are small, auditable bounded checkers, not a general theorem prover.
  */
-export const IMPLEMENTATION_VERSION = 'divergence-flux-polynomial/1';
-export const TEST_VERSION = 'formula-evidence-contract/1';
+import { xorClaim, xorExecutors } from './formula-evidence-xor';
+
+export const IMPLEMENTATION_VERSION = 'formula-evidence/2';
+export const TEST_VERSION = 'formula-evidence-contract/2';
+export const REGISTRY_SCOPE = 'Registered divergence–flux example and exhaustive Boolean XOR checks only. All other document claims remain unverified by this registry.';
 export type EvidenceKind = 'displayed-formula' | 'ai-commentary' | 'deterministic-computation'
   | 'symbolic-reasoning' | 'numerical-check' | 'daemon-execution';
 export type CheckStatus = 'not-run' | 'running' | 'passed' | 'failed' | 'unavailable';
@@ -81,7 +84,7 @@ export const formulaRegistry: readonly FormulaClaim[] = [{
       limitation: 'No daemon adapter is registered. Browser execution must not be relabeled as remote execution.',
     },
   ],
-}];
+}, xorClaim];
 
 // Ascending integer coefficients. The registry deliberately uses small exact integers.
 export function derivative(coefficients: readonly number[]): number[] {
@@ -116,6 +119,7 @@ function fieldFrom(check: FormulaCheck): readonly number[] {
   return field;
 }
 export const executors: Readonly<Record<string, Executor>> = {
+  ...xorExecutors,
   'symbolic-divergence': check => ({ divergenceCoefficients: derivative(fieldFrom(check)) }),
   'symbolic-flux': check => {
     const field = fieldFrom(check);

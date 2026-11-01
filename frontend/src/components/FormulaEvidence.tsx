@@ -2,6 +2,7 @@ import { useId, useState, useSyncExternalStore } from 'react';
 import { Download, Play } from 'lucide-react';
 import {
   formulaRegistry,
+  REGISTRY_SCOPE,
   evidenceConclusion,
   getEvidenceSnapshot,
   runFormulaCheck,
@@ -83,7 +84,7 @@ export function FormulaEvidence() {
       const payload = {
         exportedAt: new Date().toISOString(),
         persistence: 'Session-only, in-memory state in this browser tab; reload resets evidence.',
-        scope: 'Initial registered divergence–flux example only. Other document claims remain unverified.',
+        scope: REGISTRY_SCOPE,
         execution: 'Local browser JavaScript only; daemon adapter absent and unavailable.',
         interpretation: 'Passed means the recorded observation matched the expected result, not document certification. Displayed formulas, AI commentary, request hashes, model agreement and estimates are not mathematical proof or measured performance.',
         evidenceKinds: kinds,
@@ -130,7 +131,7 @@ export function FormulaEvidence() {
       </div>
 
       <div className="border-l-2 border-[var(--color-gold-400)] pl-3 text-xs leading-relaxed space-y-1">
-        <p><strong>Scope:</strong> Initial registered divergence–flux example only. All other document claims remain unverified by this registry.</p>
+        <p><strong>Scope:</strong> {REGISTRY_SCOPE}</p>
         <p><strong>Execution:</strong> Local browser JavaScript in this tab. The daemon adapter is absent and unavailable; no remote execution is claimed.</p>
         <p><strong>Persistence:</strong> Shared across these app pages in this tab only; reload resets the evidence. Export inputs, versions and observations for reproducibility.</p>
         <p>Request hashes, model agreement and estimates are neither mathematical proof nor measured performance. A passed check is not certification of a document.</p>
@@ -151,7 +152,7 @@ export function FormulaEvidence() {
       <p role="status" aria-live="polite" className={`text-xs ${mutedClass}`}>
         {busy ? 'Executing registered checks locally…' : `${matched} of ${records.length} registered checks matched expected results. No document-wide verification.`}
       </p>
-      <p className="text-xs leading-relaxed"><strong>Executed evidence conclusion:</strong> {evidenceConclusion(records)}</p>
+      <p className="text-xs leading-relaxed"><strong>Divergence–flux conclusion:</strong> {evidenceConclusion(records)}</p>
       {actionError && <p role="alert" className="border border-current p-3 text-xs">Action error: {actionError} Use the relevant action above to retry.</p>}
       {!records.length && <p className="border border-[var(--color-border-default)] p-4 text-xs">No checks registered. No executable evidence is available; document claims remain unverified.</p>}
 

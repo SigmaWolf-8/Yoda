@@ -17,17 +17,19 @@ describe('shared formula evidence view', () => {
     const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
     try {
       await act(async () => root.render(<FormulaEvidence />));
-      expect(host.textContent).toContain('0 of 5 registered checks matched');
+      expect(host.textContent).toContain('0 of 7 registered checks matched');
+      expect(host.textContent).toContain('Compendium XOR: exhaustive Boolean-domain check');
+      expect(host.textContent).toContain('All other document claims remain unverified');
       expect(host.textContent).toContain('Not established');
       const runAll = Array.from(host.querySelectorAll('button')).find(b => b.textContent?.includes('Run all checks'))!;
       await act(async () => runAll.click());
-      expect(host.textContent).toContain('4 of 5 registered checks matched');
+      expect(host.textContent).toContain('6 of 7 registered checks matched');
       expect(host.textContent).toContain('Disproved');
       expect(host.textContent).toContain('Unavailable · no executor');
       expect(host.textContent).toContain('Browser / JavaScript (this tab); no daemon');
 
       await act(async () => root.render(<FormulaEvidence key="other-page" />));
-      expect(host.textContent).toContain('4 of 5 registered checks matched');
+      expect(host.textContent).toContain('6 of 7 registered checks matched');
       const exportButton = Array.from(host.querySelectorAll('button')).find(b => b.textContent?.includes('Export current evidence'))!;
       await act(async () => exportButton.click());
       expect(click).toHaveBeenCalledOnce();
@@ -37,8 +39,15 @@ describe('shared formula evidence view', () => {
         reader.readAsText(exported!);
       });
       const payload = JSON.parse(text);
-      expect(payload.records).toHaveLength(5);
-      expect(payload.records.filter((r: { status: string }) => r.status === 'passed')).toHaveLength(4);
+      expect(payload.records).toHaveLength(7);
+      expect(payload.records.filter((r: { status: string }) => r.status === 'passed')).toHaveLength(6);
+      expect(payload.scope).toContain('Boolean XOR');
+      for (const id of ['xor-polynomial', 'xor-parity']) {
+        expect(payload.records.find((r: { id: string }) => r.id === id)).toMatchObject({
+          status: 'passed', observed: { evaluatedPairs: 4, outputs: [0, 1, 1, 0] },
+          executionLocation: 'Browser / JavaScript (this tab); no daemon',
+        });
+      }
       expect(payload.records[0].traceId).toBeTruthy();
       expect(payload.localVanishingConclusion).toContain('Disproved');
       expect(payload.execution).toContain('daemon adapter absent');
