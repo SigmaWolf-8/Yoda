@@ -24,8 +24,18 @@ powershell.exe -NoProfile -NonInteractive -File .\scripts\earth_archive\tests\wi
 Do not run with reporting credentials or on an acquisition workstation. No
 administrator prompt, execution-policy change, bypass, Python package, or
 production service is required. If organizational policy blocks scripts, the
-check must fail; do not weaken policy to make it green. The custom Actions shell
-intentionally avoids the default Actions PowerShell shell's policy-bypass flag.
+check must fail; do not weaken policy to make it green. The cmd step invokes the
+checked-in PowerShell script directly, avoiding the default Actions PowerShell
+shell's policy-bypass flag.
+
+The test records the host's actual Windows token elevation type. Standard users
+and split-token administrators must produce non-administrator workers. If the
+host is already an **unfiltered administrator** (TokenElevationTypeDefault with
+administrator membership), Windows has no linked restricted token to select.
+Only in that measured case may workers retain existing administrator membership.
+The Limited task-principal, unchanged identity and unchanged policy assertions
+still apply. Such a run proves no privilege gain and correct task configuration,
+but does **not** certify standard-user desktop execution; the log says so.
 
 ## Isolation and evidence
 
@@ -34,8 +44,8 @@ intentionally avoids the default Actions PowerShell shell's policy-bypass flag.
 - Only deployment placeholders and the two task-name literals are replaced in
   the installer template. All installer and generated runner logic stays intact.
   Unique task names prevent production tasks from being stopped or overwritten.
-- A loopback-only HTTP server serves six allowlisted files, including both
-  retention modules. `client.py` is an
+- A loopback-only HTTP server serves the seven packaged worker modules and the
+  guide through an explicit allowlist. `client.py` is an
   explicitly inert fixture: no acquisition imports or network calls. It records
   arguments, whether a dummy token matched, and privilege level, then waits for
   at most 120 seconds or exits with a controlled native code.

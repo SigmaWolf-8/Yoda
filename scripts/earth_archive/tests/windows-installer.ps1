@@ -55,6 +55,38 @@ Assert (-not (Test-Path Env:YODA_ARCHIVE_REPORT_TOKEN)) 'Do not run with a repor
 $PolicyBefore = Get-ExecutionPolicy -List | ConvertTo-Json -Compress
 $IdentityBefore = [System.Security.Principal.WindowsIdentity]::GetCurrent().User.Value
 $AdminBefore = ([System.Security.Principal.WindowsPrincipal][System.Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([System.Security.Principal.WindowsBuiltInRole]::Administrator)
+# "Limited" selects the account's least-privileged available token. An
+# unfiltered administrator has no linked standard-user token. Distinguish that
+# host condition from a worker actually gaining privilege; never assume it.
+Add-Type @'
+using System;
+using System.ComponentModel;
+using System.Runtime.InteropServices;
+public static class EarthTokenInspection {
+    [DllImport("kernel32.dll")] static extern IntPtr GetCurrentProcess();
+    [DllImport("kernel32.dll")] static extern bool CloseHandle(IntPtr handle);
+    [DllImport("advapi32.dll", SetLastError=true)]
+    static extern bool OpenProcessToken(IntPtr process, uint access, out IntPtr token);
+    [DllImport("advapi32.dll", SetLastError=true)]
+    static extern bool GetTokenInformation(IntPtr token, int kind, out int value, int size, out int needed);
+    public static int ElevationType() {
+        IntPtr token;
+        if (!OpenProcessToken(GetCurrentProcess(), 8, out token)) throw new Win32Exception();
+        try {
+            int value, needed;
+            if (!GetTokenInformation(token, 18, out value, 4, out needed)) throw new Win32Exception();
+            return value;
+        } finally { CloseHandle(token); }
+    }
+}
+'@
+$ElevationTypeBefore = [EarthTokenInspection]::ElevationType()
+Assert ($ElevationTypeBefore -in 1,2,3) 'Unknown Windows token elevation type'
+$UnfilteredAdminBefore = $AdminBefore -and $ElevationTypeBefore -eq 1
+Write-Host "Host privilege evidence: administrator=$AdminBefore; token elevation type=$ElevationTypeBefore"
+if ($UnfilteredAdminBefore) {
+    Write-Warning 'Host has an unfiltered administrator token. This run verifies no privilege gain and Limited task configuration, NOT standard-user desktop execution.'
+}
 $PowerShell = Join-Path $PSHOME 'powershell.exe'
 $Source = Split-Path $PSScriptRoot -Parent
 $Id = [Guid]::NewGuid().ToString('N')
@@ -134,7 +166,7 @@ try {
     foreach ($Event in $FirstEvents) {
         Assert ($Event.target -eq $Target) 'Spaced target was not passed intact'
         Assert $Event.token_ok 'Runner DPAPI/token isolation failed'
-        Assert (-not $Event.elevated) 'Scheduled worker was elevated'
+        Assert ((-not $Event.elevated) -or $UnfilteredAdminBefore) 'Scheduled worker gained administrator privilege despite an available restricted token'
     }
     foreach ($Name in $TaskNames) {
         $Task = Get-ScheduledTask -TaskPath '\' -TaskName $Name
