@@ -30,6 +30,9 @@ pub mod agents;
 pub mod agent_worker;
 pub mod agent_transport;
 pub mod engine_verification;
+pub mod execution;
+pub mod formula_math;
+pub mod formula_evidence;
 mod engine_verification_rules;
 pub mod relay_identity;
 pub mod relay_monitor;
@@ -220,7 +223,6 @@ async fn main() -> anyhow::Result<()> {
     capomastro::webhook::spawn_webhook_registration(state.clone());
 
     // ── Initialize Kyokushin Brothers (Alpha/Beta/Gamma orchestrator) ─
-    let kyokushin = kyokushin_brothers::init_kyokushin_brothers().await;
 
     // ── Build router ─────────────────────────────────────────────────
     let cors = CorsLayer::new()
@@ -243,10 +245,10 @@ async fn main() -> anyhow::Result<()> {
         // Task #26: the on-disk file no longer carries a placeholder token —
         // it reads its token from localStorage via the #cfg-token panel input.
         .merge(routes::build_router(state))
-        .merge(kyokushin_brothers::kyokushin_routes(kyokushin))
         .merge(forge_routes::forge_router())
         .fallback_service(serve_dir)
         .layer(middleware::map_response(no_cache_static))
+        .layer(middleware::from_fn(formula_evidence::offline_headers))
         .layer(cors)
         .layer(TraceLayer::new_for_http());
 

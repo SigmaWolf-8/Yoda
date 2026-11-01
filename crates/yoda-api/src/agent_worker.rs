@@ -75,6 +75,26 @@ async fn run_one(state: &AppState, org: Uuid, owner: Uuid) -> Result<(), AppErro
         return message(state, org, owner, "Paused by operator; no new inference is dispatched.").await;
     }
 
+    // Proof expiry must not permanently strand an enabled autonomous queue.
+    // Probe only for actual queued work; rejected/unreachable engines back off
+    // ten minutes, and the verifier's per-slot lock bounds concurrent requests.
+    let queued:bool=sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM tasks t JOIN projects p ON p.id=t.project_id WHERE p.org_id=$1 AND t.status='QUEUED')")
+        .bind(org).fetch_one(&state.db).await?;
+    if queued {
+        let relay_ready=state.relay_tx.read().await.is_some();
+        let stale:Vec<(String,String)>=sqlx::query_as(
+            "SELECT slot,hosting_mode FROM engine_configs WHERE org_id=$1 AND NOT is_disabled AND \
+            (verification IS NULL OR (verification->>'verified'='true' AND (verification->>'expires_at')::timestamptz<=now()) OR \
+            COALESCE((verification->>'checked_at')::timestamptz,'-infinity')<now()-interval '10 minutes')")
+            .bind(org).fetch_all(&state.db).await?;
+        for (slot,mode) in stale {
+            if mode=="self_hosted" && !relay_ready {continue;}
+            if let Err(error)=crate::engine_verification::verify_for_org(state.clone(),org,slot).await {
+                tracing::warn!(?error,"Automatic generation verification could not start");
+            }
+        }
+    }
+
     let engines = sqlx::query_as::<_, (String,String,String,Option<String>,String,String)>(
         "SELECT slot,hosting_mode,endpoint_url,credentials_encrypted,model_name,auth_type FROM engine_configs \
          WHERE org_id=$1 AND NOT is_disabled \

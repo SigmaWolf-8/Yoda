@@ -31,6 +31,17 @@ no redirect to follow. Run and job *metadata* (conclusions, step names, which
 step failed) all read fine — that metadata is usually enough to locate the
 failure, and reproducing the step locally beats hunting for the log.
 
+Check-run annotations are accessible through the job's `check_run_url`, even
+when log downloads are forbidden. They can include the exact TypeScript errors.
+Actions workflow enablement also works through the connector; lack of workflow
+file-write permission does not mean all Actions operations are forbidden.
+
+**Why:** stale failing badges can coexist with a workflow disabled for inactivity;
+an upstream repair is not validated merely by writing a source patch.
+
+**How to apply:** inspect workflow state and check annotations before reproducing
+a whole build or treating a token restriction as universal.
+
 ## Gotcha unrelated to scopes
 
 `POST /git/trees` also 404s when `base_tree` is given a **commit** SHA. It wants

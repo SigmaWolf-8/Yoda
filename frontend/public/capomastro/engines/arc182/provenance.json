@@ -1,0 +1,222 @@
+{
+  "schema": 1,
+  "artifact": "Arc182 Earth / Isopsephy supplied package",
+  "tier": "Tier 1 visual/cartographic; Tier 2 inputs absent",
+  "archiveSha256": "94f6b0c8ca09a6a6fce8d51941dca644d95e2446b16f7d970037a850fdcf486f",
+  "files": [
+    {
+      "path": "names99_glyph_engine_globe.html",
+      "bytes": 597881,
+      "sha256": "b6e4f2b2b6ba31cd7fc3b42e5350a78f45994a1e9261202214a47907c5a14b94"
+    },
+    {
+      "path": "engine/isopsephy_engine_v0_0_20.py",
+      "bytes": 636747,
+      "sha256": "78360350e79973af87dab548a4c7a04cd93a90ded908c133fac9e397a5d02d7b"
+    },
+    {
+      "path": "engine/formulario.txt",
+      "bytes": 3106,
+      "sha256": "2ae6e4e1fa8578bbb7ada98fb568deab605fbe52a9b74e0dbf7433396efe374a"
+    },
+    {
+      "path": "globe_data/borders_glyph.txt",
+      "bytes": 29179,
+      "sha256": "f9d63c46c9aab83ca09de76223852cce3309504819a3ceafcdc77c42ab8d7d20"
+    },
+    {
+      "path": "globe_data/coast_glyph.txt",
+      "bytes": 54463,
+      "sha256": "6f1e92e71e7db6e5288d16b2aeaf44c1c272a8b5b512534fa739af15ef36d781"
+    },
+    {
+      "path": "globe_data/land_glyph.txt",
+      "bytes": 54017,
+      "sha256": "9402231f129a13fe3c4dddc78558a23efd0885c9e822219cec74746f3774ca7f"
+    },
+    {
+      "path": "globe_data/elev_glyph.txt",
+      "bytes": 341057,
+      "sha256": "9f06e9c75ff9d246a7775893632ec8b586988b7d7c96e8da58c982040fd83191"
+    },
+    {
+      "path": "globe_data/lakes_glyph.txt",
+      "bytes": 4696,
+      "sha256": "ff9b900763be1a86b037a62256130c678d3be7558da5bd72f9d5f388b92c7a7f"
+    },
+    {
+      "path": "globe_data/mtn_glyph.txt",
+      "bytes": 28169,
+      "sha256": "5f066bbe59d2af930dea14b371cdddb1c4c876e7128a79ccec997794c0940d70"
+    },
+    {
+      "path": "outputs/names99_sixregister_AMD.md",
+      "bytes": 10078,
+      "sha256": "434a4852f25793c5f45b6ad65dcb8b9156961cc1703befa3ad005d882a40769e"
+    },
+    {
+      "path": "outputs/names99_phoenician_AMD.md",
+      "bytes": 10629,
+      "sha256": "85ee23edad410700768ca7393d64a7974c25eee223dec1eac51c43c7285307e6"
+    },
+    {
+      "path": "outputs/names99_nine_registers.csv",
+      "bytes": 4825,
+      "sha256": "1f04c333bce713a99214be675cd71e55eae6ecd945572e8aeecd5e61cd885f42"
+    },
+    {
+      "path": "outputs/names99_abjad_AMD.md",
+      "bytes": 8500,
+      "sha256": "abccb2eeac446f5f5da7f4755c7728374843bc527dffd10ea1612456fe8e4caf"
+    },
+    {
+      "path": "outputs/names99_all_registers.csv",
+      "bytes": 4877,
+      "sha256": "36e78c9d3a7e7d3bfcbd3ca54b5353362dd5f7aa943c194aeda4b1089d340900"
+    },
+    {
+      "path": "outputs/names99_equivalence_AMD.md",
+      "bytes": 10239,
+      "sha256": "177af40ab075c8408593d03efd5a29b7164d1e4c52f4c271deadf61cd060c1c6"
+    },
+    {
+      "path": "outputs/isopsephy_amd.md",
+      "bytes": 38740,
+      "sha256": "fb4926b09cd5b20c7775f0549bfb03222fbcf3b422a3687a82a036f941fd8baf"
+    },
+    {
+      "path": "outputs/names99_sixregister.csv",
+      "bytes": 6683,
+      "sha256": "0500c2946812331b634e45f8a644daca29c23c4802168c2f34e87ba40ec59485"
+    },
+    {
+      "path": "outputs/names99_equivalence.csv",
+      "bytes": 4960,
+      "sha256": "f46c3d2f209ada3e22ac16094b294f81a51262d0b815fb951dadec483ebf5a8c"
+    },
+    {
+      "path": "outputs/names99_all_registers_AMD.md",
+      "bytes": 9761,
+      "sha256": "809b5b05e53c00ce9d2456f2c69cdf853e83e4ec8ff1bf7cbce251f76244cd31"
+    },
+    {
+      "path": "outputs/formulario_isopsephy_amd.md",
+      "bytes": 38750,
+      "sha256": "2bd3e3b391c2e3aae05afa5f9c9124ce7a23ef5db1fdc6f4d248c11be5e1674a"
+    },
+    {
+      "path": "audits/arc182_geometry.png",
+      "bytes": 365024,
+      "sha256": "692fd9ec0c98f0cf05c02c9e8eee81756472d6ba31047b15783b52d867349e53"
+    },
+    {
+      "path": "audits/names99_globe_map.png",
+      "bytes": 10209,
+      "sha256": "c10b2efaaeef1dce585fa65c365f83a7bd579be2c37f251dc37c9419e03cea38"
+    },
+    {
+      "path": "audits/globe_solid_audit.png",
+      "bytes": 10049,
+      "sha256": "284a8ffb4c5bb66d1aa0946892bb7d39a0bbed50c4e1c42d581ff0c3212bb1d6"
+    },
+    {
+      "path": "audits/globe_audit.png",
+      "bytes": 16581,
+      "sha256": "0078c28bf6842a66eb58c02e12f437ff0f11f12aa749553b627c5ade0b9ae077"
+    },
+    {
+      "path": "audits/dr_distribution.png",
+      "bytes": 62171,
+      "sha256": "36d5f62ada6b7cdc231e80824e4daa6cfcca201a2ff7eef5081eaeabac618475"
+    },
+    {
+      "path": "audits/vesica_153.png",
+      "bytes": 145888,
+      "sha256": "1b5177cf08539843959849e0e80f068539911e03a7d75057dc03fd5ed74f61cf"
+    },
+    {
+      "path": "isopsephy_amd_v0_0_20.html",
+      "bytes": 602155,
+      "sha256": "de7086582ccdf1209c416292cbbaf871ce93ca52ece035227417759ef6eb9551"
+    },
+    {
+      "path": "MANIFEST.md",
+      "bytes": 2239,
+      "sha256": "100587180cd75edb3fb8d90721534b45d6a25b33de04fed4da3924615eedfe57"
+    },
+    {
+      "path": "skill/isopsephy-engine-skill-v0_0_20.zip",
+      "bytes": 245021,
+      "sha256": "059a8b81cf0edb412d53e9039e40cffd20413246771d92720e2058db0f39ea2e"
+    }
+  ],
+  "adaptedViews": [
+    {
+      "path": "accessible-names99_glyph_engine_globe.html",
+      "sha256": "b81e67141ad400284b0d9b408114cc6df20af1956f7b76df073d371c63eee4db",
+      "original": "names99_glyph_engine_globe.html",
+      "changes": "Keyboard/touch controls, canvas description and reduced-motion adapter; original arithmetic and datasets unchanged"
+    },
+    {
+      "path": "accessible-isopsephy_amd_v0_0_20.html",
+      "sha256": "e7248fe449a5d65b88bc88a78d6c2ba5ebb3505e51755729ec31d3a84a472a04",
+      "original": "isopsephy_amd_v0_0_20.html",
+      "changes": "Keyboard/touch controls, canvas description and reduced-motion adapter; original arithmetic and datasets unchanged"
+    }
+  ],
+  "blocks": [
+    {
+      "id": "codex",
+      "bytes": 1876,
+      "sha256": "4a32143429fb937a4067d303b1935d0147b194de687f4194ca398c5c78103f7e"
+    },
+    {
+      "id": "sequence",
+      "bytes": 839,
+      "sha256": "6c26ab2aa39541a45e5b9d4ce617e641b53fe12610778453e687e2f59fed9d16"
+    },
+    {
+      "id": "coast",
+      "bytes": 54464,
+      "sha256": "0187d2091664a3f95f081a18727488f9cbb8af782aeb3b39b12fd7f5458a0c5d"
+    },
+    {
+      "id": "land",
+      "bytes": 54018,
+      "sha256": "02b093dae140ae5921fa6690cf240be4301f60e88ff0a4146ad65e2a3b916c0c"
+    },
+    {
+      "id": "lakes",
+      "bytes": 4697,
+      "sha256": "619e7c1146c178ad084d3005926dabc32b5569956182569539df5afd0ce207e3"
+    },
+    {
+      "id": "mtn",
+      "bytes": 28170,
+      "sha256": "a92d5dd4aa829e8aca0790f52bd6cb2331a5c031dab6aba18c048fd6f82e88cc"
+    },
+    {
+      "id": "elev",
+      "bytes": 341058,
+      "sha256": "de9774d1bcdd85fea82d85cc6df3df3a1af5da1e5e019f8bc34dc69e93cae264"
+    },
+    {
+      "id": "borders",
+      "bytes": 29180,
+      "sha256": "8d6a696e8c811ca3d6054ef55c94e1ccd675fc6596501b7f1f64e1cfd274b055"
+    }
+  ],
+  "provenance": {
+    "basemap": "Supplier-declared Natural Earth 110m; release and extraction date not pinned in package",
+    "relief": "Supplier-declared ETOPO 180×360 coarse grid; upstream version and resampling chain not independently established",
+    "heightDatum": "Source says metres relative to sea level. Without a declared geoid transformation, do not relabel these values as ellipsoidal heights.",
+    "ellipsoid": "Supplied renderer uses b/a = 6356.752/6378.137; b=6356752 m is ~0.314245 m below the full WGS84 derived value. Not millimetre-accurate.",
+    "missingTier2": [
+      "geoid grid",
+      "30 m DEM",
+      "authoritative high-resolution coastline",
+      "per-layer uncertainty and benchmark evidence"
+    ],
+    "limits": "File/block hashes establish byte identity only. They do not verify source accuracy, upstream licensing, standards compliance or survey certification."
+  }
+}

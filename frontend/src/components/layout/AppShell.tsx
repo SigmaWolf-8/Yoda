@@ -26,7 +26,7 @@ import { VideoPlayProvider, useVideoPlay } from '../../context/VideoPlay';
 import { SystemStatusBanner } from '../common/SystemStatusBanner';
 import { AgentRuntimePanel } from '../agents/AgentRuntimePanel';
 import { ErrorBoundary } from '../common/ErrorBoundary';
-import { conservationNavigation, compendiumNavigation } from '../../pages/capomastro/routes';
+import { conservationNavigation, compendiumNavigation, earthEngineNavigation } from '../../pages/capomastro/routes';
 
 /* ── Nav config ──
  * Grouped into 3 sections. Footer keeps Settings + collapse toggle.
@@ -58,6 +58,7 @@ const NAV_GROUPS: ReadonlyArray<{
       { to: '/capomastro/statements', icon: FileSpreadsheet, label: 'Statements' },
       { to: '/capomastro/collections', icon: Gavel,        label: 'Collections' },
       { to: '/capomastro/codex',      icon: BookOpen,        label: 'Codex'      },
+      earthEngineNavigation,
       { to: '/capomastro/seal',       icon: Stamp,           label: 'Seal'       },
       conservationNavigation,
       compendiumNavigation,

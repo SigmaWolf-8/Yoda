@@ -1,6 +1,9 @@
 // @ts-nocheck
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
+import { SharedExecutionPanel } from "../components/kyokushin/SharedExecutionPanel";
+import { FormulaEvidencePanel } from "../components/formula-evidence/FormulaEvidencePanel";
+import { Link, useLocation } from "react-router-dom";
 
 // PlenumNET brand palette | exact, no deviation
 const P = {
@@ -2738,6 +2741,9 @@ function Intractabilia() {
 // ── Index (stub | full indexing spec forthcoming from Salvi) ────────────────
 // ── Kyokushin Query Interface (Alpha | Beta | Gamma) ─────────────────────────
 function KyokushinQueryInterface() {
+  return <div id="shared-agent-execution"><SharedExecutionPanel title="Forge · shared agent execution" /></div>;
+}
+function LegacyKyokushinQueryInterface() {
   const [mdContent, setMdContent] = useState("");
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
@@ -3927,6 +3933,14 @@ function PageContent({ active }) {
 
 export default function KyokushinTripleExpressionV11131() {
   const [active, setActive] = useState("master");
+  const location = useLocation();
+
+  useEffect(() => {
+    if (location.hash !== "#shared-agent-execution") return;
+    setActive("kyokushin");
+    const timer = setTimeout(() => document.getElementById("shared-agent-execution")?.scrollIntoView({ block: "start" }), 150);
+    return () => clearTimeout(timer);
+  }, [location.hash]);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -3942,9 +3956,23 @@ export default function KyokushinTripleExpressionV11131() {
       <link rel="stylesheet" href={FONTS_HREF} />
       <div style={{ width: "100%", maxWidth: "min(96vw, 1400px)", margin: "0 auto" }}>
         <Header />
+        <div style={{ marginBottom: "1.5rem", padding: "1rem", border: "1px solid var(--color-border-subtle)", background: "var(--color-surface-primary)" }}>
+          <p style={{ color: "var(--color-text-muted)", fontSize: ".85rem", marginBottom: ".7rem" }}>Original instruments and deterministic calculations remain separate from agent model answers.</p>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: ".5rem" }}>
+            <Link to="/capomastro/earth-engine" className="earth-instrument-action">Earth & Isopsephy · full instruments</Link>
+            <a href="#forge-formula-evidence" className="earth-instrument-action">Inspect formula evidence</a>
+            <button type="button" className="earth-instrument-action" onClick={() => {
+              setActive("kyokushin");
+              setTimeout(() => document.getElementById("shared-agent-execution")?.scrollIntoView({ block: "start" }), 100);
+            }}>Shared agent execution</button>
+          </div>
+        </div>
         <TabBar tabs={TABS} active={active} onSelect={setActive} />
         <PageSubtitle latin={activeTab.latin} index={activeIndex} total={TABS.length} />
         <PageContent active={active} />
+        <div id="forge-formula-evidence" style={{ marginTop: "2rem", scrollMarginTop: "1rem" }}>
+          <FormulaEvidencePanel />
+        </div>
         <Footer />
       </div>
     </div>

@@ -162,7 +162,16 @@ pub fn build_router(state: AppState) -> Router {
         .route("/api/projects/{id}", delete(delete_project))
 
         // Query submission (B5.3)
-        .route("/api/projects/{id}/query", post(query::submit_query))
+        .route("/api/projects/{id}/query", post(crate::execution::submit_project))
+        .route("/api/execution/runs", post(crate::execution::submit))
+        .route("/api/formula-evidence/catalog", get(crate::formula_evidence::catalog))
+        .route("/api/formula-evidence/source", get(crate::formula_evidence::source))
+        .route("/api/formula-evidence/runs", get(crate::formula_evidence::history).post(crate::formula_evidence::run))
+        .route("/api/formula-evidence/runs/{id}/report", get(crate::formula_evidence::report))
+        .route("/api/execution/runs/{id}", get(crate::execution::run))
+        .route("/api/kyokushin/query", post(crate::execution::submit))
+        .route("/query-kyokushin", post(crate::execution::submit))
+        .route("/health/kyokushin", get(crate::execution::health))
         .route("/api/projects/{id}/query/approve", post(query::approve_decomposition))
 
         // Threads (Task #29) — root tasks treated as first-class objects
@@ -231,7 +240,7 @@ pub fn build_router(state: AppState) -> Router {
         .route("/api/settings/capabilities", get(get_capabilities))
 
         // LLM Gateway health (Alpha/Beta/Gamma cloud agents)
-        .route("/api/health/llm", get(llm_health))
+        .route("/api/health/llm", get(crate::execution::health))
 
         // Agent roster and upstream sync
         .route("/api/agents", get(agents::list_agents))
@@ -1242,31 +1251,6 @@ async fn gate_codepoint(
 
 // ─── LLM Gateway health ───────────────────────────────────────────────
 
-async fn llm_health(
-    State(state): State<AppState>,
-) -> Json<serde_json::Value> {
-    match &state.llm_gateway {
-        Some(gateway) => {
-            let status = gateway.health_check().await;
-            Json(serde_json::json!({
-                "alpha": status.alpha,
-                "beta": status.beta,
-                "gamma": status.gamma,
-                "any_available": status.any_available,
-                "all_available": status.all_available,
-            }))
-        }
-        None => Json(serde_json::json!({
-            "alpha": false,
-            "beta": false,
-            "gamma": false,
-            "any_available": false,
-            "all_available": false,
-            "note": "Cloud LLM gateway not configured — set ANTHROPIC_API_KEY + OPENAI_API_KEY + TOGETHER_API_KEY"
-        })),
-    }
-}
-
 // ─── Lineages ────────────────────────────────────────────────────────
 
 async fn get_lineages(
@@ -1708,7 +1692,10 @@ async fn list_recent_tasks(
     Ok(Json(serde_json::json!({ "tasks": tasks })))
 }
 
-async fn get_task(State(state): State<AppState>, Path(task_id): Path<Uuid>) -> Result<Json<serde_json::Value>, AppError> {
+async fn get_task(State(state): State<AppState>, user: axum::Extension<auth::AuthenticatedUser>, Path(task_id): Path<Uuid>) -> Result<Json<serde_json::Value>, AppError> {
+    let owned:bool=sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM tasks t JOIN projects p ON p.id=t.project_id WHERE t.id=$1 AND p.org_id=$2)")
+        .bind(task_id).bind(user.org_id).fetch_one(&state.db).await?;
+    if !owned {return Err(AppError::NotFound("Task not found".into()));}
     let (id,pid,tn,t,s,m,c,d,wp,pe,par,ca,ua,em) = sqlx::query_as::<_, (Uuid,Uuid,String,String,String,String,serde_json::Value,serde_json::Value,Option<i32>,Option<String>,Option<String>,chrono::DateTime<chrono::Utc>,chrono::DateTime<chrono::Utc>,Option<String>)>(
         "SELECT id,project_id,task_number,title,status,mode,competencies,dependencies,workflow_position,primary_engine_slot,primary_agent_role,created_at,updated_at,error_message FROM tasks WHERE id=$1"
     ).bind(task_id).fetch_optional(&state.db).await.map_err(AppError::Database)?.ok_or(AppError::NotFound("Task not found".into()))?;
@@ -1722,15 +1709,12 @@ async fn get_task(State(state): State<AppState>, Path(task_id): Path<Uuid>) -> R
         "created_at": ca, "updated_at": ua,
     });
 
-    let result_rows = sqlx::query_as::<_, (Uuid, i16, String, String, String)>(
-        "SELECT id, step_number, result_content, engine_slot, agent_role FROM task_results WHERE task_id=$1 ORDER BY step_number"
-    ).bind(task_id).fetch_all(&state.db).await.map_err(AppError::Database)?;
-
-    let results: Vec<serde_json::Value> = result_rows.into_iter().map(|(rid, sn, rc, es, ar)| serde_json::json!({
-        "id": rid, "task_id": task_id, "step_number": sn,
-        "result_content": rc, "engine_id": es, "agent_role": ar,
-        "tis27_hash": "", "created_at": ca,
-    })).collect();
+    let results: Vec<serde_json::Value> = sqlx::query_scalar(
+        "SELECT to_jsonb(r) || jsonb_build_object('engine_id',engine_slot) FROM task_results r WHERE task_id=$1 ORDER BY step_number")
+        .bind(task_id).fetch_all(&state.db).await?;
+    let reviews: Vec<serde_json::Value> = sqlx::query_scalar(
+        "SELECT to_jsonb(v) FROM task_reviews v JOIN task_results r ON r.id=v.task_result_id WHERE r.task_id=$1 ORDER BY v.created_at")
+        .bind(task_id).fetch_all(&state.db).await?;
 
     let message_rows = sqlx::query_as::<_, (Uuid, String, String, chrono::DateTime<chrono::Utc>)>(
         "SELECT id, role, content, created_at FROM task_messages WHERE task_id=$1 ORDER BY created_at"
@@ -1740,7 +1724,7 @@ async fn get_task(State(state): State<AppState>, Path(task_id): Path<Uuid>) -> R
         "id": mid, "task_id": task_id, "role": role, "content": content, "created_at": msg_ca,
     })).collect();
 
-    Ok(Json(serde_json::json!({ "task": task, "results": results, "reviews": [], "messages": messages })))
+    Ok(Json(serde_json::json!({ "task": task, "results": results, "reviews": reviews, "messages": messages })))
 }
 
 #[derive(Debug, Deserialize)]
@@ -1967,12 +1951,13 @@ async fn retry_task(State(state): State<AppState>, user: axum::Extension<auth::A
     sqlx::query("UPDATE tasks SET status='QUEUED',error_message=NULL,updated_at=NOW() WHERE id=$1")
         .bind(task_id).execute(&mut *tx).await?;
     tx.commit().await?;
-    get_task(State(state),Path(task_id)).await
+    get_task(State(state),user,Path(task_id)).await
 }
 
-async fn escalate_task(State(state): State<AppState>, Path(task_id): Path<Uuid>) -> Result<Json<serde_json::Value>, AppError> {
-    sqlx::query("UPDATE tasks SET status='ESCALATED' WHERE id=$1").bind(task_id).execute(&state.db).await.map_err(AppError::Database)?;
-    get_task(State(state), Path(task_id)).await
+async fn escalate_task(State(state): State<AppState>, user: axum::Extension<auth::AuthenticatedUser>, Path(task_id): Path<Uuid>) -> Result<Json<serde_json::Value>, AppError> {
+    sqlx::query("UPDATE tasks SET status='ESCALATED' WHERE id=$1 AND project_id IN (SELECT id FROM projects WHERE org_id=$2)")
+        .bind(task_id).bind(user.org_id).execute(&state.db).await.map_err(AppError::Database)?;
+    get_task(State(state), user, Path(task_id)).await
 }
 
 async fn cancel_task(State(state): State<AppState>, Path(task_id): Path<Uuid>) -> Result<StatusCode, AppError> {
@@ -3496,7 +3481,6 @@ async fn relay_status(State(state): State<AppState>) -> Json<serde_json::Value> 
 /// Returns honest system-wide status: what is working, what is not, and why.
 /// Public — no auth required. Consumed by the frontend SystemStatusBanner.
 async fn system_status(State(state): State<AppState>) -> Json<serde_json::Value> {
-    let llm_enabled = state.llm_gateway.is_some();
     let agent_count = state.agents.count();
 
     let relay_armed = state.relay_tx.read().await.is_some();
@@ -3526,7 +3510,8 @@ async fn system_status(State(state): State<AppState>) -> Json<serde_json::Value>
     // nothing else; blaming them for a dead query path sent operators to
     // Settings → API Keys to fix something that was never the cause.
     let engines_read = sqlx::query_as::<_, (String, String, String, String, bool)>(
-        "SELECT slot, hosting_mode, COALESCE(endpoint_url, ''), health_status, is_disabled \
+        "SELECT slot, hosting_mode, COALESCE(endpoint_url, ''), \
+         CASE WHEN health_status='online' AND COALESCE((verification->>'expires_at')::timestamptz,'-infinity')<=now() THEN 'offline' ELSE health_status END, is_disabled \
          FROM engine_configs \
          WHERE org_id = (SELECT om.org_id FROM users u \
                          JOIN org_members om ON om.user_id = u.id \
@@ -3566,8 +3551,8 @@ async fn system_status(State(state): State<AppState>) -> Json<serde_json::Value>
             })
             .count();
 
-        let has_relay_engine = engines.iter().any(|(_, mode, endpoint, _, disabled)| {
-            mode.as_str() == "self_hosted" && !endpoint.is_empty() && !*disabled
+        let has_relay_engine = engines.iter().any(|(_, mode, endpoint, health, disabled)| {
+            mode.as_str() == "self_hosted" && !endpoint.is_empty() && health=="online" && !*disabled
         });
 
         // Mirrors submit_query: a live peer, or failing that a CRS
@@ -3648,10 +3633,8 @@ async fn system_status(State(state): State<AppState>) -> Json<serde_json::Value>
     Json(serde_json::json!({
         "ok": issues.iter().all(|i| i["severity"] != "critical"),
         "llm_gateway": {
-            "enabled": llm_enabled,
-            // Kept for /api/llm/health only. It does not gate query execution,
-            // so it is reported here without raising an issue.
-            "note": "Alpha/Beta/Gamma cloud gateway (ANTHROPIC_API_KEY + OPENAI_API_KEY + TOGETHER_API_KEY). Read by /api/llm/health; does not affect whether a query can run.",
+            "enabled": usable_cloud>0 || relay_ready,
+            "note": "Shared execution uses Settings AI Engines and recent generation evidence. No separate provider environment keys are required.",
         },
         "engines": {
             "readable": engines.is_some(),

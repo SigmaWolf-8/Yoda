@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { BookOpen, ExternalLink, ShieldCheck, Download } from 'lucide-react';
 import { usePageHeader } from '../../context/PageHeader';
 import { BevelBox } from '../../components/ui/BevelBox';
 import { CopyDispatchButton } from '../../components/ui/CopyDispatchButton';
 import type { Dispatch } from '../../lib/clipboard';
 import { buildCodexDispatch, extractDocument } from './dispatch';
+import { FormulaEvidencePanel } from '../../components/formula-evidence/FormulaEvidencePanel';
 
 /**
  * The Codex renders each sovereign document in an isolated frame that loads the
@@ -172,6 +173,13 @@ export function CodexPage() {
         </button>
       </BevelBox>
 
+      <BevelBox className="bg-[var(--color-surface-primary)] p-4">
+        <h2 className="text-sm font-bold text-[var(--color-text-primary)]">Earth & Isopsephy · full supplied instruments</h2>
+        <p className="text-xs text-[var(--color-text-muted)] leading-relaxed mt-2">Open the complete 99-names Earth model and full Isopsephy corpus, with original source downloads and package provenance. Tier 1 cartographic visualization only; missing Tier 2 inputs and datum limitations are explicitly documented.</p>
+        <Link to="/capomastro/earth-engine" className="earth-instrument-action mt-3">Open Earth & Isopsephy instruments <ExternalLink size={14} /></Link>
+        <a href="#codex-formula-evidence" className="earth-instrument-action mt-3 ml-2">Inspect formula evidence</a>
+      </BevelBox>
+
       {/* ── Document selector ── */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
         {DOCS.map((doc) => {
@@ -271,6 +279,9 @@ export function CodexPage() {
           {...(active.kind === 'pdf' ? {} : { sandbox: 'allow-scripts' as const })}
         />
       </BevelBox>
+      </div>
+      <div id="codex-formula-evidence" className="scroll-mt-4">
+        <FormulaEvidencePanel />
       </div>
     </div>
   );

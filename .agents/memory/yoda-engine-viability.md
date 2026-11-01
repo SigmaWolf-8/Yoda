@@ -5,9 +5,10 @@ description: Where model credentials actually live, which paths can serve a quer
 
 # What makes a YODA query answerable
 
-## Two paths, either one is enough
+## Transport reachability is not protocol readiness
 
-A submitted query reaches a model in one of two ways:
+A model call reaches an engine in one of two ways; a reviewed task still needs
+every engine required by its project policy, not merely one reachable model:
 
 - **Cloud** — an engine slot with hosting mode `commercial`/`free_tier`, health `online`,
   not disabled. Called directly by the server.
@@ -20,18 +21,31 @@ whether the address responds is always wrong.
 
 ## Credentials live in the database, not the environment
 
-Per-slot provider keys are stored encrypted in `engine_configs` and entered through
+Per-slot provider keys are stored in the application database and entered through
 Settings → Engines. Environment variables do **not** feed the engines. Asking the owner
 for an API-key secret is therefore the wrong move; the key belongs in the app's own field.
 
-The separate `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` / `TOGETHER_API_KEY` trio builds a
-cloud gateway that is read by one health endpoint and nothing else.
+Do not reintroduce a separate `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` /
+`TOGETHER_API_KEY` gateway as a prerequisite for these engines.
 
 **Why this matters:** the dashboard's critical "AI agents are offline" banner was keyed to
 that unused gateway. Setting all three keys would have cleared the banner and answered
 zero queries, while the actual blocker — a rejected provider key on the one usable slot —
 was never mentioned. When a status signal names a cause, verify the named thing is on the
 path it claims to gate.
+
+## Freshness and autonomous queues
+
+Refresh generation evidence on demand for actual queued work, with bounded
+per-slot requests and failure backoff. Do not spend provider tokens on an idle
+queue or dispatch local probes before the relay is armed.
+
+**Why:** short-lived generation certification otherwise strands enabled workers
+after proof expiry; probing during startup before relay authentication produces
+false failures and delays legitimate work.
+
+**How to apply:** keep freshness enforcement and autonomous re-verification
+together; never solve expiry by treating old proof or a connection as success.
 
 ## Probe semantics
 

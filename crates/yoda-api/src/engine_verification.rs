@@ -36,6 +36,12 @@ pub async fn resolve_peer(state: &AppState, endpoint: &str) -> Result<String, St
 pub async fn verify(
     State(state): State<AppState>, user: Extension<AuthenticatedUser>, Path(slot): Path<String>,
 ) -> Result<(axum::http::StatusCode, Json<Value>), AppError> {
+    verify_for_org(state,user.org_id,slot).await
+}
+
+pub async fn verify_for_org(
+    state:AppState, org:Uuid, slot:String,
+) -> Result<(axum::http::StatusCode, Json<Value>), AppError> {
     if !["a","b","c"].contains(&slot.as_str()) {
         return Err(AppError::Validation("Slot must be a, b, or c".into()));
     }
@@ -43,12 +49,12 @@ pub async fn verify(
     // probes across tabs/processes without inventing an in-progress success.
     let mut transaction = state.db.begin().await.map_err(AppError::Database)?;
     let locked: bool = sqlx::query_scalar("SELECT pg_try_advisory_xact_lock(hashtextextended($1,0))")
-        .bind(format!("engine-verify:{}:{slot}",user.org_id)).fetch_one(&mut *transaction)
+        .bind(format!("engine-verify:{org}:{slot}")).fetch_one(&mut *transaction)
         .await.map_err(AppError::Database)?;
     if !locked { return Err(AppError::Validation("Verification already running for this engine".into())); }
     let row = sqlx::query_as::<_,(Uuid,String,String,String,Option<String>,String,bool,Uuid)>(
         "SELECT id,hosting_mode,endpoint_url,auth_type,credentials_encrypted,model_name,is_disabled,verification_version FROM engine_configs WHERE org_id=$1 AND slot=$2")
-        .bind(user.org_id).bind(&slot).fetch_optional(&mut *transaction).await.map_err(AppError::Database)?
+        .bind(org).bind(&slot).fetch_optional(&mut *transaction).await.map_err(AppError::Database)?
         .ok_or_else(||AppError::Validation("Engine not configured".into()))?;
     let (id,mode,endpoint,auth,credentials,model,disabled,version) = row;
     if disabled { return Err(AppError::Validation("Engine is disabled; enable it before verification".into())); }

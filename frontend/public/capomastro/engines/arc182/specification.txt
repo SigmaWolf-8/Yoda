@@ -1,0 +1,569 @@
+# Specification — Arc182 Earth Reconstruction Engine
+**Document ID:** ARC182-SPEC-001
+**Version:** 1.0.0
+**Status:** Issued for engineering review
+**Supersedes:** informal characterization in prior correspondence
+**Applicable deliverable:** `isopsephy_amd_v0_0_20.html` + `/globe_data`, `/engine`, `/skill`, `/audits` per `MANIFEST.md`
+
+---
+
+## 0. Corrections incorporated (binding)
+
+These four corrections supersede the prior characterization and are normative for this spec:
+
+| # | Prior statement (superseded) | Corrected statement (binding) |
+|---|---|---|
+| C-1 | "Zero runtime dependencies is a property of the visual tier only" | **Zero runtime dependencies is achievable for both tiers** by baking all data (WGS84 parameters, Natural Earth, DEM grid, geoid grid) into the artifact. The dependency is relocated from runtime to build/provenance. |
+| C-2 | "Pure first-principles math only gives synthetic terrain" | **Correct.** Pure math produces the smooth ellipsoid plus fractal/synthetic surfaces. It is *not* a substitute for Earth. |
+| C-3 | "You would need to invent geology, tectonics, erosion…" | **Not required and not attempted.** The engine consumes *observed* heights (satellite radar, lidar, photogrammetry, surveyed benchmarks) via public DEMs and geoid models. No synthetic geology is generated. |
+| C-4 | "Math cannot produce a real DEM" | **Correct in the strict sense**, but the math layer *does* interpolate, compress, encode, resample, and hillshade observed DEMs. The engine is a transformation/encoding layer over public observations, not an observation source. |
+
+**Separation of concerns (normative):**
+
+- **Data layer** = observed (DEM, geoid, authoritative coastlines, CRS parameters)
+- **Math layer** = interpolation, compression, encoding, transformation, rendering
+- **Software layer** = deterministic, self-verifying, zero-runtime-dependency
+
+The engine is only as accurate as the data layer. The math layer cannot manufacture observations; it can only transport, transform, and render them faithfully.
+
+---
+
+## 1. Purpose & scope
+
+### 1.1 Purpose
+Define a best-in-class, standards-traceable specification for a browser-native Earth model that simultaneously supports:
+
+- **Tier 1 — Visual/Cartographic Globe**: WGS84 ellipsoid + Natural Earth basemap + coarse ETOPO relief. Zero runtime dependencies. Legitimate.
+- **Tier 2 — Geodetic / Terrain Reconstruction**: Tier 1 plus a geoid model and a high-resolution DEM. Zero runtime dependencies (baked in) but with declared accuracy and provenance. Legitimate *as an interpolation and rendering engine over public observations*, not as an observation source.
+
+### 1.2 In scope
+- Reference ellipsoid and CRS handling
+- Basemap, terrain, and (for Tier 2) geoid layers
+- Coordinate transformations (geodetic ↔ ECEF ↔ screen)
+- Projections (3D globe; north-polar azimuthal equidistant)
+- Relief hillshading and biome tinting
+- Runtime self-assertion and rejection
+- Data provenance, hashing, licensing
+- Zero-runtime-dependency packaging
+- Accuracy statements and uncertainty declarations
+- Accessibility and security posture
+
+### 1.3 Out of scope
+- Primary observation (the engine does not survey)
+- Cadastral, legal-boundary, or navigation-certified use
+- Real-time Earth orientation (ITRF epoch handling beyond WGS84 static)
+- Legal metrology certification
+
+---
+
+## 2. Terminology
+
+| Term | Definition |
+|---|---|
+| **WGS84** | World Geodetic System 1984. Reference ellipsoid + datum. Parameters per NGA.STND.0036. |
+| **Ellipsoid height h** | Height above the WGS84 ellipsoid. |
+| **Orthometric height H** | Height above the geoid (mean sea level). |
+| **Geoid undulation N** | N = h − H. The geoid–ellipsoid separation. |
+| **DEM** | Digital Elevation Model. A gridded field of heights. |
+| **Geoid model** | A gridded or spherical-harmonic field of N. |
+| **Tier 1** | Visual/cartographic globe. |
+| **Tier 2** | Geodetic/terrain reconstruction tier. |
+| **Zero-runtime-dependency** | The shipped artifact requires no network fetch, no external library, and no CDN at execution time. All inputs are baked in. |
+| **Provenance** | The chain of custody of data: source, version, hash, license. |
+
+---
+
+## 3. Product definition & tiering
+
+### 3.1 Tier 1 — Visual/Cartographic Globe (implemented in v0.0.20)
+
+| Element | Content | Status |
+|---|---|---|
+| Ellipsoid | WGS84 (a = 6378137.0 m, 1/f = 298.257223563, b = 6356752.314245 m) | ✅ implemented (`FLAT = 6356.752/6378.137`) |
+| Basemap | Natural Earth 110m: coastlines, land, lakes, mountain footprints, borders | ✅ baked in |
+| Terrain | ETOPO 1-degree relief (180 × 360 grid, meters vs sea level) | ✅ baked in (`<script id="elev">`) |
+| Hillshade | Gradient of the DEM | ✅ implemented |
+| Biome tint | Analytic aridity + latitude-dependent snowline | ✅ implemented |
+| Projections | 3D globe; north-polar azimuthal equidistant | ✅ implemented |
+| Rendering | Canvas 2D, per-pixel ray–ellipsoid intersection | ✅ implemented |
+| Arithmetic | BigInt (isopsephy layer), IEEE 754 (geometry layer) | ✅ implemented |
+| Runtime fetches | 0 | ✅ |
+| External libraries | 0 | ✅ |
+| Self-assertion (§0 axioms, rejection-on-failure) | BigInt recomputation at open time | ✅ |
+
+### 3.2 Tier 2 — Geodetic / Terrain Reconstruction (proposed additions)
+
+| Element | Content | Status |
+|---|---|---|
+| All of Tier 1 | — | ✅ |
+| **Geoid model** | EGM2008 (2.5′) or XGM2019e, baked as grid | ⬜ required |
+| **High-resolution DEM** | Copernicus DEM GLO-30, SRTM v3, or NASADEM (1″ ≈ 30 m) | ⬜ required |
+| **Authoritative coastline** | GSHHG or national hydrographic office vector data | ⬜ required |
+| **Vertical datum** | EPSG:3855 (EGM2008 height) or national vertical CRS | ⬜ required |
+| **Datum transforms** | EPSG registry / PROJ pipeline definitions baked in | ⬜ required |
+| **Uncertainty fields** | Per-layer σ, not just nominal values | ⬜ required |
+| **Provenance manifest** | SHA-256 per data block | ⬜ required |
+
+---
+
+## 4. Epistemic positioning (claims and non-claims)
+
+The engine makes **explicit, falsifiable** claims and refuses to make others.
+
+### 4.1 Claims (Tier 1)
+- The rendered solid is a WGS84 ellipsoid to the declared parameter precision.
+- The overlay is Natural Earth 110m (generalized, cartographic).
+- The relief field is ETOPO 1-degree (coarse, ~111 km cells at the equator; ~100 m vertical RMSE class).
+- Coastlines are not navigation-grade.
+- Heights are *ellipsoidal*, not orthometric. (Tier 1 has no geoid model.)
+- All numbers on the page are recomputed by BigInt at open time from the pipe-glyph registry; no pre-baked figures.
+
+### 4.2 Claims (Tier 2)
+- Heights are reported in **both** ellipsoidal (h) and orthometric (H = h − N) form.
+- The geoid model is declared (EGM2008 / XGM2019e / national) with version and grid resolution.
+- The DEM is declared (Copernicus GLO-30 / SRTM / NASADEM) with version, resolution, vertical datum, and accuracy statement.
+- Coastlines are declared (GSHHG version / national hydrographic version).
+- Accuracy is declared per layer, not aggregated into a single falsely precise number.
+
+### 4.3 Non-claims (both tiers)
+- The engine is **not** a survey instrument.
+- The engine does **not** produce real Earth observations; it interpolates, compresses, encodes, and renders public observations.
+- The engine does **not** invent geology, tectonics, erosion, sedimentation, or impacts.
+- The engine is **not** legal-for-trade, cadastral, or navigation-certified.
+
+### 4.4 Explicit refusal of the "mannequin-and-costume" framing
+The prior framing ("smooth mannequin wearing a costume") is **partially rejected**: it correctly distinguishes basemap from ellipsoid, but it **understates** the tool because ETOPO relief and hillshading are already present in v0.0.20. The engine is better described as:
+
+> *A WGS84 ellipsoid with a public-domain basemap and a coarse public DEM, rendered with physical hillshading and biome tinting, under zero-runtime-dependency, self-verifying arithmetic.*
+
+That is stronger than "costume" and weaker than "reconstruction." The tiering in §3 makes the exact position precise.
+
+---
+
+## 5. Standards compliance framework
+
+The engine is evaluated against the following standards. Each row states the standard, its scope, and the engine's posture.
+
+### 5.1 Geodetic reference standards
+
+| Standard | Scope | Engine posture |
+|---|---|---|
+| **NGA.STND.0036_1.0.0_WGS84** (formerly NIMA TR8350.2) | WGS84 ellipsoid, datum, GM, ω | Parameters match. `b` derived as 6356752.314245 m. GM and ω not currently used (no orbit dynamics), but declared for completeness. |
+| **ISO 19111:2019** (Spatial referencing by coordinates) | CRS, datum, ellipsoid | Ellipsoid parameters declared. CRS identifiers recommended to be added (EPSG:4326 geographic, EPSG:4979 3D geographic, EPSG:4978 geocentric, EPSG:3855 EGM2008 height). |
+| **ISO 19162:2019** (WKT2) | Well-Known Text for CRS | Recommended to declare CRS in WKT2 in the provenance manifest. |
+| **EPSG Geodetic Parameter Dataset** | CRS registry | Recommended: cite EPSG codes in metadata. |
+| **IERS Conventions 2010** (IERS TN 36) | Earth orientation, ITRF ↔ WGS84 | Out of scope for a static WGS84 globe; declared as out-of-scope. |
+| **IAG / IERS standards for geoid models** | EGM2008, XGM2019e, national vertical datums | Required for Tier 2. Declared per model used. |
+| **ISO 19107:2019** (Spatial schema) | Geometric primitives, topology | Canvas 2D primitives are the runtime schema; declared as a rendering subset. |
+
+### 5.2 Data content standards
+
+| Standard | Scope | Engine posture |
+|---|---|---|
+| **Natural Earth** (public domain, no license) | Cartographic basemap 1:110m / 1:50m / 1:10m | 110m variant is in use. Declared as cartographic, not survey. |
+| **NOAA NCEI ETOPO 2022** | Global relief model, 15″ and 60″ variants | v0.0.20 uses a 1-degree (60′) subset. Tier 2 should upgrade to 15″ or higher. |
+| **Copernicus DEM GLO-30 / GLO-90** (ESA, open) | Global 30 m and 90 m DEM | Recommended DEM for Tier 2. |
+| **SRTM v3** (NASA, public domain) | 1″ (≈ 30 m) global between 60°N and 56°S | Candidate for Tier 2. |
+| **NASADEM** (NASA, public domain) | 1″ global, improved SRTM | Candidate for Tier 2. |
+| **GEBCO 2023** (public domain) | 15″ bathymetry | Required if bathymetry matters for Tier 2. |
+| **EGM2008** (NGA, public domain) | 2.5′ geoid model | Required for Tier 2. |
+| **XGM2019e** (public domain) | Combined geoid model | Alternative for Tier 2. |
+| **GSHHG** (public domain) | Global Self-consistent Hierarchical High-resolution Geography | Recommended authoritative coastline for Tier 2. |
+| **OGC GeoTIFF 1.1** (OGC 19-008r4) | Raster encoding | Recommended for DEM/geoid blobs. |
+| **OGC GeoPackage 1.3** (OGC 12-128r18) | Vector + raster container | Recommended for the packaged data bundle. |
+| **OGC DGGS** (OGC 15-104r5) | Discrete Global Grid Systems | Optional; relevant if a tiled DGGS storage scheme is adopted. |
+
+### 5.3 Metadata and quality standards
+
+| Standard | Scope | Engine posture |
+|---|---|---|
+| **ISO 19115-1:2014** | Metadata — fundamentals | Required for the Tier 2 provenance manifest. |
+| **ISO 19115-2:2019** | Metadata — imagery and gridded data | Required for DEM and geoid provenance. |
+| **ISO 19115-3:2016** | XML implementation of 19115 | Recommended encoding for the manifest. |
+| **ISO 19157-1:2023** | Data quality — general requirements | Required for Tier 2 accuracy statements (positional, thematic, temporal, completeness). |
+| **ISO 19157-2** | Data quality — XML encoding | Recommended encoding. |
+| **ISO 19123-1:2023** | Coverage geometry and functions | DEM and geoid are coverages; declared as such. |
+| **ISO 19163-1:2016** | Coverage implementation schema | Recommended encoding. |
+| **ISO 19156:2023** | Observations and measurements | Recommended for documenting the chain from observation to interpolated product. |
+| **ISO 19118:2011** | Encoding | Declared: pipe-glyph ASCII for baked blocks; GeoTIFF/GeoPackage recommended for Tier 2 blobs. |
+| **ISO 19136-1:2020** | GML 3.2.1 | Optional; not used in the current artifact. |
+
+### 5.4 Software engineering standards
+
+| Standard | Scope | Engine posture |
+|---|---|---|
+| **ISO/IEC/IEEE 12207:2017** | Software life cycle processes | Declared lifecycle: iterative, self-verifying artifact. |
+| **ISO/IEC/IEEE 29148:2018** | Requirements engineering | This specification is the requirements artifact. |
+| **ISO/IEC 25010:2011** | System and software quality models | Evaluated against functional suitability, performance efficiency, compatibility, usability, reliability, security, maintainability, portability. See §9. |
+| **ISO/IEC 25040:2011** | Quality evaluation process | Declared. |
+| **ISO/IEC/IEEE 42010:2022** | Architecture description | This document is the architecture description; runtime + data + math layers are the viewpoints. |
+| **IEEE 1012-2016** | Verification and validation | Implemented as runtime self-assertion (§0 axioms) + build-time hashes. |
+| **ISO/IEC/IEEE 29119-1:2022** | Software testing | Declared: tests are the live assertions plus the audit renders in `/audits`. |
+| **ISO/IEC 5055:2021** | Automated source code quality | Recommended: run a static analyzer on the shipped JS. The BigInt arithmetic layer should be free of IEEE-754 hazards; the geometry layer is naturally IEEE-754 and should declare that. |
+| **ISO/IEC 27001:2022** | Information security management | Declared: zero-runtime-dependency eliminates supply-chain fetch risk. CSP headers recommended for hosting. |
+| **ISO/IEC 15408** (Common Criteria) | Security evaluation | Declared out-of-scope for a public visualization tool; CSP + integrity hashes are the applicable substitute. |
+| **ISO 9001:2015** | Quality management | Declared: process governs data pinning, hashing, and live assertions. |
+| **ISO/IEC/IEEE 14764:2022** | Software maintenance | Declared: version bumps on data or framework changes; audit renders regenerated. |
+
+### 5.5 Web and language standards
+
+| Standard | Scope | Engine posture |
+|---|---|---|
+| **W3C HTML Living Standard** | Markup | ✅ used. |
+| **W3C Canvas 2D Context** | 2D rendering | ✅ used. |
+| **W3C WebGL 1.0/2.0** | Optional 3D rendering | Not used in v0.0.20; available as an upgrade path. |
+| **ECMA-262** (JavaScript) | Language | ✅ used. |
+| **IEEE 754-2019** | Floating-point arithmetic | ✅ used in the geometry layer; **explicitly declared** as a non-arithmetic layer for the isopsephy engine (which uses BigInt). This is a deliberate two-layer arithmetic policy. |
+| **W3C WCAG 2.2 Level AA** | Accessibility | Required for a public-facing tier. |
+| **ISO/IEC 40500:2012** | WCAG 2.0 | Declared alongside WCAG 2.2. |
+| **WAI-ARIA 1.2** | Accessible rich internet applications | Recommended for canvas fallback content. |
+| **W3C PROV-DM** | Provenance data model | Recommended for the Tier 2 manifest. |
+| **W3C PROV-O** | Provenance ontology | Recommended encoding. |
+| **SPDX** | License identification | Required for the manifest (`LicenseRef-PublicDomain`, `CC0-1.0`, or equivalent SPDX identifiers). |
+| **SHA-256** (FIPS 180-4) | Cryptographic hash | Required for data block integrity in the manifest. |
+| **CSP Level 3** | Content Security Policy | Recommended for hosting; `default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'` is the target posture for a self-contained file. |
+
+---
+
+## 6. Data architecture
+
+### 6.1 WGS84 parameter registry
+
+| Parameter | Symbol | Value | Source |
+|---|---|---|---|
+| Semi-major axis | a | 6378137.0 m | NGA.STND.0036 |
+| Inverse flattening | 1/f | 298.257223563 | NGA.STND.0036 |
+| Semi-minor axis (derived) | b | 6356752.314245 m | b = a(1 − f) |
+| First eccentricity² | e² | 6.69437999014 × 10⁻³ | e² = 2f − f² |
+| GM | μ | 3986004.418 × 10⁸ m³/s² | NGA.STND.0036 |
+| Angular velocity | ω | 7292115.0 × 10⁻¹¹ rad/s | NGA.STND.0036 |
+
+The engine uses a = 6378137.0 and b = 6356752.314245 (via the `FLAT` constant `6356.752 / 6378.137`). The flattening is honored in the ray–ellipsoid intersection math, not merely in metadata.
+
+### 6.2 Basemap layer (Tier 1)
+
+| Property | Value |
+|---|---|
+| Source | Natural Earth 110m |
+| License | Public domain |
+| Fields | coastlines, land, lakes, mountains, borders |
+| Encoding | Pipe-glyph ASCII, baked in `<script type="text/plain">` |
+| Accuracy claim | Cartographic; generalized; not survey |
+| Lineage | Natural Earth version should be pinned in the manifest |
+
+### 6.3 Terrain layer (Tier 1 — implemented)
+
+| Property | Value |
+|---|---|
+| Source | NOAA NCEI ETOPO (1-degree subset) |
+| License | Public domain |
+| Grid | 180 × 360 (lat × lon) |
+| Units | Meters relative to sea level |
+| Accuracy claim | Coarse; vertical RMSE in the ~100 m class; cell size ≈ 111 km at the equator |
+| Encoding | Baked ASCII in `<script id="elev">` |
+| Hillshade | Computed from the DEM gradient (NW illumination) |
+| Lineage | ETOPO 2022 should be pinned in the manifest |
+
+### 6.4 Geoid layer (Tier 2 — proposed)
+
+| Property | Value |
+|---|---|
+| Source | EGM2008 (NGA) or XGM2019e |
+| License | Public domain |
+| Grid | 2.5′ (≈ 4.6 km at the equator) for EGM2008 |
+| Units | Meters (undulation N) |
+| Accuracy claim | ~cm over well-surveyed regions; dm elsewhere |
+| Encoding | GeoTIFF 1.1 or baked binary |
+| Vertical CRS | EPSG:3855 (EGM2008 height) |
+| Usage | H = h − N |
+
+### 6.5 High-resolution DEM layer (Tier 2 — proposed)
+
+| Property | Value |
+|---|---|
+| Source | Copernicus DEM GLO-30, SRTM v3, or NASADEM |
+| License | Public (ESA / NASA) |
+| Grid | 1″ (≈ 30 m) |
+| Units | Meters (vertical datum declared per source) |
+| Accuracy claim | Declared per source; SRTM ~16 m LE90 over land; Copernicus similar |
+| Encoding | GeoTIFF 1.1 / COG |
+| Lineage | Version, tile, and hash pinned |
+
+### 6.6 Data provenance and hashing
+
+Required for Tier 2 (recommended for Tier 1):
+
+- SHA-256 hash per data block (coastlines, land, lakes, mountains, borders, DEM, geoid)
+- Source URL and version per block
+- License identifier per block (SPDX)
+- Extraction date
+- Transformation log (any resampling, clipping, or reprojection applied to the source)
+
+### 6.7 Encoding and compression
+
+- Current: pipe-glyph ASCII for text blocks; raw numeric arrays for `elev`.
+- Tier 2 recommended: **GeoTIFF 1.1** for DEM and geoid (COG-compatible), **GeoPackage 1.3** for vector layers.
+- Rationale: standards-based, self-describing, provenance-friendly.
+
+### 6.8 Licensing posture
+
+| Source | SPDX | Notes |
+|---|---|---|
+| Natural Earth | `LicenseRef-PublicDomain` (or CC0) | no attribution required, provenance recommended |
+| NOAA ETOPO | `LicenseRef-PublicDomain` (US Gov) | attribution recommended |
+| Copernicus DEM | `LicenseRef-Copernicus` | ESA terms; free and open |
+| SRTM / NASADEM | `LicenseRef-PublicDomain` (NASA) | attribution recommended |
+| EGM2008 / XGM2019e | `LicenseRef-PublicDomain` (NGA) | attribution recommended |
+| GSHHG | `LicenseRef-PublicDomain` (or LGPL — verify per version) | check the exact GSHHG license in use |
+| WGS84 parameters | public standard | cite NGA.STND.0036 |
+
+---
+
+## 7. Mathematical architecture
+
+### 7.1 Reference ellipsoid
+- WGS84 ellipsoid, flattening applied via `b/a` in every surface intersection.
+- No sphere shortcut is used; the flattening appears in the ray–ellipsoid inverse.
+
+### 7.2 Geodetic ↔ ECEF
+- Implemented in the projection layer (`projectXYZ`, `projectEarth`).
+- Tier 2 must add the inverse ECEF → geodetic (h, φ, λ) using Bowring's method or a convergent iteration to declared tolerance.
+
+### 7.3 Projections
+- **3D globe**: perspective from an eye point; per-pixel ray–ellipsoid intersection.
+- **North-polar azimuthal equidistant**: ρ = (90° − φ) · Rmax/180°; true distance from the pole; Tissot indicatrices expose the distortion.
+
+### 7.4 Interpolation and resampling
+- Bilinear interpolation for elevation (`elevAt`).
+- Tier 2: bicubic or spline for high-res DEM; explicit declaration of interpolation kernel and its effect on smoothness/accuracy.
+
+### 7.5 Hillshading
+- NW illumination via gradient of the elevation field.
+- Tier 2: declare the illumination azimuth, elevation, and z-factor.
+
+### 7.6 Climate and biome tinting
+- Analytic aridity function (subtropical belts + named dry cores).
+- Latitude-dependent snowline.
+- Declared as **visualization**, not classification.
+
+### 7.7 Zero-float arithmetic layer (isopsephy)
+- BigInt arithmetic in the isopsephy engine; no IEEE-754 in the arithmetic layer.
+- This is a deliberate two-layer policy: geometry uses IEEE-754 (with declared precision), isopsephy uses BigInt (exact).
+- The two layers are separated by the data model; no isopsephy number crosses into the geometry layer as a float.
+
+---
+
+## 8. Runtime architecture
+
+### 8.1 Zero-runtime-dependency posture
+
+| Property | Status |
+|---|---|
+| External HTTP fetches at open time | 0 |
+| External CDN | 0 |
+| External libraries | 0 |
+| Baked data | WGS84 parameters, Natural Earth, ETOPO, biome model |
+| Baked (Tier 2) | Geoid model, high-res DEM, GSHHG or authoritative coastline |
+| Browser requirement | HTML5 + Canvas 2D + BigInt |
+| No network required after first byte | yes |
+
+**Definitional note:** Zero *runtime* dependencies is a packaging property. The data still has upstream sources; those are declared in the provenance manifest. The engine relocates the dependency from runtime to build.
+
+### 8.2 Rendering
+- Canvas 2D.
+- Persistent offscreen buffer for the relief shader (no per-frame reallocation).
+- Painter's algorithm for word points.
+- Target: full-resolution (q = 2 supersampling) when the camera changes; cached otherwise.
+
+### 8.3 Self-assertion layer
+- §0 axioms in the HTML: BigInt recomputation at open time, rejection-on-failure.
+- §9 fold certificate: live checks of the framework identities.
+- Tier 2: extend the assertion layer to check geoid/DEM block hashes and declared bounds.
+
+### 8.4 State management
+- Explicit camera state, pattern lens, and zoom.
+- No hidden global mutation outside the documented state object.
+
+---
+
+## 9. Quality framework
+
+### 9.1 Accuracy statements (normative)
+
+| Layer | Tier 1 claim | Tier 2 claim |
+|---|---|---|
+| Ellipsoid | WGS84 to declared parameter precision (mm) | same |
+| Coastline | Natural Earth 110m; cartographic; not survey | GSHHG or national hydrographic; declared accuracy |
+| DEM | ETOPO 1-degree; vertical RMSE ~100 m class; horizontal cell ~111 km | 1″ (~30 m); declared LE90 per source |
+| Geoid | absent | EGM2008 2.5′ or equivalent; ~cm over well-surveyed regions |
+| Vertical datum | ellipsoidal (h) | ellipsoidal (h) + orthometric (H = h − N) |
+| Horizontal datum | WGS84 | WGS84 |
+| Projection | perspective / azimuthal equidistant | same, plus declared distortion |
+| Interpolation kernel | bilinear | declared (bilinear or bicubic) |
+| Climate/biome | visualization | visualization |
+
+### 9.2 Uncertainty quantification
+- Tier 1: qualitative (coarse, cartographic).
+- Tier 2: quantitative per layer, per ISO 19157-1. Positional, thematic, and completeness elements declared.
+
+### 9.3 Verification and validation (IEEE 1012)
+- **V&V method**: runtime self-assertion + audit renders in `/audits`.
+- **Tier 2**: add V&V against known benchmarks (geodetic control points, published elevation spot heights) at declared tolerances.
+
+### 9.4 Live assertions (ISO/IEC/IEEE 29119-1)
+- BigInt recomputation, rejection on failure.
+- Hash checks on baked data blocks (Tier 2).
+- Declared failure mode: page refuses to certify its own content.
+
+### 9.5 ISO/IEC 25010 quality model (declared posture)
+
+| Characteristic | Posture |
+|---|---|
+| Functional suitability | Two-tier; each tier meets its declared claims. |
+| Performance efficiency | Offscreen buffer; cached relief shader. |
+| Compatibility | HTML5 + Canvas 2D + BigInt; no external runtime. |
+| Usability | Interactive globe, hover, pattern lens. |
+| Reliability | Self-assertion, no runtime fetches. |
+| Security | No external fetch; CSP recommended at hosting. |
+| Maintainability | Single-file artifact + manifest + audits. |
+| Portability | Browser-native; no OS dependency. |
+
+---
+
+## 10. Security and provenance
+
+- **Supply chain**: zero runtime fetches eliminates CDN compromise risk.
+- **Integrity**: SHA-256 per baked block (required Tier 2).
+- **CSP** (recommended for hosting): `default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'`.
+- **Subresource Integrity**: not applicable (no external subresources).
+- **Provenance manifest**: source URL, version, license, hash, extraction date, transformation log.
+- **W3C PROV-DM/PROV-O**: recommended encoding.
+
+---
+
+## 11. Performance envelope
+
+| Property | Target |
+|---|---|
+| Time to first render (cold) | < 2 s on a modern laptop |
+| Relief shader recompute | only on camera change (cached) |
+| Full-res offscreen buffer | persistent; no per-frame allocation |
+| Word point count | O(n) painter's sort; n = distinct words |
+| Memory | bounded by baked data size; no runtime growth from fetches |
+
+---
+
+## 12. Accessibility (WCAG 2.2 Level AA / ISO/IEC 40500)
+
+Required for the public-facing tier:
+- Canvas fallback content describing the globe and its data.
+- Keyboard navigation for zoom, rotation, pattern selection.
+- Contrast for text and focus rings.
+- `aria-live` readout for hover/inspect.
+- Motion-control respect for the auto-spin (`prefers-reduced-motion`).
+
+---
+
+## 13. Maintenance and lifecycle (ISO/IEC/IEEE 14764)
+
+- **Versioning**: semver on the artifact; data version pinned separately.
+- **Change log**: every data pin or framework change is recorded.
+- **Audit renders**: regenerated on every release.
+- **Re-verification**: live assertions must pass on every release.
+- **Deprecation**: tier transitions (1 → 2) are additive; Tier 1 remains valid.
+
+---
+
+## 14. Certification and audit trail
+
+- **Audit renders**: `globe_audit.png`, `globe_solid_audit.png`, `arc182_geometry.png`, `vesica_153.png`, `dr_distribution.png`, `names99_globe_map.png` — already in `/audits` per MANIFEST.
+- **Provenance manifest**: required for Tier 2; recommended for Tier 1.
+- **Self-assertion log**: the §0 axioms and §9 fold certificate are the in-artifact audit trail.
+- **Reproducibility**: deterministic build from pinned data + pinned code.
+
+---
+
+## 15. Verdict and recommended statement
+
+### 15.1 Direct answer to the original question, corrected
+
+> **Tier 1 — Visual/Cartographic Globe (v0.0.20 as shipped): YES, legitimate.**
+> It is a WGS84 ellipsoid with the flattening honored in the math, a public-domain Natural Earth basemap, a baked ETOPO 1-degree relief field with hillshading and biome tinting, rendered at zero runtime dependencies, with live self-assertion. It is *not* a survey instrument, and *does not claim to be.*
+
+> **Tier 2 — Geodetic / Terrain Reconstruction: NOT YET, and achievable with additive layers.**
+> Add a geoid model (EGM2008 or XGM2019e), a high-resolution DEM (Copernicus GLO-30, SRTM v3, or NASADEM), an authoritative coastline (GSHHG or national hydrographic), a vertical datum declaration (EPSG:3855), and a per-layer uncertainty statement. All of these are public-domain or open-license; all can be baked in; zero runtime dependencies is preserved.
+
+> **Pure-math-only, in the strict sense: NO.** Pure first-principles math yields the smooth ellipsoid and synthetic surfaces. It cannot yield Earth. The math layer's role is to interpolate, compress, encode, and render *observed* public data; it is not the observation source.
+
+### 15.2 Recommended public statement (accurate and falsifiable)
+
+> *Arc182 Earth Engine, v0.0.20 — a WGS84-ellipsoid, public-domain basemap globe with baked ETOPO 1-degree relief, hillshaded, biome-tinted, rendered at zero runtime dependencies, with live BigInt self-assertion. Tier 1 (visual/cartographic) is certified for visualization and education. Tier 2 (geodetic/terrain reconstruction) is planned as an additive layer set: geoid model, 30 m DEM, authoritative coastline, per-layer uncertainty. The engine is an interpolation and rendering layer over public observations; it is not an observation source and is not a survey instrument.*
+
+That statement is defensible to a geodetic reviewer, a cartographic reviewer, and a software-engineering reviewer simultaneously. It holds all four corrections (C-1 through C-4) and covers the full standards matrix in §5.
+
+---
+
+## Appendix A — Standards matrix (quick reference)
+
+| Domain | Standard | Required tier |
+|---|---|---|
+| Ellipsoid | NGA.STND.0036 WGS84 | 1 |
+| CRS | ISO 19111, ISO 19162, EPSG | 1 |
+| Spatial schema | ISO 19107 | 1 |
+| Basemap | Natural Earth (public domain) | 1 |
+| Relief | NOAA ETOPO | 1 |
+| Metadata | ISO 19115-1, ISO 19115-2 | 1 (recommended), 2 (required) |
+| Data quality | ISO 19157-1 | 2 |
+| Coverage | ISO 19123-1, ISO 19163-1 | 2 |
+| Observations | ISO 19156 | 2 (recommended) |
+| Geoid | EGM2008 / XGM2019e | 2 |
+| High-res DEM | Copernicus GLO-30 / SRTM / NASADEM | 2 |
+| Authoritative coastline | GSHHG / national hydrographic | 2 |
+| Vertical CRS | EPSG:3855 (EGM2008 height) | 2 |
+| Encoding | OGC GeoTIFF 1.1, OGC GeoPackage 1.3 | 2 |
+| DGGS | OGC 15-104r5 (optional) | 2 |
+| Lifecycle | ISO/IEC/IEEE 12207, 14764 | 1 |
+| Requirements | ISO/IEC/IEEE 29148 | 1 |
+| Architecture | ISO/IEC/IEEE 42010 | 1 |
+| Quality model | ISO/IEC 25010, ISO/IEC 25040 | 1 |
+| V&V | IEEE 1012 | 1 |
+| Testing | ISO/IEC/IEEE 29119-1 | 1 |
+| Source quality | ISO/IEC 5055 | 1 |
+| Security | ISO/IEC 27001, CSP Level 3 | 1 |
+| Quality management | ISO 9001 | 1 |
+| Web | W3C HTML, W3C Canvas 2D, ECMA-262 | 1 |
+| WebGL (optional) | W3C WebGL 1.0/2.0 | 1 (optional) |
+| Arithmetic | IEEE 754-2019 | 1 (geometry only) |
+| Accessibility | WCAG 2.2 AA, ISO/IEC 40500, WAI-ARIA 1.2 | 1 |
+| Provenance | W3C PROV-DM, W3C PROV-O, SPDX, SHA-256 | 2 (recommended for 1) |
+| Hashing | FIPS 180-4 (SHA-256) | 2 |
+| GIS container | OGC GeoPackage 1.3, OGC GeoTIFF 1.1 | 2 |
+
+## Appendix B — Data source registry (target)
+
+| Block | Source | Version | License (SPDX) | Hash |
+|---|---|---|---|---|
+| WGS84 params | NGA.STND.0036 | 1.0.0 | public standard | — |
+| Coastlines | Natural Earth 110m | TBD | `LicenseRef-PublicDomain` | TBD |
+| Land | Natural Earth 110m | TBD | `LicenseRef-PublicDomain` | TBD |
+| Lakes | Natural Earth 110m | TBD | `LicenseRef-PublicDomain` | TBD |
+| Mountains | Natural Earth 110m | TBD | `LicenseRef-PublicDomain` | TBD |
+| Borders | Natural Earth 110m | TBD | `LicenseRef-PublicDomain` | TBD |
+| Relief | NOAA ETOPO 2022 (60′) | TBD | `LicenseRef-PublicDomain` | TBD |
+| Relief (Tier 2) | Copernicus GLO-30 | TBD | `LicenseRef-Copernicus` | TBD |
+| Geoid (Tier 2) | EGM2008 | TBD | `LicenseRef-PublicDomain` | TBD |
+| Coastline (Tier 2) | GSHHG | TBD | verify per version | TBD |
+
+## Appendix C — Parameter registry (Tier 2 additions)
+
+| Parameter | Symbol | Nominal | Uncertainty |
+|---|---|---|---|
+| Ellipsoid height | h | from DEM | per DEM LE90 |
+| Geoid undulation | N | from geoid model | per model σ |
+| Orthometric height | H = h − N | derived | √(σ_h² + σ_N²) |
+| Horizontal position | (φ, λ) | WGS84 | per dataset |
+| Vertical datum | — | EPSG:3855 (EGM2008) | declared |
+
+---
+
+**Document ends.** This specification is the requirements artifact for the engine; it is designed to be read alongside the live artifact and the `/audits` renders. Any change to a pinned data source or to the arithmetic layer requires a version bump and a regenerated audit render, per §13.

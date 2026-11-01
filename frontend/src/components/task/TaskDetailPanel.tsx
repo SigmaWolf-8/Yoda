@@ -191,6 +191,15 @@ function ReviewsTab({ reviews }: { reviews: TaskReview[] }) {
 
 function ReviewCard({ review }: { review: TaskReview }) {
   const [expanded, setExpanded] = useState(false);
+  // Shared protocol reviews retain the model's actual decision and text.
+  // Do not invent a criterion checklist when no checklist was returned.
+  if (!review.verdict.pass_fail) {
+    return <details className="rounded-lg border border-[var(--color-border-subtle)] p-3">
+      <summary>Model review · {review.agent_role}</summary>
+      <pre className="whitespace-pre-wrap text-sm mt-2">{JSON.stringify(review.verdict,null,2)}</pre>
+      <p className="text-xs mt-2">A model review is not an executed test or a mathematical proof.</p>
+    </details>;
+  }
   const passCount = Object.values(review.verdict.pass_fail).filter(Boolean).length;
   const totalCriteria = Object.keys(review.verdict.pass_fail).length;
   const allPass = passCount === totalCriteria;
