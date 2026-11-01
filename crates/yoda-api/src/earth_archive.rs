@@ -17,6 +17,7 @@ const FILES:[(&str,&str);6]=[
     ("viewer.py",include_str!("../../../scripts/earth_archive/viewer.py")),
     ("retention.py",include_str!("../../../scripts/earth_archive/retention.py")),
     ("retention_ui.py",include_str!("../../../scripts/earth_archive/retention_ui.py")),
+    ("retention_store.py",include_str!("../../../scripts/earth_archive/retention_store.py")),
 ];
 fn hash(s:&str)->String{format!("{:x}",Sha256::digest(s.as_bytes()))}
 

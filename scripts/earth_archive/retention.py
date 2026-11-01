@@ -1,6 +1,4 @@
 """Conservative, opt-in retention. No catalogue sizes are used for savings."""
-import hashlib
-import json
 import os
 from pathlib import Path
 import re
@@ -8,6 +6,7 @@ import shutil
 import sqlite3
 import stat
 from client import get, lock, put, utc
+from retention_store import Review, Rows
 
 SOURCES = {"copernicus", "gebco", "egm2008"}
 DIGEST = re.compile(r"[a-f0-9]{64}")
@@ -70,11 +69,6 @@ def measure(root, relative):
             "protected": protected_name(relative) or info.st_nlink != 1}
 
 
-def new_group(identity, label, kind):
-    return {"id": identity, "label": label, "kind": kind, "active_references": 0,
-            "references": [], "files": [], "errors": [], "missing": 0}
-
-
 def add_file(root, group, relative, reference=None):
     try:
         item = measure(root, relative)
@@ -89,12 +83,20 @@ def add_file(root, group, relative, reference=None):
 
 def scan(root, db):
     """Caller holds the worker lock. Unknown native files are never candidates."""
-    groups = {}
+    review = Review()
+    try:
+        return populate(root, db, review)
+    except BaseException:
+        review.close()
+        raise
+
+
+def populate(root, db, review):
     for row in db.execute("SELECT * FROM objects ORDER BY source,key"):
         source, key = row["source"], row["key"]
         release = key.split("/")[0] if source == "gebco" else source
         identity = f"native:{source}:{release}"
-        group = groups.setdefault(identity, new_group(identity, f"{source} / {release}", "native"))
+        group = review.group(identity, f"{source} / {release}", "native")
         group["active_references"] += int(bool(row["active"]))
         group["references"].append({"source": source, "key": key, "active": row["active"],
                                     "state": row["state"], "sha256": row["sha256"],
@@ -125,11 +127,10 @@ def scan(root, db):
                 versions.add(name)
     for digest in sorted(versions):
         identity = "engine:" + digest
-        group = new_group(identity, "Engine " + digest, "engine")
-        groups[identity] = group
+        group = review.group(identity, "Engine " + digest, "engine")
         group["active_references"] = int(digest == selected)
-        group["references"] = [{"selection": "meta.engine" if digest == selected else "unselected",
-                                 "sha256": digest}]
+        group["references"].append({"selection": "meta.engine" if digest == selected else "unselected",
+                                    "sha256": digest})
         add_file(root, group, f"engines/{digest}.zip")
         try:
             folder = checked_path(root, f"engines/{digest}")
@@ -154,40 +155,38 @@ def scan(root, db):
 
     # Windows is case-insensitive: catalogue spellings may refer to the same
     # file in different release groups. Protect the physical active object too.
-    active_objects = {tuple(f["identity"][:2]) for g in groups.values()
-                      if g["active_references"] for f in g["files"]}
-    for group in groups.values():
-        for item in group["files"]:
-            if tuple(item["identity"][:2]) in active_objects:
-                item["protected"] = True
-        group["files"].sort(key=lambda f: f["path"])
+    review.protect_active()
+    for group in review:
         group["state"] = "active" if group["active_references"] else "retired"
         group["local_bytes"] = sum(f["bytes"] for f in group["files"])
         group["allocated_bytes"] = total_allocated(group["files"])
-        group["candidates"] = [] if group["active_references"] or group["errors"] else [
-            f for f in group["files"] if not f["protected"]]
+        group["candidates"] = [] if group["active_references"] or group["errors"] else Rows(
+            review, group["id"], "files", eligible=True)
         group["cleanup_bytes"] = sum(f["bytes"] for f in group["candidates"])
-    return list(groups.values())
+    review.db.commit()
+    return review
 
 
 def total_allocated(files):
-    return (sum(f["allocated_bytes"] for f in files)
-            if all(f["allocated_bytes"] is not None for f in files) else None)
+    total = 0
+    for item in files:
+        if item["allocated_bytes"] is None:
+            return None
+        total += item["allocated_bytes"]
+    return total
 
 
 def build_proposal(root, db, selected):
-    groups = scan(root, db)
-    if any(g["active_references"] and g["errors"] for g in groups):
-        raise ValueError("Cannot resolve every active reference safely; cleanup disabled")
-    chosen = [g for g in groups if g["id"] in selected]
-    if not selected or len(chosen) != len(set(selected)) or any(not g["candidates"] for g in chosen):
-        raise ValueError("Select only retired releases with eligible local files")
-    files = [f for g in chosen for f in g["candidates"]]
-    # Includes the entire inventory/selection and filesystem snapshot, not just sizes.
-    fingerprint = hashlib.sha256(json.dumps(groups, sort_keys=True).encode()).hexdigest()
-    return {"selected": sorted(set(selected)), "fingerprint": fingerprint, "files": files,
-            "bytes": sum(f["bytes"] for f in files), "allocated_bytes": total_allocated(files),
-            "labels": [g["label"] for g in chosen]}
+    with scan(root, db) as groups:
+        if any(g["active_references"] and g["errors"] for g in groups):
+            raise ValueError("Cannot resolve every active reference safely; cleanup disabled")
+        chosen = [g for g in groups if g["id"] in selected]
+        if not selected or len(chosen) != len(set(selected)) or any(not g["candidates"] for g in chosen):
+            raise ValueError("Select only retired releases with eligible local files")
+        files = [f for g in chosen for f in g["candidates"]]
+        return {"selected": sorted(set(selected)), "fingerprint": groups.fingerprint(), "files": files,
+                "bytes": sum(f["bytes"] for f in files), "allocated_bytes": total_allocated(files),
+                "labels": [g["label"] for g in chosen]}
 
 
 def preview(root, db, selected):

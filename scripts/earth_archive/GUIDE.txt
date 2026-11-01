@@ -74,10 +74,20 @@ this view. The installer verifies and installs the retention modules too.
 1. Pause the update task before reviewing retention. Scans and deletion share
    its single-writer lock; if the runner is busy the viewer asks you to retry.
 2. Review active versus retired GEBCO releases, other source groups, and each
-   content-addressed engine version. Expand references to inspect source URLs,
-   hashes, local paths, missing files and protection/errors.
+   content-addressed engine version. The summary includes every tracked
+   reference and measures local files, including partial downloads. Follow
+   the references, files or errors links to inspect 100 entries at a time;
+   First/Previous/Next/Last links expose every entry, not a truncated sample.
+   Details stay in a temporary server-side disk snapshot, not in the summary
+   HTML. Returning to that summary does not rescan the disk. "Measure again"
+   creates a fresh snapshot; snapshots expire after 10 minutes or when more
+   than four reviews are opened. Expired links ask you to measure again.
+   Scanning still checks every tracked path while holding the acquisition
+   lock, so the initial measurement depends on disk and inventory speed.
 3. Select retired groups and choose "Preview cleanup — no deletion". This is
-   a dry run. It lists the exact files and local byte measurements to remove.
+   a dry run. It lists the exact files and local byte measurements to remove,
+   in pages of 100. Confirmation applies to ALL files across ALL pages.
+   The browser cannot submit its own deletion paths or a shortened list.
 4. Review every proposed path. Cancel to keep everything, or type DELETE and
    press "Permanently delete listed files". Deletion bypasses the Recycle Bin.
    Proposals expire after ten minutes and can be used only once. Changing the

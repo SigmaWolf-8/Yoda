@@ -10,12 +10,27 @@ from pathlib import Path
 from urllib.parse import urlsplit,parse_qs,unquote,quote
 from client import database,get,status,lock
 from retention import scan,preview,cleanup
-from retention_ui import overview,proposal_page,result_page,page,esc
+from retention_ui import overview,proposal_page,result_page,page,esc,inspection_page
 
 def create_server(root, port=18482):
     csrf=secrets.token_urlsafe(32)
     proposals={}
+    reviews={}
     proposal_lock=threading.Lock()
+    def expire_reviews():
+        for token in list(reviews):
+            if reviews[token][0]<time.monotonic():
+                reviews.pop(token)[1].close()
+    def saved_review(token):
+        expire_reviews()
+        if token not in reviews:
+            raise ValueError("Review expired or replaced. Measure the archive again.")
+        return reviews[token][1]
+    def saved_proposal(token):
+        saved=proposals.get(token)
+        if not saved or saved[0]<time.monotonic():
+            raise ValueError("Proposal expired or already used. Create a new preview.")
+        return saved[1]
     class Handler(SimpleHTTPRequestHandler):
         def log_message(self,*args):
             pass
@@ -33,13 +48,48 @@ def create_server(root, port=18482):
             request=urlsplit(self.path)
             db=database(root)
             try:
+                query=parse_qs(request.query, max_num_fields=10)
                 if request.path=="/retention":
                     if not self.local_request():
                         self.send_error(403)
                         return
-                    with lock(root):
-                        groups=scan(root,db)
-                    self.reply(overview(groups,csrf,get(db,"last_cleanup")),"text/html; charset=utf-8")
+                    token=query.get("review",[""])[0]
+                    with proposal_lock:
+                        if token:
+                            groups=saved_review(token)
+                        else:
+                            expire_reviews()
+                            with lock(root):
+                                groups=scan(root,db)
+                            if len(reviews)>=4:
+                                reviews.pop(next(iter(reviews)))[1].close()
+                            token=secrets.token_urlsafe(32)
+                            reviews[token]=(time.monotonic()+600,groups)
+                        body=overview(groups,csrf,get(db,"last_cleanup"),token)
+                    self.reply(body,"text/html; charset=utf-8")
+                elif request.path in ("/retention/inspect","/retention/proposal"):
+                    if not self.local_request():
+                        self.send_error(403)
+                        return
+                    number=int(query.get("page",["0"])[0])
+                    with proposal_lock:
+                        if request.path=="/retention/inspect":
+                            token=query.get("review",[""])[0]
+                            body=inspection_page(saved_review(token),token,
+                                query.get("release",[""])[0],query.get("kind",["references"])[0],number)
+                        else:
+                            token=query.get("proposal",[""])[0]
+                            body=proposal_page(saved_proposal(token),token,csrf,number)
+                    self.reply(body,"text/html; charset=utf-8")
+                elif request.path=="/retention/result":
+                    if not self.local_request():
+                        self.send_error(403)
+                        return
+                    result=get(db,"last_cleanup")
+                    if not result:
+                        raise ValueError("No saved cleanup result")
+                    self.reply(result_page(result,int(query.get("page",["0"])[0])),
+                               "text/html; charset=utf-8")
                 elif request.path=="/status":
                     self.reply(json.dumps(get(db,"status",status(db))).encode())
                 elif request.path=="/manifest.json":
@@ -54,8 +104,8 @@ def create_server(root, port=18482):
                         first=False
                     self.wfile.write(b"]}")
                 elif request.path=="/":
-                    page=max(0,min(int(parse_qs(request.query).get("page",["0"])[0]),1000000))
-                    rows=db.execute("SELECT source,key,size,sha256 FROM objects WHERE active=1 AND state='verified' ORDER BY source,key LIMIT 100 OFFSET ?",(page*100,)).fetchall()
+                    number=max(0,min(int(query.get("page",["0"])[0]),1000000))
+                    rows=db.execute("SELECT source,key,size,sha256 FROM objects WHERE active=1 AND state='verified' ORDER BY source,key LIMIT 100 OFFSET ?",(number*100,)).fetchall()
                     links="".join(f'<li><a href="/data/{quote(r["source"]+"/"+r["key"])}" download>{html.escape(r["source"]+"/"+r["key"])}</a> ({r["size"]} bytes)<br><code>{r["sha256"]}</code></li>' for r in rows)
                     text=f"""<!doctype html><meta charset="utf-8"><title>Yoda Windows native archive</title>
                     <style>body{{background:#12110f;color:#eee;font:16px system-ui;max-width:1000px;margin:30px auto;padding:20px}}a{{color:#e7bc72}}li{{margin:18px 0;overflow-wrap:anywhere}}pre{{white-space:pre-wrap}}</style>
@@ -65,8 +115,8 @@ def create_server(root, port=18482):
                     <a href="/retention">Review retained releases and disk savings</a></p>
                     <p>The instrument remains cartographic T1. Acquiring native files does not yet wire them into that renderer or complete T5.</p>
                     <pre>{html.escape(json.dumps(get(db,"status",status(db)),indent=2))}</pre>
-                    <h2>Verified local files · page {page+1}</h2><ul>{links or "<li>No verified local files yet.</li>"}</ul>
-                    <a href="/?page={max(0,page-1)}">Previous</a> · <a href="/?page={page+1}">Next</a>"""
+                    <h2>Verified local files · page {number+1}</h2><ul>{links or "<li>No verified local files yet.</li>"}</ul>
+                    <a href="/?page={max(0,number-1)}">Previous</a> · <a href="/?page={number+1}">Next</a>"""
                     self.reply(text.encode(),"text/html; charset=utf-8")
                 elif request.path.startswith("/data/"):
                     relative=unquote(request.path[6:])
@@ -153,7 +203,17 @@ def create_server(root, port=18482):
             self.end_headers()
             with file.open("rb") as stream:
                 self.copyfile(stream,self.wfile)
-    return ThreadingHTTPServer(("127.0.0.1",port),Handler)
+    class Server(ThreadingHTTPServer):
+        # Join in-flight handlers before closing their read snapshots.
+        daemon_threads=False
+        def server_close(self):
+            super().server_close()
+            with proposal_lock:
+                for _,review in reviews.values():
+                    review.close()
+                reviews.clear()
+                proposals.clear()
+    return Server(("127.0.0.1",port),Handler)
 
 def serve(root):
     server=create_server(root)
