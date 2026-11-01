@@ -4,8 +4,8 @@
  */
 import { xorClaim, xorExecutors } from './formula-evidence-xor';
 
-export const IMPLEMENTATION_VERSION = 'formula-evidence/2';
-export const TEST_VERSION = 'formula-evidence-contract/2';
+export const IMPLEMENTATION_VERSION = 'formula-evidence/3';
+export const TEST_VERSION = 'formula-evidence-contract/3';
 export const REGISTRY_SCOPE = 'Registered divergence–flux example and exhaustive Boolean XOR checks only. All other document claims remain unverified by this registry.';
 export type EvidenceKind = 'displayed-formula' | 'ai-commentary' | 'deterministic-computation'
   | 'symbolic-reasoning' | 'numerical-check' | 'daemon-execution';
@@ -158,12 +158,55 @@ export function initialEvidence(check: FormulaCheck): EvidenceRecord {
 }
 function matches(expected: Observation, observed: Observation, tolerance: number | null): boolean {
   return Object.entries(expected).every(([key, value]) => {
+    if (!Object.prototype.hasOwnProperty.call(observed, key)) return false;
     const actual = observed[key];
     if (typeof value === 'number') return typeof actual === 'number' && Number.isFinite(actual) && Math.abs(actual - value) <= (tolerance ?? 0);
-    if (Array.isArray(value)) return Array.isArray(actual) && value.length === actual.length && value.every((v, i) => v === actual[i]);
+    if (Array.isArray(value)) {
+      if (!Array.isArray(actual) || value.length !== actual.length) return false;
+      for (let i = 0; i < value.length; i++) {
+        if (!Object.prototype.hasOwnProperty.call(actual, i) || value[i] !== actual[i]) return false;
+      }
+      return true;
+    }
     return actual === value;
   });
 }
+
+/** Validate runtime registrations, not just their TypeScript declarations. */
+function validateComparison(expected: unknown, tolerance: unknown): void {
+  if (tolerance !== null && (typeof tolerance !== 'number' || !Number.isFinite(tolerance) || tolerance < 0)) {
+    throw new Error('Invalid tolerance: use null for exact comparison or a finite nonnegative number');
+  }
+  if (!expected || typeof expected !== 'object' || Array.isArray(expected)
+    || (Object.getPrototypeOf(expected) !== Object.prototype && Object.getPrototypeOf(expected) !== null)
+    || Reflect.ownKeys(expected).length === 0) {
+    throw new Error('Invalid expectation: a nonempty plain record is required');
+  }
+  for (const key of Reflect.ownKeys(expected)) {
+    const entry = Object.getOwnPropertyDescriptor(expected, key)!;
+    if (typeof key !== 'string' || !key.trim() || !entry.enumerable || !('value' in entry)) {
+      throw new Error('Invalid expectation: fields must be named enumerable data properties');
+    }
+    const value: unknown = entry.value;
+    if (typeof value === 'string' || typeof value === 'boolean') continue;
+    if (typeof value === 'number' && Number.isFinite(value)) continue;
+    if (Array.isArray(value) && value.length > 0) {
+      if (Reflect.ownKeys(value).length !== value.length + 1) {
+        throw new Error('Invalid expectation: arrays may only contain indexed values and length');
+      }
+      // Index explicitly: every()/some() skip holes, including deleted entries.
+      for (let i = 0; i < value.length; i++) {
+        const item = Object.getOwnPropertyDescriptor(value, i);
+        if (!item || !('value' in item) || typeof item.value !== 'number' || !Number.isFinite(item.value)) {
+          throw new Error('Invalid expectation: arrays must contain a finite number at every index');
+        }
+      }
+      continue;
+    }
+    throw new Error('Invalid expectation: use strings, booleans, finite numbers or nonempty dense numeric arrays');
+  }
+}
+
 export async function executeCheck(
   check: FormulaCheck,
   executor: Executor | undefined,
@@ -174,6 +217,11 @@ export async function executeCheck(
     return { ...base, status: 'unavailable', error: 'Displayed formulas and commentary cannot certify a computation' };
   }
   if (!context.traceId || !context.executionLocation) return { ...base, status: 'failed', error: 'Execution provenance is required' };
+  try {
+    validateComparison(check.expected, check.tolerance);
+  } catch (error) {
+    return { ...base, status: 'failed', error: error instanceof Error ? error.message : 'Invalid comparison contract' };
+  }
   if (!executor) return { ...base, status: 'unavailable', error: 'No computation registered; no result or proof is available' };
   const executedAt = new Date().toISOString();
   try {

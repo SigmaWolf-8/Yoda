@@ -69,8 +69,8 @@ describe('divergence-flux reproducible checks', () => {
       const result = await run(c.id);
       expect(result).toMatchObject({ inputs: c.inputs, assumptions: c.assumptions, expected: c.expected, ...context });
       expect(result.executedAt).toMatch(/^\d{4}-/);
-      expect(result.implementationVersion).toBe('formula-evidence/2');
-      expect(result.testVersion).toBe('formula-evidence-contract/2');
+      expect(result.implementationVersion).toBe('formula-evidence/3');
+      expect(result.testVersion).toBe('formula-evidence-contract/3');
     }
   });
 });
@@ -100,7 +100,7 @@ describe('Compendium XOR reproducible checks', () => {
       expect(result).toMatchObject({
         status: 'passed', observed: { evaluatedPairs: 4, outputs: oracle },
         inputs: c.inputs, assumptions: c.assumptions, expected: c.expected,
-        implementationVersion: 'formula-evidence/2', testVersion: 'formula-evidence-contract/2',
+        implementationVersion: 'formula-evidence/3', testVersion: 'formula-evidence-contract/3',
         ...context,
       });
       expect(result.executedAt).toMatch(/^\d{4}-/);
@@ -169,6 +169,91 @@ describe('Compendium XOR reproducible checks', () => {
 });
 
 describe('fail-closed evidence', () => {
+  it.each([
+    {}, null, undefined, [], [0], 'value', 0, true, new Date(0), new Map([['value', 0]]),
+    Object.create({ globalFlux: 0 }), { '': 0 }, { ' ': 0 },
+    { value: undefined }, { value: null }, { value: {} }, { value: 1n }, { value: () => 0 },
+    { value: NaN }, { value: Infinity }, { value: -Infinity },
+    { value: [] }, { value: Array(2) }, { value: [0, , 1] },
+    { value: [NaN] }, { value: [Infinity] }, { value: [-Infinity] },
+    { value: ['0'] }, { value: [false] }, { value: [undefined] }, { value: [[0]] },
+    { globalFlux: 0, [Symbol('ignored')]: false },
+    Object.defineProperty({ globalFlux: 0 }, 'hidden', { value: 1 }),
+    { get globalFlux() { throw new Error('Expectation getter must not run'); } },
+  ])('rejects malformed expectation %# before execution', async expected => {
+    const executor = vi.fn(() => ({ globalFlux: 0 }));
+    const result = await executeCheck(
+      { ...check('numerical-flux'), expected: expected as FormulaCheck['expected'] }, executor, context,
+    );
+    expect(result).toMatchObject({ status: 'failed', observed: null, executedAt: null });
+    expect(result.error).toMatch(/^Invalid expectation:/);
+    expect(executor).not.toHaveBeenCalled();
+  });
+  it('rejects array method overrides and extra properties before execution', async () => {
+    const every = vi.fn(() => true);
+    const arrays = [
+      Object.assign([0, 1], { every }),
+      Object.assign([0, 1], { ignored: 9 }),
+      Object.assign([0, 1], { [Symbol('ignored')]: 9 }),
+      Object.defineProperty([0, 1], 'hidden', { value: 9 }),
+    ];
+    for (const value of arrays) {
+      const executor = vi.fn(() => ({ value: [9, 9] }));
+      expect(await executeCheck({ ...check('symbolic-divergence'), expected: { value } }, executor, context))
+        .toMatchObject({ status: 'failed', observed: null, executedAt: null });
+      expect(executor).not.toHaveBeenCalled();
+    }
+    expect(every).not.toHaveBeenCalled();
+  });
+  it('does not invoke inherited array comparison methods', async () => {
+    const every = vi.fn(() => true);
+    const value = [0, 1];
+    Object.setPrototypeOf(value, Object.assign(Object.create(Array.prototype), { every }));
+    const c = { ...check('symbolic-divergence'), expected: { value } };
+    expect((await executeCheck(c, () => ({ value: [9, 9] }), context)).status).toBe('failed');
+    expect(every).not.toHaveBeenCalled();
+  });
+  it('rejects deleted and inherited array entries before execution', async () => {
+    const deleted = [0, 1];
+    delete deleted[1];
+    const inherited = [0, 1];
+    delete inherited[1];
+    Object.setPrototypeOf(inherited, Object.assign(Object.create(Array.prototype), { 1: 1 }));
+    for (const value of [deleted, inherited]) {
+      const executor = vi.fn(() => ({ value: [0, 1] }));
+      expect(await executeCheck({ ...check('symbolic-divergence'), expected: { value } }, executor, context))
+        .toMatchObject({ status: 'failed', observed: null, executedAt: null });
+      expect(executor).not.toHaveBeenCalled();
+    }
+  });
+  it.each([-1, -Number.MIN_VALUE, NaN, Infinity, -Infinity, undefined, '0', false, {}])(
+    'rejects invalid tolerance %# before execution', async tolerance => {
+      const executor = vi.fn(() => ({ globalFlux: 0 }));
+      const result = await executeCheck(
+        { ...check('numerical-flux'), tolerance: tolerance as FormulaCheck['tolerance'] }, executor, context,
+      );
+      expect(result).toMatchObject({ status: 'failed', observed: null, executedAt: null });
+      expect(result.error).toMatch(/^Invalid tolerance:/);
+      expect(executor).not.toHaveBeenCalled();
+    },
+  );
+  it('preserves valid scalar, dense array and tolerance semantics', async () => {
+    const expected = { zero: 0, negative: -2, text: '', flag: false, coefficients: [0, -1, 0.5] };
+    for (const tolerance of [null, 0, 0.25]) {
+      const c = { ...check('numerical-flux'), expected, tolerance };
+      expect((await executeCheck(c, () => ({ ...expected, extraDiagnostic: true }), context)).status).toBe('passed');
+      expect((await executeCheck(c, () => ({ ...expected, coefficients: [0, -1, 0.5 + 1e-10] }), context)).status).toBe('failed');
+    }
+    const c = { ...check('numerical-flux'), expected: { value: 1 }, tolerance: 0.25 };
+    expect((await executeCheck(c, () => ({ value: 1.25 }), context)).status).toBe('passed');
+    expect((await executeCheck(c, () => ({ value: 1.250001 }), context)).status).toBe('failed');
+    expect((await executeCheck({ ...c, tolerance: 0 }, () => ({ value: 1.000001 }), context)).status).toBe('failed');
+  });
+  it('does not fill missing observations from prototypes or sparse arrays', async () => {
+    const c = { ...check('symbolic-divergence'), expected: { value: [0, 1] } };
+    expect((await executeCheck(c, () => ({ value: [0, ,] as number[] }), context)).status).toBe('failed');
+    expect((await executeCheck(c, () => Object.create({ value: [0, 1] }), context)).status).toBe('failed');
+  });
   it('never marks commentary or displayed formulas passed, even with an attached executor', async () => {
     for (const kind of ['ai-commentary', 'displayed-formula'] as const) {
       const executor = vi.fn(() => ({ globalFlux: 0 }));
