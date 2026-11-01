@@ -94,6 +94,7 @@ export function EarthEnginePage() {
   const [view, setView] = useState<'globe' | 'document'>('globe');
   const [frameState, setFrameState] = useState<'loading' | 'loaded' | 'error'>('loading');
   const [revision, setRevision] = useState(0);
+  const [instrumentOpen, setInstrumentOpen] = useState(false);
   const active = INSTRUMENTS.find(instrument => instrument.id === activeId) ?? INSTRUMENTS[0];
   usePageHeader({
     icon: Globe2,
@@ -111,7 +112,10 @@ export function EarthEnginePage() {
     </div>;
   }
   return <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto space-y-6 text-[var(--color-text-primary)]">
-    <BevelBox className="bg-[var(--color-surface-primary)] p-4 sm:p-6">
+    <EarthArchivePanel />
+    <details>
+      <summary className="cursor-pointer text-sm font-semibold">Instrument scope, downloads & cartographic limits</summary>
+      <BevelBox className="bg-[var(--color-surface-primary)] p-4 sm:p-6 mt-3">
       <div className="text-[10px] uppercase tracking-widest text-[var(--color-gold-400)] mb-2">Original instruments / explicit limits</div>
       <h1 className="text-xl sm:text-2xl font-bold">The supplied engines, with accessible controls.</h1>
       <p className="text-sm leading-relaxed text-[var(--color-text-muted)] mt-3">The frames load clearly labeled derivative HTML instruments with a keyboard, touch and reduced-motion adapter. The Canvas 2D Earth renderer and full corpus remain—not a mock globe. Original supplied files are unchanged and remain available through the original-document links and downloads. Switching instruments, views or reloading resets the document’s unsaved controls.</p>
@@ -129,7 +133,15 @@ export function EarthEnginePage() {
       <p>The supplied semi-minor axis b = 6,356,752 m is truncated, approximately 0.314245 m below the full WGS84 derived value. Source heights are described relative to sea level; without a declared geoid transformation, they must not be treated as ellipsoidal heights.</p>
       <p>Natural Earth 110m and a coarse ETOPO 180×360 grid are supplier declarations. The package does not establish a precise upstream release, extraction date, or resampling chain. The originals remain unchanged, including their own wording.</p>
     </aside>
+    </details>
     <section aria-labelledby="earth-instrument-title" className="min-w-0">
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+        <div><h2 className="text-lg font-bold">Explore the full Earth instruments</h2><p className="text-xs text-[var(--color-text-muted)] mt-1">Open the interactive globe when you’re ready. Setup stays above.</p></div>
+        <button type="button" className="earth-instrument-action" onClick={() => setInstrumentOpen(open => !open)}>
+          <Globe2 size={16} />{instrumentOpen ? 'Close globe' : 'Open globe'}
+        </button>
+      </div>
+      {instrumentOpen && <>
       <div className="flex flex-col sm:flex-row gap-2 mb-4" aria-label="Choose the full instrument">
         {INSTRUMENTS.map(instrument => <button type="button" key={instrument.id} aria-pressed={active.id === instrument.id}
           className={`earth-instrument-action flex-1 ${active.id === instrument.id ? '!border-[var(--color-gold-400)] !bg-[var(--color-gold-400)]/10' : ''}`}
@@ -172,9 +184,10 @@ export function EarthEnginePage() {
         onError={() => setFrameState('error')}
       />
       <p className="text-[11px] text-[var(--color-text-muted)] leading-relaxed mt-2">Isolation: scripts and downloads are allowed; same-origin access is withheld. In-frame computations do not access the app’s credentials or become saved deterministic server evidence automatically. The new-tab link opens the unframed supplied file.</p>
+      </>}
     </section>
-    <EarthArchivePanel />
-    <PackageEvidence />
-    <FormulaEvidencePanel />
+    <details><summary className="cursor-pointer text-sm font-semibold">Package provenance & formula evidence</summary>
+      <div className="space-y-6 mt-4"><PackageEvidence /><FormulaEvidencePanel /></div>
+    </details>
   </div>;
 }

@@ -1,5 +1,11 @@
 # Windows installer release check
 
+The scheduled actions now launch Python directly through `launch.py`, including
+the real current-user DPAPI decryption path. The downloadable CMD opens the
+interactive setup dialog; CI uses the same underlying installer without
+`-Interactive` to avoid blocking on desktop prompts. GUI prompt interaction and
+browser security prompts still need a Windows desktop smoke test.
+
 The **Earth archive Windows installer / Windows PowerShell 5.1 installer** check
 in `.github/workflows/earth-archive-windows.yml` runs independently of the
 Salvi/Rust workflows on `windows-2022`. It runs for archive-related pull requests,

@@ -10,6 +10,14 @@ The user selected **Windows storage** as the archive destination, not Replit
 App Storage. Downloads must run on that Windows machine; preparing an installer
 in Replit does not mean it has been executed there.
 
+Install and update must be obvious click actions directly under
+Capomastro > Earth & Isopsephy, not instructions that require finding a download
+or typing PowerShell commands.
+**Why:** the user explicitly rejected the buried download/manual setup flow.
+**How to apply:** lead with setup/update actions and short next steps. Distinguish
+browser download, Windows setup and connected-worker states; do not imply that
+a browser can silently execute the installer.
+
 **Why:** the user explicitly chose full global coverage over global-overview-plus-regional-detail.
 
 **How to apply:** keep native archive coverage, viewer resolution, downloaded bytes,

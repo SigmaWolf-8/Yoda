@@ -27,7 +27,7 @@ function Assert-OwnedTask($Task) {
     Assert ($Task.TaskName -in $TaskNames) 'Refusing to touch a task not owned by this test'
     Assert ($Task.TaskPath -eq '\') 'Unexpected task folder'
     Assert ($Task.Actions.Count -eq 1) 'Unexpected task actions'
-    Assert ($Task.Actions[0].Arguments.Contains("`"$Runner`"")) 'Task action is outside the fixture'
+    Assert ($Task.Actions[0].Arguments.Contains("`"$(Join-Path $Private 'launch.py')`"")) 'Task action is outside the fixture'
 }
 function Stop-OwnedTasks {
     foreach ($Name in $TaskNames) {
@@ -77,11 +77,11 @@ try {
     Set-Content -LiteralPath (Join-Path $Root 'EARTH_INSTALLER_TEST_ONLY') -Value $Id
     New-Item -ItemType Directory -Path (Join-Path $Root 'served'), (Join-Path $Root 'events') | Out-Null
     Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'fixture_worker.py') -Destination (Join-Path $Root 'served\client.py')
-    foreach ($Name in @('acquire.py','viewer.py','retention.py','retention_ui.py','GUIDE.txt')) {
+    foreach ($Name in @('acquire.py','viewer.py','retention.py','retention_ui.py','launch.py','GUIDE.txt')) {
         Copy-Item -LiteralPath (Join-Path $Source $Name) -Destination (Join-Path $Root "served\$Name")
     }
     $Hashes = [ordered]@{}
-    foreach ($Name in @('client.py','acquire.py','viewer.py','retention.py','retention_ui.py','GUIDE.txt')) {
+    foreach ($Name in @('client.py','acquire.py','viewer.py','retention.py','retention_ui.py','launch.py','GUIDE.txt')) {
         $Hashes[$Name] = (Get-FileHash -Algorithm SHA256 -LiteralPath (Join-Path $Root "served\$Name")).Hash.ToLowerInvariant()
     }
     $Python = (Get-Command python -CommandType Application).Source

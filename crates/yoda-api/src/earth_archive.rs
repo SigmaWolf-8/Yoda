@@ -8,8 +8,10 @@ use uuid::Uuid;
 use crate::{auth::AuthenticatedUser,error::AppError,state::AppState};
 
 const INSTALL:&str=include_str!("../../../scripts/earth_archive/install.ps1");
+const LAUNCHER:&str=include_str!("../../../scripts/earth_archive/setup.cmd");
 const GUIDE:&str=include_str!("../../../scripts/earth_archive/GUIDE.txt");
-const FILES:[(&str,&str);5]=[
+const FILES:[(&str,&str);6]=[
+    ("launch.py",include_str!("../../../scripts/earth_archive/launch.py")),
     ("client.py",include_str!("../../../scripts/earth_archive/client.py")),
     ("acquire.py",include_str!("../../../scripts/earth_archive/acquire.py")),
     ("viewer.py",include_str!("../../../scripts/earth_archive/viewer.py")),
@@ -26,7 +28,7 @@ pub async fn file(Path(name):Path<String>)->Result<impl IntoResponse,AppError>{
 }
 pub async fn status(State(state):State<AppState>,user:Extension<AuthenticatedUser>)->Result<Json<Value>,AppError>{
     let installation:Option<Value>=sqlx::query_scalar(
-        "SELECT jsonb_build_object('id',id,'created_at',created_at,'expires_at',expires_at,'last_report_at',last_report_at,'report',report) FROM earth_archive_installations WHERE org_id=$1 AND NOT revoked ORDER BY created_at DESC LIMIT 1")
+        "SELECT jsonb_build_object('id',id,'created_at',created_at,'expires_at',expires_at,'last_report_at',last_report_at,'report',report) FROM earth_archive_installations WHERE org_id=$1 AND NOT revoked ORDER BY (last_report_at IS NOT NULL) DESC,created_at DESC LIMIT 1")
         .bind(user.org_id).fetch_optional(&state.db).await?;
     Ok(Json(json!({"installation":installation,"coverage":"GLOBAL native-resolution","renderer_tier":"T1","server_verified":false})))
 }
@@ -37,18 +39,22 @@ pub async fn installer(State(state):State<AppState>,user:Extension<Authenticated
     let id=Uuid::new_v4();
     let token=format!("{}{}",Uuid::new_v4().simple(),Uuid::new_v4().simple());
     let hashes:serde_json::Map<String,Value>=FILES.iter().map(|(name,body)|(name.to_string(),json!(hash(body)))).collect();
-    let body=INSTALL.replace("@@BASE@@",&format!("https://{host}"))
+    let script=INSTALL.replace("@@BASE@@",&format!("https://{host}"))
         .replace("@@TOKEN@@",&token).replace("@@ID@@",&id.to_string())
         .replace("@@HASHES@@",&serde_json::to_string(&hashes).unwrap());
+    // The browser downloads a double-click launcher, not a script the user must
+    // paste into a terminal. Its payload is private, NOT encrypted by hex encoding.
+    let encoded=hex::encode(script.as_bytes());
+    let payload=encoded.as_bytes().chunks(120).map(|part|format!("::YODA:{}",std::str::from_utf8(part).unwrap())).collect::<Vec<_>>().join("\n");
+    let body=LAUNCHER.replace("@@PAYLOAD@@",&payload).replace('\n',"\r\n");
     let mut tx=state.db.begin().await?;
-    // Serialize reissues for this organization to avoid two concurrently active credentials.
+    // Preparing a download must not disconnect the currently running installation.
     sqlx::query("SELECT id FROM organizations WHERE id=$1 FOR UPDATE").bind(user.org_id).execute(&mut *tx).await?;
-    sqlx::query("UPDATE earth_archive_installations SET revoked=true WHERE org_id=$1 AND NOT revoked").bind(user.org_id).execute(&mut *tx).await?;
     sqlx::query("INSERT INTO earth_archive_installations(id,org_id,token_hash,expires_at) VALUES($1,$2,$3,now()+interval '90 days')")
         .bind(id).bind(user.org_id).bind(hash(&token)).execute(&mut *tx).await?;
     tx.commit().await?;
     Ok((StatusCode::OK,[("Content-Type","application/octet-stream"),
-        ("Content-Disposition","attachment; filename=\"install-yoda-earth.ps1\""),
+        ("Content-Disposition","attachment; filename=\"Yoda-Earth-Setup.cmd\""),
         ("Cache-Control","no-store"),("X-Content-Type-Options","nosniff")],body).into_response())
 }
 
@@ -88,7 +94,17 @@ pub async fn report(State(state):State<AppState>,headers:HeaderMap,Json(input):J
         "verified_bytes":input.verified_bytes,"failures":input.failures,"archive_complete":input.archive_complete,
         "engine_ready":input.engine_ready,"reported_at":input.reported_at,"sources":input.sources,
         "survey_grade":false,"native_data_renderer_integrated":false,"integrity_scope":input.integrity_scope});
-    sqlx::query("UPDATE earth_archive_installations SET report=$2,last_report_at=now() WHERE id=$1 AND NOT revoked AND expires_at>now() AND (last_report_at IS NULL OR last_report_at<now()-interval '10 seconds' OR (report->>'phase') IS DISTINCT FROM ($2->>'phase'))")
-        .bind(id).bind(data).execute(&state.db).await?;
+    let mut tx=state.db.begin().await?;
+    sqlx::query("SELECT id FROM organizations WHERE id=(SELECT org_id FROM earth_archive_installations WHERE id=$1) FOR UPDATE")
+        .bind(id).execute(&mut *tx).await?;
+    let still_active:bool=sqlx::query_scalar("SELECT NOT revoked AND expires_at>now() FROM earth_archive_installations WHERE id=$1")
+        .bind(id).fetch_one(&mut *tx).await?;
+    if !still_active {return Err(AppError::Unauthorized("Reporting credential has been replaced".into()));}
+    sqlx::query("UPDATE earth_archive_installations SET report=$2,last_report_at=now() WHERE id=$1 AND (last_report_at IS NULL OR last_report_at<now()-interval '10 seconds' OR (report->>'phase') IS DISTINCT FROM ($2->>'phase'))")
+        .bind(id).bind(data).execute(&mut *tx).await?;
+    // A successful connection retires only older credentials, not newer downloads.
+    sqlx::query("UPDATE earth_archive_installations SET revoked=true WHERE org_id=(SELECT org_id FROM earth_archive_installations WHERE id=$1) AND created_at<(SELECT created_at FROM earth_archive_installations WHERE id=$1) AND NOT revoked")
+        .bind(id).execute(&mut *tx).await?;
+    tx.commit().await?;
     Ok(Json(json!({"accepted":true,"server_verified":false})))
 }

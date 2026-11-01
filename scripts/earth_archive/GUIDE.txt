@@ -7,14 +7,26 @@ attribution documents are retained. GEBCO identifies some cells as estimated or
 interpolated; the grids must not be represented as entirely direct observations.
 
 ONE-TIME SETUP
-1. Install Python 3.11+ for Windows. Provide several terabytes of free space.
-2. In Yoda > Earth & Isopsephy, download the Windows installer.
-3. Run in PowerShell: powershell -NoProfile -File .\install-yoda-earth.ps1
-   To use another drive: add -Target 'D:\YodaEarth'.
-   This installer does not bypass your execution policy or elevate privileges.
-   If enterprise policy disallows it, have the script reviewed/approved normally.
-4. Delete the downloaded installer after use. It contains an expiring write-only
-   reporting credential, stored under your Windows account with DPAPI and ACLs.
+1. Open Capomastro > Earth & Isopsephy and click Install on Windows.
+2. Open Yoda-Earth-Setup.cmd from your browser's Downloads list.
+3. Confirm setup and choose/create an archive folder on a drive with several
+   terabytes available. Setup reuses Python 3.11+ if available, otherwise it
+   downloads a SHA-256-pinned private CPython runtime from python.org.
+   No terminal commands or system Python installation are required.
+4. Return to Yoda to see the first connection and actual download progress.
+   The browser cannot silently open downloaded software. Windows or enterprise
+   controls may require approval; do not disable organizational security controls.
+5. Delete the setup file after use. It contains an expiring write-only reporting
+   credential. Setup stores it under your Windows account with DPAPI and ACLs.
+
+UPDATING
+Click Update Windows installation on the same Earth & Isopsephy page and open
+the downloaded launcher. Setup remembers the previous folder on that Windows
+account. Keep that folder to resume existing data. Daily dataset updates already
+run automatically; this button updates the runner and starts another acquisition
+pass. Downloading an update no longer revokes the running reporter. Its older
+credential is retired only after the new installation reports successfully.
+All worker downloads are hash-checked before the existing jobs are stopped.
 
 AUTOMATION
 The installer registers YodaEarthArchiveUpdate (daily at 03:00 and at logon)
@@ -36,7 +48,7 @@ and a DPAPI-protected reporting credential. Never distribute this directory.
 To rehash all previously acquired files, run its run-earth.ps1 with -Verify.
 Run this only after pausing the update task; the runner enforces a single writer.
 The reporting credential expires after 90 days; reissue the installer to renew it.
-Reissuing revokes the earlier credential, not your downloaded data.
+Connecting the new installation retires the earlier credential, not your data.
 The installer is tied to the app URL from which you downloaded it. Reissue it
 after changing to a published URL. If the app is offline, local acquisition can
 continue but remote status and engine updates cannot reach it.
