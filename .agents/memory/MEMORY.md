@@ -32,3 +32,4 @@
 
 - [Demanding money on a card rail](collections-demands.md) — pending rows reserve the balance under a per-position lock; a silent processor is never treated as a refusal; truncate defaults, refuse sub-cent input.
 - [Conservation evidence](conservation-evidence.md) — arithmetic checks do not certify financial or geophysical observations; preserve source instruments and distinguish browser, server and daemon evidence.
+- [Global Earth archive](earth-archive-scope.md) — full native-resolution global coverage; no silent regional substitute or closure claim before viewing and distribution work in Yoda.

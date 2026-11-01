@@ -237,6 +237,7 @@ async fn main() -> anyhow::Result<()> {
         .unwrap_or_else(|_| "./frontend/dist".to_string());
     let dist_path = PathBuf::from(&frontend_dist);
     let serve_dir = ServeDir::new(&frontend_dist)
+        .precompressed_gzip()
         .not_found_service(get(move || spa_index(dist_path.clone())));
 
     let app = Router::new()

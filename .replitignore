@@ -32,8 +32,11 @@ packages/katex-render/dist
 attached_assets
 downloads
 screenshots
+generated-artifacts
 
 # ── Exceptions: shipped on purpose, despite the rules above ──
 # Served by GET /api/install/source.tar.gz (crates/yoda-api/src/install.rs).
 # Without it the published installer hands out a 404.
 !downloads/yoda-workspace-snapshot.tar.gz
+!frontend/public/capomastro/engines/arc182/**/*.zip
+!frontend/dist/capomastro/engines/arc182/**/*.zip

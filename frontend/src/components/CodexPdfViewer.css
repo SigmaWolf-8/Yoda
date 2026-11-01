@@ -1,0 +1,21 @@
+.codex-pdf-viewer { min-width: 0; color: var(--color-text-primary); }
+.codex-pdf-toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; padding: 12px; border: 1px solid var(--color-border-default); background: var(--color-surface-primary); }
+.codex-pdf-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 12px; }
+.codex-pdf-button, .codex-pdf-input { min-height: 36px; border: 1px solid var(--color-border-default); background: var(--color-surface-primary); color: var(--color-gold-400); padding: 6px 10px; font: inherit; }
+.codex-pdf-button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; cursor: pointer; }
+.codex-pdf-button:hover:not(:disabled) { background: var(--color-surface-secondary); }
+.codex-pdf-button:disabled { opacity: .4; cursor: not-allowed; }
+.codex-pdf-button:focus-visible, .codex-pdf-input:focus-visible, .codex-pdf-viewer summary:focus-visible, .codex-pdf-stage:focus-visible { outline: 2px solid var(--color-gold-400); outline-offset: 3px; }
+.codex-pdf-input { width: 64px; color: var(--color-text-primary); }
+.codex-pdf-caption { margin: 10px 0; font-size: 12px; line-height: 1.6; color: var(--color-text-muted); }
+.codex-pdf-stage { height: 75vh; height: 75dvh; min-height: 320px; overflow: auto; border: 1px solid var(--color-border-subtle); background: var(--color-surface-secondary); padding: 12px; }
+.codex-pdf-sheet { position: relative; margin: 0 auto; }
+.codex-pdf-sheet img { display: block; width: 100%; height: auto; max-width: none; }
+.codex-pdf-state { padding: 24px; border: 1px solid var(--color-border-default); font-size: 13px; line-height: 1.7; }
+.codex-pdf-skeleton { height: 180px; margin-top: 16px; background: var(--color-surface-secondary); border: 1px solid var(--color-border-subtle); }
+.codex-pdf-page-loading { position: absolute; inset: 0; padding: 24px; background: var(--color-surface-secondary); color: var(--color-text-muted); font-size: 13px; }
+.codex-pdf-text { margin-top: 14px; border: 1px solid var(--color-border-default); padding: 12px; font-size: 12px; line-height: 1.7; }
+.codex-pdf-text summary { cursor: pointer; color: var(--color-gold-400); }
+.codex-pdf-text pre { margin-top: 12px; white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; }
+.codex-pdf-provenance { margin-top: 14px; font-size: 11px; line-height: 1.7; color: var(--color-text-muted); overflow-wrap: anywhere; }
+@media (max-width: 600px) { .codex-pdf-toolbar { padding: 10px; } .codex-pdf-stage { padding: 6px; } .codex-pdf-controls { gap: 6px; } }

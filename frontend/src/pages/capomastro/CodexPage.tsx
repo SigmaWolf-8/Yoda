@@ -8,16 +8,17 @@ import { FormulaEvidence } from '../../components/FormulaEvidence';
 import type { Dispatch } from '../../lib/clipboard';
 import { buildCodexDispatch, extractDocument } from './dispatch';
 import { FormulaEvidencePanel } from '../../components/formula-evidence/FormulaEvidencePanel';
+import { CodexPdfViewer } from '../../components/CodexPdfViewer';
 
 /**
- * The Codex renders each sovereign document in an isolated frame that loads the
- * original file byte-for-byte from `/capomastro/docs/`.
+ * The Codex loads original HTML documents in isolated frames and displays PDF
+ * vector page renderings. Original files remain available unchanged.
  *
  * That is deliberate. Book XI's Non-Alteration Clause requires legal
  * definitions, creed statements, decrees and seals to be reproduced verbatim,
  * so nothing here re-types, re-flows or summarises the source. If a document
- * needs to change, the file in `frontend/public/capomastro/docs/` is replaced —
- * this page is never the place where wording is edited.
+ * needs a correction, it is published as an explicitly labeled supplement —
+ * this page is never the place where original wording is edited.
  */
 
 interface CodexDoc {
@@ -161,8 +162,8 @@ export function CodexPage() {
           <ShieldCheck className="w-5 h-5 text-[var(--color-gold-400)] flex-shrink-0 mt-0.5" />
           <p className="text-xs text-[var(--color-text-muted)] leading-relaxed">
             Original sealed documents remain unchanged. Corrections are published as explicitly
-            labeled supplements alongside them. Each frame loads the selected document directly
-            from its file.
+            labeled supplements alongside them. HTML frames load the selected source file;
+            PDF pages use vector renderings from the original PDF.
           </p>
         </div>
         <button
@@ -262,7 +263,14 @@ export function CodexPage() {
           </div>
         </div>
 
-        <iframe
+        {active.kind === 'pdf' ? (
+          <CodexPdfViewer
+            key={active.id}
+            src={active.file}
+            title={active.title}
+            manifestUrl="/capomastro/rendered/golden-arc/manifest.json"
+          />
+        ) : <iframe
           key={active.id}
           src={active.file}
           title={active.title}
@@ -274,11 +282,8 @@ export function CodexPage() {
           // inside the app's origin — able to read its storage, call its API,
           // and even strip this sandbox attribute. Without it the frame gets an
           // opaque origin and stays inert.
-          //
-          // A PDF is handed to the browser's own viewer, which is a plugin
-          // rather than page scripts and is blocked outright by a sandbox.
-          {...(active.kind === 'pdf' ? {} : { sandbox: 'allow-scripts' as const })}
-        />
+          sandbox="allow-scripts"
+        />}
       </BevelBox>
       </div>
       <div id="codex-formula-evidence" className="scroll-mt-4">
