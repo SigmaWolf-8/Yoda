@@ -51,6 +51,30 @@ class SetupTests(unittest.TestCase):
         self.assertIn("-Execute $Python",source)
         self.assertIn("runtime-3.13.17",source)
         self.assertIn("Get-FileHash -Algorithm SHA256 $RuntimeZip",source)
+        self.assertLess(source.index("Python runtime integrity check failed"),
+                        source.index("Expand-Archive"))
+        self.assertIn("import sys, ssl, sqlite3, ctypes",source)
+    def test_private_runtime_test_tracks_the_production_pin(self):
+        source=(ROOT/"install.ps1").read_text()
+        version=re.search(r"runtime-(\d+\.\d+\.\d+)",source).group(1)
+        self.assertIn(f"https://www.python.org/ftp/python/{version}/python-{version}-embed-amd64.zip",source)
+        probe=(ROOT/"tests/runtime_probe.py").read_text()
+        self.assertIn(f'runtime-{version}',probe)
+        self.assertIn(str(tuple(map(int,version.split(".")))),probe)
+        self.assertRegex(source,r"RuntimeZip\)\.Hash\.ToLowerInvariant\(\) -ne '[a-f0-9]{64}'")
+    def test_windows_ci_always_exercises_private_runtime_without_discovery_mocks(self):
+        fixture=(ROOT/"tests/windows-installer.ps1").read_text()
+        child=(ROOT/"tests/installer_child.ps1").read_text()
+        self.assertIn("$RuntimeMode = 'Both'",fixture)
+        self.assertIn("@('System','Private')",fixture)
+        self.assertIn("$env:PATH = $PSHOME",child)
+        self.assertIn("@('python','py')",child)
+        self.assertIn("Get-Command $Name -CommandType Application",child)
+        for script in (fixture,child):
+            self.assertNotRegex(script,r"(?i)function\s+(Get-Command|Invoke-WebRequest)")
+        self.assertNotRegex(child,r"(?i)Set-ExecutionPolicy|-ExecutionPolicy")
+        self.assertIn('$Rendered.Replace($RuntimeUrl, "$Base/api/earth-archive/files/corrupt-runtime.zip")',fixture)
+        self.assertIn('Runtime-Fingerprint',fixture)
     def run_fixture(self,serve):
         with tempfile.TemporaryDirectory(prefix="earth setup space ") as folder:
             private=Path(folder)

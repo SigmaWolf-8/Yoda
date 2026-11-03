@@ -21,6 +21,15 @@ Use a **disposable Windows VM**, Python 3.11+, and Windows PowerShell 5.1:
 powershell.exe -NoProfile -NonInteractive -File .\scripts\earth_archive\tests\windows-installer.ps1
 ```
 
+The default `Both` mode runs the existing system-Python checks and then the
+private-runtime checks in separate PowerShell processes. To run just the latter,
+append `-RuntimeMode Private`. The parent's existing Python only hosts the
+loopback HTTP fixture; it is **not** available to the private-mode installer.
+`installer_child.ps1` gives that child only `$PSHOME` in PATH (not SystemRoot,
+which can contain `py.exe`), removes PYTHONHOME/PYTHONPATH there, and asserts that
+real `Get-Command` discovery resolves neither `python` nor `py`. It does not
+modify machine/user PATH, remove Python, or mock command discovery.
+
 Do not run with reporting credentials or on an acquisition workstation. No
 administrator prompt, execution-policy change, bypass, Python package, or
 production service is required. If organizational policy blocks scripts, the
@@ -42,7 +51,9 @@ but does **not** certify standard-user desktop execution; the log says so.
 - A GUID-named temporary directory contains spaces, an ownership marker, and all
   staged files. There is no use of the installer's default `C:\downloads` target.
 - Only deployment placeholders and the two task-name literals are replaced in
-  the installer template. All installer and generated runner logic stays intact.
+  the successful installer template. For runtime corruption only, the pinned
+  official URL is replaced with a loopback URL serving genuinely corrupted ZIP
+  bytes; the expected hash and all installer logic remain unchanged.
   Unique task names prevent production tasks from being stopped or overwritten.
 - A loopback-only HTTP server serves the seven packaged worker modules and the
   guide through an explicit allowlist. `client.py` is an
@@ -51,6 +62,26 @@ but does **not** certify standard-user desktop execution; the log says so.
   at most 120 seconds or exits with a controlled native code.
 - Hash mismatch is tested before a valid install. Valid downloaded files must
   match all pinned SHA-256 values; tampered bytes must not be promoted or run.
+- Private mode downloads the pinned official CPython embeddable ZIP over HTTPS,
+  independently verifies its SHA-256, corrupts a byte and checks rejection
+  before extraction, task registration or worker execution. Rejected ZIP bytes
+  must be removed; existing archive bytes must survive. The successful installer
+  then downloads directly from the unchanged python.org URL.
+- The actual private interpreter must be CPython 3.13.17 in isolated mode, create
+  an SSL context, execute an in-memory SQLite query, call a Windows API through
+  ctypes, and import the real local launcher/viewer/acquisition/retention modules.
+  The probe loads an unchanged copy of the real client as a library in its own
+  process, since viewer/retention import client helpers; scheduled workers keep
+  the inert replacement. The probe never changes sys.path or the runtime's
+  isolation file and forbids socket connections, HTTP requests and subprocesses
+  through an audit hook. Imports do not invoke acquisition or start a server.
+  Scheduled fixture events
+  must report that same private executable; updater DPAPI and viewer isolation
+  still run through the real `launch.py`.
+- Repeat setup runs with Python still undiscoverable. All private-runtime file
+  hashes and creation/modification timestamps must remain unchanged, no runtime
+  download may occur, and both complete and partial archive sentinel files must
+  survive. Replacement scheduled workers must use that same interpreter.
 - Real Windows APIs check current-user DPAPI encryption/decryption, restricted
   directory and inherited file ACLs, limited interactive task principals,
   registration, start, stop, rerun while running, and native result propagation
@@ -68,10 +99,15 @@ but does **not** certify standard-user desktop execution; the log says so.
   privilege are compared before and after. Hosted-VM disposal is the final
   containment if a process is killed before cleanup can run.
 
-Each group prints a `PASS` line; failures throw and fail the job. There is no
+Each group prints a `PASS` line; failures throw and fail the job. Keep the run URL
+and exact tested commit with release evidence. There is no
 skip-on-missing-Windows-API path and no `continue-on-error`. Logs do not print
 decrypted values. No secrets or repository write permissions are used.
 
 Linux checks can verify the Python fixtures and existing unit tests, but **cannot
 prove DPAPI, ACL or Task Scheduler behavior**. Only a completed Windows job is
 that evidence. These files add that gate; a local Linux pass is not a Windows pass.
+
+Passing these checks proves an **isolated test installation**, not a user's
+archive reporting live, global data coverage, or standard-user desktop behavior
+on a host whose token was already an unfiltered administrator.

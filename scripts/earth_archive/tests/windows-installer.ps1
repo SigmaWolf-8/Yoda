@@ -231,6 +231,7 @@ try {
         Assert ((Get-Content -Raw -LiteralPath $InstallLog).Contains('Downloading the private Python runtime from python.org')) 'Fresh setup skipped bootstrap'
         Assert (-not (Test-Path -LiteralPath (Join-Path $Private 'python-runtime.download.zip'))) 'Runtime ZIP remains after success'
         Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'runtime_probe.py') -Destination $Private
+        Copy-Item -LiteralPath (Join-Path $Source 'client.py') -Destination (Join-Path $Private '_real_client_probe.py')
         & $Config.python (Join-Path $Private 'runtime_probe.py')
         Assert ($LASTEXITCODE -eq 0) 'Private SSL/SQLite/ctypes/local-module capability probe failed'
         $RuntimeBefore = Runtime-Fingerprint
