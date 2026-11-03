@@ -70,7 +70,7 @@ if (-not $Python -or $ProbeExit -ne 0) {
         Remove-Item -LiteralPath $RuntimeZip -Force
     }
 }
-& $Python -c 'import sys, ssl, sqlite3; sys.exit(0 if sys.version_info >= (3,11) else 1)'
+& $Python -c 'import sys, ssl, sqlite3, ctypes; sys.exit(0 if sys.version_info >= (3,11) else 1)'
 if ($LASTEXITCODE -ne 0) { throw 'Python could not start. Setup has not stopped your existing archive.' }
 # Validate every worker file BEFORE stopping an existing installation.
 $Stage = Join-Path $Private ('setup-stage-' + [guid]::NewGuid().ToString('N'))

@@ -24,6 +24,8 @@ control = json.loads((root.parent / "control.json").read_text(encoding="utf-8-si
 token = os.environ.get("YODA_ARCHIVE_REPORT_TOKEN")
 record = {
     "pid": os.getpid(),
+    "executable": sys.executable,
+    "isolated": sys.flags.isolated,
     "serve": args.serve,
     "verify": args.verify,
     "target": args.target,

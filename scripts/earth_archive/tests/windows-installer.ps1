@@ -1,8 +1,17 @@
 # Real Windows APIs, no Pester/module installation, elevation or policy bypass.
 # Run only in a disposable Windows CI VM. All deletions are restricted to this
 # invocation's GUID directory and tasks whose actions point into that directory.
+param([ValidateSet('System','Private','Both')][string]$RuntimeMode = 'Both')
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
+if ($RuntimeMode -eq 'Both') {
+    foreach ($Mode in @('System','Private')) {
+        & (Join-Path $PSHOME 'powershell.exe') -NoProfile -NonInteractive -File $PSCommandPath -RuntimeMode $Mode
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+    }
+    exit 0
+}
+Write-Host "Testing runtime mode: $RuntimeMode"
 
 function Assert($Condition, [string]$Message) {
     if (-not $Condition) { throw $Message }
@@ -38,9 +47,26 @@ function Stop-OwnedTasks {
         }
     }
 }
-function Invoke-Installer([string]$Destination) {
-    & $PowerShell -NoProfile -NonInteractive -File $Installer -Target $Destination
-    Assert ($LASTEXITCODE -eq 0) "Installer failed with exit $LASTEXITCODE"
+function Invoke-SetupProcess([string]$Script, [string]$Destination, [string]$Log) {
+    try {
+        # PS5.1 wraps native stderr as ErrorRecords. Check the native exit code.
+        $ErrorActionPreference = 'Continue'
+        & $PowerShell -NoProfile -NonInteractive -File (Join-Path $PSScriptRoot 'installer_child.ps1') -Installer $Script -Target $Destination -RuntimeMode $RuntimeMode *> $Log
+        $Code = $LASTEXITCODE
+    } finally { $ErrorActionPreference = 'Stop' }
+    Get-Content -LiteralPath $Log | ForEach-Object { Write-Host $_ }
+    if ($RuntimeMode -eq 'Private') {
+        Assert ((Get-Content -Raw -LiteralPath $Log).Contains('PASS: installer child cannot discover python or py')) 'Missing child discovery evidence'
+    }
+    return $Code
+}
+function Invoke-Installer([string]$Destination, [string]$Log) {
+    $Code = Invoke-SetupProcess $Installer $Destination $Log
+    Assert ($Code -eq 0) "Installer failed with exit $Code"
+}
+function Runtime-Fingerprint {
+    @(Get-ChildItem -LiteralPath $Runtime -File -Recurse | Sort-Object FullName |
+        ForEach-Object { "$($_.FullName)|$($_.CreationTimeUtc.Ticks)|$($_.LastWriteTimeUtc.Ticks)|$((Get-FileHash -LiteralPath $_.FullName).Hash)" }) -join "`n"
 }
 function Assert-SafeScript([string]$Text) {
     Assert ($Text -notmatch '(?i)Set-ExecutionPolicy|-ExecutionPolicy|-Verb\s+RunAs|#requires\s+-RunAsAdministrator') 'Policy bypass or elevation found'
@@ -94,6 +120,7 @@ $Root = Join-Path ([System.IO.Path]::GetTempPath()) "earth installer fixture $Id
 $Target = Join-Path $Root 'archive target with spaces'
 $Rejected = Join-Path $Root 'rejected target with spaces'
 $Private = Join-Path $Target '.yoda-earth'
+$Runtime = Join-Path $Private 'runtime-3.13.17'
 $Runner = Join-Path $Private 'run-earth.ps1'
 $Installer = Join-Path $Root 'install fixture.ps1'
 $TaskNames = @("YodaEarthCI_${Id}_Update", "YodaEarthCI_${Id}_Viewer")
@@ -107,6 +134,14 @@ try {
     }
     New-Item -ItemType Directory -Path $Root | Out-Null
     Set-Content -LiteralPath (Join-Path $Root 'EARTH_INSTALLER_TEST_ONLY') -Value $Id
+    New-Item -ItemType Directory -Path $Target, $Rejected | Out-Null
+    $Sentinel = Join-Path $Target 'keep existing data.part'
+    $Complete = Join-Path $Target 'keep existing archive.bin'
+    $RejectedSentinel = Join-Path $Rejected 'keep existing data.part'
+    foreach ($File in @($Sentinel,$Complete,$RejectedSentinel)) {
+        Set-Content -LiteralPath $File -Value 'existing archive bytes; never replace'
+    }
+    $Before = (Get-FileHash -LiteralPath $Sentinel).Hash
     New-Item -ItemType Directory -Path (Join-Path $Root 'served'), (Join-Path $Root 'events') | Out-Null
     Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'fixture_worker.py') -Destination (Join-Path $Root 'served\client.py')
     foreach ($Name in @('acquire.py','viewer.py','retention.py','retention_ui.py','retention_store.py','launch.py','GUIDE.txt')) {
@@ -138,15 +173,42 @@ try {
     $Rendered | Set-Content -Encoding UTF8 -LiteralPath $Installer
     Set-Control $true 0
 
+    if ($RuntimeMode -eq 'Private') {
+        # Get the actual pinned ZIP over HTTPS, then corrupt its bytes. Only the
+        # URL changes in the negative case; neither hash nor download API is mocked.
+        $RuntimeUrl = [regex]::Match($Template, "https://www\.python\.org/ftp/python/[^']+").Value
+        $RuntimeHash = [regex]::Match($Template, "RuntimeZip\)\.Hash\.ToLowerInvariant\(\) -ne '([a-f0-9]{64})'").Groups[1].Value
+        Assert ($RuntimeUrl -and $RuntimeHash.Length -eq 64) 'Cannot identify the official runtime pin'
+        $CorruptZip = Join-Path $Root 'served\corrupt-runtime.zip'
+        Invoke-WebRequest -UseBasicParsing -Uri $RuntimeUrl -OutFile $CorruptZip
+        Assert ((Get-FileHash -Algorithm SHA256 -LiteralPath $CorruptZip).Hash.ToLowerInvariant() -eq $RuntimeHash) 'Official CPython ZIP does not match installer pin'
+        Write-Host "PASS: official runtime SHA-256 $RuntimeHash ($RuntimeUrl)"
+        $Bytes = [System.IO.File]::ReadAllBytes($CorruptZip)
+        $Bytes[0] = $Bytes[0] -bxor 255
+        [System.IO.File]::WriteAllBytes($CorruptZip, $Bytes)
+        Assert ((Get-FileHash -Algorithm SHA256 -LiteralPath $CorruptZip).Hash.ToLowerInvariant() -ne $RuntimeHash) 'Corruption did not change the hash'
+        $CorruptInstaller = Join-Path $Root 'corrupt runtime installer.ps1'
+        $Rendered.Replace($RuntimeUrl, "$Base/api/earth-archive/files/corrupt-runtime.zip") |
+            Set-Content -Encoding UTF8 -LiteralPath $CorruptInstaller
+        $CorruptLog = Join-Path $Root 'corrupt-runtime.log'
+        $Code = Invoke-SetupProcess $CorruptInstaller $Rejected $CorruptLog
+        Assert ($Code -ne 0) 'Corrupt runtime was accepted'
+        Assert ((Get-Content -Raw -LiteralPath $CorruptLog).Contains('Python runtime integrity check failed')) 'Failure was not runtime SHA-256 rejection'
+        $RejectedPrivate = Join-Path $Rejected '.yoda-earth'
+        Assert (@(Get-ChildItem -LiteralPath $RejectedPrivate -Force).Count -eq 0) 'Integrity failure left runtime, staging bytes, credentials or runner'
+        Assert ((Get-FileHash -LiteralPath $RejectedSentinel).Hash -eq $Before) 'Integrity failure modified archive data'
+        foreach ($Name in $TaskNames) {
+            Assert (-not (Get-ScheduledTask -TaskPath '\' -TaskName $Name -ErrorAction SilentlyContinue)) 'Runtime integrity failure registered a task'
+        }
+        Assert (@(Read-Events).Count -eq 0) 'Runtime integrity failure executed a worker'
+        Write-Host 'PASS: real corrupt ZIP rejected before extraction or execution; archive data preserved'
+    }
+
     # Mismatch must fail before credentials/runner/tasks are created or executed.
     Add-Content -LiteralPath (Join-Path $Root 'served\client.py') -Value '# tampered fixture'
     # PS5.1 wraps native stderr in ErrorRecords when redirected. This failure
     # is expected; inspect its native exit code rather than terminating here.
-    try {
-        $ErrorActionPreference = 'Continue'
-        & $PowerShell -NoProfile -NonInteractive -File $Installer -Target $Rejected *> (Join-Path $Root 'rejected.log')
-        $RejectedExit = $LASTEXITCODE
-    } finally { $ErrorActionPreference = 'Stop' }
+    $RejectedExit = Invoke-SetupProcess $Installer $Rejected (Join-Path $Root 'rejected.log')
     Assert ($RejectedExit -ne 0) 'Tampered source was accepted'
     Assert ((Get-Content -Raw -LiteralPath (Join-Path $Root 'rejected.log')) -match 'SHA-256 mismatch') 'Failure was not hash pinning'
     Assert (-not (Test-Path -LiteralPath (Join-Path $Rejected '.yoda-earth\client.py'))) 'Tampered source was promoted'
@@ -158,7 +220,22 @@ try {
     Assert (@(Read-Events).Count -eq 0) 'Hash failure executed a payload'
     Copy-Item -Force -LiteralPath (Join-Path $PSScriptRoot 'fixture_worker.py') -Destination (Join-Path $Root 'served\client.py')
 
-    Invoke-Installer $Target
+    $InstallLog = Join-Path $Root 'install.log'
+    Invoke-Installer $Target $InstallLog
+    foreach ($File in @($Sentinel,$Complete)) {
+        Assert ((Get-FileHash -LiteralPath $File).Hash -eq $Before) 'Initial bootstrap modified existing archive data'
+    }
+    $Config = Get-Content -Raw -LiteralPath (Join-Path $Private 'config.json') | ConvertFrom-Json
+    if ($RuntimeMode -eq 'Private') {
+        Assert ($Config.python -eq (Join-Path $Runtime 'python.exe')) 'Setup did not select its private interpreter'
+        Assert ((Get-Content -Raw -LiteralPath $InstallLog).Contains('Downloading the private Python runtime from python.org')) 'Fresh setup skipped bootstrap'
+        Assert (-not (Test-Path -LiteralPath (Join-Path $Private 'python-runtime.download.zip'))) 'Runtime ZIP remains after success'
+        Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'runtime_probe.py') -Destination $Private
+        & $Config.python (Join-Path $Private 'runtime_probe.py')
+        Assert ($LASTEXITCODE -eq 0) 'Private SSL/SQLite/ctypes/local-module capability probe failed'
+        $RuntimeBefore = Runtime-Fingerprint
+        Write-Host 'PASS: private interpreter executes SSL, SQLite, ctypes and local-module imports'
+    }
     Wait-For { @(Read-Events).Count -eq 2 } 'both scheduled fixture workers to start'
     $FirstEvents = @(Read-Events)
     Assert (@($FirstEvents | Where-Object serve).Count -eq 1) 'Viewer did not run'
@@ -166,6 +243,8 @@ try {
     foreach ($Event in $FirstEvents) {
         Assert ($Event.target -eq $Target) 'Spaced target was not passed intact'
         Assert $Event.token_ok 'Runner DPAPI/token isolation failed'
+        Assert ($Event.executable -eq $Config.python) 'Scheduled worker used the wrong interpreter'
+        if ($RuntimeMode -eq 'Private') { Assert ($Event.isolated -eq 1) 'Private worker lost embedded isolation' }
         Assert ((-not $Event.elevated) -or $UnfilteredAdminBefore) 'Scheduled worker gained administrator privilege despite an available restricted token'
     }
     foreach ($Name in $TaskNames) {
@@ -212,19 +291,28 @@ try {
         }
     }
     Assert-SafeScript (Get-Content -Raw -LiteralPath $Runner)
-    & $Python (Join-Path $PSScriptRoot 'check_bom_config.py') $Target
+    & $Config.python (Join-Path $PSScriptRoot 'check_bom_config.py') $Target
     Assert ($LASTEXITCODE -eq 0) 'Real client failed the UTF-8 BOM configuration check'
     Write-Host 'PASS: hash pins, spaced paths, BOM, DPAPI, ACLs and limited scheduled start'
 
     # Rerun while both jobs are live; user data and partial transfers must survive.
-    $Sentinel = Join-Path $Target 'keep existing data.part'
-    Set-Content -LiteralPath $Sentinel -Value 'fixture partial data'
-    $Before = (Get-FileHash -LiteralPath $Sentinel).Hash
-    Invoke-Installer $Target
+    $ReuseLog = Join-Path $Root 'reuse.log'
+    Invoke-Installer $Target $ReuseLog
+    if ($RuntimeMode -eq 'Private') {
+        Assert ((Runtime-Fingerprint) -ceq $RuntimeBefore) 'Repeat setup replaced or modified the private runtime'
+        Assert (-not (Get-Content -Raw -LiteralPath $ReuseLog).Contains('Downloading the private Python runtime')) 'Repeat setup downloaded Python again'
+        $ReuseConfig = Get-Content -Raw -LiteralPath (Join-Path $Private 'config.json') | ConvertFrom-Json
+        Assert ($ReuseConfig.python -eq $Config.python) 'Repeat setup changed interpreters'
+        Assert ((Get-FileHash -LiteralPath $Complete).Hash -eq $Before) 'Repeat setup modified complete archive data'
+        Write-Host 'PASS: repeat setup reuses unchanged private runtime without downloading; complete and partial archive files preserved'
+    }
     Wait-For { @(Read-Events).Count -eq 4 } 'rerun workers'
     Wait-For {
         @($FirstEvents | Where-Object { Get-Process -Id $_.pid -ErrorAction SilentlyContinue }).Count -eq 0
     } 'old worker processes to stop on rerun'
+    foreach ($Event in @(Read-Events)) {
+        Assert ($Event.executable -eq $Config.python) 'Repeat scheduled worker changed interpreters'
+    }
     Assert ((Get-FileHash -LiteralPath $Sentinel).Hash -eq $Before) 'Rerun modified existing data'
     foreach ($Name in $TaskNames) {
         Assert (@(Get-ScheduledTask -TaskPath '\' -TaskName $Name).Count -eq 1) 'Rerun duplicated a task'
